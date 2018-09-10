@@ -44,6 +44,16 @@ TYPENAME_FUNC(float);
 TYPENAME_FUNC(double);
 TYPENAME_FUNC(bool);
 
+template <>
+std::string TypesTest<std::vector<uint8>>::TypeName() {
+  return "list of uint8";
+}
+
+template <>
+std::string TypesTest<std::array<std::vector<uint8>, 10>>::TypeName() {
+  return "list of list of uint8";
+}
+
 typedef ::testing::Types<uint8,
                          int16,
                          int32,
@@ -51,7 +61,10 @@ typedef ::testing::Types<uint8,
                          float16,
                          float,
                          double,
-                         bool> TestTypes;
+                         bool,
+                         std::vector<uint8>,
+                         std::array<std::vector<uint8>, 10>
+                         > TestTypes;
 
 TYPED_TEST_CASE(TypesTest, TestTypes);
 
