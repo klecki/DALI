@@ -22,9 +22,12 @@ namespace dali {
 
 class SequenceParser : public Parser<TensorSequence> {
  public:
-  explicit SequenceParser(const OpSpec& spec) : Parser<TensorSequence>(spec) {}
+  explicit SequenceParser(const OpSpec& spec) : Parser<TensorSequence>(spec),
+    output_type_(spec.GetArgument<DALIImageType>("output_type")) {}
 
   void Parse(const TensorSequence& data, SampleWorkspace* ws) override;
+ private:
+  DALIImageType output_type_;
 };
 
 }  // namespace dali

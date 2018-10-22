@@ -13,32 +13,47 @@
 // limitations under the License.
 
 #include "dali/pipeline/operators/reader/parser/sequence_parser.h"
+#include "dali/image/image_factory.h"
 
 namespace dali {
 
 void SequenceParser::Parse(const TensorSequence& data, SampleWorkspace* ws) {
   auto* sequence = ws->Output<CPUBackend>(0);
-  auto* metadata = ws->Output<CPUBackend>(1);
+  Index seq_length = data.tensors.size();
 
-  metadata->Resize({static_cast<Index>(data.tensors.size() + 1)});
-  auto* metadata_ptr = metadata->mutable_data<Index>();
+  // Decode first frame
+  {
+    auto img = ImageFactory::CreateImage(data.tensors[0].data<uint8_t>(), data.tensors[0].size(), output_type_);
+    img->Decode();
+    const auto decoded = img->GetImage();
 
-  metadata_ptr[0] = data.tensors.size();
+    const auto hwc = img->GetImageDims();
+    const Index h = std::get<0>(hwc);
+    const Index w = std::get<1>(hwc);
+    const Index c = std::get<2>(hwc);
+    const auto frame_size = h * w * c;
 
-  Index total_size = 0;
+    // Calculate shape of sequence tensor, that is Frames x (Frame Shape)
+    auto seq_shape = std::vector<Index>{seq_length, h, w, c};
+    sequence->Resize(seq_shape);
+    sequence->set_type(TypeInfo::Create<uint8_t>());
+    // Take a view tensor for first frame and
+    auto view_0 = sequence->SubspaceTensor(0);
+    std::memcpy(view_0.raw_mutable_data(), decoded.get(), frame_size);
+  }
+  
 
-  for (const auto& t : data.tensors) {
-    total_size += t.size();
+  // Rest of frames
+  for (size_t frame = 1; frame < seq_length; frame++) {
+    auto view_tensor = sequence->SubspaceTensor(frame);
+    auto img = ImageFactory::CreateImage(data.tensors[frame].data<uint8_t>(), data.tensors[frame].size(), output_type_);
+    img->Decode();
+    img->GetImage(view_tensor.mutable_data<uint8_t>());
+    DALI_ENFORCE(view_tensor.shares_data(),
+                  "Buffer view was invalidated after image decoding, frames do not match in "
+                  "dimensions");
   }
 
-  sequence->Resize({total_size});
-  auto* sequence_ptr = sequence->mutable_data<uint8_t>();
-
-  for (size_t i = 0; i < data.tensors.size(); i++) {
-    std::memcpy(sequence_ptr, data.tensors[i].raw_data(), data.tensors[i].size());
-    sequence_ptr += data.tensors[i].size();
-    metadata_ptr[i + 1] = data.tensors[i].size();
-  }
 }
 
 }  // namespace dali

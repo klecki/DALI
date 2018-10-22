@@ -21,9 +21,9 @@ namespace dali {
 void SequenceReader::RunImpl(SampleWorkspace* ws, const int i) {
   const int idx = ws->data_idx();
 
-  auto* frame_sequence = prefetched_batch_[idx];
+  auto* sequence = prefetched_batch_[idx];
 
-  parser_->Parse(*frame_sequence, ws);
+  parser_->Parse(*sequence, ws);
 }
 
 DALI_REGISTER_OPERATOR(SequenceReader, SequenceReader, CPU);
@@ -33,7 +33,7 @@ DALI_SCHEMA(SequenceReader)
         "Read [Frame] sequences from a directory representing collection of "
         "streams")
     .NumInput(0)
-    .NumOutput(2)  // ([Frames], FrameInfo)
+    .NumOutput(1)  // ([Frames])
     .AddArg("file_root",
             R"code(Path to a directory containing streams (directories representing streams).)code",
             DALI_STRING)
