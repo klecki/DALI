@@ -25,6 +25,11 @@
 
 namespace dali {
 
+/**
+ * @brief Crop parameter and input size handling.
+ *
+ * Responsible for accessing image type, starting points and size of crop area.
+ */
 class CropAttr {
  protected:
   explicit inline CropAttr(const OpSpec &spec)
@@ -48,33 +53,28 @@ class CropAttr {
     }
   }
 
+  /**
+   * @brief Calculate coordinate where the crop starts in pixels.
+   *
+   * TODO(klecki) this should produce (crop_[0] * W, crop_[1] * H) and is broken, (FIXME)
+   *
+   * @param spec
+   * @param ws
+   * @param imgIdx
+   * @param H
+   * @param W
+   * @return std::pair<int, int>
+   */
   std::pair<int, int> SetCropXY(const OpSpec &spec, const ArgumentWorkspace *ws,
-                                const Index dataIdx, int H, int W) {
-    DALI_ENFORCE(H >= crop_height_[dataIdx]);
-    DALI_ENFORCE(W >= crop_width_[dataIdx]);
+                                const Index dataIdx, int H, int W);
 
-    auto crop_x_norm = spec.GetArgument<float>("crop_pos_x", ws, dataIdx);
-    auto crop_y_norm = spec.GetArgument<float>("crop_pos_y", ws, dataIdx);
-
-    DALI_ENFORCE(crop_y_norm >= 0.f && crop_y_norm <= 1.f,
-                 "Crop coordinates need to be in range [0.0, 1.0]");
-    DALI_ENFORCE(crop_x_norm >= 0.f && crop_x_norm <= 1.f,
-                 "Crop coordinates need to be in range [0.0, 1.0]");
-
-    const int crop_y = crop_y_norm * (H - crop_height_[dataIdx]);
-    const int crop_x = crop_x_norm * (W - crop_width_[dataIdx]);
-
-    return std::make_pair(crop_y, crop_x);
-  }
-
-  const vector<Index> CheckShapes(const SampleWorkspace *ws) {
-    const auto &input = ws->Input<CPUBackend>(0);
-
-    DALI_ENFORCE(input.shape().size() == 3,
-                 "Expects 3-dimensional image input.");
-
-    return input.shape();
-  }
+  /**
+   * @brief Enforce that all shapes match
+   *
+   * @param ws
+   * @return const vector<Index> One matching shape for all inputs
+   */
+  const vector<Index> CheckShapes(const SampleWorkspace *ws);
 
   vector<int> crop_height_;
   vector<int> crop_width_;
@@ -102,8 +102,8 @@ class Crop : public Operator<Backend>, protected CropAttr {
 
   void SetupSharedSampleParams(Workspace<Backend> *ws) override;
 
-  inline Dims GetOutShape(DALITensorLayout inputLayout,
-                          DALITensorLayout *pOutLayout, int dataIdx) {
+  // TODO(klecki) do not mix returning by pointer and return type
+  inline Dims GetOutShape(DALITensorLayout inputLayout, DALITensorLayout *pOutLayout, int dataIdx) {
     *pOutLayout = output_layout_ == DALI_SAME ? inputLayout : output_layout_;
     if (*pOutLayout == DALI_NCHW)
       return {C_, crop_height_[dataIdx], crop_width_[dataIdx]};
