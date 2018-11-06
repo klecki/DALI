@@ -45,45 +45,7 @@ class HostDecoder : public Operator<CPUBackend> {
     DALI_ENFORCE(input.ndim() == 1, "Input must be 1D encoded jpeg string.");
     DALI_ENFORCE(IsType<uint8>(input.type()), "Input must be stored as uint8 data.");
 
-    if (!decode_sequences_) {
-      DALI_ENFORCE(ws->NumInput() == 1, "When decoding singular images one input is expected");
-      DecodeSingle(input.data<uint8_t>(), input.size(), output);
-    } else {
-      DALI_ENFORCE(ws->NumInput() == 2, "When decoding sequences two inputs are expected");
-      const auto &metadata = ws->Input<CPUBackend>(1);
-      DALI_ENFORCE(metadata.ndim() == 1, "Metadata must be 1D encoded offsets.");
-      DALI_ENFORCE(IsType<Index>(metadata.type()) == 1, "Metadata must be stored as int64 data.");
-      const auto *metadata_ptr = metadata.data<Index>();
-      const auto *input_ptr = input.data<uint8_t>();
-      Index frame_count = metadata_ptr[0];
-      for (Index frame = 0; frame < frame_count; frame++) {
-        auto frame_size = metadata_ptr[frame + 1];
-        if (frame == 0) {
-          // First frame to check sizes
-          Tensor<CPUBackend> tmp;
-          DecodeSingle(input_ptr, frame_size, &tmp);
-
-          // Calculate shape of sequence tensor, that is Frames x (Frame Shape)
-          auto frames_x_shape = std::vector<Index>();
-          frames_x_shape.push_back(frame_count);
-          auto frame_shape = tmp.shape();
-          frames_x_shape.insert(frames_x_shape.end(), frame_shape.begin(), frame_shape.end());
-          output->Resize(frames_x_shape);
-          output->set_type(TypeInfo::Create<uint8_t>());
-          // Take a view tensor for first frame and
-          auto view_0 = output->SubspaceTensor(frame);
-          std::memcpy(view_0.raw_mutable_data(), tmp.raw_data(), tmp.size());
-        } else {
-          // Rest of frames
-          auto view_tensor = output->SubspaceTensor(frame);
-          DecodeSingle(input_ptr, frame_size, &view_tensor);
-          DALI_ENFORCE(view_tensor.shares_data(),
-                       "Buffer view was invalidated after image decoding, frames do not match in "
-                       "dimensions");
-        }
-        input_ptr += frame_size;
-      }
-    }
+    DecodeSingle(input.data<uint8_t>(), input.size(), output);
   }
 
   /**

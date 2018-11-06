@@ -12,17 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef DALI_PIPELINE_OPERATORS_READER_SEQUENCE_READER_OP_H_
-#define DALI_PIPELINE_OPERATORS_READER_SEQUENCE_READER_OP_H_
+#ifndef DALI_PIPELINE_OPERATORS_SEQUENCE_SEQUENCE_PROVIDER_H_
+#define DALI_PIPELINE_OPERATORS_SEQUENCE_SEQUENCE_PROVIDER_H_
 
+#include "dali/common.h"
+#include "dali/error_handling.h"
+#include "dali/pipeline/operators/decoder/host_decoder.h"
 #include "dali/pipeline/operators/reader/loader/sequence_loader.h"
 #include "dali/pipeline/operators/reader/reader_op.h"
 
 namespace dali {
 
-class SequenceReader : public DataReader<CPUBackend, TensorSequence> {
+class SequenceProvider : public DataReader<CPUBackend, TensorSequence>, HostDecoder {
  public:
-  explicit SequenceReader(const OpSpec& spec) : DataReader<CPUBackend, TensorSequence>(spec) {
+  explicit SequenceProvider(const OpSpec& spec)
+      : DataReader<CPUBackend, TensorSequence>(spec), HostDecoder(spec) {
     loader_.reset(new SequenceLoader(spec));
   }
 
@@ -34,4 +38,4 @@ class SequenceReader : public DataReader<CPUBackend, TensorSequence> {
 
 }  // namespace dali
 
-#endif  // DALI_PIPELINE_OPERATORS_READER_SEQUENCE_READER_OP_H_
+#endif  // DALI_PIPELINE_OPERATORS_SEQUENCE_SEQUENCE_PROVIDER_H_
