@@ -17,46 +17,37 @@
 
 #include <opencv2/opencv.hpp>
 #include <tuple>
-#include <vector>
-
 #include "dali/common.h"
 #include "dali/error_handling.h"
-#include "dali/image/image_factory.h"
 #include "dali/pipeline/operators/operator.h"
+#include "dali/image/image_factory.h"
+
 
 namespace dali {
 
 class HostDecoder : public Operator<CPUBackend> {
  public:
-  explicit inline HostDecoder(const OpSpec &spec)
-      : Operator<CPUBackend>(spec),
-        output_type_(spec.GetArgument<DALIImageType>("output_type")),
-        c_(IsColor(output_type_) ? 3 : 1),
-        decode_sequences_(spec.GetArgument<bool>("decode_sequences")) {}
+  explicit inline HostDecoder(const OpSpec &spec) :
+          Operator<CPUBackend>(spec),
+          output_type_(spec.GetArgument<DALIImageType>("output_type")),
+          c_(IsColor(output_type_) ? 3 : 1) {}
+
 
   virtual inline ~HostDecoder() = default;
   DISABLE_COPY_MOVE_ASSIGN(HostDecoder);
 
  protected:
   void RunImpl(SampleWorkspace *ws, const int idx) override {
-    const auto &input = ws->Input<CPUBackend>(0);
-    auto *output = ws->Output<CPUBackend>(0);
+    auto &input = ws->Input<CPUBackend>(idx);
+    auto output = ws->Output<CPUBackend>(idx);
+
     // Verify input
-    DALI_ENFORCE(input.ndim() == 1, "Input must be 1D encoded jpeg string.");
-    DALI_ENFORCE(IsType<uint8>(input.type()), "Input must be stored as uint8 data.");
+    DALI_ENFORCE(input.ndim() == 1,
+                 "Input must be 1D encoded jpeg string.");
+    DALI_ENFORCE(IsType<uint8>(input.type()),
+                 "Input must be stored as uint8 data.");
 
-    DecodeSingle(input.data<uint8_t>(), input.size(), output);
-  }
-
-  /**
-   * @brief Decode single stream of bytes into 3-dimensional tensor of shape HWC representing image
-   *
-   * @param data input data stream
-   * @param size size of input data
-   * @param output decoded image
-   */
-  void DecodeSingle(const uint8_t *data, size_t size, Tensor<CPUBackend> *output) {
-    auto img = ImageFactory::CreateImage(data, size, output_type_);
+    auto img = ImageFactory::CreateImage(input.data<uint8>(), input.size(), output_type_);
     img->Decode();
     const auto decoded = img->GetImage();
     const auto hwc = img->GetImageDims();
@@ -65,13 +56,13 @@ class HostDecoder : public Operator<CPUBackend> {
     const auto c = std::get<2>(hwc);
 
     output->Resize({static_cast<int>(h), static_cast<int>(w), static_cast<int>(c)});
-    unsigned char *out_data = output->mutable_data<uint8_t>();
+    unsigned char *out_data = output->mutable_data<unsigned char>();
     std::memcpy(out_data, decoded.get(), h * w * c);
   }
 
+
   DALIImageType output_type_;
   int c_;
-  bool decode_sequences_;
 };
 
 }  // namespace dali

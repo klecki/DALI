@@ -16,6 +16,7 @@
 #define DALI_PIPELINE_OPERATORS_READER_SEQUENCE_READER_OP_H_
 
 #include "dali/pipeline/operators/reader/loader/sequence_loader.h"
+#include "dali/pipeline/operators/reader/parser/sequence_parser.h"
 #include "dali/pipeline/operators/reader/reader_op.h"
 
 namespace dali {
@@ -24,6 +25,7 @@ class SequenceReader : public DataReader<CPUBackend, TensorSequence> {
  public:
   explicit SequenceReader(const OpSpec& spec) : DataReader<CPUBackend, TensorSequence>(spec) {
     loader_.reset(new SequenceLoader(spec));
+    parser_.reset(new SequenceParser(spec));
   }
 
   void RunImpl(SampleWorkspace* ws, const int i) override;

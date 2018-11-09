@@ -120,6 +120,13 @@ TYPED_TEST(ReaderTest, SimpleTest) {
 }
 
 
+template <typename Backend>
+class WIPDecoderTest : public DALITest {
+ public:
+  void SetUp() override {}
+  void TearDown() override {}
+};
+
 TYPED_TEST(ReaderTest, SequenceTest) {
   Pipeline pipe(128, 1, 0);
 
@@ -127,10 +134,10 @@ TYPED_TEST(ReaderTest, SequenceTest) {
       OpSpec("SequenceReader")
       .AddArg("file_root", "/mnt/nvvl_data/data/540p/frames/train/")
       .AddArg("sequence_length", 3)
-      .AddOutput("seq_out", "cpu")
-      .AddOutput("meta_out", "cpu"));
+      .AddArg("output_type", DALI_RGB)
+      .AddOutput("seq_out", "cpu"));
 
-  std::vector<std::pair<string, string>> outputs = {{"seq_out", "cpu"}, {"meta_out", "cpu"}};
+  std::vector<std::pair<string, string>> outputs = {{"seq_out", "cpu"}};
   pipe.Build(outputs);
 
   DeviceWorkspace ws;
