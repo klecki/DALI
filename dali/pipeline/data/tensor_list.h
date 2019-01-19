@@ -137,7 +137,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    * list shares data with another list, 'shares_data()' will
    * return 'true'.
    */
-  DLL_PUBLIC inline void ShareData(TensorList<Backend> *other) {
+  DLL_PUBLIC inline void ShareData(const TensorList<Backend> *other) {
     DALI_ENFORCE(other != nullptr, "Input TensorList is nullptr");
     DALI_ENFORCE(IsValidType(other->type_), "To share data, "
         "the input TensorList must have a valid data type");

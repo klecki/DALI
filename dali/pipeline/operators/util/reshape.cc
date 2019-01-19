@@ -34,11 +34,12 @@ void Reshape<CPUBackend>::RunImpl(SampleWorkspace *ws, const int idx) {
   std::vector<Index> new_sample_shape = GetNewShapeForSample(ws);
   DALI_ENFORCE(Product(new_sample_shape) == Product(input.shape()),
                "New shape must represent exactly the same number of elements as old shape.");
-  output->set_type(input.type());
+  // output->set_type(input.type());
+  output->ShareData(&input);
   output->Resize(new_sample_shape);
 
-  TypeInfo type = input.type();
-  type.Copy<CPUBackend, CPUBackend>(output->raw_mutable_data(), input.raw_data(), input.size(), 0);
+  // TypeInfo type = input.type();
+  // type.Copy<CPUBackend, CPUBackend>(output->raw_mutable_data(), input.raw_data(), input.size(), 0);
 }
 
 DALI_REGISTER_OPERATOR(Reshape, Reshape<CPUBackend>, CPU);

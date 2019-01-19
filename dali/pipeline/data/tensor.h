@@ -169,7 +169,7 @@ class Tensor : public Buffer<Backend> {
    * If the input does not store any data, shares_data_ is left
    * as false.
    */
-  inline void ShareData(Tensor<Backend> *t) {
+  inline void ShareData(const Tensor<Backend> *t) {
     DALI_ENFORCE(t != nullptr, "Input Tensor is nullptr");
     DALI_ENFORCE(IsValidType(t->type()), "To share data, "
         "the input Tensor must have a valid data type.");

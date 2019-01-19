@@ -44,14 +44,15 @@ void Reshape<GPUBackend>::RunImpl(DeviceWorkspace *ws, const int idx) {
   auto &input = ws->Input<GPUBackend>(kInTensorIdx);
   auto *output = ws->Output<GPUBackend>(kOutTensorIdx);
   auto new_shapes = GetNewShapesForSamples(ws);
-  output->set_type(input.type());
-  output->Resize(new_shapes);
+  output->ShareData(&input);
+  //output->set_type(input.type());
   for (size_t i = 0; i < new_shapes.size(); i++) {
     DALI_ENFORCE(Product(new_shapes[i]) == Product(input.tensor_shape(i)),
                  "New shape must represent exactly the same number of elements as old shape.");
   }
-  CUDA_CALL(cudaMemcpyAsync(output->raw_mutable_data(), input.raw_data(), input.nbytes(),
-                            cudaMemcpyDeviceToDevice, ws->stream()));
+  output->Resize(new_shapes);
+  //CUDA_CALL(cudaMemcpyAsync(output->raw_mutable_data(), input.raw_data(), input.nbytes(),
+  //                          cudaMemcpyDeviceToDevice, ws->stream()));
 }
 
 DALI_REGISTER_OPERATOR(Reshape, Reshape<GPUBackend>, GPU);
