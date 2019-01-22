@@ -1,5 +1,7 @@
 # Contribution rules
 
+
+
 - While we have not yet documented a strict code style convention, please follow the existing conventions in the relevant file, submodule, module, and project when you add new code or when you extend/fix existing functionality. To ensure some degree of style consistency, use `make lint`. It applies [Google Style](https://google.github.io/styleguide/cppguide.html) rules to the following:
   - class, function/method, and variable/field naming
   - comment style
