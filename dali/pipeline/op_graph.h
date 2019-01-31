@@ -30,7 +30,7 @@
 
 namespace dali {
 
-typedef int64 NodeID;
+using NodeID = int64_t;
 
 struct OpNode {
   inline OpNode() {}
