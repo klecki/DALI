@@ -108,7 +108,7 @@ TEST_F(ExecutorTest, TestPruneBasicGraph) {
   ASSERT_EQ(graph.NumGPUOp(), 0);
 
   // Validate the source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -117,7 +117,7 @@ TEST_F(ExecutorTest, TestPruneBasicGraph) {
   ASSERT_EQ(graph.TensorIdxInSource(node.spec.Output(0)), 0);
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node.spec.Output(0)));
 
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 1);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -127,7 +127,7 @@ TEST_F(ExecutorTest, TestPruneBasicGraph) {
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node2.spec.Output(0)));
   ASSERT_EQ(node2.spec.Output(0), "data3_cpu");
 
-  auto& node3 = graph.node(2);
+  auto& node3 = graph.Node(2);
   ASSERT_EQ(node3.id, 2);
   ASSERT_EQ(node3.children.size(), 0);
   ASSERT_EQ(node3.parents.size(), 1);
@@ -179,7 +179,7 @@ TEST_F(ExecutorTest, TestPruneMultiple) {
   ASSERT_EQ(graph.NumGPUOp(), 0);
 
   // Validate the source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -190,7 +190,7 @@ TEST_F(ExecutorTest, TestPruneMultiple) {
   ASSERT_EQ(node.spec.Output(0), "data1_cpu");
   ASSERT_EQ(node.spec.Output(1), "data2_cpu");
 
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 0);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -242,7 +242,7 @@ TEST_F(ExecutorTest, TestPruneRecursive) {
   ASSERT_EQ(graph.NumGPUOp(), 0);
 
   // Validate the source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -252,7 +252,7 @@ TEST_F(ExecutorTest, TestPruneRecursive) {
   ASSERT_EQ(node.spec.NumOutput(), 1);
   ASSERT_EQ(node.spec.Output(0), "data1_cpu");
 
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 0);
   ASSERT_EQ(node2.parents.size(), 1);

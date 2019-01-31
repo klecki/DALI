@@ -52,7 +52,7 @@ TEST_F(OpGraphTest, TestCPUOnly) {
   ASSERT_EQ(graph.NumGPUOp(), 0);
 
   // Validate the source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -62,7 +62,7 @@ TEST_F(OpGraphTest, TestCPUOnly) {
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node.spec.Output(0)));
 
   // Validate copy op
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 0);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -98,7 +98,7 @@ TEST_F(OpGraphTest, TestGPUOnly) {
   ASSERT_EQ(graph.NumGPUOp(), 2);
 
   // Validate the source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -108,7 +108,7 @@ TEST_F(OpGraphTest, TestGPUOnly) {
   ASSERT_TRUE(graph.TensorIsType<GPUBackend>(node.spec.Output(0)));
 
   // Validate copy op
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 0);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -150,7 +150,7 @@ TEST_F(OpGraphTest, TestCPUToGPU) {
   ASSERT_EQ(graph.NumGPUOp(), 1);
 
   // Validate the source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -160,7 +160,7 @@ TEST_F(OpGraphTest, TestCPUToGPU) {
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node.spec.Output(0)));
 
   // Validate copy-to-dev op
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 1);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -177,7 +177,7 @@ TEST_F(OpGraphTest, TestCPUToGPU) {
   ASSERT_EQ(meta[0].storage_device, DALITensorDevice::CPU);
 
   // Validate copy op
-  auto& node3 = graph.node(2);
+  auto& node3 = graph.Node(2);
   ASSERT_EQ(node3.id, 2);
   ASSERT_EQ(node3.children.size(), 0);
   ASSERT_EQ(node3.parents.size(), 1);
@@ -224,7 +224,7 @@ TEST_F(OpGraphTest, TestGPUThenCPUTopological) {
   ASSERT_EQ(graph.NumGPUOp(), 2);
 
   // Validate the gpu source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 1);
   ASSERT_EQ(node.parents.size(), 0);
@@ -234,7 +234,7 @@ TEST_F(OpGraphTest, TestGPUThenCPUTopological) {
   ASSERT_TRUE(graph.TensorIsType<GPUBackend>(node.spec.Output(0)));
 
   // Validate gpu copy op
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 0);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -250,7 +250,7 @@ TEST_F(OpGraphTest, TestGPUThenCPUTopological) {
   ASSERT_EQ(meta[0].storage_device, DALITensorDevice::GPU);
 
   // Validate cpu source op
-  auto& node3 = graph.node(2);
+  auto& node3 = graph.Node(2);
   ASSERT_EQ(node3.id, 2);
   ASSERT_EQ(node3.children.size(), 1);
   ASSERT_EQ(node3.parents.size(), 0);
@@ -260,7 +260,7 @@ TEST_F(OpGraphTest, TestGPUThenCPUTopological) {
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node3.spec.Output(0)));
 
   // Validate cpu copy op
-  auto& node4 = graph.node(3);
+  auto& node4 = graph.Node(3);
   ASSERT_EQ(node4.id, 3);
   ASSERT_EQ(node4.children.size(), 0);
   ASSERT_EQ(node4.parents.size(), 1);
@@ -307,7 +307,7 @@ TEST_F(OpGraphTest, TestOpRemoval) {
   ASSERT_EQ(graph.NumGPUOp(), 0);
 
   // Validate the dummy source op
-  auto& node = graph.node(0);
+  auto& node = graph.Node(0);
   ASSERT_EQ(node.id, 0);
   ASSERT_EQ(node.children.size(), 2);
   ASSERT_EQ(node.parents.size(), 0);
@@ -318,7 +318,7 @@ TEST_F(OpGraphTest, TestOpRemoval) {
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node.spec.Output(0)));
 
   // Validate dummy op 1
-  auto& node2 = graph.node(1);
+  auto& node2 = graph.Node(1);
   ASSERT_EQ(node2.id, 1);
   ASSERT_EQ(node2.children.size(), 0);
   ASSERT_EQ(node2.parents.size(), 1);
@@ -334,7 +334,7 @@ TEST_F(OpGraphTest, TestOpRemoval) {
   ASSERT_EQ(meta[0].storage_device, DALITensorDevice::CPU);
 
   // Validate dummy op 2
-  auto& node3 = graph.node(2);
+  auto& node3 = graph.Node(2);
   ASSERT_EQ(node3.id, 2);
   ASSERT_EQ(node3.children.size(), 0);
   ASSERT_EQ(node3.parents.size(), 1);
@@ -362,7 +362,7 @@ TEST_F(OpGraphTest, TestOpRemoval) {
   ASSERT_EQ(graph.NumGPUOp(), 0);
 
   // Validate the source op
-  auto& node4 = graph.node(0);
+  auto& node4 = graph.Node(0);
   ASSERT_EQ(node4.id, 0);
   ASSERT_EQ(node4.children.size(), 1);
   ASSERT_EQ(node4.parents.size(), 0);
@@ -372,7 +372,7 @@ TEST_F(OpGraphTest, TestOpRemoval) {
   ASSERT_TRUE(graph.TensorIsType<CPUBackend>(node4.spec.Output(0)));
 
   // Validate copy op 1
-  auto& node5 = graph.node(1);
+  auto& node5 = graph.Node(1);
   ASSERT_EQ(node5.id, 1);
   ASSERT_EQ(node5.children.size(), 0);
   ASSERT_EQ(node5.parents.size(), 1);

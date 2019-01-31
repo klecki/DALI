@@ -112,7 +112,7 @@ void PipelinedExecutor::SetupStageOutputsForGraph() {
         if (type != DALIOpType::DALI_CPU) {
           // We've located a tensor that is an output of
           // the stage.
-          auto &consumer = graph_->node(meta.node);
+          auto &consumer = graph_->Node(meta.node);
           has_gpu_consumer =
               has_gpu_consumer ||
               type == DALIOpType::DALI_GPU ||
@@ -203,7 +203,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
   for (size_t i = 0; i < support_stage_outputs_.size(); ++i) {
     auto &tvp = support_stage_outputs_[i];
     auto &info = support_stage_output_info_[i];
-    NodeID node_id = info.prod_and_idx.first;
+    OpNodeId node_id = info.prod_and_idx.first;
     DALI_ENFORCE(graph_->NodeType(node_id) == DALIOpType::DALI_SUPPORT);
 
     int support_op_id = graph_->NodeIdx(node_id);
@@ -213,7 +213,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
     for (size_t j = 0; j < info.con_and_idx.size(); ++j) {
       node_id = info.con_and_idx[j].first;
-      const OpNode& op_node = graph_->GetNodeForIdx(node_id);
+      const OpNode& op_node = graph_->Node(node_id);
       int child_op_id = graph_->NodeIdx(node_id);
       int input_idx = info.con_and_idx[j].second;
       const OpSpec& spec = op_node.spec;
@@ -234,7 +234,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
   for (size_t i = 0; i < cpu_stage_outputs_.size(); ++i) {
     auto &tvp = cpu_stage_outputs_[i];
     auto &info = cpu_stage_output_info_[i];
-    NodeID node_id = info.prod_and_idx.first;
+    OpNodeId node_id = info.prod_and_idx.first;
     DALI_ENFORCE(graph_->NodeType(node_id) == DALIOpType::DALI_CPU);
 
     int cpu_op_id = graph_->NodeIdx(node_id);
@@ -278,7 +278,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
   for (size_t i = 0; i < mixed_stage_cpu_outputs_.size(); ++i) {
     auto &tlp = mixed_stage_cpu_outputs_[i];
     auto &info = mixed_stage_cpu_output_info_[i];
-    NodeID node_id = info.prod_and_idx.first;
+    OpNodeId node_id = info.prod_and_idx.first;
     DALI_ENFORCE(graph_->NodeType(node_id) == DALIOpType::DALI_MIXED);
 
     int mixed_op_id = graph_->NodeIdx(node_id);
@@ -301,7 +301,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
   for (size_t i = 0; i < mixed_stage_gpu_outputs_.size(); ++i) {
     auto &tlp = mixed_stage_gpu_outputs_[i];
     auto &info = mixed_stage_gpu_output_info_[i];
-    NodeID node_id = info.prod_and_idx.first;
+    OpNodeId node_id = info.prod_and_idx.first;
     DALI_ENFORCE(graph_->NodeType(node_id) == DALIOpType::DALI_MIXED);
 
     int mixed_op_id = graph_->NodeIdx(node_id);

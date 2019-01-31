@@ -94,54 +94,39 @@ DALITensorDevice DeviceStringToTensorStorage(std::string inout_device) {
 
 }  // namespace
 
+OpNode& OpGraph::PlaceNewOp(DALIOpType op_type) {
+  auto new_node_id = op_nodes_.size();
+  op_nodes_.resize(new_node_id + 1);
+  auto new_partition_id = NumOp(op_type); //node_partitions_[op_type].size();
+  node_partitions_[static_cast<int>(op_type)].push_back(new_node_id);
+  id_to_node_map_.push_back({op_type, new_partition_id});
+  return op_nodes_.back();
+}
+
 void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
   // Validate the op specification
   CheckOpConstraints(spec);
 
   string device = spec.GetArgument<string>("device");
   auto op_type = DeviceStringToOpType(device);
-  OpNode *new_node;
   switch (op_type) {
     case DALIOpType::DALI_CPU: {
       // Enforce graph constraints
       DALI_ENFORCE(AllInputsCPU(spec), "CPU ops cannot receive GPU input data.");
       DALI_ENFORCE(AllOutputsCPU(spec), "CPU ops can only produce CPU output data.");
-
-      cpu_nodes_.resize(cpu_nodes_.size()+1);
-      OpNode &cpu_node = cpu_nodes_.back();
-      id_to_node_map_.push_back({DALIOpType::DALI_CPU, cpu_nodes_.size()-1});
-
-      new_node = &cpu_node;
       break;
     }
     case DALIOpType::DALI_GPU: {
-      gpu_nodes_.resize(gpu_nodes_.size()+1);
-      OpNode &gpu_node = gpu_nodes_.back();
-      id_to_node_map_.push_back({DALIOpType::DALI_GPU, gpu_nodes_.size()-1});
-
-      new_node = &gpu_node;
       break;
     }
     case DALIOpType::DALI_MIXED: {
       // Enforce graph constraints
       DALI_ENFORCE(AllInputsCPU(spec), "Mixed ops cannot receive GPU input data.");
-
-      mixed_nodes_.resize(mixed_nodes_.size()+1);
-      OpNode &mixed_node = mixed_nodes_.back();
-      id_to_node_map_.push_back({DALIOpType::DALI_MIXED, mixed_nodes_.size()-1});
-
-      new_node = &mixed_node;
       break;
     }
     case DALIOpType::DALI_SUPPORT: {
       // Enforce graph constraints
       DALI_ENFORCE(AllInputsCPU(spec), "Support ops cannot receive GPU input data.");
-
-      support_nodes_.resize(support_nodes_.size()+1);
-      OpNode &support_node = support_nodes_.back();
-      id_to_node_map_.push_back({DALIOpType::DALI_SUPPORT, support_nodes_.size() - 1});
-
-      new_node = &support_node;
       break;
     }
     default:
@@ -149,11 +134,11 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
           "\". Valid options are \"cpu\", \"gpu\" or \"mixed\"");
       break;
   }
-
+  auto &new_node = PlaceNewOp(op_type);
   // Add node meta-data and add to the list of nodes
-  new_node->id = NumOp()-1;
-  new_node->spec = spec;
-  new_node->instance_name = name;
+  new_node.id = NumOp()-1;
+  new_node.spec = spec;
+  new_node.instance_name = name;
 
   // Setup references between nodes. We require that the
   // ops are added to the graph in a topological ordering.
@@ -166,15 +151,15 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
     // Note: We don't care if the parent has already
     // been added to this nodes set of parents, so
     // we don't check the return value.
-    new_node->parents.insert(parent_id);
+    new_node.parents.insert(parent_id);
 
     // Add new node as child
-    auto &parent_node = this->node(parent_id);
-    parent_node.children.insert(new_node->id);
+    auto &parent_node = this->Node(parent_id);
+    parent_node.children.insert(new_node.id);
 
     // Update the consumer info for this tensor
     TensorMeta meta;
-    meta.node = new_node->id;
+    meta.node = new_node.id;
     meta.index = i;
     meta.is_support = spec.IsArgumentInput(i);
     meta.storage_device = DeviceStringToTensorStorage(spec.InputDevice(i));
@@ -189,7 +174,7 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
 
     // Set the producer info for this tensor
     TensorMeta meta;
-    meta.node = new_node->id;
+    meta.node = new_node.id;
     meta.index = i;
     meta.is_support = spec.GetArgument<string>("device") == "support";
     meta.storage_device = DeviceStringToTensorStorage(spec.OutputDevice(i));
@@ -198,39 +183,39 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
     DALI_ENFORCE(ret.second, "Operator '" + spec.name() +
         "' has output with name " + name + ", but output "
         "with this name already exists as output of op '" +
-        this->node(TensorSourceID(name)).spec.name() + "'");
+        this->Node(TensorSourceID(name)).spec.name() + "'");
+  }
+}
+
+// TODO(klecki) move this generalized op creation to better place
+std::unique_ptr<OperatorBase> GenericRegistryCreate(DALIOpType op_type, const std::string &name, const OpSpec &spec, const std::string *devName = NULL) {
+  switch (op_type) {
+    case DALIOpType::DALI_CPU:
+      return CPUOperatorRegistry::Registry().Create(name, spec, devName);
+    case DALIOpType::DALI_GPU:
+      return GPUOperatorRegistry::Registry().Create(name, spec, devName);
+    case DALIOpType::DALI_MIXED:
+      return MixedOperatorRegistry::Registry().Create(name, spec, devName);
+    case DALIOpType::DALI_SUPPORT:
+      return SupportOperatorRegistry::Registry().Create(name, spec, devName);
+    default:
+      DALI_FAIL("Internal error. Invalid operator type - registry not found.");
   }
 }
 
 void OpGraph::InstantiateOperators() {
   // traverse devices by topological order (support, cpu, mixed, gpu)
-  for (auto &node : support_nodes_) {
-    if (node.op)
-      continue;
-    auto &spec = node.spec;
-    string device = spec.GetArgument<string>("device");
-    node.op = SupportOperatorRegistry::Registry().Create(spec.name(), spec, &device);
-  }
-  for (auto &node : cpu_nodes_) {
-    if (node.op)
-      continue;
-    auto &spec = node.spec;
-    string device = spec.GetArgument<string>("device");
-    node.op = CPUOperatorRegistry::Registry().Create(spec.name(), spec, &device);
-  }
-  for (auto &node : mixed_nodes_) {
-    if (node.op)
-      continue;
-    auto &spec = node.spec;
-    string device = spec.GetArgument<string>("device");
-    node.op = MixedOperatorRegistry::Registry().Create(spec.name(), spec, &device);
-  }
-  for (auto &node : gpu_nodes_) {
-    if (node.op)
-      continue;
-    auto &spec = node.spec;
-    string device = spec.GetArgument<string>("device");
-    node.op = GPUOperatorRegistry::Registry().Create(spec.name(), spec, &device);
+  DALIOpType order[] = {DALIOpType::DALI_SUPPORT, DALIOpType::DALI_CPU, DALIOpType::DALI_MIXED, DALIOpType::DALI_GPU};
+
+  for (auto op_type : order) {
+    for (auto op_id : node_partitions_[static_cast<int>(op_type)]) {
+      auto &node = op_nodes_[op_id];
+      if (node.op)
+        continue;
+      auto &spec = node.spec;
+      string device = spec.GetArgument<string>("device");
+      node.op = GenericRegistryCreate(op_type, spec.name(), spec, &device);
+    }
   }
 }
 
@@ -244,206 +229,191 @@ void OpGraph::InstantiateOperators() {
 // 6. remove id map entry for target
 // 7. remove object for target
 // 8. update id map for ops after target in its typed vector
-void OpGraph::RemoveOp(NodeID id) {
-  OpNode &target = this->node(id);
 
-  // If the node has any children, we cannot remove it
-  DALI_ENFORCE(target.children.empty(), "Node '" + target.spec.name() +
-      "' has " + std::to_string(target.children.size()) +
-      ". Cannot remove");
+// TODO: adjust for unified node indexing
+void OpGraph::RemoveOp(OpNodeId id) {
+  return;
+  // OpNode &target = this->node(id);
 
-  // Remove this nodes tensors from the graph
-  for (int i = 0; i < target.spec.NumOutput(); ++i) {
-    tensor_producers_.erase(target.spec.Output(i));
-  }
+  // // If the node has any children, we cannot remove it
+  // DALI_ENFORCE(target.children.empty(), "Node '" + target.spec.name() +
+  //     "' has " + std::to_string(target.children.size()) +
+  //     ". Cannot remove");
 
-  // Remove references to this node as a consumer
-  for (int i = 0; i < target.spec.NumInput(); ++i) {
-    auto it = tensor_consumers_.find(target.spec.Input(i));
-    DALI_ENFORCE(it != tensor_consumers_.end(), "Could not find "
-        "consumer entries for tensor, but target node is a consumer.");
-    vector<TensorMeta> &consumer_info = it->second;
-    bool erased = false;
-    for (size_t j = 0; j < consumer_info.size(); ++j) {
-      if (consumer_info[j].node == id) {
-        consumer_info.erase(consumer_info.begin() + j);
-        erased = true;
-        break;
-      }
-    }
-    DALI_ENFORCE(erased, "Could not find entry for target node as tensor consumer.");
-  }
+  // // Remove this nodes tensors from the graph
+  // for (int i = 0; i < target.spec.NumOutput(); ++i) {
+  //   tensor_producers_.erase(target.spec.Output(i));
+  // }
 
-  for (int i = 0; i < this->NumOp(); ++i) {
-    OpNode &node = this->node(i);
-    if (node.id > id) {
-      // Decrement this nodes id to account for
-      // the removal of the node with id `id`.
-      --node.id;
+  // // Remove references to this node as a consumer
+  // for (int i = 0; i < target.spec.NumInput(); ++i) {
+  //   auto it = tensor_consumers_.find(target.spec.Input(i));
+  //   DALI_ENFORCE(it != tensor_consumers_.end(), "Could not find "
+  //       "consumer entries for tensor, but target node is a consumer.");
+  //   vector<TensorMeta> &consumer_info = it->second;
+  //   bool erased = false;
+  //   for (size_t j = 0; j < consumer_info.size(); ++j) {
+  //     if (consumer_info[j].node == id) {
+  //       consumer_info.erase(consumer_info.begin() + j);
+  //       erased = true;
+  //       break;
+  //     }
+  //   }
+  //   DALI_ENFORCE(erased, "Could not find entry for target node as tensor consumer.");
+  // }
 
-      // Update all of its outputs with the new id
-      for (int j = 0; j < node.spec.NumOutput(); ++j) {
-        auto it = tensor_producers_.find(node.spec.Output(j));
-        DALI_ENFORCE(it != tensor_producers_.end(),
-            "Could not find tensor source entry.");
+  // for (int i = 0; i < this->NumOp(); ++i) {
+  //   OpNode &node = this->node(i);
+  //   if (node.id > id) {
+  //     // Decrement this nodes id to account for
+  //     // the removal of the node with id `id`.
+  //     --node.id;
 
-        it->second.node = node.id;
-      }
+  //     // Update all of its outputs with the new id
+  //     for (int j = 0; j < node.spec.NumOutput(); ++j) {
+  //       auto it = tensor_producers_.find(node.spec.Output(j));
+  //       DALI_ENFORCE(it != tensor_producers_.end(),
+  //           "Could not find tensor source entry.");
 
-      // Update all of its consumer records with new id
-      for (int j = 0; j < node.spec.NumInput(); ++j) {
-        auto it = tensor_consumers_.find(node.spec.Input(j));
-        DALI_ENFORCE(it != tensor_consumers_.end(), "Could not find "
-            "consumer entries for tensor, but current node is a consumer.");
-        vector<TensorMeta> &consumer_info = it->second;
-        bool found = false;
-        for (size_t k = 0; k < consumer_info.size(); ++k) {
-          if (consumer_info[k].node == node.id+1) {
-            consumer_info[k].node = node.id;
-            found = true;
-            break;
-          }
-        }
-        DALI_ENFORCE(found, "Could not find entry for current "
-            "node as tensor consumer.");
-      }
-    }
+  //       it->second.node = node.id;
+  //     }
 
-    // Scan its parents and children. If the target is
-    // a child, remove it as it no longer exists. If
-    // a node with an id > the target id is a parent
-    // or child, we will decrement its id to account
-    // for the removal.
-    vector<NodeID> to_add;
-    auto it = node.parents.begin();
-    while (it != node.parents.end()) {
-      // This should never occur, we have previously checked
-      // that the target has no children in the graph
-      DALI_ENFORCE(*it != id, "Found node with target as parent.");
-      if (*it > id) {
-        to_add.push_back((*it) - 1);
-        it = node.parents.erase(it);
-      } else {
-        ++it;
-      }
-    }
-    for (auto &parent : to_add) {
-      DALI_ENFORCE(node.parents.insert(parent).second,
-          "Insertion of updated parent id failed.");
-    }
-    to_add.clear();
+  //     // Update all of its consumer records with new id
+  //     for (int j = 0; j < node.spec.NumInput(); ++j) {
+  //       auto it = tensor_consumers_.find(node.spec.Input(j));
+  //       DALI_ENFORCE(it != tensor_consumers_.end(), "Could not find "
+  //           "consumer entries for tensor, but current node is a consumer.");
+  //       vector<TensorMeta> &consumer_info = it->second;
+  //       bool found = false;
+  //       for (size_t k = 0; k < consumer_info.size(); ++k) {
+  //         if (consumer_info[k].node == node.id+1) {
+  //           consumer_info[k].node = node.id;
+  //           found = true;
+  //           break;
+  //         }
+  //       }
+  //       DALI_ENFORCE(found, "Could not find entry for current "
+  //           "node as tensor consumer.");
+  //     }
+  //   }
 
-    // Remove the target node id if it is a child
-    node.children.erase(id);
-    it = node.children.begin();
-    while (it != node.children.end()) {
-      if (*it > id) {
-        to_add.push_back((*it) - 1);
-        it = node.children.erase(it);
-      } else {
-        ++it;
-      }
-    }
-    for (auto &child : to_add) {
-      DALI_ENFORCE(node.children.insert(child).second,
-          "Insertion of updated child id failed.");
-    }
-  }
+  //   // Scan its parents and children. If the target is
+  //   // a child, remove it as it no longer exists. If
+  //   // a node with an id > the target id is a parent
+  //   // or child, we will decrement its id to account
+  //   // for the removal.
+  //   vector<OpNodeId> to_add;
+  //   auto it = node.parents.begin();
+  //   while (it != node.parents.end()) {
+  //     // This should never occur, we have previously checked
+  //     // that the target has no children in the graph
+  //     DALI_ENFORCE(*it != id, "Found node with target as parent.");
+  //     if (*it > id) {
+  //       to_add.push_back((*it) - 1);
+  //       it = node.parents.erase(it);
+  //     } else {
+  //       ++it;
+  //     }
+  //   }
+  //   for (auto &parent : to_add) {
+  //     DALI_ENFORCE(node.parents.insert(parent).second,
+  //         "Insertion of updated parent id failed.");
+  //   }
+  //   to_add.clear();
 
-  // Remove this nodes entry from the id map. This will
-  // effectively decrement all node ids after this node
-  // to fill the gap.
-  //
-  auto type_and_idx = id_to_node_map_[id];
-  DALIOpType type = type_and_idx.first;
-  int idx = type_and_idx.second;
-  id_to_node_map_.erase(id_to_node_map_.begin() + id);
+  //   // Remove the target node id if it is a child
+  //   node.children.erase(id);
+  //   it = node.children.begin();
+  //   while (it != node.children.end()) {
+  //     if (*it > id) {
+  //       to_add.push_back((*it) - 1);
+  //       it = node.children.erase(it);
+  //     } else {
+  //       ++it;
+  //     }
+  //   }
+  //   for (auto &child : to_add) {
+  //     DALI_ENFORCE(node.children.insert(child).second,
+  //         "Insertion of updated child id failed.");
+  //   }
+  // }
 
-  // Remove the typed node object for the target node.
-  // We will then need to update the id map entry for
-  // all nodes of this type that follow the deleted node
-  switch (type) {
-  case DALIOpType::DALI_CPU:
-    cpu_nodes_.erase(cpu_nodes_.begin() + idx);
+  // // Remove this nodes entry from the id map. This will
+  // // effectively decrement all node ids after this node
+  // // to fill the gap.
+  // //
+  // auto type_and_idx = id_to_node_map_[id];
+  // DALIOpType type = type_and_idx.first;
+  // int idx = type_and_idx.second;
+  // id_to_node_map_.erase(id_to_node_map_.begin() + id);
 
-    for (size_t i = idx; i < cpu_nodes_.size(); ++i) {
-      OpNode &cpu_node = this->cpu_node(i);
-      id_to_node_map_[cpu_node.id].second = i;
-    }
-    break;
-  case DALIOpType::DALI_GPU:
-    gpu_nodes_.erase(gpu_nodes_.begin() + idx);
+  // // Remove the typed node object for the target node.
+  // // We will then need to update the id map entry for
+  // // all nodes of this type that follow the deleted node
+  // switch (type) {
+  // case DALIOpType::DALI_CPU:
+  //   cpu_nodes_.erase(cpu_nodes_.begin() + idx);
 
-    for (size_t i = idx; i < gpu_nodes_.size(); ++i) {
-      OpNode &gpu_node = this->gpu_node(i);
-      id_to_node_map_[gpu_node.id].second = i;
-    }
-    break;
-  case DALIOpType::DALI_MIXED:
-    mixed_nodes_.erase(mixed_nodes_.begin() + idx);
+  //   for (size_t i = idx; i < cpu_nodes_.size(); ++i) {
+  //     OpNode &cpu_node = this->cpu_node(i);
+  //     id_to_node_map_[cpu_node.id].second = i;
+  //   }
+  //   break;
+  // case DALIOpType::DALI_GPU:
+  //   gpu_nodes_.erase(gpu_nodes_.begin() + idx);
 
-    for (size_t i = idx; i < mixed_nodes_.size(); ++i) {
-      OpNode &mixed_node = this->mixed_node(i);
-      id_to_node_map_[mixed_node.id].second = i;
-    }
-    break;
-  case DALIOpType::DALI_SUPPORT:
-    support_nodes_.erase(support_nodes_.begin() + idx);
+  //   for (size_t i = idx; i < gpu_nodes_.size(); ++i) {
+  //     OpNode &gpu_node = this->gpu_node(i);
+  //     id_to_node_map_[gpu_node.id].second = i;
+  //   }
+  //   break;
+  // case DALIOpType::DALI_MIXED:
+  //   mixed_nodes_.erase(mixed_nodes_.begin() + idx);
 
-    for (size_t i = idx; i < support_nodes_.size(); ++i) {
-      OpNode &support_node = this->support_node(i);
-      id_to_node_map_[support_node.id].second = i;
-    }
-  }
+  //   for (size_t i = idx; i < mixed_nodes_.size(); ++i) {
+  //     OpNode &mixed_node = this->mixed_node(i);
+  //     id_to_node_map_[mixed_node.id].second = i;
+  //   }
+  //   break;
+  // case DALIOpType::DALI_SUPPORT:
+  //   support_nodes_.erase(support_nodes_.begin() + idx);
+
+  //   for (size_t i = idx; i < support_nodes_.size(); ++i) {
+  //     OpNode &support_node = this->support_node(i);
+  //     id_to_node_map_[support_node.id].second = i;
+  //   }
+  // default:
+  //   DALI_FAIL("Internal error. Invalid node type.");
+  // break;
+  // }
 }
 
-OpNode& OpGraph::node(NodeID id) {
-  DALI_ENFORCE_VALID_INDEX(id, id_to_node_map_.size());
-  auto idx_pair = id_to_node_map_[id];
-
-  switch (idx_pair.first) {
-  case DALIOpType::DALI_CPU:
-    return cpu_nodes_[idx_pair.second];
-    break;
-  case DALIOpType::DALI_GPU:
-    return gpu_nodes_[idx_pair.second];
-    break;
-  case DALIOpType::DALI_MIXED:
-    return mixed_nodes_[idx_pair.second];
-    break;
-  case DALIOpType::DALI_SUPPORT:
-    return support_nodes_[idx_pair.second];
-    break;
-  default:
-    DALI_FAIL("Internal error. Invalid node type index.");
-  }
-}
-
+// TODO(klecki)
 OpNode& OpGraph::node(const std::string& name) {
   // Search cpu nodes
-  for (auto& node : cpu_nodes_) {
-    if (node.instance_name == name) {
-      return node;
-    }
-  }
-  // Search gpu nodes
-  for (auto& node : gpu_nodes_) {
-    if (node.instance_name == name) {
-      return node;
-    }
-  }
-  // Search mixed nodes
-  for (auto& node : mixed_nodes_) {
-    if (node.instance_name == name) {
-      return node;
-    }
-  }
-  // Search support nodes
-  for (auto& node : support_nodes_) {
-    if (node.instance_name == name) {
-      return node;
-    }
-  }
+  // for (auto& node : cpu_nodes_) {
+  //   if (node.instance_name == name) {
+  //     return node;
+  //   }
+  // }
+  // // Search gpu nodes
+  // for (auto& node : gpu_nodes_) {
+  //   if (node.instance_name == name) {
+  //     return node;
+  //   }
+  // }
+  // // Search mixed nodes
+  // for (auto& node : mixed_nodes_) {
+  //   if (node.instance_name == name) {
+  //     return node;
+  //   }
+  // }
+  // // Search support nodes
+  // for (auto& node : support_nodes_) {
+  //   if (node.instance_name == name) {
+  //     return node;
+  //   }
+  // }
   DALI_FAIL("Operator node with name " + name + " not found.");
 }
 

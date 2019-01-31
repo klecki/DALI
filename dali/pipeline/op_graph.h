@@ -30,7 +30,12 @@
 
 namespace dali {
 
-using NodeID = int64_t;
+using OpNodeId = int64_t;
+using OpPartitionId = int64_t;
+using TensorNodeId = int64_t;
+// using producer_edge_t = std::pair<OpNodeId, Index>;
+// using consumer_edge_t = std::pair<OpNodeId, Index>;
+
 
 // What device is this tensor stored on
 enum class DALITensorDevice {
@@ -52,27 +57,38 @@ struct OpNode {
   }
 
   std::unique_ptr<OperatorBase> op;
-  NodeID id;
+  OpNodeId id;
   OpSpec spec;
-  std::set<NodeID> parents, children;
+  std::set<OpNodeId> parents, children;
   std::string instance_name;
 };
 
 // Stores meta-data about a tensor and how it
 // is used by a producer/consumer node.
 struct TensorMeta {
-  NodeID node;
+  OpNodeId node;
   Index index;
   DALITensorDevice storage_device;
   bool is_support;
 };
+
+using producer_edge_t = TensorMeta;
+using consumer_edge_t = TensorMeta;
+
+// Second type of graph nodes.
+struct TensorNode {
+  TensorNodeId id;
+  producer_edge_t parent_edge;
+  std::set<consumer_edge_t> consumer_edges;
+};
+
 
 /**
  * @brief Stores all meta-data about a graph of operations to be run
  * keeps track of useful meta-data about consumers/producers of
  * different intermediates.
  *
- * Operators in the graph have a global NodeID that is assigned in
+ * Operators in the graph have a global OpNodeId that is assigned in
  * the order ops are added to the graph. Operators also have an
  * index within the set of ops of its type (cpu, mixed, gpu).
  * This enables us to iterate over select portions of the graph, or
@@ -80,7 +96,9 @@ struct TensorMeta {
  */
 class DLL_PUBLIC OpGraph {
  public:
-  DLL_PUBLIC inline OpGraph() {}
+  DLL_PUBLIC inline OpGraph() {
+    node_partitions_.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
+  }
   DLL_PUBLIC inline ~OpGraph() = default;
 
   /**
@@ -89,11 +107,11 @@ class DLL_PUBLIC OpGraph {
   DLL_PUBLIC void AddOp(const OpSpec &spec, const std::string& name);
 
   /**
-   * @brief Removes the node with the specified NodeID from
+   * @brief Removes the node with the specified OpNodeId from
    * the graph. Fails if the removal would produce an invalid
    * graph.
    */
-  DLL_PUBLIC void RemoveOp(NodeID id);
+  DLL_PUBLIC void RemoveOp(OpNodeId id);
 
   /**
    * @brief Returns the total number of ops in the graph.
@@ -102,33 +120,55 @@ class DLL_PUBLIC OpGraph {
     return NumCPUOp() + NumGPUOp() + NumMixedOp() + NumSupportOp();
   }
 
+  DLL_PUBLIC inline Index NumOp(DALIOpType op_type) const {
+    return node_partitions_[static_cast<int>(op_type)].size();
+  }
+
   /**
    * @brief Returns the number of cpu ops in the graph.
    */
-  DLL_PUBLIC inline Index NumCPUOp() const { return cpu_nodes_.size(); }
+  DLL_PUBLIC inline Index NumCPUOp() const { return NumOp(DALIOpType::DALI_CPU); }
 
   /**
    * @brief Returns the number of gpu ops in the graph.
    */
-  DLL_PUBLIC inline Index NumGPUOp() const { return gpu_nodes_.size(); }
+  DLL_PUBLIC inline Index NumGPUOp() const { return NumOp(DALIOpType::DALI_GPU); }
 
   /**
    * @brief Returns the number of mixed ops in the graph.
    */
-  DLL_PUBLIC inline Index NumMixedOp() const { return mixed_nodes_.size(); }
+  DLL_PUBLIC inline Index NumMixedOp() const { return NumOp(DALIOpType::DALI_MIXED); }
 
   /**
    * @brief Returns the number of support ops in the graph.
    */
-  DLL_PUBLIC inline Index NumSupportOp() const { return support_nodes_.size(); }
+  DLL_PUBLIC inline Index NumSupportOp() const { return NumOp(DALIOpType::DALI_SUPPORT); }
+
+  /**
+   * @brief Returns the unique NodeId for partition_id among nodes of op_type
+   */
+  DLL_PUBLIC inline OpNodeId NodeId(OpPartitionId partition_id, DALIOpType op_type) {
+    DALI_ENFORCE_VALID_INDEX(partition_id, NumOp(op_type));
+    return node_partitions_[static_cast<int>(op_type)][partition_id];
+  }
+
+  // TODO(klecki) return a copy/const& to disallow modification
+  DLL_PUBLIC inline OpNode& Node(OpPartitionId partition_id, DALIOpType op_type) {
+    auto node_id = NodeId(partition_id, op_type);
+    return op_nodes_[node_id];
+  }
+
+  DLL_PUBLIC inline std::pair<DALIOpType, OpPartitionId> PartitionId(OpNodeId op_id) {
+    // TODO(klecki) return {nodes_[op_id].op_type} ??
+    return id_to_node_map_[op_id];
+  }
 
   /**
    * @brief Returns the node object for the `idx`-th cpu op that
    * was added to the graph.
    */
   DLL_PUBLIC inline OpNode& cpu_node(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)cpu_nodes_.size());
-    return cpu_nodes_[idx];
+    return Node(idx, DALIOpType::DALI_CPU);
   }
 
   /**
@@ -136,8 +176,7 @@ class DLL_PUBLIC OpGraph {
    * was added to the graph.
    */
   DLL_PUBLIC inline OpNode& gpu_node(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)gpu_nodes_.size());
-    return gpu_nodes_[idx];
+    return Node(idx, DALIOpType::DALI_GPU);
   }
 
   /**
@@ -145,8 +184,7 @@ class DLL_PUBLIC OpGraph {
    * was added to the graph.
    */
   DLL_PUBLIC inline OpNode& mixed_node(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)mixed_nodes_.size());
-    return mixed_nodes_[idx];
+    return Node(idx, DALIOpType::DALI_MIXED);
   }
 
   /**
@@ -154,8 +192,7 @@ class DLL_PUBLIC OpGraph {
    * was added to the graph.
    */
   DLL_PUBLIC inline OpNode& support_node(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)support_nodes_.size());
-    return support_nodes_[idx];
+    return Node(idx, DALIOpType::DALI_SUPPORT);
   }
 
   /**
@@ -169,13 +206,24 @@ class DLL_PUBLIC OpGraph {
   /**
    * @brief Returns the graph node with the given index in the graph.
    */
-  DLL_PUBLIC OpNode& node(NodeID id);
+  DLL_PUBLIC OpNode& Node(OpNodeId id) {
+    DALI_ENFORCE_VALID_INDEX(id, op_nodes_.size());
+    return op_nodes_[id];
+  }
+
+  /**
+   * @brief Returns the graph node with the given index in the graph.
+   */
+  DLL_PUBLIC const OpNode& Node(OpNodeId id) const {
+    DALI_ENFORCE_VALID_INDEX(id, op_nodes_.size());
+    return op_nodes_[id];
+  }
 
   /**
    * @brief Returns the type (cpu, gpu, mixed) of the node
    * at the given index.
    */
-  DLL_PUBLIC inline DALIOpType NodeType(NodeID id) const {
+  DLL_PUBLIC inline DALIOpType NodeType(OpNodeId id) const {
     DALI_ENFORCE_VALID_INDEX(id, (Index)id_to_node_map_.size());
     return id_to_node_map_[id].first;
   }
@@ -184,7 +232,7 @@ class DLL_PUBLIC OpGraph {
    * @brief Returns the index of the node with the specified id
    * among nodes of its type.
    */
-  DLL_PUBLIC inline Index NodeIdx(NodeID id) const {
+  DLL_PUBLIC inline Index NodeIdx(OpNodeId id) const {
     DALI_ENFORCE_VALID_INDEX(id, (Index)id_to_node_map_.size());
     return id_to_node_map_[id].second;
   }
@@ -212,7 +260,7 @@ class DLL_PUBLIC OpGraph {
    * @brief Returns the id of the op that produces the tensor with
    * the given name.
    */
-  DLL_PUBLIC inline NodeID TensorSourceID(const string &name) {
+  DLL_PUBLIC inline OpNodeId TensorSourceID(const string &name) {
     return TensorSourceMeta(name).node;
   }
 
@@ -245,30 +293,6 @@ class DLL_PUBLIC OpGraph {
     return it->second;
   }
 
-
-  /**
-   * @brief Returns the OpNode at idx from the id to node
-   * map.
-   */
-  DLL_PUBLIC const OpNode& GetNodeForIdx(int idx) const {
-    DALIOpType type = id_to_node_map_[idx].first;
-    Index index = id_to_node_map_[idx].second;
-    switch (type) {
-    case DALIOpType::DALI_CPU:
-      return cpu_nodes_[index];
-    case DALIOpType::DALI_GPU:
-      return gpu_nodes_[index];
-    case DALIOpType::DALI_MIXED:
-      return mixed_nodes_[index];
-    case DALIOpType::DALI_SUPPORT:
-      return support_nodes_[index];
-    }
-    string str_error = "No Node for index " + to_string(idx);
-    DALI_FAIL(str_error);
-  }
-
-
-
   /**
    * @brief Helper function for saving graph to DOT file
    */
@@ -282,7 +306,7 @@ class DLL_PUBLIC OpGraph {
     for (auto node_id : current_node.children) {
         ofs << current_node.instance_name;
         ofs << " -> ";
-        OpNode& child_node = node(node_id);
+        OpNode& child_node = Node(node_id);
         GenerateDOTFromGraph(child_node, ofs);
     }
   }
@@ -299,7 +323,7 @@ class DLL_PUBLIC OpGraph {
   DLL_PUBLIC void SaveToDotFile(const string filename) {
     std::ofstream ofs(filename);
     ofs << "digraph graphname {\n";
-    const OpNode& current_node = GetNodeForIdx(0);
+    const OpNode& current_node = Node(0);
     GenerateDOTFromGraph(current_node, ofs);
     ofs << "}\n";
     visited_nodes_.clear();
@@ -308,10 +332,18 @@ class DLL_PUBLIC OpGraph {
   DISABLE_COPY_MOVE_ASSIGN(OpGraph);
 
  private:
-  vector<OpNode> cpu_nodes_;
+
+  OpNode& PlaceNewOp(DALIOpType op_type);
+
+  // vector<OpNode> cpu_nodes_;
   vector<OpNode> gpu_nodes_;
   vector<OpNode> mixed_nodes_;
   vector<OpNode> support_nodes_;
+
+  std::vector<OpNode> op_nodes_;
+  std::vector<TensorNode> tensor_nodes_;
+  std::vector<std::vector<OpPartitionId>> node_partitions_;
+
 
   // Stores a mapping from NodeIDs to a pair where the first
   // element indicates what type of node it is,  and the second
@@ -322,7 +354,7 @@ class DLL_PUBLIC OpGraph {
   std::map<string, vector<TensorMeta>> tensor_consumers_;
 
   // For the graph traversal
-  std::unordered_set<NodeID> visited_nodes_;
+  std::unordered_set<OpNodeId> visited_nodes_;
 };
 
 }  // namespace dali

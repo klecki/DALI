@@ -263,9 +263,9 @@ void Pipeline::PropagateMemoryHint(OpNode &node) {
   assert(node.parents.size() == 1);
   for (int inp_idx = 0; inp_idx < node.spec.NumRegularInput(); inp_idx++) {
     auto input_name = node.spec.Input(inp_idx);
-    NodeID parent_node_id = graph_.TensorSourceID(input_name);
+    OpNodeId parent_node_id = graph_.TensorSourceID(input_name);
     int idx = graph_.TensorIdxInSource(input_name);
-    auto &src = graph_.node(parent_node_id);
+    auto &src = graph_.Node(parent_node_id);
     int hint = GetMemoryHint(src.spec, idx);
     if (hint) {
       // inp_idx == out_idx for MakeContiguous
