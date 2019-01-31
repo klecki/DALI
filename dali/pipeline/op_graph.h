@@ -117,32 +117,12 @@ class DLL_PUBLIC OpGraph {
   DLL_PUBLIC inline Index NumSupportOp() const { return support_nodes_.size(); }
 
   /**
-   * @brief Returns a reference to the `idx`-th cpu op that was
-   * added to the graph.
-   */
-  DLL_PUBLIC inline OperatorBase& cpu_op(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)cpu_nodes_.size());
-    DALI_ENFORCE(cpu_nodes_[idx].op != nullptr, "Operator instance is empty");
-    return *cpu_nodes_[idx].op;
-  }
-
-  /**
    * @brief Returns the node object for the `idx`-th cpu op that
    * was added to the graph.
    */
   DLL_PUBLIC inline OpNode& cpu_node(Index idx) {
     DALI_ENFORCE_VALID_INDEX(idx, (Index)cpu_nodes_.size());
     return cpu_nodes_[idx];
-  }
-
-  /**
-   * @brief Returns a reference to the `idx`-th gpu op that
-   * was added to the graph.
-   */
-  DLL_PUBLIC inline OperatorBase& gpu_op(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)gpu_nodes_.size());
-    DALI_ENFORCE(gpu_nodes_[idx].op != nullptr, "Operator instance is empty");
-    return *gpu_nodes_[idx].op;
   }
 
   /**
@@ -155,32 +135,12 @@ class DLL_PUBLIC OpGraph {
   }
 
   /**
-   * @brief Returns a reference to the `idx`-th mixed op
-   * that was added to the graph.
-   */
-  DLL_PUBLIC inline OperatorBase& mixed_op(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)mixed_nodes_.size());
-    DALI_ENFORCE(mixed_nodes_[idx].op != nullptr, "Operator instance is empty");
-    return *mixed_nodes_[idx].op;
-  }
-
-  /**
    * @brief Returns the node object for the `idx`-th mixed op that
    * was added to the graph.
    */
   DLL_PUBLIC inline OpNode& mixed_node(Index idx) {
     DALI_ENFORCE_VALID_INDEX(idx, (Index)mixed_nodes_.size());
     return mixed_nodes_[idx];
-  }
-
-  /**
-   * @brief Returns a reference to the `idx`-th support op
-   * that was added to the graph.
-   */
-  DLL_PUBLIC inline OperatorBase& support_op(Index idx) {
-    DALI_ENFORCE_VALID_INDEX(idx, (Index)support_nodes_.size());
-    DALI_ENFORCE(support_nodes_[idx].op != nullptr, "Operator instance is empty");
-    return *support_nodes_[idx].op;
   }
 
   /**
