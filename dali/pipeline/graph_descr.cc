@@ -71,6 +71,20 @@ void CheckOpConstraints(const OpSpec &spec) {
       + " outputs, but was passed " + std::to_string(spec.NumOutput()/num_input_sets) + ".");
 }
 
+
+DALIOpType DeviceStringToOpType(std::string device) {
+  if (device == "gpu") {
+    return DALIOpType::DALI_GPU;
+  } else if (device == "cpu") {
+    return DALIOpType::DALI_CPU;
+  } else if (device == "mixed") {
+    return DALIOpType::DALI_MIXED;
+  } else if (device == "support") {
+    return DALIOpType::DALI_SUPPORT;
+  }
+  DALI_FAIL("Unsupported device type: " + device + ".");
+}
+
 }  // namespace
 
 void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
@@ -78,44 +92,55 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
   CheckOpConstraints(spec);
 
   string device = spec.GetArgument<string>("device");
+  auto op_type = DeviceStringToOpType(device);
   OpNode *new_node;
-  if (device == "cpu") {
-    // Enforce graph constraints
-    DALI_ENFORCE(AllInputsCPU(spec), "CPU ops cannot receive GPU input data.");
-    DALI_ENFORCE(AllOutputsCPU(spec), "CPU ops can only produce CPU output data.");
+  switch (op_type) {
+    case DALIOpType::DALI_CPU: {
+      // Enforce graph constraints
+      DALI_ENFORCE(AllInputsCPU(spec), "CPU ops cannot receive GPU input data.");
+      DALI_ENFORCE(AllOutputsCPU(spec), "CPU ops can only produce CPU output data.");
 
-    cpu_nodes_.resize(cpu_nodes_.size()+1);
-    OpNode &cpu_node = cpu_nodes_.back();
-    id_to_node_map_.push_back({DALIOpType::DALI_CPU, cpu_nodes_.size()-1});
+      cpu_nodes_.resize(cpu_nodes_.size()+1);
+      OpNode &cpu_node = cpu_nodes_.back();
+      id_to_node_map_.push_back({DALIOpType::DALI_CPU, cpu_nodes_.size()-1});
 
-    new_node = &cpu_node;
-  } else if (device == "gpu") {
-    gpu_nodes_.resize(gpu_nodes_.size()+1);
-    OpNode &gpu_node = gpu_nodes_.back();
-    id_to_node_map_.push_back({DALIOpType::DALI_GPU, gpu_nodes_.size()-1});
+      new_node = &cpu_node;
+      break;
+    }
+    case DALIOpType::DALI_GPU: {
+      gpu_nodes_.resize(gpu_nodes_.size()+1);
+      OpNode &gpu_node = gpu_nodes_.back();
+      id_to_node_map_.push_back({DALIOpType::DALI_GPU, gpu_nodes_.size()-1});
 
-    new_node = &gpu_node;
-  } else if (device == "mixed") {
-    // Enforce graph constraints
-    DALI_ENFORCE(AllInputsCPU(spec), "Mixed ops cannot receive GPU input data.");
+      new_node = &gpu_node;
+      break;
+    }
+    case DALIOpType::DALI_MIXED: {
+      // Enforce graph constraints
+      DALI_ENFORCE(AllInputsCPU(spec), "Mixed ops cannot receive GPU input data.");
 
-    mixed_nodes_.resize(mixed_nodes_.size()+1);
-    OpNode &mixed_node = mixed_nodes_.back();
-    id_to_node_map_.push_back({DALIOpType::DALI_MIXED, mixed_nodes_.size()-1});
+      mixed_nodes_.resize(mixed_nodes_.size()+1);
+      OpNode &mixed_node = mixed_nodes_.back();
+      id_to_node_map_.push_back({DALIOpType::DALI_MIXED, mixed_nodes_.size()-1});
 
-    new_node = &mixed_node;
-  } else if (device == "support") {
-    // Enforce graph constraints
-    DALI_ENFORCE(AllInputsCPU(spec), "Support ops cannot receive GPU input data.");
+      new_node = &mixed_node;
+      break;
+    }
+    case DALIOpType::DALI_SUPPORT: {
+      // Enforce graph constraints
+      DALI_ENFORCE(AllInputsCPU(spec), "Support ops cannot receive GPU input data.");
 
-    support_nodes_.resize(support_nodes_.size()+1);
-    OpNode &support_node = support_nodes_.back();
-    id_to_node_map_.push_back({DALIOpType::DALI_SUPPORT, support_nodes_.size() - 1});
+      support_nodes_.resize(support_nodes_.size()+1);
+      OpNode &support_node = support_nodes_.back();
+      id_to_node_map_.push_back({DALIOpType::DALI_SUPPORT, support_nodes_.size() - 1});
 
-    new_node = &support_node;
-  } else {
-    DALI_FAIL("Invalid device argument \"" + device +
-        "\". Valid options are \"cpu\", \"gpu\" or \"mixed\"");
+      new_node = &support_node;
+      break;
+    }
+    default:
+      DALI_FAIL("Invalid device argument \"" + device +
+          "\". Valid options are \"cpu\", \"gpu\" or \"mixed\"");
+      break;
   }
 
   // Add node meta-data and add to the list of nodes
