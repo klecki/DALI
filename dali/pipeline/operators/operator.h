@@ -31,7 +31,7 @@
 
 namespace dali {
 
-enum DALIOpType {
+enum class DALIOpType {
   DALI_GPU = 0,
   DALI_CPU = 1,
   DALI_MIXED = 2,

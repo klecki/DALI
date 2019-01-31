@@ -248,13 +248,13 @@ class DLL_PUBLIC OpGraph {
     DALIOpType type = id_to_node_map_[idx].first;
     Index index = id_to_node_map_[idx].second;
     switch (type) {
-    case DALI_CPU:
+    case DALIOpType::DALI_CPU:
       return cpu_nodes_[index];
-    case DALI_GPU:
+    case DALIOpType::DALI_GPU:
       return gpu_nodes_[index];
-    case DALI_MIXED:
+    case DALIOpType::DALI_MIXED:
       return mixed_nodes_[index];
-    case DALI_SUPPORT:
+    case DALIOpType::DALI_SUPPORT:
       return support_nodes_[index];
     }
     string str_error = "No Node for index " + to_string(idx);

@@ -86,13 +86,13 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
 
     cpu_nodes_.resize(cpu_nodes_.size()+1);
     OpNode &cpu_node = cpu_nodes_.back();
-    id_to_node_map_.push_back({DALI_CPU, cpu_nodes_.size()-1});
+    id_to_node_map_.push_back({DALIOpType::DALI_CPU, cpu_nodes_.size()-1});
 
     new_node = &cpu_node;
   } else if (device == "gpu") {
     gpu_nodes_.resize(gpu_nodes_.size()+1);
     OpNode &gpu_node = gpu_nodes_.back();
-    id_to_node_map_.push_back({DALI_GPU, gpu_nodes_.size()-1});
+    id_to_node_map_.push_back({DALIOpType::DALI_GPU, gpu_nodes_.size()-1});
 
     new_node = &gpu_node;
   } else if (device == "mixed") {
@@ -101,7 +101,7 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
 
     mixed_nodes_.resize(mixed_nodes_.size()+1);
     OpNode &mixed_node = mixed_nodes_.back();
-    id_to_node_map_.push_back({DALI_MIXED, mixed_nodes_.size()-1});
+    id_to_node_map_.push_back({DALIOpType::DALI_MIXED, mixed_nodes_.size()-1});
 
     new_node = &mixed_node;
   } else if (device == "support") {
@@ -110,7 +110,7 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
 
     support_nodes_.resize(support_nodes_.size()+1);
     OpNode &support_node = support_nodes_.back();
-    id_to_node_map_.push_back({DALI_SUPPORT, support_nodes_.size() - 1});
+    id_to_node_map_.push_back({DALIOpType::DALI_SUPPORT, support_nodes_.size() - 1});
 
     new_node = &support_node;
   } else {
@@ -331,7 +331,7 @@ void OpGraph::RemoveOp(NodeID id) {
   // We will then need to update the id map entry for
   // all nodes of this type that follow the deleted node
   switch (type) {
-  case DALI_CPU:
+  case DALIOpType::DALI_CPU:
     cpu_nodes_.erase(cpu_nodes_.begin() + idx);
 
     for (size_t i = idx; i < cpu_nodes_.size(); ++i) {
@@ -339,7 +339,7 @@ void OpGraph::RemoveOp(NodeID id) {
       id_to_node_map_[cpu_node.id].second = i;
     }
     break;
-  case DALI_GPU:
+  case DALIOpType::DALI_GPU:
     gpu_nodes_.erase(gpu_nodes_.begin() + idx);
 
     for (size_t i = idx; i < gpu_nodes_.size(); ++i) {
@@ -347,7 +347,7 @@ void OpGraph::RemoveOp(NodeID id) {
       id_to_node_map_[gpu_node.id].second = i;
     }
     break;
-  case DALI_MIXED:
+  case DALIOpType::DALI_MIXED:
     mixed_nodes_.erase(mixed_nodes_.begin() + idx);
 
     for (size_t i = idx; i < mixed_nodes_.size(); ++i) {
@@ -355,7 +355,7 @@ void OpGraph::RemoveOp(NodeID id) {
       id_to_node_map_[mixed_node.id].second = i;
     }
     break;
-  case DALI_SUPPORT:
+  case DALIOpType::DALI_SUPPORT:
     support_nodes_.erase(support_nodes_.begin() + idx);
 
     for (size_t i = idx; i < support_nodes_.size(); ++i) {
@@ -370,16 +370,16 @@ OpNode& OpGraph::node(NodeID id) {
   auto idx_pair = id_to_node_map_[id];
 
   switch (idx_pair.first) {
-  case DALI_CPU:
+  case DALIOpType::DALI_CPU:
     return cpu_nodes_[idx_pair.second];
     break;
-  case DALI_GPU:
+  case DALIOpType::DALI_GPU:
     return gpu_nodes_[idx_pair.second];
     break;
-  case DALI_MIXED:
+  case DALIOpType::DALI_MIXED:
     return mixed_nodes_[idx_pair.second];
     break;
-  case DALI_SUPPORT:
+  case DALIOpType::DALI_SUPPORT:
     return support_nodes_[idx_pair.second];
     break;
   default:
