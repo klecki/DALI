@@ -573,7 +573,7 @@ string Pipeline::SerializeToProtobuf() const {
 }
 
 OpNode * Pipeline::GetOperatorNode(const std::string& name) {
-  return &(graph_.node(name));
+  return &(graph_.Node(name));
 }
 
 std::map<std::string, Index> Pipeline::EpochSize() {

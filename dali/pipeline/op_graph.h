@@ -60,6 +60,14 @@ struct OpNode {
   OpNodeId id;
   OpSpec spec;
   std::set<OpNodeId> parents, children;
+
+  // parent and children tensors indexed by our inputs and outputs
+  std::vector<TensorNodeId> parent_tensors, children_tensors;
+
+  // parent ops indexed by our inputs,
+  // parent_ops[i] === parent_tensors[i].producer_edge.node;
+  std::vector<OpNodeId> parent_ops;
+
   std::string instance_name;
 };
 
@@ -67,6 +75,7 @@ struct OpNode {
 // is used by a producer/consumer node.
 struct TensorMeta {
   OpNodeId node;
+  TensorNodeId tensor;
   Index index;
   DALITensorDevice storage_device;
   bool is_support;
@@ -78,8 +87,9 @@ using consumer_edge_t = TensorMeta;
 // Second type of graph nodes.
 struct TensorNode {
   TensorNodeId id;
-  producer_edge_t parent_edge;
-  std::set<consumer_edge_t> consumer_edges;
+  producer_edge_t producer_edge;
+  // order of consumers is arbitrary
+  std::vector<consumer_edge_t> consumer_edges;
 };
 
 
@@ -201,7 +211,7 @@ class DLL_PUBLIC OpGraph {
    * index as argument so should not be used in performance
    * critical section of the code.
    */
-  DLL_PUBLIC OpNode& node(const std::string& name);
+  DLL_PUBLIC OpNode& Node(const std::string& name);
 
   /**
    * @brief Returns the graph node with the given index in the graph.
@@ -218,6 +228,21 @@ class DLL_PUBLIC OpGraph {
     DALI_ENFORCE_VALID_INDEX(id, op_nodes_.size());
     return op_nodes_[id];
   }
+
+  DLL_PUBLIC TensorNode& Tensor(TensorNodeId id) {
+    DALI_ENFORCE_VALID_INDEX(id, tensor_nodes_.size());
+    return tensor_nodes_[id];
+  }
+
+  DLL_PUBLIC const TensorNode& Tensor(TensorNodeId id) const {
+    DALI_ENFORCE_VALID_INDEX(id, tensor_nodes_.size());
+    return tensor_nodes_[id];
+  }
+
+  // DLL_PUBLIC OpNode& ProdNode(TensorNodeId id) {
+  //   auto prod_id = Tensor(id).producer_edge.node;
+  //   return op_nodes_[prod_id];
+  // }
 
   /**
    * @brief Returns the type (cpu, gpu, mixed) of the node
@@ -242,18 +267,18 @@ class DLL_PUBLIC OpGraph {
    * with the given name and its producer node.
    */
   DLL_PUBLIC inline TensorMeta TensorSourceMeta(const string &name) const {
-    auto it = tensor_producers_.find(name);
-    DALI_ENFORCE(it != tensor_producers_.end(), "Tensor with name \"" +
+    auto it = tensor_name_to_id_.find(name);
+    DALI_ENFORCE(it != tensor_name_to_id_.end(), "Tensor with name \"" +
         name + "\" has no known source.");
-    return it->second;
+    return tensor_nodes_[it->second].producer_edge;
   }
 
   /**
    * @brief Checks if given Tensor already exists in the graph
    */
   DLL_PUBLIC inline bool TensorExists(const string &name) {
-    auto it = tensor_producers_.find(name);
-    return it != tensor_producers_.end();
+    auto it = tensor_name_to_id_.find(name);
+    return it != tensor_name_to_id_.end();
   }
 
   /**
@@ -284,13 +309,13 @@ class DLL_PUBLIC OpGraph {
    * consume the tensor with the input name.
    */
   DLL_PUBLIC inline vector<TensorMeta> TensorConsumerMeta(const string &name) const {
-    auto it = tensor_consumers_.find(name);
-    if (it == tensor_consumers_.end()) {
+    auto it = tensor_name_to_id_.find(name);
+    if (it == tensor_name_to_id_.end()) {
       // If we have no entries for this tensors consumers,
       // we just return an empty vector
       return vector<TensorMeta>{};
     }
-    return it->second;
+    return tensor_nodes_[it->second].consumer_edges;
   }
 
   /**
@@ -333,28 +358,36 @@ class DLL_PUBLIC OpGraph {
 
  private:
 
-  OpNode& PlaceNewOp(DALIOpType op_type);
+  OpNode& PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string instance_name);
+  TensorNode& PlaceNewTensor();
 
   // vector<OpNode> cpu_nodes_;
-  vector<OpNode> gpu_nodes_;
-  vector<OpNode> mixed_nodes_;
-  vector<OpNode> support_nodes_;
+  // vector<OpNode> gpu_nodes_;
+  // vector<OpNode> mixed_nodes_;
+  // vector<OpNode> support_nodes_;
 
   std::vector<OpNode> op_nodes_;
   std::vector<TensorNode> tensor_nodes_;
   std::vector<std::vector<OpPartitionId>> node_partitions_;
 
+  // Overwrite target_id TensorNode with source_id TensorNode fixing all references to
+  // TensorNode source_id.
+  void OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id);
+  void RemoveTensorNode(TensorNodeId id);
 
   // Stores a mapping from NodeIDs to a pair where the first
   // element indicates what type of node it is,  and the second
   // is the index of the op within the specified vector.
   vector<std::pair<DALIOpType, Index>> id_to_node_map_;
 
-  std::map<string, TensorMeta> tensor_producers_;
-  std::map<string, vector<TensorMeta>> tensor_consumers_;
+  // std::map<string, TensorMeta> tensor_producers_;
+  // std::map<string, vector<TensorMeta>> tensor_consumers_;
+
+  std::map<std::string, TensorNodeId> tensor_name_to_id_;
 
   // For the graph traversal
   std::unordered_set<OpNodeId> visited_nodes_;
+  TensorNodeId next_tensor_id_ = 0;
 };
 
 }  // namespace dali

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <algorithm>
+
 #include "dali/pipeline/op_graph.h"
 
 #include "dali/pipeline/operators/op_schema.h"
@@ -94,13 +96,22 @@ DALITensorDevice DeviceStringToTensorStorage(std::string inout_device) {
 
 }  // namespace
 
-OpNode& OpGraph::PlaceNewOp(DALIOpType op_type) {
-  auto new_node_id = op_nodes_.size();
-  op_nodes_.resize(new_node_id + 1);
+OpNode& OpGraph::PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string instance_name) {
+  op_nodes_.push_back(OpNode());
+  auto &node = op_nodes_.back();
+  node.id = op_nodes_.size() - 1;
+  node.spec = op_spec;
+  node.instance_name = std::move(instance_name);
   auto new_partition_id = NumOp(op_type); //node_partitions_[op_type].size();
-  node_partitions_[static_cast<int>(op_type)].push_back(new_node_id);
+  node_partitions_[static_cast<int>(op_type)].push_back(node.id);
   id_to_node_map_.push_back({op_type, new_partition_id});
-  return op_nodes_.back();
+  return node;
+}
+
+TensorNode& OpGraph::PlaceNewTensor() {
+  tensor_nodes_.push_back(TensorNode());
+  tensor_nodes_.back().id = tensor_nodes_.size() - 1;
+  return tensor_nodes_.back();
 }
 
 void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
@@ -134,44 +145,51 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
           "\". Valid options are \"cpu\", \"gpu\" or \"mixed\"");
       break;
   }
-  auto &new_node = PlaceNewOp(op_type);
   // Add node meta-data and add to the list of nodes
-  new_node.id = NumOp()-1;
-  new_node.spec = spec;
-  new_node.instance_name = name;
+  auto &new_node = PlaceNewOp(op_type, spec, name);
 
   // Setup references between nodes. We require that the
   // ops are added to the graph in a topological ordering.
   // This loop will verify this by ensuring that all inputs
   // to the new op have already been created.
   for (int i = 0; i < spec.NumInput(); ++i) {
-    // Add parent node id
-    auto parent_id = TensorSourceID(spec.Input(i));
+    // Get the tensor id we are consuming by its name
+    auto it = tensor_name_to_id_.find(spec.Input(i));
+    DALI_ENFORCE(it != tensor_name_to_id_.end(), "Tensor with name \"" +
+        name + "\" has no known source.");
+    auto consumed_tensor_id = it->second;
+
+    // Add parent node id, checks if parent node exists in graph
+    auto parent_id = tensor_nodes_[consumed_tensor_id].producer_edge.node;
 
     // Note: We don't care if the parent has already
     // been added to this nodes set of parents, so
     // we don't check the return value.
     new_node.parents.insert(parent_id);
+    new_node.parent_ops.push_back(parent_id);
 
     // Add new node as child
     auto &parent_node = this->Node(parent_id);
     parent_node.children.insert(new_node.id);
 
+    // Place it as a parent tensor
+    new_node.parent_tensors.push_back(consumed_tensor_id);
+
     // Update the consumer info for this tensor
     TensorMeta meta;
     meta.node = new_node.id;
+    meta.tensor = consumed_tensor_id;
     meta.index = i;
     meta.is_support = spec.IsArgumentInput(i);
     meta.storage_device = DeviceStringToTensorStorage(spec.InputDevice(i));
 
-    vector<TensorMeta> &consumer_info = tensor_consumers_[spec.Input(i)];
-    consumer_info.push_back(meta);
+    // Insert new tensor consumer
+    tensor_nodes_[consumed_tensor_id].consumer_edges.push_back(meta);
   }
 
   // Mark this op as the source of its output tensors
+  // Create TensorNodes for outputs and respective edges for this OpNode -> TensorNodes
   for (int i = 0; i < spec.NumOutput(); ++i) {
-    string name = spec.Output(i);
-
     // Set the producer info for this tensor
     TensorMeta meta;
     meta.node = new_node.id;
@@ -179,44 +197,68 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
     meta.is_support = spec.GetArgument<string>("device") == "support";
     meta.storage_device = DeviceStringToTensorStorage(spec.OutputDevice(i));
 
-    auto ret = tensor_producers_.insert({name, meta});
-    DALI_ENFORCE(ret.second, "Operator '" + spec.name() +
+    // Place new Tensor with producer info and add edge to OpNode.
+    auto &new_tensor = PlaceNewTensor();
+    meta.tensor = new_tensor.id;
+    new_tensor.producer_edge = meta;
+    new_node.children_tensors.push_back(new_tensor.id);
+
+    string name = spec.Output(i);
+    auto it_inserted = tensor_name_to_id_.insert({name, new_tensor.id});
+    DALI_ENFORCE(it_inserted.second, "Operator '" + spec.name() +
         "' has output with name " + name + ", but output "
         "with this name already exists as output of op '" +
         this->Node(TensorSourceID(name)).spec.name() + "'");
   }
 }
 
-// TODO(klecki) move this generalized op creation to better place
-std::unique_ptr<OperatorBase> GenericRegistryCreate(DALIOpType op_type, const std::string &name, const OpSpec &spec, const std::string *devName = NULL) {
-  switch (op_type) {
-    case DALIOpType::DALI_CPU:
-      return CPUOperatorRegistry::Registry().Create(name, spec, devName);
-    case DALIOpType::DALI_GPU:
-      return GPUOperatorRegistry::Registry().Create(name, spec, devName);
-    case DALIOpType::DALI_MIXED:
-      return MixedOperatorRegistry::Registry().Create(name, spec, devName);
-    case DALIOpType::DALI_SUPPORT:
-      return SupportOperatorRegistry::Registry().Create(name, spec, devName);
-    default:
-      DALI_FAIL("Internal error. Invalid operator type - registry not found.");
-  }
-}
-
 void OpGraph::InstantiateOperators() {
   // traverse devices by topological order (support, cpu, mixed, gpu)
-  DALIOpType order[] = {DALIOpType::DALI_SUPPORT, DALIOpType::DALI_CPU, DALIOpType::DALI_MIXED, DALIOpType::DALI_GPU};
+  DALIOpType order[] = { DALIOpType::DALI_SUPPORT, DALIOpType::DALI_CPU,
+                         DALIOpType::DALI_MIXED,   DALIOpType::DALI_GPU };
 
   for (auto op_type : order) {
     for (auto op_id : node_partitions_[static_cast<int>(op_type)]) {
-      auto &node = op_nodes_[op_id];
-      if (node.op)
-        continue;
-      auto &spec = node.spec;
-      string device = spec.GetArgument<string>("device");
-      node.op = GenericRegistryCreate(op_type, spec.name(), spec, &device);
+      op_nodes_[op_id].InstantiateOperator();
     }
   }
+}
+
+void OpGraph::OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id) {
+  auto &source_tensor = tensor_nodes_[source_id];
+  auto &target_tensor = tensor_nodes_[target_id];
+  auto target_name = Node(target_tensor.producer_edge.node).spec.Output(target_tensor.producer_edge.index);
+  // We must fix all users of source_id, as they will now use target_id
+  // Single producent
+  auto &prod = Node(source_tensor.producer_edge.node);
+  prod.children_tensors[source_tensor.producer_edge.index] = target_id;
+  auto source_name = prod.spec.Output(source_tensor.producer_edge.index);
+  // All consumers
+  for (auto &cons_meta : source_tensor.consumer_edges) {
+    auto &cons = Node(cons_meta.node);
+    cons.parent_tensors[cons_meta.index] = target_id;
+  }
+  // Overwrite actual nodes
+  tensor_nodes_[target_id] = tensor_nodes_[source_id];
+  // Clean up names mapping
+  tensor_name_to_id_[source_name] = target_id;
+  tensor_name_to_id_.erase(target_name);
+}
+
+void OpGraph::RemoveTensorNode(TensorNodeId id) {
+  for (TensorNodeId i = id + 1; i < (int)tensor_nodes_.size(); i++) {
+    // Move from i to i - 1
+    OverwriteTensorNode(i, i - 1);
+  }
+  // assume that we removed one element
+  tensor_nodes_.pop_back();
+}
+
+
+template <typename T>
+void RemoveVectorElement(T& vector, typename T::iterator it) {
+  std::swap(*it, vector.back());
+  vector.pop_back();
 }
 
 // Op Removal Process:
@@ -231,14 +273,37 @@ void OpGraph::InstantiateOperators() {
 // 8. update id map for ops after target in its typed vector
 
 // TODO: adjust for unified node indexing
-void OpGraph::RemoveOp(OpNodeId id) {
-  return;
-  // OpNode &target = this->node(id);
+// Op Removal Process:
+// 1. Validate we can remove it (it has no children & no consumers for produced tensors)
+// 2. Remove its tensors
+// 3. Reindex the tensor_nodes_
 
-  // // If the node has any children, we cannot remove it
-  // DALI_ENFORCE(target.children.empty(), "Node '" + target.spec.name() +
-  //     "' has " + std::to_string(target.children.size()) +
-  //     ". Cannot remove");
+void OpGraph::RemoveOp(OpNodeId id) {
+  OpNode &target = this->Node(id);
+
+  // If the node has any children, we cannot remove it
+  DALI_ENFORCE(target.children.empty(), "Node '" + target.spec.name() +
+      "' has " + std::to_string(target.children.size()) +
+      ". Cannot remove");
+  for (auto t : target.children_tensors) {
+    DALI_ENFORCE(tensor_nodes_[t].consumer_edges.empty(), "Node '" + target.spec.name() +
+      "' produces a tensor that has " + std::to_string(tensor_nodes_[t].consumer_edges.size()) +
+      " consumers. Cannot remove");
+  }
+
+
+  for (auto t : target.children_tensors) {
+    RemoveTensorNode(t);
+  }
+
+  // TODO(klecki): not sure if we can consume some tensors more than once
+  for (auto t : target.parent_tensors) {
+    auto &sibling_consumers = tensor_nodes_[t].consumer_edges;
+    auto result = std::find_if(sibling_consumers.begin(), sibling_consumers.end(), [id](TensorMeta &meta)  {
+      return meta.node == id;
+    });
+    RemoveVectorElement(sibling_consumers, result);
+  }
 
   // // Remove this nodes tensors from the graph
   // for (int i = 0; i < target.spec.NumOutput(); ++i) {
@@ -389,31 +454,12 @@ void OpGraph::RemoveOp(OpNodeId id) {
 }
 
 // TODO(klecki)
-OpNode& OpGraph::node(const std::string& name) {
-  // Search cpu nodes
-  // for (auto& node : cpu_nodes_) {
-  //   if (node.instance_name == name) {
-  //     return node;
-  //   }
-  // }
-  // // Search gpu nodes
-  // for (auto& node : gpu_nodes_) {
-  //   if (node.instance_name == name) {
-  //     return node;
-  //   }
-  // }
-  // // Search mixed nodes
-  // for (auto& node : mixed_nodes_) {
-  //   if (node.instance_name == name) {
-  //     return node;
-  //   }
-  // }
-  // // Search support nodes
-  // for (auto& node : support_nodes_) {
-  //   if (node.instance_name == name) {
-  //     return node;
-  //   }
-  // }
+OpNode& OpGraph::Node(const std::string& name) {
+  for (auto &node : op_nodes_) {
+    if (node.instance_name == name) {
+      return node;
+    }
+  }
   DALI_FAIL("Operator node with name " + name + " not found.");
 }
 
