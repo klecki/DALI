@@ -69,6 +69,8 @@ struct OpNode {
   // std::vector<OpNodeId> parent_ops;
 
   std::string instance_name;
+  DALIOpType op_type;
+  OpPartitionId partition_index;
 };
 
 // Stores meta-data about a tensor and how it
@@ -169,11 +171,6 @@ class DLL_PUBLIC OpGraph {
     return op_nodes_[node_id];
   }
 
-  DLL_PUBLIC inline std::pair<DALIOpType, OpPartitionId> PartitionId(OpNodeId op_id) {
-    // TODO(klecki) return {nodes_[op_id].op_type} ??
-    return id_to_node_map_[op_id];
-  }
-
   /**
    * @brief Returns the node object for the `idx`-th cpu op that
    * was added to the graph.
@@ -250,8 +247,8 @@ class DLL_PUBLIC OpGraph {
    * at the given index.
    */
   DLL_PUBLIC inline DALIOpType NodeType(OpNodeId id) const {
-    DALI_ENFORCE_VALID_INDEX(id, (Index)id_to_node_map_.size());
-    return id_to_node_map_[id].first;
+    DALI_ENFORCE_VALID_INDEX(id, (Index)op_nodes_.size());
+    return op_nodes_[id].op_type;
   }
 
   /**
@@ -259,8 +256,8 @@ class DLL_PUBLIC OpGraph {
    * among nodes of its type.
    */
   DLL_PUBLIC inline Index NodeIdx(OpNodeId id) const {
-    DALI_ENFORCE_VALID_INDEX(id, (Index)id_to_node_map_.size());
-    return id_to_node_map_[id].second;
+    DALI_ENFORCE_VALID_INDEX(id, (Index)op_nodes_.size());
+    return op_nodes_[id].partition_index;
   }
 
   /**
@@ -359,6 +356,8 @@ class DLL_PUBLIC OpGraph {
 
  private:
 
+  void Repartition();
+
   OpNode& PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string instance_name);
   TensorNode& PlaceNewTensor();
 
@@ -386,7 +385,7 @@ class DLL_PUBLIC OpGraph {
   // Stores a mapping from NodeIDs to a pair where the first
   // element indicates what type of node it is,  and the second
   // is the index of the op within the specified vector.
-  vector<std::pair<DALIOpType, Index>> id_to_node_map_;
+  // vector<std::pair<DALIOpType, Index>> id_to_node_map_;
 
   // std::map<string, TensorMeta> tensor_producers_;
   // std::map<string, vector<TensorMeta>> tensor_consumers_;

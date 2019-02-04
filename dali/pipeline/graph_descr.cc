@@ -102,9 +102,11 @@ OpNode& OpGraph::PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string inst
   node.id = op_nodes_.size() - 1;
   node.spec = op_spec;
   node.instance_name = std::move(instance_name);
+  node.op_type = op_type;
   auto new_partition_id = NumOp(op_type); //node_partitions_[op_type].size();
+  node.partition_index = new_partition_id;
   node_partitions_[static_cast<int>(op_type)].push_back(node.id);
-  id_to_node_map_.push_back({op_type, new_partition_id});
+  // id_to_node_map_.push_back({op_type, new_partition_id});
   return node;
 }
 
@@ -342,31 +344,21 @@ void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
   // Produced tensors (children)
   {
     auto &tensor_nodes_ref = tensor_nodes_;
-    auto swap_ids_in_node = [&tensor_nodes_ref](OpNode &node, OpNodeId new_id) {
+    auto swap_ids_in_parent_tensor = [&tensor_nodes_ref](OpNode &node, OpNodeId new_id) {
       for (auto tid : node.children_tensors) {
         auto &tensor = tensor_nodes_ref[tid];
         // edges from node to tensor
         tensor.producer_edge.node = new_id;
       }
     };
-    swap_ids_in_node(left, right_id);
-    swap_ids_in_node(right, left_id);
-    // for (auto tid : left.children_tensors) {
-    //   auto &tensor = tensor_nodes_[tid];
-    //   // edges from source to tensor
-    //   tensor.producer_edge.node = right_id;
-    // }
-    // for (auto tid : right.children_tensors) {
-    //   auto &tensor = tensor_nodes_[tid];
-    //   // edges from source to tensor
-    //   tensor.producer_edge.node = left_id;
-    // }
+    swap_ids_in_parent_tensor(left, right_id);
+    swap_ids_in_parent_tensor(right, left_id);
   }
   // Consumed tensors (parents). As we can have overlapping parents, we do this in two steps
   // otherwise we could overwrite twice.
   {
     auto &tensor_nodes_ref = tensor_nodes_;
-    auto swap_ids_in_node = [&tensor_nodes_ref](OpNode &node, OpNodeId old_id, OpNodeId new_id) {
+    auto swap_ids_in_child_tensor = [&tensor_nodes_ref](OpNode &node, OpNodeId old_id, OpNodeId new_id) {
       for (auto tid : node.parent_tensors) {
         auto &tensor = tensor_nodes_ref[tid];
         // edges from tensor to node
@@ -378,43 +370,56 @@ void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
       }
     };
     constexpr OpNodeId dummy_id = -1;
-    swap_ids_in_node(left, left_id, dummy_id);
-    swap_ids_in_node(right, right_id, left_id);
-    swap_ids_in_node(left, dummy_id, right_id);
-    // for (auto tid : left.parent_tensors) {
-    //   auto &tensor = tensor_nodes_[tid];
-    //   // edges from tensor to source
-    //   for (auto &edge : tensor.consumer_edges) {
-    //     if (edge.node == left_id) {
-    //       edge.node = dummy_id;
-    //     }
-    //   }
-    // }
-    // for (auto tid : right.parent_tensors) {
-    //   auto &tensor = tensor_nodes_[tid];
-    //   // edges from tensor to source
-    //   for (auto &edge : tensor.consumer_edges) {
-    //     if (edge.node == right_id) {
-    //       edge.node = left_id;
-    //     }
-    //   }
-    // }
-    // for (auto tid : left.parent_tensors) {
-    //   auto &tensor = tensor_nodes_[tid];
-    //   // edges from tensor to source
-    //   for (auto &edge : tensor.consumer_edges) {
-    //     if (edge.node == dummy_id) {
-    //       edge.node = right_id;
-    //     }
-    //   }
-    // }
+    swap_ids_in_child_tensor(left, left_id, dummy_id);
+    swap_ids_in_child_tensor(right, right_id, left_id);
+    swap_ids_in_child_tensor(left, dummy_id, right_id);
   }
+  // Swap all references in parent and children ops
+  {
+    auto &op_nodes_ref = op_nodes_;
+    auto remove_id_in_family_op = [&op_nodes_ref](OpNode &node, OpNodeId old_id) {
+      for (auto oid : node.parents) {
+        op_nodes_ref[oid].children.erase(old_id);
+      }
+      for (auto oid : node.children) {
+        op_nodes_ref[oid].parents.erase(old_id);
+      }
+    };
+    auto add_id_in_family_op = [&op_nodes_ref](OpNode &node, OpNodeId new_id) {
+      for (auto oid : node.parents) {
+        op_nodes_ref[oid].children.insert(new_id);
+      }
+      for (auto oid : node.children) {
+        op_nodes_ref[oid].parents.insert(new_id);
+      }
+    };
+    remove_id_in_family_op(left, left_id);
+    remove_id_in_family_op(right, right_id);
+    add_id_in_family_op(left, right_id);
+    add_id_in_family_op(right, left_id);
+  }
+
+  std::swap(left, right);
+
+  // Fix partitions TODO(klecki): solve as postprocessing step
+  // {
+  //   auto left_partition = id_to_node_map_[left_id]
+  //   auto right_partition = id_to_node_map_[right_id];
+  //   node_partitions_[static_cast<int>(left_partition.first)] =
+  //   std::swap(id_to_node_map_[left_id], id_to_node_map_[right_id]);
+  // }
 }
 
 void OpGraph::RemoveOpNode(OpNodeId id) {
+  DALI_ENFORCE_VALID_INDEX(id, (Index)op_nodes_.size());
+  auto &target_op = op_nodes_[id];
+  DALI_ENFORCE(target_op.children.empty(), "Overwritten ops cannot have any children.");
+  DALI_ENFORCE(target_op.children_tensors.empty(),
+               "All produced tensors should be removed before removing op"
+               " and list of children tensors should be invalidated.");
   for (OpNodeId i = id + 1; i < (int)op_nodes_.size(); i++) {
     // Move from i to i - 1
-    OverwriteOpNode(i, i - 1);
+    SwapOpNodes(i - 1, i);
   }
   // assume that we removed one element
   op_nodes_.pop_back();
@@ -620,6 +625,18 @@ void OpGraph::RemoveOp(OpNodeId id) {
   //   DALI_FAIL("Internal error. Invalid node type.");
   // break;
   // }
+  Repartition();
+}
+
+void OpGraph::Repartition() {
+  for (auto & p : node_partitions_) {
+    p.clear();
+  }
+  for (auto &node : op_nodes_) {
+    auto new_partition_id = NumOp(node.op_type); //node_partitions_[op_type].size();
+    node.partition_index = new_partition_id;
+    node_partitions_[static_cast<int>(node.op_type)].push_back(node.id);
+  }
 }
 
 // TODO(klecki)
