@@ -166,7 +166,7 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
     // been added to this nodes set of parents, so
     // we don't check the return value.
     new_node.parents.insert(parent_id);
-    new_node.parent_ops.push_back(parent_id);
+    // new_node.parent_ops.push_back(parent_id);
 
     // Add new node as child
     auto &parent_node = this->Node(parent_id);
@@ -197,13 +197,15 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
     meta.is_support = spec.GetArgument<string>("device") == "support";
     meta.storage_device = DeviceStringToTensorStorage(spec.OutputDevice(i));
 
+    string name = spec.Output(i);
+
     // Place new Tensor with producer info and add edge to OpNode.
     auto &new_tensor = PlaceNewTensor();
     meta.tensor = new_tensor.id;
     new_tensor.producer_edge = meta;
+    new_tensor.name = name;
     new_node.children_tensors.push_back(new_tensor.id);
 
-    string name = spec.Output(i);
     auto it_inserted = tensor_name_to_id_.insert({name, new_tensor.id});
     DALI_ENFORCE(it_inserted.second, "Operator '" + spec.name() +
         "' has output with name " + name + ", but output "
@@ -224,36 +226,199 @@ void OpGraph::InstantiateOperators() {
   }
 }
 
-void OpGraph::OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id) {
-  auto &source_tensor = tensor_nodes_[source_id];
-  auto &target_tensor = tensor_nodes_[target_id];
-  auto target_name = Node(target_tensor.producer_edge.node).spec.Output(target_tensor.producer_edge.index);
-  // We must fix all users of source_id, as they will now use target_id
-  // Single producent
-  auto &prod = Node(source_tensor.producer_edge.node);
-  prod.children_tensors[source_tensor.producer_edge.index] = target_id;
-  auto source_name = prod.spec.Output(source_tensor.producer_edge.index);
-  // All consumers
-  for (auto &cons_meta : source_tensor.consumer_edges) {
-    auto &cons = Node(cons_meta.node);
-    cons.parent_tensors[cons_meta.index] = target_id;
+// void OpGraph::OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id) {
+//   auto &source_tensor = tensor_nodes_[source_id];
+//   auto &target_tensor = tensor_nodes_[target_id];
+//   DALI_ENFORCE(target_tensor.consumer_edges.empty(), "Overwritten tensor cannot have any consumers.");
+//   auto target_name = Node(target_tensor.producer_edge.node).spec.Output(target_tensor.producer_edge.index);
+//   // We must fix all users of source_id, as they will now use target_id
+//   // Single producent
+//   auto &prod = Node(source_tensor.producer_edge.node);
+//   prod.children_tensors[source_tensor.producer_edge.index] = target_id;
+//   auto source_name = prod.spec.Output(source_tensor.producer_edge.index);
+//   // All consumers
+//   for (auto &cons_meta : source_tensor.consumer_edges) {
+//     auto &cons = Node(cons_meta.node);
+//     cons.parent_tensors[cons_meta.index] = target_id;
+//   }
+//   // Overwrite actual nodes
+//   tensor_nodes_[target_id] = tensor_nodes_[source_id];
+//   // invalidate consumers
+//   tensor_nodes_[source_id].consumer_edges.clear();
+//   // Clean up names mapping
+//   tensor_name_to_id_[source_name] = target_id;
+//   tensor_name_to_id_.erase(target_name);
+// }
+
+void OpGraph::SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id) {
+  auto &left = tensor_nodes_[left_id];
+  auto &right = tensor_nodes_[right_id];
+  // Change ids in producers (there is only one), and on edges
+  {
+    auto &left_prod = Node(left.producer_edge.node);
+    left_prod.children_tensors[left.producer_edge.index] = right_id;
+    left.producer_edge.tensor = right_id;
+    auto &right_prod = Node(right.producer_edge.node);
+    right_prod.children_tensors[right.producer_edge.index] = left_id;
+    right.producer_edge.tensor = left_id;
   }
-  // Overwrite actual nodes
-  tensor_nodes_[target_id] = tensor_nodes_[source_id];
+  // Change ids in consumers
+  {
+    for (auto &cons_edge : left.consumer_edges) {
+      auto &cons = Node(cons_edge.node);
+      cons.parent_tensors[cons_edge.index] = right_id;
+      cons_edge.tensor = right_id;
+    }
+    for (auto &cons_edge : right.consumer_edges) {
+      auto &cons = Node(cons_edge.node);
+      cons.parent_tensors[cons_edge.index] = left_id;
+      cons_edge.tensor = left_id;
+    }
+  }
   // Clean up names mapping
-  tensor_name_to_id_[source_name] = target_id;
-  tensor_name_to_id_.erase(target_name);
+  tensor_name_to_id_[left.name] = right_id;
+  tensor_name_to_id_[right.name] = left_id;
+  // Swap the actual nodes
+  std::swap(left, right);
 }
 
 void OpGraph::RemoveTensorNode(TensorNodeId id) {
+  DALI_ENFORCE_VALID_INDEX(id, (Index)tensor_nodes_.size());
+  DALI_ENFORCE(tensor_nodes_[id].consumer_edges.empty(), "Removed tensor cannot have any consumers.");
+  // Swap it out
   for (TensorNodeId i = id + 1; i < (int)tensor_nodes_.size(); i++) {
     // Move from i to i - 1
-    OverwriteTensorNode(i, i - 1);
+    SwapTensorNodes(i, i - 1);
   }
-  // assume that we removed one element
+  // We remove the last element
   tensor_nodes_.pop_back();
+  // There is no option to remove from positional array of tensor produced by parent op
 }
 
+void OpGraph::OverwriteOpNode(OpNodeId source_id, OpNodeId target_id) {
+  auto &source_op = op_nodes_[source_id];
+  auto &target_op = op_nodes_[target_id];
+  DALI_ENFORCE(target_op.children.empty(), "Overwritten ops cannot have any children.");
+  DALI_ENFORCE(target_op.children_tensors.empty(),
+               "All produced tensors should be removed before removing op"
+               " and list of children tensors should be invalidated.");
+  // change all the references from source_id to target_id in tensor edges
+  // Produced tensors (children)
+  for (auto tid : source_op.children_tensors) {
+    auto &tensor = tensor_nodes_[tid];
+    // edges from source to tensor
+    tensor.producer_edge.node = target_id;
+  }
+  // Consumed tensors (parents)
+  for (auto tid : source_op.parent_tensors) {
+    auto &tensor = tensor_nodes_[tid];
+    // edges from tensor to source
+    for (auto &edge : tensor.consumer_edges) {
+      if (edge.node == source_id) {
+        edge.node = target_id;
+      }
+    }
+  }
+  // Swap id in parents
+  for (auto oid : source_op.parents) {
+    auto &op = op_nodes_[oid];
+    op.children.erase(source_id);
+    op.children.insert(target_id);
+  }
+  // Swap id in children
+  for (auto oid : source_op.children) {
+    auto &op = op_nodes_[oid];
+    op.parents.erase(source_id);
+    op.children.insert(target_id);
+  }
+  // Swap OpNode
+  op_nodes_[target_id] = std::move(op_nodes_[source_id]);
+}
+
+void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
+  auto &left = op_nodes_[left_id];
+  auto &right = op_nodes_[right_id];
+  // Swap all references in tensor edges
+  // Produced tensors (children)
+  {
+    auto &tensor_nodes_ref = tensor_nodes_;
+    auto swap_ids_in_node = [&tensor_nodes_ref](OpNode &node, OpNodeId new_id) {
+      for (auto tid : node.children_tensors) {
+        auto &tensor = tensor_nodes_ref[tid];
+        // edges from node to tensor
+        tensor.producer_edge.node = new_id;
+      }
+    };
+    swap_ids_in_node(left, right_id);
+    swap_ids_in_node(right, left_id);
+    // for (auto tid : left.children_tensors) {
+    //   auto &tensor = tensor_nodes_[tid];
+    //   // edges from source to tensor
+    //   tensor.producer_edge.node = right_id;
+    // }
+    // for (auto tid : right.children_tensors) {
+    //   auto &tensor = tensor_nodes_[tid];
+    //   // edges from source to tensor
+    //   tensor.producer_edge.node = left_id;
+    // }
+  }
+  // Consumed tensors (parents). As we can have overlapping parents, we do this in two steps
+  // otherwise we could overwrite twice.
+  {
+    auto &tensor_nodes_ref = tensor_nodes_;
+    auto swap_ids_in_node = [&tensor_nodes_ref](OpNode &node, OpNodeId old_id, OpNodeId new_id) {
+      for (auto tid : node.parent_tensors) {
+        auto &tensor = tensor_nodes_ref[tid];
+        // edges from tensor to node
+        for (auto &edge : tensor.consumer_edges) {
+          if (edge.node == old_id) {
+            edge.node = new_id;
+          }
+        }
+      }
+    };
+    constexpr OpNodeId dummy_id = -1;
+    swap_ids_in_node(left, left_id, dummy_id);
+    swap_ids_in_node(right, right_id, left_id);
+    swap_ids_in_node(left, dummy_id, right_id);
+    // for (auto tid : left.parent_tensors) {
+    //   auto &tensor = tensor_nodes_[tid];
+    //   // edges from tensor to source
+    //   for (auto &edge : tensor.consumer_edges) {
+    //     if (edge.node == left_id) {
+    //       edge.node = dummy_id;
+    //     }
+    //   }
+    // }
+    // for (auto tid : right.parent_tensors) {
+    //   auto &tensor = tensor_nodes_[tid];
+    //   // edges from tensor to source
+    //   for (auto &edge : tensor.consumer_edges) {
+    //     if (edge.node == right_id) {
+    //       edge.node = left_id;
+    //     }
+    //   }
+    // }
+    // for (auto tid : left.parent_tensors) {
+    //   auto &tensor = tensor_nodes_[tid];
+    //   // edges from tensor to source
+    //   for (auto &edge : tensor.consumer_edges) {
+    //     if (edge.node == dummy_id) {
+    //       edge.node = right_id;
+    //     }
+    //   }
+    // }
+  }
+}
+
+void OpGraph::RemoveOpNode(OpNodeId id) {
+  for (OpNodeId i = id + 1; i < (int)op_nodes_.size(); i++) {
+    // Move from i to i - 1
+    OverwriteOpNode(i, i - 1);
+  }
+  // assume that we removed one element
+  op_nodes_.pop_back();
+}
 
 template <typename T>
 void RemoveVectorElement(T& vector, typename T::iterator it) {
@@ -291,12 +456,14 @@ void OpGraph::RemoveOp(OpNodeId id) {
       " consumers. Cannot remove");
   }
 
-
+  // Remove all tensors produced by this node and invalidate list of children tensors
   for (auto t : target.children_tensors) {
     RemoveTensorNode(t);
   }
+  target.children_tensors.clear();
 
-  // TODO(klecki): not sure if we can consume some tensors more than once
+  // TODO(klecki): not sure if we can consume some tensors more than once in one op,
+  // so we would need to remove it few times
   for (auto t : target.parent_tensors) {
     auto &sibling_consumers = tensor_nodes_[t].consumer_edges;
     auto result = std::find_if(sibling_consumers.begin(), sibling_consumers.end(), [id](TensorMeta &meta)  {
@@ -304,6 +471,8 @@ void OpGraph::RemoveOp(OpNodeId id) {
     });
     RemoveVectorElement(sibling_consumers, result);
   }
+
+  RemoveOpNode(id);
 
   // // Remove this nodes tensors from the graph
   // for (int i = 0; i < target.spec.NumOutput(); ++i) {

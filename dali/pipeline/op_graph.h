@@ -66,7 +66,7 @@ struct OpNode {
 
   // parent ops indexed by our inputs,
   // parent_ops[i] === parent_tensors[i].producer_edge.node;
-  std::vector<OpNodeId> parent_ops;
+  // std::vector<OpNodeId> parent_ops;
 
   std::string instance_name;
 };
@@ -87,6 +87,7 @@ using consumer_edge_t = TensorMeta;
 // Second type of graph nodes.
 struct TensorNode {
   TensorNodeId id;
+  std::string name; // TODO(klecki): not happy about all the strings
   producer_edge_t producer_edge;
   // order of consumers is arbitrary
   std::vector<consumer_edge_t> consumer_edges;
@@ -372,8 +373,15 @@ class DLL_PUBLIC OpGraph {
 
   // Overwrite target_id TensorNode with source_id TensorNode fixing all references to
   // TensorNode source_id.
-  void OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id);
+  // target_id tensor will be invalidate and cannot be used
+  // void OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id);
+  void SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id);
+
   void RemoveTensorNode(TensorNodeId id);
+
+  void OverwriteOpNode(OpNodeId source_id, OpNodeId target_id);
+  void SwapOpNodes(OpNodeId left_id, OpNodeId right_id);
+  void RemoveOpNode(OpNodeId id);
 
   // Stores a mapping from NodeIDs to a pair where the first
   // element indicates what type of node it is,  and the second
