@@ -257,6 +257,8 @@ void OpGraph::SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id) {
   tensor_name_to_id_[left.name] = right_id;
   tensor_name_to_id_[right.name] = left_id;
   // Swap the actual nodes
+  left.id = right_id;
+  right.id = left_id;
   std::swap(left, right);
 }
 
@@ -335,6 +337,9 @@ void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
     add_id_in_family_op(right, left_id);
   }
 
+  // Swap the nodes
+  left.id = right_id;
+  right.id = left_id;
   std::swap(left, right);
 }
 
@@ -348,6 +353,10 @@ void OpGraph::RemoveOpNode(OpNodeId id) {
   for (OpNodeId i = id + 1; i < (int)op_nodes_.size(); i++) {
     // Move from i to i - 1
     SwapOpNodes(i - 1, i);
+  }
+  // Remove the edge from parent Ops
+  for (auto parent_id : op_nodes_.back().parents) {
+    Node(parent_id).children.erase(op_nodes_.back().id);
   }
   // assume that we removed one element
   op_nodes_.pop_back();
@@ -418,6 +427,95 @@ OpNode& OpGraph::Node(const std::string& name) {
     }
   }
   DALI_FAIL("Operator node with name " + name + " not found.");
+}
+
+namespace {
+  std::ofstream& PrintTo(std::ofstream &ofs, const OpNode& node, bool show_ids) {
+    ofs << node.instance_name;
+    if (show_ids) {
+      ofs << "_" << node.id;
+    }
+    return ofs;
+  }
+  std::ofstream&  PrintTo(std::ofstream &ofs, const TensorNode& node, bool show_ids) {
+    ofs << node.name;
+    if (show_ids) {
+      ofs << "_" << node.id;
+    }
+    return ofs;
+  }
+  std::string GetGraphColor(DALIOpType op_type) {
+    switch(op_type) {
+      case DALIOpType::DALI_CPU:
+        return "blue";
+      case DALIOpType::DALI_GPU:
+        return "#76b900";
+      case DALIOpType::DALI_MIXED:
+        return "cyan";
+      case DALIOpType::DALI_SUPPORT:
+        return "grey";
+      default:
+        return "black";
+    }
+  }
+}
+
+void OpGraph::GenerateDOTFromGraph(std::ofstream& ofs, bool show_tensors, bool show_ids, bool use_colors) {
+  // Just output all the edges
+  for (auto &op : op_nodes_) {
+    PrintTo(ofs, op, show_ids) << "[color=\"" << GetGraphColor(op.op_type) << "\"];\n";
+    for (auto child_id : op.children) {
+      auto& child_node = Node(child_id);
+      PrintTo(ofs, op, show_ids) << " -> ";
+      PrintTo(ofs, child_node, show_ids);
+      if (show_tensors) {
+        ofs << "[style=dotted]";
+      }
+      ofs << ";\n";
+    }
+    if (show_tensors) {
+      int i = 0;
+      for (auto t_id : op.children_tensors) {
+        TensorNode& child_tensor = Tensor(t_id);
+        PrintTo(ofs, child_tensor, show_ids) << "[shape=box];\n";
+        PrintTo(ofs, op, show_ids) << " -> ";
+        PrintTo(ofs, child_tensor, show_ids) << "[label=" << i++ <<"];\n";
+        GenerateDOTFromGraph(child_tensor, ofs, show_tensors, show_ids);
+      }
+    }
+    ofs << "\n";
+  }
+  // DFS
+  // if (current_node.children.empty()
+  //     || visited_nodes_.find(current_node.id) != visited_nodes_.end()) {
+  //   PrintTo(ofs, current_node, show_ids) << ";\n";
+  //   return;
+  // }
+  // visited_nodes_.insert(current_node.id);
+  // if (show_tensors) {
+  //   for (auto t_id : current_node.children_tensors) {
+  //     TensorNode& child_tensor = Tensor(t_id);
+  //     PrintTo(ofs, child_tensor, show_ids) << "[shape=box];\n";
+  //     PrintTo(ofs, current_node, show_ids) << " -> ";
+  //     PrintTo(ofs, child_tensor, show_ids) << ";\n";
+  //     // We know this will be called only once, as we are only producer of this tensor
+  //     GenerateDOTFromGraph(child_tensor, ofs, show_tensors, show_ids);
+  //   }
+  // }
+  // for (auto node_id : current_node.children) {
+  //   PrintTo(ofs, current_node, show_ids);
+  //   ofs << " -> ";
+  //   OpNode& child_node = Node(node_id);
+  //   GenerateDOTFromGraph(child_node, ofs);
+  // }
+}
+
+void OpGraph::GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors, bool show_ids) {
+  for (auto edge : current_node.consumer_edges) {
+      PrintTo(ofs, current_node, show_ids) << " -> ";
+      auto &child_op = Node(edge.node);
+      PrintTo(ofs, child_op, show_ids) << "[label=" << edge.index << "];\n";
+  }
 }
 
 template <>

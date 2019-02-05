@@ -96,6 +96,7 @@ struct TensorNode {
 };
 
 
+
 /**
  * @brief Stores all meta-data about a graph of operations to be run
  * keeps track of useful meta-data about consumers/producers of
@@ -265,20 +266,7 @@ class DLL_PUBLIC OpGraph {
   /**
    * @brief Helper function for saving graph to DOT file
    */
-  DLL_PUBLIC void GenerateDOTFromGraph(const OpNode& current_node, std::ofstream& ofs) {
-    if (current_node.children.empty()
-        || visited_nodes_.find(current_node.id) != visited_nodes_.end()) {
-      ofs << current_node.instance_name << "\n";
-      return;
-    }
-    visited_nodes_.insert(current_node.id);
-    for (auto node_id : current_node.children) {
-        ofs << current_node.instance_name;
-        ofs << " -> ";
-        OpNode& child_node = Node(node_id);
-        GenerateDOTFromGraph(child_node, ofs);
-    }
-  }
+  DLL_PUBLIC void GenerateDOTFromGraph(std::ofstream& ofs, bool show_tensors, bool show_ids, bool use_colors);
 
   /**
    * @brief Instantiates the operators based on OpSpecs in nodes
@@ -289,11 +277,11 @@ class DLL_PUBLIC OpGraph {
    * @brief Save graph in DOT directed graph format
    * in filename.
    */
-  DLL_PUBLIC void SaveToDotFile(const string filename) {
+  DLL_PUBLIC void SaveToDotFile(const string filename, bool show_tensors = false, bool show_ids = false, bool use_colors = false) {
     std::ofstream ofs(filename);
+    visited_nodes_.clear();
     ofs << "digraph graphname {\n";
-    const OpNode& current_node = Node(0);
-    GenerateDOTFromGraph(current_node, ofs);
+    GenerateDOTFromGraph(ofs, show_tensors, show_ids, use_colors);
     ofs << "}\n";
     visited_nodes_.clear();
   }
@@ -301,6 +289,9 @@ class DLL_PUBLIC OpGraph {
   DISABLE_COPY_MOVE_ASSIGN(OpGraph);
 
  private:
+
+  // Should be called only once for each tensor
+  void GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors, bool show_ids);
 
   void Repartition();
 
