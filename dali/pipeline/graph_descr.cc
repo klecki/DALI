@@ -228,30 +228,6 @@ void OpGraph::InstantiateOperators() {
   }
 }
 
-// void OpGraph::OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id) {
-//   auto &source_tensor = tensor_nodes_[source_id];
-//   auto &target_tensor = tensor_nodes_[target_id];
-//   DALI_ENFORCE(target_tensor.consumer_edges.empty(), "Overwritten tensor cannot have any consumers.");
-//   auto target_name = Node(target_tensor.producer_edge.node).spec.Output(target_tensor.producer_edge.index);
-//   // We must fix all users of source_id, as they will now use target_id
-//   // Single producent
-//   auto &prod = Node(source_tensor.producer_edge.node);
-//   prod.children_tensors[source_tensor.producer_edge.index] = target_id;
-//   auto source_name = prod.spec.Output(source_tensor.producer_edge.index);
-//   // All consumers
-//   for (auto &cons_meta : source_tensor.consumer_edges) {
-//     auto &cons = Node(cons_meta.node);
-//     cons.parent_tensors[cons_meta.index] = target_id;
-//   }
-//   // Overwrite actual nodes
-//   tensor_nodes_[target_id] = tensor_nodes_[source_id];
-//   // invalidate consumers
-//   tensor_nodes_[source_id].consumer_edges.clear();
-//   // Clean up names mapping
-//   tensor_name_to_id_[source_name] = target_id;
-//   tensor_name_to_id_.erase(target_name);
-// }
-
 void OpGraph::SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id) {
   auto &left = tensor_nodes_[left_id];
   auto &right = tensor_nodes_[right_id];
@@ -360,14 +336,6 @@ void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
   }
 
   std::swap(left, right);
-
-  // Fix partitions TODO(klecki): solve as postprocessing step
-  // {
-  //   auto left_partition = id_to_node_map_[left_id]
-  //   auto right_partition = id_to_node_map_[right_id];
-  //   node_partitions_[static_cast<int>(left_partition.first)] =
-  //   std::swap(id_to_node_map_[left_id], id_to_node_map_[right_id]);
-  // }
 }
 
 void OpGraph::RemoveOpNode(OpNodeId id) {
@@ -391,23 +359,13 @@ void RemoveVectorElement(T& vector, typename T::iterator it) {
   vector.pop_back();
 }
 
-// Op Removal Process:
-// 1. Validate we can remove it (it has no children)
-// 2. Remove its tensors
-// 3. Remove it as a child of all ops
-// 4. Decrement all child ids > id
-// 5. Decrement all parent ids > id
-// 5. Decrement all op ids > id
-// 6. remove id map entry for target
-// 7. remove object for target
-// 8. update id map for ops after target in its typed vector
 
 // TODO: adjust for unified node indexing
 // Op Removal Process:
 // 1. Validate we can remove it (it has no children & no consumers for produced tensors)
-// 2. Remove its tensors
-// 3. Reindex the tensor_nodes_
-
+// 2. Remove tensors it produces
+// 3. Remove the OpNode
+// 4. Correct the partitions as we changed the ids while removing OpNode
 void OpGraph::RemoveOp(OpNodeId id) {
   OpNode &target = this->Node(id);
 
@@ -438,153 +396,6 @@ void OpGraph::RemoveOp(OpNodeId id) {
   }
 
   RemoveOpNode(id);
-
-  // // Remove this nodes tensors from the graph
-  // for (int i = 0; i < target.spec.NumOutput(); ++i) {
-  //   tensor_producers_.erase(target.spec.Output(i));
-  // }
-
-  // // Remove references to this node as a consumer
-  // for (int i = 0; i < target.spec.NumInput(); ++i) {
-  //   auto it = tensor_consumers_.find(target.spec.Input(i));
-  //   DALI_ENFORCE(it != tensor_consumers_.end(), "Could not find "
-  //       "consumer entries for tensor, but target node is a consumer.");
-  //   vector<TensorMeta> &consumer_info = it->second;
-  //   bool erased = false;
-  //   for (size_t j = 0; j < consumer_info.size(); ++j) {
-  //     if (consumer_info[j].node == id) {
-  //       consumer_info.erase(consumer_info.begin() + j);
-  //       erased = true;
-  //       break;
-  //     }
-  //   }
-  //   DALI_ENFORCE(erased, "Could not find entry for target node as tensor consumer.");
-  // }
-
-  // for (int i = 0; i < this->NumOp(); ++i) {
-  //   OpNode &node = this->node(i);
-  //   if (node.id > id) {
-  //     // Decrement this nodes id to account for
-  //     // the removal of the node with id `id`.
-  //     --node.id;
-
-  //     // Update all of its outputs with the new id
-  //     for (int j = 0; j < node.spec.NumOutput(); ++j) {
-  //       auto it = tensor_producers_.find(node.spec.Output(j));
-  //       DALI_ENFORCE(it != tensor_producers_.end(),
-  //           "Could not find tensor source entry.");
-
-  //       it->second.node = node.id;
-  //     }
-
-  //     // Update all of its consumer records with new id
-  //     for (int j = 0; j < node.spec.NumInput(); ++j) {
-  //       auto it = tensor_consumers_.find(node.spec.Input(j));
-  //       DALI_ENFORCE(it != tensor_consumers_.end(), "Could not find "
-  //           "consumer entries for tensor, but current node is a consumer.");
-  //       vector<TensorMeta> &consumer_info = it->second;
-  //       bool found = false;
-  //       for (size_t k = 0; k < consumer_info.size(); ++k) {
-  //         if (consumer_info[k].node == node.id+1) {
-  //           consumer_info[k].node = node.id;
-  //           found = true;
-  //           break;
-  //         }
-  //       }
-  //       DALI_ENFORCE(found, "Could not find entry for current "
-  //           "node as tensor consumer.");
-  //     }
-  //   }
-
-  //   // Scan its parents and children. If the target is
-  //   // a child, remove it as it no longer exists. If
-  //   // a node with an id > the target id is a parent
-  //   // or child, we will decrement its id to account
-  //   // for the removal.
-  //   vector<OpNodeId> to_add;
-  //   auto it = node.parents.begin();
-  //   while (it != node.parents.end()) {
-  //     // This should never occur, we have previously checked
-  //     // that the target has no children in the graph
-  //     DALI_ENFORCE(*it != id, "Found node with target as parent.");
-  //     if (*it > id) {
-  //       to_add.push_back((*it) - 1);
-  //       it = node.parents.erase(it);
-  //     } else {
-  //       ++it;
-  //     }
-  //   }
-  //   for (auto &parent : to_add) {
-  //     DALI_ENFORCE(node.parents.insert(parent).second,
-  //         "Insertion of updated parent id failed.");
-  //   }
-  //   to_add.clear();
-
-  //   // Remove the target node id if it is a child
-  //   node.children.erase(id);
-  //   it = node.children.begin();
-  //   while (it != node.children.end()) {
-  //     if (*it > id) {
-  //       to_add.push_back((*it) - 1);
-  //       it = node.children.erase(it);
-  //     } else {
-  //       ++it;
-  //     }
-  //   }
-  //   for (auto &child : to_add) {
-  //     DALI_ENFORCE(node.children.insert(child).second,
-  //         "Insertion of updated child id failed.");
-  //   }
-  // }
-
-  // // Remove this nodes entry from the id map. This will
-  // // effectively decrement all node ids after this node
-  // // to fill the gap.
-  // //
-  // auto type_and_idx = id_to_node_map_[id];
-  // DALIOpType type = type_and_idx.first;
-  // int idx = type_and_idx.second;
-  // id_to_node_map_.erase(id_to_node_map_.begin() + id);
-
-  // // Remove the typed node object for the target node.
-  // // We will then need to update the id map entry for
-  // // all nodes of this type that follow the deleted node
-  // switch (type) {
-  // case DALIOpType::DALI_CPU:
-  //   cpu_nodes_.erase(cpu_nodes_.begin() + idx);
-
-  //   for (size_t i = idx; i < cpu_nodes_.size(); ++i) {
-  //     OpNode &cpu_node = this->cpu_node(i);
-  //     id_to_node_map_[cpu_node.id].second = i;
-  //   }
-  //   break;
-  // case DALIOpType::DALI_GPU:
-  //   gpu_nodes_.erase(gpu_nodes_.begin() + idx);
-
-  //   for (size_t i = idx; i < gpu_nodes_.size(); ++i) {
-  //     OpNode &gpu_node = this->gpu_node(i);
-  //     id_to_node_map_[gpu_node.id].second = i;
-  //   }
-  //   break;
-  // case DALIOpType::DALI_MIXED:
-  //   mixed_nodes_.erase(mixed_nodes_.begin() + idx);
-
-  //   for (size_t i = idx; i < mixed_nodes_.size(); ++i) {
-  //     OpNode &mixed_node = this->mixed_node(i);
-  //     id_to_node_map_[mixed_node.id].second = i;
-  //   }
-  //   break;
-  // case DALIOpType::DALI_SUPPORT:
-  //   support_nodes_.erase(support_nodes_.begin() + idx);
-
-  //   for (size_t i = idx; i < support_nodes_.size(); ++i) {
-  //     OpNode &support_node = this->support_node(i);
-  //     id_to_node_map_[support_node.id].second = i;
-  //   }
-  // default:
-  //   DALI_FAIL("Internal error. Invalid node type.");
-  // break;
-  // }
   Repartition();
 }
 

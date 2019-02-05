@@ -130,77 +130,28 @@ class DLL_PUBLIC OpGraph {
    * @brief Returns the total number of ops in the graph.
    */
   DLL_PUBLIC inline Index NumOp() const {
-    return NumCPUOp() + NumGPUOp() + NumMixedOp() + NumSupportOp();
+    return op_nodes_.size();
   }
 
+  /**
+   * @brief Returns the number of `op_type` ops in the graph.
+   */
   DLL_PUBLIC inline Index NumOp(DALIOpType op_type) const {
     return node_partitions_[static_cast<int>(op_type)].size();
   }
 
   /**
-   * @brief Returns the number of cpu ops in the graph.
-   */
-  DLL_PUBLIC inline Index NumCPUOp() const { return NumOp(DALIOpType::DALI_CPU); }
-
-  /**
-   * @brief Returns the number of gpu ops in the graph.
-   */
-  DLL_PUBLIC inline Index NumGPUOp() const { return NumOp(DALIOpType::DALI_GPU); }
-
-  /**
-   * @brief Returns the number of mixed ops in the graph.
-   */
-  DLL_PUBLIC inline Index NumMixedOp() const { return NumOp(DALIOpType::DALI_MIXED); }
-
-  /**
-   * @brief Returns the number of support ops in the graph.
-   */
-  DLL_PUBLIC inline Index NumSupportOp() const { return NumOp(DALIOpType::DALI_SUPPORT); }
-
-  /**
    * @brief Returns the unique NodeId for partition_id among nodes of op_type
    */
-  DLL_PUBLIC inline OpNodeId NodeId(OpPartitionId partition_id, DALIOpType op_type) {
+  DLL_PUBLIC inline OpNodeId NodeId(DALIOpType op_type, OpPartitionId partition_id) {
     DALI_ENFORCE_VALID_INDEX(partition_id, NumOp(op_type));
     return node_partitions_[static_cast<int>(op_type)][partition_id];
   }
 
   // TODO(klecki) return a copy/const& to disallow modification
-  DLL_PUBLIC inline OpNode& Node(OpPartitionId partition_id, DALIOpType op_type) {
-    auto node_id = NodeId(partition_id, op_type);
+  DLL_PUBLIC inline OpNode& Node(DALIOpType op_type, OpPartitionId partition_id) {
+    auto node_id = NodeId(op_type, partition_id);
     return op_nodes_[node_id];
-  }
-
-  /**
-   * @brief Returns the node object for the `idx`-th cpu op that
-   * was added to the graph.
-   */
-  DLL_PUBLIC inline OpNode& cpu_node(Index idx) {
-    return Node(idx, DALIOpType::DALI_CPU);
-  }
-
-  /**
-   * @brief Returns the node object for the `idx`-th gpu op that
-   * was added to the graph.
-   */
-  DLL_PUBLIC inline OpNode& gpu_node(Index idx) {
-    return Node(idx, DALIOpType::DALI_GPU);
-  }
-
-  /**
-   * @brief Returns the node object for the `idx`-th mixed op that
-   * was added to the graph.
-   */
-  DLL_PUBLIC inline OpNode& mixed_node(Index idx) {
-    return Node(idx, DALIOpType::DALI_MIXED);
-  }
-
-  /**
-   * @brief Returns the node object for the `idx`-th support op that
-   * was added to the graph.
-   */
-  DLL_PUBLIC inline OpNode& support_node(Index idx) {
-    return Node(idx, DALIOpType::DALI_SUPPORT);
   }
 
   /**
@@ -236,11 +187,6 @@ class DLL_PUBLIC OpGraph {
     DALI_ENFORCE_VALID_INDEX(id, tensor_nodes_.size());
     return tensor_nodes_[id];
   }
-
-  // DLL_PUBLIC OpNode& ProdNode(TensorNodeId id) {
-  //   auto prod_id = Tensor(id).producer_edge.node;
-  //   return op_nodes_[prod_id];
-  // }
 
   /**
    * @brief Returns the type (cpu, gpu, mixed) of the node
@@ -361,10 +307,6 @@ class DLL_PUBLIC OpGraph {
   OpNode& PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string instance_name);
   TensorNode& PlaceNewTensor();
 
-  // vector<OpNode> cpu_nodes_;
-  // vector<OpNode> gpu_nodes_;
-  // vector<OpNode> mixed_nodes_;
-  // vector<OpNode> support_nodes_;
 
   std::vector<OpNode> op_nodes_;
   std::vector<TensorNode> tensor_nodes_;
@@ -375,14 +317,6 @@ class DLL_PUBLIC OpGraph {
 
   void SwapOpNodes(OpNodeId left_id, OpNodeId right_id);
   void RemoveOpNode(OpNodeId id);
-
-  // Stores a mapping from NodeIDs to a pair where the first
-  // element indicates what type of node it is,  and the second
-  // is the index of the op within the specified vector.
-  // vector<std::pair<DALIOpType, Index>> id_to_node_map_;
-
-  // std::map<string, TensorMeta> tensor_producers_;
-  // std::map<string, vector<TensorMeta>> tensor_consumers_;
 
   std::map<std::string, TensorNodeId> tensor_name_to_id_;
 

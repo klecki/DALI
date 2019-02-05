@@ -47,12 +47,12 @@ void PipelinedExecutor::SetupStageOutputsForGraph() {
   // Make a set of the outputs names for quick lookup
   std::set<string> output_set(output_names_.begin(), output_names_.end());
 
-  for (int i = 0; i < graph_->NumSupportOp(); ++i) {
+  for (int i = 0; i < graph_->NumOp(DALIOpType::DALI_SUPPORT); ++i) {
     // Find all outputs of the support stage. An output is
     // a tensor that is used by an op in a later stage.
     // Do not include CPU ops inputs, since those are run
     // synchronously with support ops
-    OpNode &node = graph_->support_node(i);
+    OpNode &node = graph_->Node(DALIOpType::DALI_SUPPORT, i);
     std::vector<int> hints = GetMemoryHints(node.spec);
 
     for (int j = 0; j < node.spec.NumOutput(); ++j) {
@@ -90,10 +90,10 @@ void PipelinedExecutor::SetupStageOutputsForGraph() {
     }
   }
 
-  for (int i = 0; i < graph_->NumCPUOp(); ++i) {
+  for (int i = 0; i < graph_->NumOp(DALIOpType::DALI_CPU); ++i) {
     // Find all outputs of the cpu stage. An output is
     // a tensor that is used by an op in a later stage.
-    OpNode &node = graph_->cpu_node(i);
+    OpNode &node = graph_->Node(DALIOpType::DALI_CPU, i);
     std::vector<int> hints = GetMemoryHints(node.spec);
 
     for (int j = 0; j < node.spec.NumOutput(); ++j) {
@@ -137,10 +137,10 @@ void PipelinedExecutor::SetupStageOutputsForGraph() {
     }
   }
 
-  for (int i = 0; i < graph_->NumMixedOp(); ++i) {
+  for (int i = 0; i < graph_->NumOp(DALIOpType::DALI_MIXED); ++i) {
     // Find all outputs of the mixed stage. An output
     // is a tensor that is used by an op in a later stage.
-    OpNode &node = graph_->mixed_node(i);
+    OpNode &node = graph_->Node(DALIOpType::DALI_MIXED, i);
     std::vector<int> hints = GetMemoryHints(node.spec);
 
     for (int j = 0; j < node.spec.NumOutput(); ++j) {
@@ -249,7 +249,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
         int input_idx = info.con_and_idx[j].second;
         wsb->mixed_op_data[mixed_op_id].SetInput(
           input_idx, tvp.Get(queue_idx));
-        const OpNode &node = graph_->mixed_node(mixed_op_id);
+        const OpNode &node = graph_->Node(DALIOpType::DALI_MIXED, mixed_op_id);
         std::vector<int> hints = GetMemoryHints(node.spec);
         // Use pinned memory only when it is useful
         if (node.spec.name() == "MakeContiguous" &&

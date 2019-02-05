@@ -103,9 +103,9 @@ TEST_F(ExecutorTest, TestPruneBasicGraph) {
   // Validate the graph - op 3 should
   // have been pruned as its outputs
   // are unused.
-  ASSERT_EQ(graph.NumCPUOp(), 2);
-  ASSERT_EQ(graph.NumMixedOp(), 1);
-  ASSERT_EQ(graph.NumGPUOp(), 0);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_CPU), 2);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_MIXED), 1);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_GPU), 0);
 
   // Validate the source op
   auto& node = graph.Node(0);
@@ -174,9 +174,9 @@ TEST_F(ExecutorTest, TestPruneMultiple) {
 
   // Validate the graph - op 2&3 should
   // have been pruned
-  ASSERT_EQ(graph.NumCPUOp(), 1);
-  ASSERT_EQ(graph.NumMixedOp(), 1);
-  ASSERT_EQ(graph.NumGPUOp(), 0);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_CPU), 1);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_MIXED), 1);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_GPU), 0);
 
   // Validate the source op
   auto& node = graph.Node(0);
@@ -237,9 +237,9 @@ TEST_F(ExecutorTest, TestPruneRecursive) {
 
   // Validate the graph - op 2&3 should
   // have been pruned
-  ASSERT_EQ(graph.NumCPUOp(), 1);
-  ASSERT_EQ(graph.NumMixedOp(), 1);
-  ASSERT_EQ(graph.NumGPUOp(), 0);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_CPU), 1);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_MIXED), 1);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_GPU), 0);
 
   // Validate the source op
   auto& node = graph.Node(0);
@@ -374,7 +374,8 @@ TEST_F(ExecutorTest, TestRunBasicGraph) {
   exe.Build(&graph, outputs);
 
   // Set the data for the external source
-  auto *src_op = dynamic_cast<ExternalSource<CPUBackend>*>(graph.cpu_node(0).op.get());
+  auto *src_op =
+      dynamic_cast<ExternalSource<CPUBackend> *>(graph.Node(DALIOpType::DALI_CPU, 0).op.get());
   ASSERT_NE(src_op, nullptr);
   TensorList<CPUBackend> tl;
   this->MakeJPEGBatch(&tl, this->batch_size_);
@@ -421,7 +422,8 @@ TEST_F(ExecutorTest, TestRunBasicGraphWithCB) {
   exe.Build(&graph, outputs);
 
   // Set the data for the external source
-  auto *src_op = dynamic_cast<ExternalSource<CPUBackend>*>(graph.cpu_node(0).op.get());
+  auto *src_op =
+      dynamic_cast<ExternalSource<CPUBackend> *>(graph.Node(DALIOpType::DALI_CPU, 0).op.get());
   ASSERT_NE(src_op, nullptr);
   TensorList<CPUBackend> tl;
   this->MakeJPEGBatch(&tl, this->batch_size_);
@@ -479,7 +481,8 @@ TEST_F(ExecutorTest, TestPrefetchedExecution) {
   exe.Build(&graph, outputs);
 
   // Set the data for the external source
-  auto *src_op = dynamic_cast<ExternalSource<CPUBackend>*>(graph.cpu_node(0).op.get());
+  auto *src_op =
+      dynamic_cast<ExternalSource<CPUBackend> *>(graph.Node(DALIOpType::DALI_CPU, 0).op.get());
   ASSERT_NE(src_op, nullptr);
   TensorList<CPUBackend> tl;
   this->MakeJPEGBatch(&tl, this->batch_size_*2);

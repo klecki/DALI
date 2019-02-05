@@ -165,11 +165,11 @@ class PipelineTest : public DALITest {
     OpGraph &graph = this->GetGraph(&pipe);
 
       // Validate the graph
-    ASSERT_EQ(graph.NumCPUOp(), 1);
-    ASSERT_EQ(graph.NumMixedOp(), 1);
-    ASSERT_EQ(graph.NumGPUOp(), 1);
+    ASSERT_EQ(graph.NumOp(DALIOpType::DALI_CPU), 1);
+    ASSERT_EQ(graph.NumOp(DALIOpType::DALI_MIXED), 1);
+    ASSERT_EQ(graph.NumOp(DALIOpType::DALI_GPU), 1);
 
-    ASSERT_EQ(graph.mixed_node(0).op->name(), "MakeContiguous");
+    ASSERT_EQ(graph.Node(DALIOpType::DALI_MIXED, 0).op->name(), "MakeContiguous");
 
     // Validate the source op
     auto &node = graph.Node(0);
@@ -252,9 +252,9 @@ TYPED_TEST(PipelineTest, TestExternalSource) {
   OpGraph &graph = this->GetGraph(&pipe);
 
   // Validate the graph
-  ASSERT_EQ(graph.NumCPUOp(), 1);
-  ASSERT_EQ(graph.NumMixedOp(), 0);
-  ASSERT_EQ(graph.NumGPUOp(), 0);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_CPU), 1);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_MIXED), 0);
+  ASSERT_EQ(graph.NumOp(DALIOpType::DALI_GPU), 0);
 
   // Validate the gpu source op
   auto& node = graph.Node(0);
@@ -302,9 +302,9 @@ TYPED_TEST(PipelineTest, TestSerialization) {
   OpGraph &loaded_graph = this->GetGraph(&loaded_pipe);
 
   // Validate the graph contains the same ops
-  ASSERT_EQ(loaded_graph.NumCPUOp(), original_graph.NumCPUOp());
-  ASSERT_EQ(loaded_graph.NumMixedOp(), original_graph.NumMixedOp());
-  ASSERT_EQ(loaded_graph.NumGPUOp(), original_graph.NumGPUOp());
+  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_CPU), original_graph.NumOp(DALIOpType::DALI_CPU));
+  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_MIXED), original_graph.NumOp(DALIOpType::DALI_MIXED));
+  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_GPU), original_graph.NumOp(DALIOpType::DALI_GPU));
 }
 
 /*
