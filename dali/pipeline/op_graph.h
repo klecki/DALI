@@ -370,15 +370,9 @@ class DLL_PUBLIC OpGraph {
   std::vector<TensorNode> tensor_nodes_;
   std::vector<std::vector<OpPartitionId>> node_partitions_;
 
-  // Overwrite target_id TensorNode with source_id TensorNode fixing all references to
-  // TensorNode source_id.
-  // target_id tensor will be invalidate and cannot be used
-  // void OverwriteTensorNode(TensorNodeId source_id, TensorNodeId target_id);
   void SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id);
-
   void RemoveTensorNode(TensorNodeId id);
 
-  void OverwriteOpNode(OpNodeId source_id, OpNodeId target_id);
   void SwapOpNodes(OpNodeId left_id, OpNodeId right_id);
   void RemoveOpNode(OpNodeId id);
 

@@ -297,46 +297,6 @@ void OpGraph::RemoveTensorNode(TensorNodeId id) {
   // There is no option to remove from positional array of tensor produced by parent op
 }
 
-void OpGraph::OverwriteOpNode(OpNodeId source_id, OpNodeId target_id) {
-  auto &source_op = op_nodes_[source_id];
-  auto &target_op = op_nodes_[target_id];
-  DALI_ENFORCE(target_op.children.empty(), "Overwritten ops cannot have any children.");
-  DALI_ENFORCE(target_op.children_tensors.empty(),
-               "All produced tensors should be removed before removing op"
-               " and list of children tensors should be invalidated.");
-  // change all the references from source_id to target_id in tensor edges
-  // Produced tensors (children)
-  for (auto tid : source_op.children_tensors) {
-    auto &tensor = tensor_nodes_[tid];
-    // edges from source to tensor
-    tensor.producer_edge.node = target_id;
-  }
-  // Consumed tensors (parents)
-  for (auto tid : source_op.parent_tensors) {
-    auto &tensor = tensor_nodes_[tid];
-    // edges from tensor to source
-    for (auto &edge : tensor.consumer_edges) {
-      if (edge.node == source_id) {
-        edge.node = target_id;
-      }
-    }
-  }
-  // Swap id in parents
-  for (auto oid : source_op.parents) {
-    auto &op = op_nodes_[oid];
-    op.children.erase(source_id);
-    op.children.insert(target_id);
-  }
-  // Swap id in children
-  for (auto oid : source_op.children) {
-    auto &op = op_nodes_[oid];
-    op.parents.erase(source_id);
-    op.children.insert(target_id);
-  }
-  // Swap OpNode
-  op_nodes_[target_id] = std::move(op_nodes_[source_id]);
-}
-
 void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
   auto &left = op_nodes_[left_id];
   auto &right = op_nodes_[right_id];
