@@ -103,10 +103,9 @@ OpNode& OpGraph::PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string inst
   node.spec = op_spec;
   node.instance_name = std::move(instance_name);
   node.op_type = op_type;
-  auto new_partition_id = NumOp(op_type); //node_partitions_[op_type].size();
+  auto new_partition_id = NumOp(op_type);
   node.partition_index = new_partition_id;
   node_partitions_[static_cast<int>(op_type)].push_back(node.id);
-  // id_to_node_map_.push_back({op_type, new_partition_id});
   return node;
 }
 
@@ -264,9 +263,10 @@ void OpGraph::SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id) {
 
 void OpGraph::RemoveTensorNode(TensorNodeId id) {
   DALI_ENFORCE_VALID_INDEX(id, (Index)tensor_nodes_.size());
-  DALI_ENFORCE(tensor_nodes_[id].consumer_edges.empty(), "Removed tensor cannot have any consumers.");
+  DALI_ENFORCE(tensor_nodes_[id].consumer_edges.empty(),
+               "Removed tensors cannot have any consumers.");
   // Swap it out
-  for (TensorNodeId i = id + 1; i < (int)tensor_nodes_.size(); i++) {
+  for (TensorNodeId i = id + 1; i < static_cast<int>(tensor_nodes_.size()); i++) {
     // Move from i to i - 1
     SwapTensorNodes(i, i - 1);
   }
@@ -296,7 +296,8 @@ void OpGraph::SwapOpNodes(OpNodeId left_id, OpNodeId right_id) {
   // otherwise we could overwrite twice.
   {
     auto &tensor_nodes_ref = tensor_nodes_;
-    auto swap_ids_in_child_tensor = [&tensor_nodes_ref](OpNode &node, OpNodeId old_id, OpNodeId new_id) {
+    auto swap_ids_in_child_tensor = [&tensor_nodes_ref](OpNode &node, OpNodeId old_id,
+                                                        OpNodeId new_id) {
       for (auto tid : node.parent_tensors) {
         auto &tensor = tensor_nodes_ref[tid];
         // edges from tensor to node
@@ -350,7 +351,7 @@ void OpGraph::RemoveOpNode(OpNodeId id) {
   DALI_ENFORCE(target_op.children_tensors.empty(),
                "All produced tensors should be removed before removing op"
                " and list of children tensors should be invalidated.");
-  for (OpNodeId i = id + 1; i < (int)op_nodes_.size(); i++) {
+  for (OpNodeId i = id + 1; i < static_cast<int>(op_nodes_.size()); i++) {
     // Move from i to i - 1
     SwapOpNodes(i - 1, i);
   }
@@ -362,19 +363,22 @@ void OpGraph::RemoveOpNode(OpNodeId id) {
   op_nodes_.pop_back();
 }
 
+namespace {
+
 template <typename T>
-void RemoveVectorElement(T& vector, typename T::iterator it) {
-  std::swap(*it, vector.back());
+void RemoveVectorElement(T& vector, int index) {
+  std::swap(vector[index], vector.back());
   vector.pop_back();
 }
 
+}  // namespace
 
-// TODO: adjust for unified node indexing
 // Op Removal Process:
 // 1. Validate we can remove it (it has no children & no consumers for produced tensors)
 // 2. Remove tensors it produces
-// 3. Remove the OpNode
-// 4. Correct the partitions as we changed the ids while removing OpNode
+// 3. Remove us from consumer lists of parent tensors
+// 4. Remove the OpNode with edges from parent Ops
+// 6. Correct the partitions as we changed the ids while removing OpNode
 void OpGraph::RemoveOp(OpNodeId id) {
   OpNode &target = this->Node(id);
 
@@ -394,14 +398,14 @@ void OpGraph::RemoveOp(OpNodeId id) {
   }
   target.children_tensors.clear();
 
-  // TODO(klecki): not sure if we can consume some tensors more than once in one op,
-  // so we would need to remove it few times
+  // In case we consume this tensor more than once, we try to remove all occurences
   for (auto t : target.parent_tensors) {
     auto &sibling_consumers = tensor_nodes_[t].consumer_edges;
-    auto result = std::find_if(sibling_consumers.begin(), sibling_consumers.end(), [id](TensorMeta &meta)  {
-      return meta.node == id;
-    });
-    RemoveVectorElement(sibling_consumers, result);
+    for (int i = 0; i < sibling_consumers.size(); i++) {
+      if (sibling_consumers[i].node == id) {
+        RemoveVectorElement(sibling_consumers, i);
+      }
+    }
   }
 
   RemoveOpNode(id);
@@ -413,13 +417,13 @@ void OpGraph::Repartition() {
     p.clear();
   }
   for (auto &node : op_nodes_) {
-    auto new_partition_id = NumOp(node.op_type); //node_partitions_[op_type].size();
+    auto new_partition_id = NumOp(node.op_type);
     node.partition_index = new_partition_id;
     node_partitions_[static_cast<int>(node.op_type)].push_back(node.id);
   }
 }
 
-// TODO(klecki)
+// TODO(klecki): get rid of string indexing
 OpNode& OpGraph::Node(const std::string& name) {
   for (auto &node : op_nodes_) {
     if (node.instance_name == name) {
@@ -445,7 +449,7 @@ namespace {
     return ofs;
   }
   std::string GetGraphColor(DALIOpType op_type) {
-    switch(op_type) {
+    switch (op_type) {
       case DALIOpType::DALI_CPU:
         return "blue";
       case DALIOpType::DALI_GPU:
@@ -458,9 +462,10 @@ namespace {
         return "black";
     }
   }
-}
+}  // namespace
 
-void OpGraph::GenerateDOTFromGraph(std::ofstream& ofs, bool show_tensors, bool show_ids, bool use_colors) {
+void OpGraph::GenerateDOTFromGraph(std::ofstream &ofs, bool show_tensors, bool show_ids,
+                                   bool use_colors) {
   // Just output all the edges
   for (auto &op : op_nodes_) {
     PrintTo(ofs, op, show_ids) << "[color=\"" << GetGraphColor(op.op_type) << "\"];\n";
@@ -485,32 +490,10 @@ void OpGraph::GenerateDOTFromGraph(std::ofstream& ofs, bool show_tensors, bool s
     }
     ofs << "\n";
   }
-  // DFS
-  // if (current_node.children.empty()
-  //     || visited_nodes_.find(current_node.id) != visited_nodes_.end()) {
-  //   PrintTo(ofs, current_node, show_ids) << ";\n";
-  //   return;
-  // }
-  // visited_nodes_.insert(current_node.id);
-  // if (show_tensors) {
-  //   for (auto t_id : current_node.children_tensors) {
-  //     TensorNode& child_tensor = Tensor(t_id);
-  //     PrintTo(ofs, child_tensor, show_ids) << "[shape=box];\n";
-  //     PrintTo(ofs, current_node, show_ids) << " -> ";
-  //     PrintTo(ofs, child_tensor, show_ids) << ";\n";
-  //     // We know this will be called only once, as we are only producer of this tensor
-  //     GenerateDOTFromGraph(child_tensor, ofs, show_tensors, show_ids);
-  //   }
-  // }
-  // for (auto node_id : current_node.children) {
-  //   PrintTo(ofs, current_node, show_ids);
-  //   ofs << " -> ";
-  //   OpNode& child_node = Node(node_id);
-  //   GenerateDOTFromGraph(child_node, ofs);
-  // }
 }
 
-void OpGraph::GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors, bool show_ids) {
+void OpGraph::GenerateDOTFromGraph(const TensorNode &current_node, std::ofstream &ofs,
+                                   bool show_tensors, bool show_ids) {
   for (auto edge : current_node.consumer_edges) {
       PrintTo(ofs, current_node, show_ids) << " -> ";
       auto &child_op = Node(edge.node);

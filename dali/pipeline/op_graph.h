@@ -89,7 +89,7 @@ using consumer_edge_t = TensorMeta;
 // Second type of graph nodes.
 struct TensorNode {
   TensorNodeId id;
-  std::string name; // TODO(klecki): not happy about all the strings
+  std::string name;  // TODO(klecki): not happy about all the strings
   producer_edge_t producer_edge;
   // order of consumers is arbitrary
   std::vector<consumer_edge_t> consumer_edges;
@@ -144,13 +144,18 @@ class DLL_PUBLIC OpGraph {
   /**
    * @brief Returns the unique NodeId for partition_id among nodes of op_type
    */
-  DLL_PUBLIC inline OpNodeId NodeId(DALIOpType op_type, OpPartitionId partition_id) {
+  DLL_PUBLIC inline OpNodeId NodeId(DALIOpType op_type, OpPartitionId partition_id) const {
     DALI_ENFORCE_VALID_INDEX(partition_id, NumOp(op_type));
     return node_partitions_[static_cast<int>(op_type)][partition_id];
   }
 
   // TODO(klecki) return a copy/const& to disallow modification
   DLL_PUBLIC inline OpNode& Node(DALIOpType op_type, OpPartitionId partition_id) {
+    auto node_id = NodeId(op_type, partition_id);
+    return op_nodes_[node_id];
+  }
+
+  DLL_PUBLIC inline const OpNode& Node(DALIOpType op_type, OpPartitionId partition_id) const {
     auto node_id = NodeId(op_type, partition_id);
     return op_nodes_[node_id];
   }
@@ -266,7 +271,8 @@ class DLL_PUBLIC OpGraph {
   /**
    * @brief Helper function for saving graph to DOT file
    */
-  DLL_PUBLIC void GenerateDOTFromGraph(std::ofstream& ofs, bool show_tensors, bool show_ids, bool use_colors);
+  DLL_PUBLIC void GenerateDOTFromGraph(std::ofstream& ofs, bool show_tensors, bool show_ids,
+                                       bool use_colors);
 
   /**
    * @brief Instantiates the operators based on OpSpecs in nodes
@@ -277,7 +283,8 @@ class DLL_PUBLIC OpGraph {
    * @brief Save graph in DOT directed graph format
    * in filename.
    */
-  DLL_PUBLIC void SaveToDotFile(const string filename, bool show_tensors = false, bool show_ids = false, bool use_colors = false) {
+  DLL_PUBLIC void SaveToDotFile(const string filename, bool show_tensors = false,
+                                bool show_ids = false, bool use_colors = false) {
     std::ofstream ofs(filename);
     visited_nodes_.clear();
     ofs << "digraph graphname {\n";
@@ -289,9 +296,9 @@ class DLL_PUBLIC OpGraph {
   DISABLE_COPY_MOVE_ASSIGN(OpGraph);
 
  private:
-
   // Should be called only once for each tensor
-  void GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors, bool show_ids);
+  void GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors,
+                            bool show_ids);
 
   void Repartition();
 

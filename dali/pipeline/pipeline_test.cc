@@ -302,9 +302,12 @@ TYPED_TEST(PipelineTest, TestSerialization) {
   OpGraph &loaded_graph = this->GetGraph(&loaded_pipe);
 
   // Validate the graph contains the same ops
-  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_CPU), original_graph.NumOp(DALIOpType::DALI_CPU));
-  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_MIXED), original_graph.NumOp(DALIOpType::DALI_MIXED));
-  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_GPU), original_graph.NumOp(DALIOpType::DALI_GPU));
+  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_CPU),
+            original_graph.NumOp(DALIOpType::DALI_CPU));
+  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_MIXED),
+            original_graph.NumOp(DALIOpType::DALI_MIXED));
+  ASSERT_EQ(loaded_graph.NumOp(DALIOpType::DALI_GPU),
+            original_graph.NumOp(DALIOpType::DALI_GPU));
 }
 
 /*
