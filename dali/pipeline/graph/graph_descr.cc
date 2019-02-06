@@ -14,7 +14,7 @@
 
 #include <algorithm>
 
-#include "dali/pipeline/op_graph.h"
+#include "dali/pipeline/graph/op_graph.h"
 
 #include "dali/pipeline/operators/op_schema.h"
 

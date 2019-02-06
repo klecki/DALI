@@ -28,7 +28,7 @@
 #include "dali/pipeline/workspace/host_workspace.h"
 #include "dali/pipeline/workspace/mixed_workspace.h"
 #include "dali/pipeline/workspace/support_workspace.h"
-#include "dali/pipeline/op_graph.h"
+#include "dali/pipeline/graph/op_graph.h"
 #include "dali/pipeline/util/event_pool.h"
 #include "dali/pipeline/util/stream_pool.h"
 #include "dali/pipeline/util/thread_pool.h"
