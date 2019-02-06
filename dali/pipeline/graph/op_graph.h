@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2019, NVIDIA CORPORATION. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,15 +33,33 @@ namespace dali {
 using OpNodeId = int64_t;
 using OpPartitionId = int64_t;
 using TensorNodeId = int64_t;
+using TensorPartitionId = int64_t;
 // using producer_edge_t = std::pair<OpNodeId, Index>;
 // using consumer_edge_t = std::pair<OpNodeId, Index>;
 
 
 // What device is this tensor stored on
+// TODO(klecki): move to some common header
 enum class DALITensorDevice {
   CPU = 0,
   GPU = 1,
 };
+
+template <DALITensorDevice>
+struct storage_type;
+
+template <>
+struct storage_type<DALITensorDevice::CPU> {
+  using type = CPUBackend;
+};
+
+template <>
+struct storage_type<DALITensorDevice::GPU> {
+  using type = GPUBackend;
+};
+
+template <DALITensorDevice device>
+using storage_t = typename storage_type<device>::type;
 
 struct OpNode {
   inline OpNode() {}
@@ -111,7 +129,7 @@ struct TensorNode {
 class DLL_PUBLIC OpGraph {
  public:
   DLL_PUBLIC inline OpGraph() {
-    node_partitions_.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
+    op_paritions_.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
   }
   DLL_PUBLIC inline ~OpGraph() = default;
 
@@ -135,10 +153,17 @@ class DLL_PUBLIC OpGraph {
   }
 
   /**
+   * @brief Returns the total number of tensors in the graph.
+   */
+  DLL_PUBLIC inline Index NumTensor() const {
+    return tensor_nodes_.size();
+  }
+
+  /**
    * @brief Returns the number of `op_type` ops in the graph.
    */
   DLL_PUBLIC inline Index NumOp(DALIOpType op_type) const {
-    return node_partitions_[static_cast<int>(op_type)].size();
+    return op_paritions_[static_cast<int>(op_type)].size();
   }
 
   /**
@@ -146,7 +171,7 @@ class DLL_PUBLIC OpGraph {
    */
   DLL_PUBLIC inline OpNodeId NodeId(DALIOpType op_type, OpPartitionId partition_id) const {
     DALI_ENFORCE_VALID_INDEX(partition_id, NumOp(op_type));
-    return node_partitions_[static_cast<int>(op_type)][partition_id];
+    return op_paritions_[static_cast<int>(op_type)][partition_id];
   }
 
   // TODO(klecki) return a copy/const& to disallow modification
@@ -193,6 +218,8 @@ class DLL_PUBLIC OpGraph {
     DALI_ENFORCE_VALID_INDEX(id, tensor_nodes_.size());
     return tensor_nodes_[id];
   }
+
+  DLL_PUBLIC std::vector<std::vector<TensorNodeId>> PartitionTensorByOpType() const;
 
   /**
    * @brief Returns the type (cpu, gpu, mixed) of the node
@@ -300,7 +327,7 @@ class DLL_PUBLIC OpGraph {
   void GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors,
                             bool show_ids);
 
-  void Repartition();
+  void RepartitionOps();
 
   OpNode& PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string instance_name);
   TensorNode& PlaceNewTensor();
@@ -308,7 +335,7 @@ class DLL_PUBLIC OpGraph {
 
   std::vector<OpNode> op_nodes_;
   std::vector<TensorNode> tensor_nodes_;
-  std::vector<std::vector<OpPartitionId>> node_partitions_;
+  std::vector<std::vector<OpNodeId>> op_paritions_;
 
   void SwapTensorNodes(TensorNodeId left_id, TensorNodeId right_id);
   void RemoveTensorNode(TensorNodeId id);

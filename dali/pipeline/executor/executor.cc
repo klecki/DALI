@@ -19,6 +19,7 @@
 #include <unordered_set>
 #include "dali/pipeline/executor/executor.h"
 #include "dali/pipeline/operators/common.h"
+#include "dali/pipeline/graph/op_graph_verifier.h"
 
 namespace dali {
 
@@ -40,6 +41,9 @@ void Executor::Build(OpGraph *graph, vector<string> output_names) {
   // Remove any node from the graph whose output
   // will not be used as an output or by another node
   PruneUnusedGraphNodes();
+
+  // Check if graph is ok for execution
+  CheckGraphConstraints(*graph_);
 
   // Setup workspaces for each op and connect
   // their inputs and outputs.

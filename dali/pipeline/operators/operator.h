@@ -39,6 +39,55 @@ enum class DALIOpType {
   DALI_OP_TYPE_COUNT = 4
 };
 
+
+static std::string to_string(DALIOpType op_type) {
+  switch (op_type) {
+    case DALIOpType::DALI_CPU:
+      return "CPU";
+    case DALIOpType::DALI_GPU:
+      return "GPU";
+    case DALIOpType::DALI_MIXED:
+      return "MIXED";
+    case DALIOpType::DALI_SUPPORT:
+      return "SUPPORT";
+    default:
+      return "INVALID OP TYPE";
+  }
+}
+
+template <DALIOpType op_type>
+struct workspace_type;
+
+template <>
+struct workspace_type<DALIOpType::DALI_CPU> {
+  using type = HostWorkspace;
+};
+
+template <>
+struct workspace_type<DALIOpType::DALI_GPU> {
+  using type = DeviceWorkspace;
+};
+
+template <>
+struct workspace_type<DALIOpType::DALI_MIXED> {
+  using type = MixedWorkspace;
+};
+
+template <>
+struct workspace_type<DALIOpType::DALI_SUPPORT> {
+  using type = SupportWorkspace;
+};
+
+template <DALIOpType op_type>
+using workspace_t = typename workspace_type<op_type>::type;
+
+template <DALIOpType op_type, typename Backend>
+using workspace_input_t = typename workspace_t<op_type>::template input_t<Backend>;
+
+template <DALIOpType op_type, typename Backend>
+using workspace_output_t = typename workspace_t<op_type>::template output_t<Backend>;
+
+
 template <typename InputType>
 inline void CheckInputLayout(const InputType& input, const OpSpec& spec) {
   auto &schema = SchemaRegistry::GetSchema(spec.name());

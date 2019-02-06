@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2019, NVIDIA CORPORATION. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ bool AllOutputsGPU(const OpSpec &spec) {
   return true;
 }
 
+// TODO(klecki): Graph creation is not a place to check OpSpec?
 void CheckOpConstraints(const OpSpec &spec) {
   const OpSchema &schema = SchemaRegistry::GetSchema(spec.name());
 
@@ -105,7 +106,7 @@ OpNode& OpGraph::PlaceNewOp(DALIOpType op_type, OpSpec op_spec, std::string inst
   node.op_type = op_type;
   auto new_partition_id = NumOp(op_type);
   node.partition_index = new_partition_id;
-  node_partitions_[static_cast<int>(op_type)].push_back(node.id);
+  op_paritions_[static_cast<int>(op_type)].push_back(node.id);
   return node;
 }
 
@@ -121,6 +122,7 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
 
   string device = spec.GetArgument<string>("device");
   auto op_type = DeviceStringToOpType(device);
+  // TODO(klecki): refactor this out
   switch (op_type) {
     case DALIOpType::DALI_CPU: {
       // Enforce graph constraints
@@ -221,7 +223,7 @@ void OpGraph::InstantiateOperators() {
                          DALIOpType::DALI_MIXED,   DALIOpType::DALI_GPU };
 
   for (auto op_type : order) {
-    for (auto op_id : node_partitions_[static_cast<int>(op_type)]) {
+    for (auto op_id : op_paritions_[static_cast<int>(op_type)]) {
       op_nodes_[op_id].InstantiateOperator();
     }
   }
@@ -409,18 +411,29 @@ void OpGraph::RemoveOp(OpNodeId id) {
   }
 
   RemoveOpNode(id);
-  Repartition();
+  // Just recalculate, do not try to fix
+  RepartitionOps();
 }
 
-void OpGraph::Repartition() {
-  for (auto & p : node_partitions_) {
+void OpGraph::RepartitionOps() {
+  for (auto & p : op_paritions_) {
     p.clear();
   }
   for (auto &node : op_nodes_) {
     auto new_partition_id = NumOp(node.op_type);
     node.partition_index = new_partition_id;
-    node_partitions_[static_cast<int>(node.op_type)].push_back(node.id);
+    op_paritions_[static_cast<int>(node.op_type)].push_back(node.id);
   }
+}
+
+std::vector<std::vector<TensorNodeId>> OpGraph::PartitionTensorByOpType() const {
+  std::vector<std::vector<TensorNodeId>> out;
+  out.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
+  for (auto &tensor : tensor_nodes_) {
+    auto producer_op_type = Node(tensor.producer_edge.node).op_type;
+    out[static_cast<int>(producer_op_type)].push_back(tensor.id);
+  }
+  return out;
 }
 
 // TODO(klecki): get rid of string indexing
