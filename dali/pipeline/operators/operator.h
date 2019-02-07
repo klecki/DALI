@@ -81,11 +81,11 @@ struct workspace_type<DALIOpType::DALI_SUPPORT> {
 template <DALIOpType op_type>
 using workspace_t = typename workspace_type<op_type>::type;
 
-template <DALIOpType op_type, typename Backend>
-using workspace_input_t = typename workspace_t<op_type>::template input_t<Backend>;
+// template <DALIOpType op_type, typename Backend>
+// using workspace_input_t = typename workspace_t<op_type>::template input_t<Backend>;
 
-template <DALIOpType op_type, typename Backend>
-using workspace_output_t = typename workspace_t<op_type>::template output_t<Backend>;
+// template <DALIOpType op_type, typename Backend>
+// using workspace_output_t = typename workspace_t<op_type>::template output_t<Backend>;
 
 
 template <typename InputType>

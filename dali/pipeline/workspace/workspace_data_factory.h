@@ -24,27 +24,126 @@
 #include "dali/pipeline/workspace/mixed_workspace.h"
 #include "dali/pipeline/workspace/support_workspace.h"
 
+#include "dali/kernels/static_switch.h"
+#include "dali/kernels/tuple_helpers.h"
+
 namespace dali {
 
-template <DALIOpType op_type, DALITensorDevice device>
-struct BatchFactory {
-  workspace_output_t<op_type, storage_t<device>> CreateOutputBatch(int batch_size) {
-    // Output batch from GPU, MIXED and SUPPORT Ops are shared_ptr<Something>
-    using BatchType = typename workspace_output_t<op_type, storage_t<device>>::element_type;
-    return std::make_shared<BatchType>();
-  }
-  static_assert(
-      op_type == DALIOpType::DALI_GPU || op_type == DALIOpType::DALI_MIXED ||
-          op_type == DALIOpType::DALI_SUPPORT,
-      "Only GPU, MIXED and SUPPORT handled by default case due to use of outermost shared_ptr");
+constexpr size_t GetStorageIndex(DALIOpType op_type, DALITensorDevice device) {
+  return static_cast<size_t>(op_type) * static_cast<size_t>(DALITensorDevice::COUNT) + static_cast<size_t>(device);
+}
+
+constexpr size_t GetMaxStorageIndex() {
+  return GetStorageIndex(DALIOpType::DALI_OP_TYPE_COUNT, static_cast<DALITensorDevice>(0));
+}
+
+constexpr DALIOpType GetOpType(size_t storage_idx) {
+  return static_cast<DALIOpType>(storage_idx / static_cast<size_t>(DALITensorDevice::COUNT));
+}
+
+constexpr DALITensorDevice GetStorageDevice(size_t storage_idx) {
+  return static_cast<DALITensorDevice>(storage_idx % static_cast<size_t>(DALITensorDevice::COUNT));
+}
+
+template <size_t storage_idx>
+struct storage_type_gen {
+  using type = typename workspace_t<GetOpType(storage_idx)>
+      ::template output_t<storage_backend_t<GetStorageDevice(storage_idx)>>;
+};
+
+template <size_t storage_idx>
+using storage_gen_t = typename storage_type_gen<storage_idx>::type;
+
+// We use a tuple that can hold Output Type from Device, Host, Mixed and Support workspaces,
+// so we have a unifided place that can own any of this type
+// Additionally, we use order of those types deifned by GetStorageIndex
+// We have 4 workspaces with two possible Backends, obtatining 8 types
+// TODO(klecki): this can be clearer as
+// std::tuple<DeviceOutputType<CPUBackend>, DeviceOutputType<GPUBackend>,
+//            HostOutputType<CPUBackend>, ...
+// but that way I ensure correct order of types
+
+
+template <template <size_t> class type_generator, typename T>
+struct tuple_generator_type;
+
+template <template <size_t> class type_generator, size_t... sequence>
+struct tuple_generator_type<type_generator, detail::seq<sequence...>> {
+  using type = std::tuple<type_generator<sequence>...>;
 };
 
 
-// template <DALITensorDevice device>
-// workspace_output_t<DALIOpType::DALI_CPU, storage_t<device>> BatchFactory<DALIOpType::DALI_CPU, device>::CreateOutputBatch(int batch_size) {
+// using storage_owner_t =
+//     std::tuple<storage_gen_t<0>, storage_gen_t<1>, storage_gen_t<2>, storage_gen_t<3>,
+//                storage_gen_t<4>, storage_gen_t<5>, storage_gen_t<6>, storage_gen_t<7>>;
 
-// }
+using storage_owner_t =
+    typename tuple_generator_type<storage_gen_t,
+                                  detail::build_seq_t<0, GetMaxStorageIndex()>>::type;
 
+template <size_t op_type>
+using workspace_blob_gen_type = std::vector<workspace_t<static_cast<DALIOpType>(op_type)>>;
+
+using workspace_owner_t = typename tuple_generator_type<
+    workspace_blob_gen_type,
+    detail::build_seq_t<0, static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT)>>::type;
+
+template <DALIOpType op_type, DALITensorDevice device>
+struct BatchFactoryImpl {
+  static storage_gen_t<GetStorageIndex(op_type, device)> CreateOutputBatch(int batch_size) {
+    // Output batch from GPU, MIXED and SUPPORT Ops are shared_ptr<Something>
+    using BatchType = typename storage_gen_t<GetStorageIndex(op_type, device)>::element_type;
+    return std::make_shared<BatchType>();
+  }
+  static_assert(op_type == DALIOpType::DALI_GPU || op_type == DALIOpType::DALI_MIXED,
+                "Only GPU and MIXED handled by default case due to use of outermost shared_ptr and "
+                "pinned mem usage");
+};
+
+// TODO(klecki): Should we use make_shared here as well?
+template <DALITensorDevice device>
+struct BatchFactoryImpl<DALIOpType::DALI_CPU, device> {
+  static storage_gen_t<GetStorageIndex(DALIOpType::DALI_CPU, device)> CreateOutputBatch(
+      int batch_size) {
+    DALI_ENFORCE(device == DALITensorDevice::CPU, "Only CPU outputs allowed");
+    // Allocate `batch_size` Tensors for this ops
+    // results and add them to the workspace.
+    storage_gen_t<GetStorageIndex(DALIOpType::DALI_CPU, device)> output(batch_size, nullptr);
+    for (auto &tensor_ptr : output) {
+      tensor_ptr.reset(new Tensor<storage_backend_t<device>>);
+      tensor_ptr->set_pinned(false);
+    }
+    return output;
+  }
+};
+
+template <DALITensorDevice device>
+struct BatchFactoryImpl<DALIOpType::DALI_SUPPORT, device> {
+  static storage_gen_t<GetStorageIndex(DALIOpType::DALI_SUPPORT, device)> CreateOutputBatch(
+      int batch_size) {
+    DALI_ENFORCE(device == DALITensorDevice::CPU, "Only CPU outputs allowed");
+    storage_gen_t<GetStorageIndex(DALIOpType::DALI_SUPPORT, device)> output(
+        new Tensor<storage_backend_t<device>>);
+    output->set_pinned(false);
+    return output;
+  }
+};
+
+inline storage_owner_t BatchFactory(DALIOpType op_type, DALITensorDevice device, int batch_size) {
+  storage_owner_t result;
+  // std::get<GetStorageIndex(op_type, device)>(result)
+  //     = BatchFactoryImpl<op_type, device>::CreateOutputBatch(batch_size);
+  VALUE_SWITCH(
+      op_type, op_type_static,
+      (DALIOpType::DALI_GPU, DALIOpType::DALI_CPU, DALIOpType::DALI_MIXED,
+       DALIOpType::DALI_SUPPORT),
+      (VALUE_SWITCH(
+          device, device_static, (DALITensorDevice::CPU, DALITensorDevice::GPU),
+          (std::get<GetStorageIndex(op_type_static, device_static)>(result) =
+               BatchFactoryImpl<op_type_static, device_static>::CreateOutputBatch(batch_size)),
+          DALI_FAIL("Unexpected device"))),
+      DALI_FAIL("Unexpected op_type"));
+  return result;
 }
 
 }  // namespace dali

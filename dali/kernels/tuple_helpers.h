@@ -159,6 +159,12 @@ constexpr auto apply_all(F &&f, Args&&... args)
   return apply(f, std::tuple_cat(as_tuple(args)...));
 }
 
+// template <typename Type, typename Tuple>
+// struct tuple_index;
+
+// template <typename Type, typename... Ts>
+// struct tuple_index<Type, std::tuple<Type, Ts...>> : std::integral_constant<size_t,
+
 }  // namespace detail
 
 using detail::apply;

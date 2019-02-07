@@ -21,6 +21,8 @@
 #include "dali/pipeline/operators/common.h"
 #include "dali/pipeline/graph/op_graph_verifier.h"
 
+#include "dali/pipeline/workspace/workspace_data_factory.h"
+
 namespace dali {
 
 
@@ -382,11 +384,35 @@ void Executor::PruneUnusedGraphNodes() {
       "data produced by the pipeline.");
 }
 
+// template <DALIOpType op_type>
+// void InsertInput(workspace_t<op_type>& ws, const TensorNode& tensor, storage_owner_t tensor_storage) {
+//   ws.AddOutput()
+// }
+
 void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
   DeviceGuard g(device_id_);
 
   // Clear any old data setup
   wsb->Clear();
+
+  // Clear old data
+  tensor_to_storage_.clear();
+  tensor_to_storage_.resize(graph_->NumTensor());
+
+  // Assign data to each Tensor node in graph
+  for (int i = 0; i < graph_->NumTensor(); i++) {
+    const auto &tensor = graph_->Tensor(i);
+    auto producer_op_type = graph_->Node(tensor.producer_edge.node).op_type;
+    tensor_to_storage_[i] = BatchFactory(producer_op_type, tensor.producer_edge.storage_device, batch_size_);
+  }
+
+  // Fill all the operator inputs and outputs in appropriate ws
+  // for (int i = 0; i < graph_->NumOp(); i++) {
+  //   auto &op = graph_->Node(i);
+  //   // auto wsb->cpu_op_data[op.partition_index]
+  //   // std::get<op_type>(wsb->op_data)[op.partition_index]
+  // }
+
 
   // Create workspaces for each operator
   wsb->cpu_op_data.resize(graph_->NumOp(DALIOpType::DALI_CPU));
@@ -398,29 +424,17 @@ void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
   for (int i = 0; i < graph_->NumOp(DALIOpType::DALI_SUPPORT); ++i) {
     OpNode &node = graph_->Node(DALIOpType::DALI_SUPPORT, i);
     SupportWorkspace &ws = wsb->support_op_data[i];
-    // Support ops do not take argument inputs
-    DALI_ENFORCE(node.spec.NumInput() == node.spec.NumRegularInput(),
-        "Support ops do not support tensor arguments");
     for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
-      // Get each regular input and add them to this op's workspace.
-
-      OpNodeId parent_node_id = graph_->TensorSourceID(node.spec.Input(j));
-      DALIOpType parent_op_type = graph_->NodeType(parent_node_id);
-      DALI_ENFORCE(parent_op_type == DALIOpType::DALI_SUPPORT,
-          "Executor encountered support op with non-support input.");
-      int parent_idx = graph_->NodeIdx(parent_node_id);
-      int input_src_idx = graph_->TensorIdxInSource(node.spec.Input(j));
-
-      SupportWorkspace &src_ws = wsb->support_op_data[parent_idx];
-      const auto input = src_ws.SharedCPUOutput(input_src_idx);
-      ws.AddInput(input);
+      auto tid = node.parent_tensors[j];
+      ws.AddInput(std::get<GetStorageIndex(DALIOpType::DALI_SUPPORT, DALITensorDevice::CPU)>(tensor_to_storage_[tid]));
+      // TODO(klecki):
+      // AddInput(ws, tensor_metadata, tensor_storage) -> fill in ws, based on tensor_metadata (producer op_type & storage dev)
+      // based on type of ws we can get op_type
     }
 
     for (int j = 0; j < node.spec.NumOutput(); ++j) {
-      // Allocate tensors for output
-      shared_ptr<Tensor<CPUBackend>> output(new Tensor<CPUBackend>);
-      output->set_pinned(false);
-      ws.AddOutput(output);
+      auto tid = node.children_tensors[j];
+      ws.AddOutput(std::get<GetStorageIndex(DALIOpType::DALI_SUPPORT, DALITensorDevice::CPU)>(tensor_to_storage_[tid]));
     }
   }
 
@@ -429,20 +443,12 @@ void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
     OpNode &node = graph_->Node(DALIOpType::DALI_CPU, i);
     HostWorkspace &ws = wsb->cpu_op_data[i];
     for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
-      // Get each regular input and add them to this op's workspace.
-      OpNodeId parent_node_id = graph_->TensorSourceID(node.spec.Input(j));
-      DALIOpType parent_op_type = graph_->NodeType(parent_node_id);
-      DALI_ENFORCE(parent_op_type == DALIOpType::DALI_CPU,
-          "Executor encountered cpu op with non-cpu input.");
-      int parent_idx = graph_->NodeIdx(parent_node_id);
-      int input_src_idx = graph_->TensorIdxInSource(node.spec.Input(j));
-
-      HostWorkspace &src_ws = wsb->cpu_op_data[parent_idx];
-      const auto input = src_ws.SharedCPUOutput(input_src_idx);
-      ws.AddInput(input);
+      auto tid = node.parent_tensors[j];
+      // TODO(klecki): Here we use producer of the tensor, and it can be different than us (for SUPPORT inputs)
+      ws.AddInput(std::get<GetStorageIndex(DALIOpType::DALI_CPU, DALITensorDevice::CPU)>(tensor_to_storage_[tid]));
     }
 
-    // Add argument tensors
+    // Add argument tensors TODO(klecki)
     for (const auto &arg_pair : node.spec.ArgumentInputs()) {
       // Get each argument input and add them to this op's workspace.
       OpNodeId parent_node_id = graph_->TensorSourceID(node.spec.Input(arg_pair.second));
@@ -458,15 +464,8 @@ void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
     }
 
     for (int j = 0; j < node.spec.NumOutput(); ++j) {
-      // Allocate `batch_size` Tensors for this ops
-      // results and add them to the workspace.
-      vector<shared_ptr<Tensor<CPUBackend>>> output(batch_size_, nullptr);
-      for (auto &tensor_ptr : output) {
-        tensor_ptr.reset(new Tensor<CPUBackend>);
-        tensor_ptr->set_pinned(false);
-      }
-
-      ws.AddOutput(output);
+      auto tid = node.children_tensors[j];
+      ws.AddOutput(std::get<GetStorageIndex(DALIOpType::DALI_CPU, DALITensorDevice::CPU)>(tensor_to_storage_[tid]));
     }
   }
 

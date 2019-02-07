@@ -33,6 +33,9 @@
 #include "dali/pipeline/util/stream_pool.h"
 #include "dali/pipeline/util/thread_pool.h"
 
+
+#include "dali/pipeline/workspace/workspace_data_factory.h"
+
 namespace dali {
 
 /**
@@ -84,17 +87,24 @@ class DLL_PUBLIC Executor {
   DISABLE_COPY_MOVE_ASSIGN(Executor);
 
  protected:
-  using WorkspaceBlob = struct {
+  struct WorkspaceBlob {
+    // std::tuple<std::vector<
     vector<HostWorkspace> cpu_op_data;
     vector<MixedWorkspace> mixed_op_data;
     vector<DeviceWorkspace> gpu_op_data;
     vector<SupportWorkspace> support_op_data;
+    // std::tuple<
+    workspace_owner_t op_data;
 
     void Clear() {
       cpu_op_data.clear();
       mixed_op_data.clear();
       gpu_op_data.clear();
       support_op_data.clear();
+      std::get<0>(op_data).clear();
+      std::get<1>(op_data).clear();
+      std::get<2>(op_data).clear();
+      std::get<3>(op_data).clear();
     }
   };
   vector<WorkspaceBlob> wss_;
@@ -205,6 +215,7 @@ class DLL_PUBLIC Executor {
   std::mutex errors_mutex_;
   bool exec_error_;
   ExecutorCallback cb_;
+  std::vector<storage_owner_t> tensor_to_storage_;
 };
 
 #define USE_EXECUTOR_MEMBERS()                             \

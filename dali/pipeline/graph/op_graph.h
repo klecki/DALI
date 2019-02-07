@@ -43,23 +43,24 @@ using TensorPartitionId = int64_t;
 enum class DALITensorDevice {
   CPU = 0,
   GPU = 1,
+  COUNT = 2,
 };
 
 template <DALITensorDevice>
-struct storage_type;
+struct storage_backend_type;
 
 template <>
-struct storage_type<DALITensorDevice::CPU> {
+struct storage_backend_type<DALITensorDevice::CPU> {
   using type = CPUBackend;
 };
 
 template <>
-struct storage_type<DALITensorDevice::GPU> {
+struct storage_backend_type<DALITensorDevice::GPU> {
   using type = GPUBackend;
 };
 
 template <DALITensorDevice device>
-using storage_t = typename storage_type<device>::type;
+using storage_backend_t = typename storage_backend_type<device>::type;
 
 struct OpNode {
   inline OpNode() {}
