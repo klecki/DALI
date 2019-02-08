@@ -16,6 +16,11 @@
 #define DALI_PIPELINE_OPERATORS_UTIL_RANDOMIZER_IMPL_CPU_H_
 
 #include "dali/pipeline/operators/util/randomizer.h"
+#if defined(__AARCH64_QNX__)
+#include <random>
+#else
+#include <stdlib.h>
+#endif
 
 namespace dali {
 
@@ -25,7 +30,14 @@ Randomizer<CPUBackend>::Randomizer(int seed, size_t len) {}
 
 template <>
 int Randomizer<CPUBackend>::rand(int idx) {
+#if !defined(__AARCH64_QNX__)
   return lrand48();
+#else
+  std::random_device rd;
+  std::mt19937 mt(rd());
+  std::uniform_real_distribution<double> dist(-1.0, 1.0);
+  return dist(mt);
+#endif
 }
 
 template <>

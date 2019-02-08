@@ -24,7 +24,9 @@
 
 #include "dali/common.h"
 #include "dali/error_handling.h"
+#if !defined(__AARCH64_QNX__) && !defined(__AARCH64_GNU__)
 #include "dali/util/nvml.h"
+#endif
 
 namespace dali {
 
@@ -60,13 +62,17 @@ class WorkerThread {
 
   inline WorkerThread(int device_id, bool set_affinity) :
     running_(true), work_complete_(true), barrier_(2) {
+#if !defined(__AARCH64_QNX__) && !defined(__AARCH64_GNU__)
     nvml::Init();
+#endif
     thread_ = std::thread(&WorkerThread::ThreadMain,
         this, device_id, set_affinity);
   }
 
   inline ~WorkerThread() {
+#if !defined(__AARCH64_QNX__) && !defined(__AARCH64_GNU__)
     nvml::Shutdown();
+#endif
   }
 
   /*
@@ -145,7 +151,9 @@ class WorkerThread {
     try {
       CUDA_CALL(cudaSetDevice(device_id));
       if (set_affinity) {
+#if !defined(__AARCH64_QNX__) && !defined(__AARCH64_GNU__)
         nvml::SetCPUAffinity();
+#endif
       }
     } catch(std::runtime_error &e) {
       errors_.push(e.what());

@@ -312,7 +312,69 @@ Install Python bindings
 
 .. installation-end-marker-do-not-remove
 
-----
+Compiling DALI from source (Docker)
+---------------------------------------
+
+Prerequisites
+^^^^^^^^^^^^^
+.. |docker link| replace:: **Docker**
+.. _docker link: https://docs.docker.com/install/
+
+.. table::
+   :align: center
+
+   +----------------------------------------+---------------------------------------------------------------------------------------------+
+   | **Linux x64**                          |                                                                                             |
+   +----------------------------------------+---------------------------------------------------------------------------------------------+
+   | |docker link|_                         | Please follow installation guide and manual there                                           |
+   +----------------------------------------+---------------------------------------------------------------------------------------------+
+
+Build Docker image
+^^^^^^^^^^^^^^^^^^
+Enter Docker directory and run ./build.sh. If needed, set the following environment variables:
+
+- PYVER - Python version, default is `2.7`
+- CUDA_VERSION - version of the CUDA toolkit, default is `10`
+- NVIDIA_BUILD_ID - custom ID of the build, default is `1234`
+- CREATE_RUNNER - create Docker image with cuDNN, CUDA and DALI installed inside. It will create the `Docker_run_cuda` image, which needs to be run using `nvidia-docker` and DALI wheel in the `wheelhouse` directory under `DALI/`, default is `NO`
+- CREATE_WHL - create a wheel as well, default is `YES`
+
+Cross-compiling DALI C++ API for aarch64 Linux (Docker)
+-----------------------------------------
+Build the aarch64 Linux Build Container 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block:: bash
+    docker build -t dali_builder:aarch64-linux -f Dockerfile.build.aarch64-linux .
+
+Compile
+^^^^^^^
+From the root of the DALI source tree
+.. code-block:: bash
+    docker run -u ${UID}:${GID} -v $(pwd):/dali dali_builder:aarch64-linux  
+
+The relevant artifacts will be in ``build/install`` and ``build/dali/python/nvidia/dali`` 
+
+Cross-compiling DALI C++ API for aarch64 QNX (Docker)
+-----------------------------------------
+Setup
+^^^^^
+After aquiring the QNX Toolchain, place it in a directory called ``qnx`` in the root of the DALI tree.
+Then using the SDK Manager for NVIDIA DRIVE, select **QNX** as the *Target Operating System* and select **DRIVE OS 5.1.0.0 SDK**
+In STEP 02 under **Download & Install Options**, select *Download Now. Install Later*. and agree to the Terms and Conditions. 
+Once downloaded move the **cuda-repo-cross-qnx** debian package into the ``qnx`` directory you created in the DALI tree. 
+
+Build the aarch64 Build Container 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. code-block:: bash
+    docker build -t dali_builder:aarch64-qnx -f Dockerfile.build.aarch64-qnx .
+
+Compile
+^^^^^^^
+From the root of the DALI source tree
+.. code-block:: bash
+    docker run -u ${UID}:${GID} -v $(pwd):/dali dali_builder:aarch64-qnx  
+
+The relevant artifacts will be in ``build/install`` and ``build/dali/python/nvidia/dali`` 
 
 Getting started
 ---------------

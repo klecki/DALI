@@ -20,7 +20,7 @@
 
 #ifndef DALI_UTIL_NVML_WRAP_H_
 #define DALI_UTIL_NVML_WRAP_H_
-
+#if !defined(__AARCH64_QNX__) && !defined(__AARCH64_GNU__)
 #include <nvml.h>
 
 #include "dali/common.h"
@@ -49,4 +49,6 @@ DLL_PUBLIC DALIError_t wrapNvmlDeviceClearCpuAffinity(nvmlDevice_t device);
 
 }  // namespace dali
 
+#endif
 #endif  // DALI_UTIL_NVML_WRAP_H_
+

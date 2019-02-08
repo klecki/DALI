@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.5)
 
-project(DALI CXX)
+project(DALI CXX C)
 
 # Build options
 option(BUILD_TEST "Build googletest test suite" ON)
@@ -42,7 +42,15 @@ endif()
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules)
 
 # Dependencies
-include(cmake/Dependencies.cmake)
+if(${ARCH} MATCHES "aarch64-linux")
+  message("Target set to aarch64-linux")
+  include(cmake/Dependencies.aarch64-linux.cmake)
+elseif(${ARCH} MATCHES "aarch64-qnx")
+  message("Target set to aarch64-qnx")
+  include(cmake/Dependencies.aarch64-qnx.cmake)
+else()
+  include(cmake/Dependencies.cmake)
+endif()
 
 # add more flags after they are populated by find_package from Dependencies.cmake
 

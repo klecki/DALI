@@ -15,6 +15,7 @@
  *
  ************************************************************************/
 
+#if!defined(__AARCH64_QNX__) && !defined(__AARCH64_GNU__)
 #include "dali/util/nvml_wrap.h"
 
 #include <dlfcn.h>
@@ -211,3 +212,4 @@ DALIError_t wrapNvmlDeviceGetCpuAffinity(nvmlDevice_t device,
 }  // namespace nvml
 
 }  // namespace dali
+#endif

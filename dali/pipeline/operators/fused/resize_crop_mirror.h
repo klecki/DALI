@@ -26,6 +26,10 @@
 #include "dali/pipeline/operators/common.h"
 #include "dali/pipeline/operators/crop/crop_attr.h"
 
+#if defined(__AARCH64_QNX__)
+typedef unsigned int uint;
+#endif
+
 namespace dali {
 
 typedef enum {
