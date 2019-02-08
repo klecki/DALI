@@ -137,7 +137,7 @@ class DLL_PUBLIC Pipeline {
       return;
     }
     OpNodeId node_id = graph_.TensorSourceID(name + "_cpu");
-    DALI_ENFORCE(graph_.NodeType(node_id) == DALIOpType::DALI_CPU,
+    DALI_ENFORCE(graph_.NodeType(node_id) == DALIOpType::CPU,
         "Internal error setting external input data.");
 
     auto &node = graph_.Node(node_id);

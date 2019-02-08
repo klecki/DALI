@@ -46,25 +46,25 @@ std::string concatenate_alternatives(const std::set<DALIOpType>& vec) {
 
 std::vector<std::set<DALIOpType>> ParentOpTypeConstraints() {
   std::vector<std::set<DALIOpType>> allowed_parents;
-  allowed_parents.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
-  allowed_parents[static_cast<int>(DALIOpType::DALI_GPU)    ] = { DALIOpType::DALI_GPU,
-                                                                  DALIOpType::DALI_MIXED,
-                                                                  DALIOpType::DALI_SUPPORT };
-  allowed_parents[static_cast<int>(DALIOpType::DALI_CPU)    ] = { DALIOpType::DALI_CPU,
-                                                                  DALIOpType::DALI_SUPPORT };
-  allowed_parents[static_cast<int>(DALIOpType::DALI_MIXED)  ] = { DALIOpType::DALI_CPU };
+  allowed_parents.resize(static_cast<int>(DALIOpType::COUNT));
+  allowed_parents[static_cast<int>(DALIOpType::GPU)    ] = { DALIOpType::GPU,
+                                                                  DALIOpType::MIXED,
+                                                                  DALIOpType::SUPPORT };
+  allowed_parents[static_cast<int>(DALIOpType::CPU)    ] = { DALIOpType::CPU,
+                                                                  DALIOpType::SUPPORT };
+  allowed_parents[static_cast<int>(DALIOpType::MIXED)  ] = { DALIOpType::CPU };
   // TODO(klecki): there are no inputs to Support operators
-  allowed_parents[static_cast<int>(DALIOpType::DALI_SUPPORT)] = { /* DALIOpType::DALI_SUPPORT */ };
+  allowed_parents[static_cast<int>(DALIOpType::SUPPORT)] = { /* DALIOpType::SUPPORT */ };
   return allowed_parents;
 }
 
 std::vector<int> ArgumentInputConstraints() {
   std::vector<int> allows_argument_input;
-  allows_argument_input.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
-  allows_argument_input[static_cast<int>(DALIOpType::DALI_GPU)    ] = true;
-  allows_argument_input[static_cast<int>(DALIOpType::DALI_CPU)    ] = true;
-  allows_argument_input[static_cast<int>(DALIOpType::DALI_MIXED)  ] = false;
-  allows_argument_input[static_cast<int>(DALIOpType::DALI_SUPPORT)] = false;
+  allows_argument_input.resize(static_cast<int>(DALIOpType::COUNT));
+  allows_argument_input[static_cast<int>(DALIOpType::GPU)    ] = true;
+  allows_argument_input[static_cast<int>(DALIOpType::CPU)    ] = true;
+  allows_argument_input[static_cast<int>(DALIOpType::MIXED)  ] = false;
+  allows_argument_input[static_cast<int>(DALIOpType::SUPPORT)] = false;
   return allows_argument_input;
 }
 

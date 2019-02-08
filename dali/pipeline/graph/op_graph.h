@@ -130,7 +130,7 @@ struct TensorNode {
 class DLL_PUBLIC OpGraph {
  public:
   DLL_PUBLIC inline OpGraph() {
-    op_paritions_.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
+    op_paritions_.resize(static_cast<int>(DALIOpType::COUNT));
   }
   DLL_PUBLIC inline ~OpGraph() = default;
 

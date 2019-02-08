@@ -61,6 +61,32 @@ struct DALISize {
 };
 
 /**
+ * @brief Operator types, indicating backend and required workspace
+ */
+enum class DALIOpType {
+  GPU = 0,
+  CPU = 1,
+  MIXED = 2,
+  SUPPORT = 3,
+  COUNT = 4
+};
+
+static std::string to_string(DALIOpType op_type) {
+  switch (op_type) {
+    case DALIOpType::CPU:
+      return "CPU";
+    case DALIOpType::GPU:
+      return "GPU";
+    case DALIOpType::MIXED:
+      return "MIXED";
+    case DALIOpType::SUPPORT:
+      return "SUPPORT";
+    default:
+      return "INVALID OP TYPE";
+  }
+}
+
+/**
  * @brief Supported interpolation types
  */
 enum DALIInterpType {

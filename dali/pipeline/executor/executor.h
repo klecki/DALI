@@ -121,6 +121,10 @@ class DLL_PUBLIC Executor {
 
   void SetOutputBuffersForIter(int queue_idx, WorkspaceBlob *wsb);
 
+  template <DALIOpType op_type, DALITensorDevice device>
+  void PopulateCorrespondingWorkspace(const OpNode& node);
+
+
   template <typename Backend>
   class TensorListPool {
    public:

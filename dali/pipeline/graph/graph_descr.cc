@@ -77,13 +77,13 @@ void CheckOpConstraints(const OpSpec &spec) {
 
 DALIOpType DeviceStringToOpType(std::string device) {
   if (device == "gpu") {
-    return DALIOpType::DALI_GPU;
+    return DALIOpType::GPU;
   } else if (device == "cpu") {
-    return DALIOpType::DALI_CPU;
+    return DALIOpType::CPU;
   } else if (device == "mixed") {
-    return DALIOpType::DALI_MIXED;
+    return DALIOpType::MIXED;
   } else if (device == "support") {
-    return DALIOpType::DALI_SUPPORT;
+    return DALIOpType::SUPPORT;
   }
   DALI_FAIL("Unsupported device type: " + device + ".");
 }
@@ -124,21 +124,21 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
   auto op_type = DeviceStringToOpType(device);
   // TODO(klecki): refactor this out
   switch (op_type) {
-    case DALIOpType::DALI_CPU: {
+    case DALIOpType::CPU: {
       // Enforce graph constraints
       DALI_ENFORCE(AllInputsCPU(spec), "CPU ops cannot receive GPU input data.");
       DALI_ENFORCE(AllOutputsCPU(spec), "CPU ops can only produce CPU output data.");
       break;
     }
-    case DALIOpType::DALI_GPU: {
+    case DALIOpType::GPU: {
       break;
     }
-    case DALIOpType::DALI_MIXED: {
+    case DALIOpType::MIXED: {
       // Enforce graph constraints
       DALI_ENFORCE(AllInputsCPU(spec), "Mixed ops cannot receive GPU input data.");
       break;
     }
-    case DALIOpType::DALI_SUPPORT: {
+    case DALIOpType::SUPPORT: {
       // Enforce graph constraints
       DALI_ENFORCE(AllInputsCPU(spec), "Support ops cannot receive GPU input data.");
       break;
@@ -219,8 +219,8 @@ void OpGraph::AddOp(const OpSpec &spec, const std::string& name) {
 
 void OpGraph::InstantiateOperators() {
   // traverse devices by topological order (support, cpu, mixed, gpu)
-  DALIOpType order[] = { DALIOpType::DALI_SUPPORT, DALIOpType::DALI_CPU,
-                         DALIOpType::DALI_MIXED,   DALIOpType::DALI_GPU };
+  DALIOpType order[] = { DALIOpType::SUPPORT, DALIOpType::CPU,
+                         DALIOpType::MIXED,   DALIOpType::GPU };
 
   for (auto op_type : order) {
     for (auto op_id : op_paritions_[static_cast<int>(op_type)]) {
@@ -428,7 +428,7 @@ void OpGraph::RepartitionOps() {
 
 std::vector<std::vector<TensorNodeId>> OpGraph::PartitionTensorByOpType() const {
   std::vector<std::vector<TensorNodeId>> out;
-  out.resize(static_cast<int>(DALIOpType::DALI_OP_TYPE_COUNT));
+  out.resize(static_cast<int>(DALIOpType::COUNT));
   for (auto &tensor : tensor_nodes_) {
     auto producer_op_type = Node(tensor.producer_edge.node).op_type;
     out[static_cast<int>(producer_op_type)].push_back(tensor.id);
@@ -463,13 +463,13 @@ namespace {
   }
   std::string GetGraphColor(DALIOpType op_type) {
     switch (op_type) {
-      case DALIOpType::DALI_CPU:
+      case DALIOpType::CPU:
         return "blue";
-      case DALIOpType::DALI_GPU:
+      case DALIOpType::GPU:
         return "#76b900";
-      case DALIOpType::DALI_MIXED:
+      case DALIOpType::MIXED:
         return "cyan";
-      case DALIOpType::DALI_SUPPORT:
+      case DALIOpType::SUPPORT:
         return "grey";
       default:
         return "black";
