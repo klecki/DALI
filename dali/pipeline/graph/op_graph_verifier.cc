@@ -48,10 +48,10 @@ std::vector<std::set<DALIOpType>> ParentOpTypeConstraints() {
   std::vector<std::set<DALIOpType>> allowed_parents;
   allowed_parents.resize(static_cast<int>(DALIOpType::COUNT));
   allowed_parents[static_cast<int>(DALIOpType::GPU)    ] = { DALIOpType::GPU,
-                                                                  DALIOpType::MIXED,
-                                                                  DALIOpType::SUPPORT };
+                                                             DALIOpType::MIXED,
+                                                             DALIOpType::SUPPORT };
   allowed_parents[static_cast<int>(DALIOpType::CPU)    ] = { DALIOpType::CPU,
-                                                                  DALIOpType::SUPPORT };
+                                                             DALIOpType::SUPPORT };
   allowed_parents[static_cast<int>(DALIOpType::MIXED)  ] = { DALIOpType::CPU };
   // TODO(klecki): there are no inputs to Support operators
   allowed_parents[static_cast<int>(DALIOpType::SUPPORT)] = { /* DALIOpType::SUPPORT */ };

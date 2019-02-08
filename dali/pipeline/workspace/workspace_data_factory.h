@@ -196,11 +196,6 @@ inline storage_owner_t BatchFactory(DALIOpType op_type, DALITensorDevice device,
 }
 
 template <DALIOpType op_type, DALITensorDevice device>
-auto get_storage(storage_owner_t& owner) -> decltype(std::get<GetStorageIndex(op_type, device)>(owner)) {
-  std::get<GetStorageIndex(op_type, device)>(owner);
-}
-
-template <DALIOpType op_type, DALITensorDevice device>
 typename std::tuple_element<GetStorageIndex(op_type, device), storage_owner_t>::type&
 get_storage(storage_owner_t& owner) noexcept {
   return std::get<GetStorageIndex(op_type, device)>(owner);
