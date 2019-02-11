@@ -121,18 +121,8 @@ class DLL_PUBLIC Executor {
 
   void SetOutputBuffersForIter(int queue_idx, WorkspaceBlob *wsb);
 
-
-
-  template <DALIOpType op_type, DALIOpType producer_type, DALITensorDevice device>
-  void add_input(workspace_t<op_type> &ws, const storage_owner_t &storage);
-
-  void add_argument_inputs(ArgumentWorkspace &aws, const OpNode &node);
-
   template <DALIOpType op_type>
   workspace_t<op_type>& get_workspace(workspace_owner_t& wo, const OpNode &node);
-
-  template <DALIOpType op_type, DALITensorDevice device>
-  void add_output(workspace_t<op_type> &ws, const storage_owner_t &storage);
 
   template <DALIOpType op_type>
   workspace_t<op_type> make_workspace(const OpGraph &graph, const OpNode &node);

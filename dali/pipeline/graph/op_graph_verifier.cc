@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <algorithm>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 #include "dali/error_handling.h"
@@ -26,8 +26,7 @@ namespace dali {
 namespace {
 
 std::string concatenate_alternatives(const std::set<DALIOpType>& vec) {
-  if (vec.empty())
-    return "";
+  if (vec.empty()) return "";
   std::stringstream result;
   bool first = true;
   for (auto op_type : vec) {
@@ -41,33 +40,54 @@ std::string concatenate_alternatives(const std::set<DALIOpType>& vec) {
   return result.str();
 }
 
+}  // namespace
 
+constexpr DALIOpType parent_constraints<DALIOpType::SUPPORT>::allowed_parents[];
+constexpr DALIOpType parent_constraints<DALIOpType::CPU>::allowed_parents[];
+constexpr DALIOpType parent_constraints<DALIOpType::MIXED>::allowed_parents[];
+constexpr DALIOpType parent_constraints<DALIOpType::GPU>::allowed_parents[];
+constexpr DALITensorDevice parent_constraints<DALIOpType::SUPPORT>::allowed_input_tensors[];
+constexpr DALITensorDevice parent_constraints<DALIOpType::CPU>::allowed_input_tensors[];
+constexpr DALITensorDevice parent_constraints<DALIOpType::MIXED>::allowed_input_tensors[];
+constexpr DALITensorDevice parent_constraints<DALIOpType::GPU>::allowed_input_tensors[];
+constexpr DALIOpType parent_constraints<DALIOpType::SUPPORT>::allowed_input_ops[];
+constexpr DALIOpType parent_constraints<DALIOpType::CPU>::allowed_input_ops[];
+constexpr DALIOpType parent_constraints<DALIOpType::MIXED>::allowed_input_ops[];
+constexpr DALIOpType parent_constraints<DALIOpType::GPU>::allowed_input_ops[];
+
+namespace {
+// helper to convert static information to runtime information
+template <DALIOpType op_type>
+std::set<DALIOpType> GetParentConstraints() {
+  return std::set<DALIOpType>{std::begin(parent_constraints<op_type>::allowed_parents),
+                              std::end(parent_constraints<op_type>::allowed_parents)};
+}
 }  // namespace
 
 std::vector<std::set<DALIOpType>> ParentOpTypeConstraints() {
   std::vector<std::set<DALIOpType>> allowed_parents;
   allowed_parents.resize(static_cast<int>(DALIOpType::COUNT));
-  allowed_parents[static_cast<int>(DALIOpType::GPU)    ] = { DALIOpType::GPU,
-                                                             DALIOpType::MIXED,
-                                                             DALIOpType::SUPPORT };
-  allowed_parents[static_cast<int>(DALIOpType::CPU)    ] = { DALIOpType::CPU,
-                                                             DALIOpType::SUPPORT };
-  allowed_parents[static_cast<int>(DALIOpType::MIXED)  ] = { DALIOpType::CPU };
-  // TODO(klecki): there are no inputs to Support operators
-  allowed_parents[static_cast<int>(DALIOpType::SUPPORT)] = { /* DALIOpType::SUPPORT */ };
+  allowed_parents[static_cast<int>(DALIOpType::GPU)] = GetParentConstraints<DALIOpType::GPU>();
+  allowed_parents[static_cast<int>(DALIOpType::CPU)] = GetParentConstraints<DALIOpType::CPU>();
+  allowed_parents[static_cast<int>(DALIOpType::MIXED)] = GetParentConstraints<DALIOpType::MIXED>();
+  allowed_parents[static_cast<int>(DALIOpType::SUPPORT)] =
+      GetParentConstraints<DALIOpType::SUPPORT>();
   return allowed_parents;
 }
 
 std::vector<int> ArgumentInputConstraints() {
   std::vector<int> allows_argument_input;
   allows_argument_input.resize(static_cast<int>(DALIOpType::COUNT));
-  allows_argument_input[static_cast<int>(DALIOpType::GPU)    ] = true;
-  allows_argument_input[static_cast<int>(DALIOpType::CPU)    ] = true;
-  allows_argument_input[static_cast<int>(DALIOpType::MIXED)  ] = false;
-  allows_argument_input[static_cast<int>(DALIOpType::SUPPORT)] = false;
+  allows_argument_input[static_cast<int>(DALIOpType::GPU)] =
+      parent_constraints<DALIOpType::GPU>::supports_argument_inputs;
+  allows_argument_input[static_cast<int>(DALIOpType::CPU)] =
+      parent_constraints<DALIOpType::CPU>::supports_argument_inputs;
+  allows_argument_input[static_cast<int>(DALIOpType::MIXED)] =
+      parent_constraints<DALIOpType::MIXED>::supports_argument_inputs;
+  allows_argument_input[static_cast<int>(DALIOpType::SUPPORT)] =
+      parent_constraints<DALIOpType::SUPPORT>::supports_argument_inputs;
   return allows_argument_input;
 }
-
 
 /**
  * @brief Check if parent nodes have compatible DALIOpType
@@ -97,7 +117,7 @@ void CheckArgumentInputConstraints(const OpGraph& op_graph, const OpNode& op) {
                  to_string(op.op_type) + " Ops do not support tensor arguments, found in " +
                      op.instance_name + " Op.");
   }
-  for (const auto &arg_pair : op.spec.ArgumentInputs()) {
+  for (const auto& arg_pair : op.spec.ArgumentInputs()) {
     auto input_idx = arg_pair.second;
     auto in_tensor = op_graph.Tensor(op.parent_tensors[input_idx]);
     // Parent node of this tensor is support op

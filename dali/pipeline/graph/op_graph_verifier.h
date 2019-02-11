@@ -22,6 +22,67 @@
 
 namespace dali {
 
+template <typename T, size_t N>
+constexpr size_t Size(T (&)[N]) {
+  return N;
+}
+
+template <typename T>
+constexpr auto Size(const T &t) -> decltype(t.size()) {
+  return t.size();
+}
+
+template <DALIOpType op_type>
+struct parent_constraints;
+
+template <>
+struct parent_constraints<DALIOpType::SUPPORT> {
+  static constexpr DALIOpType allowed_parents[] = {DALIOpType::SUPPORT};
+  static constexpr DALITensorDevice allowed_input_tensors[] = {DALITensorDevice::CPU};
+  static constexpr DALIOpType allowed_input_ops[] = {DALIOpType::SUPPORT};
+  static constexpr bool supports_argument_inputs = false;
+};
+
+template <>
+struct parent_constraints<DALIOpType::CPU> {
+  static constexpr DALIOpType allowed_parents[] = {DALIOpType::CPU, DALIOpType::SUPPORT};
+  static constexpr DALITensorDevice allowed_input_tensors[] = {DALITensorDevice::CPU};
+  static constexpr DALIOpType allowed_input_ops[] = {DALIOpType::CPU};
+  static constexpr bool supports_argument_inputs = true;
+};
+
+template <>
+struct parent_constraints<DALIOpType::MIXED> {
+  static constexpr DALIOpType allowed_parents[] = {DALIOpType::CPU};
+  static constexpr DALITensorDevice allowed_input_tensors[] = {DALITensorDevice::CPU};
+  static constexpr DALIOpType allowed_input_ops[] = {DALIOpType::CPU};
+  static constexpr bool supports_argument_inputs = false;
+};
+
+template <>
+struct parent_constraints<DALIOpType::GPU> {
+  static constexpr DALIOpType allowed_parents[] = {DALIOpType::GPU, DALIOpType::MIXED,
+                                                   DALIOpType::SUPPORT};
+  static constexpr DALITensorDevice allowed_input_tensors[] = {DALITensorDevice::CPU,
+                                                               DALITensorDevice::GPU};
+  static constexpr DALIOpType allowed_input_ops[] = {DALIOpType::MIXED, DALIOpType::GPU};
+  static constexpr bool supports_argument_inputs = true;
+};
+
+template <DALIOpType op_type>
+static constexpr bool allows_op_input_impl(DALIOpType parent, size_t idx) {
+  // we encountered the end of array -> false
+  // otherwise we found at current position or search in next position recursivelly
+  return idx < Size(parent_constraints<op_type>::allowed_input_ops) &&
+         (parent_constraints<op_type>::allowed_input_ops[idx] == parent ||
+          allows_op_input_impl<op_type>(parent, idx + 1));
+}
+
+template <DALIOpType op_type>
+static constexpr bool allows_op_input(DALIOpType parent) {
+  return allows_op_input_impl<op_type>(parent, 0);
+}
+
 std::vector<int> ArgumentInputConstraints();
 std::vector<std::set<DALIOpType>> ParentOpTypeConstraints();
 
