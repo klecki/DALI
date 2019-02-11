@@ -127,6 +127,11 @@ class DLL_PUBLIC Executor {
   template <DALIOpType op_type>
   void fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node);
 
+  template <DALIOpType op_type>
+  void PinWhereNeeded(workspace_t<op_type> &ws, const OpGraph &graph, const OpNode &node);
+
+
+
 
   template <typename Backend>
   class TensorListPool {

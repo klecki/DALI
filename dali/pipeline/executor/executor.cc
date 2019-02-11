@@ -405,8 +405,6 @@ template <DALIOpType op_type, DALIOpType producer_type, DALITensorDevice device>
 en_if_t<!allows_op_input<op_type>(producer_type) || !allows_tensor_input<op_type>(device)>
 add_input(workspace_t<op_type>, const storage_owner_t) {}
 
-
-
 // This will be only used for allowed ones (TODO(klecki) with exception of the device)
 template <DALIOpType op_type, DALITensorDevice device>
 void add_output(workspace_t<op_type> &ws, const storage_owner_t &storage) {
@@ -414,8 +412,9 @@ void add_output(workspace_t<op_type> &ws, const storage_owner_t &storage) {
   ws.AddOutput(tensor);
 }
 
-
-
+// TODO(klecki): should we move this to OpNode, and make it subclasses for
+// all DALIOpTypes -> implement `add_input` and add_output for all of the subclasses
+// as well with later operations
 template <DALIOpType op_type>
 void Executor::fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node) {
   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
@@ -444,7 +443,6 @@ void Executor::fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const
     ws.AddArgumentInput(tensor, arg_pair.first);
   }
 
-  // add_argument_inputs(ws, node);
   for (int j = 0; j < node.spec.NumOutput(); ++j) {
     auto tid = node.children_tensors[j];
     auto tensor_device = graph.Tensor(tid).producer_edge.storage_device;
@@ -456,43 +454,14 @@ void Executor::fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const
   }
 }
 
+template <DALIOpType op_type>
+void Executor::PinWhereNeeded(workspace_t<op_type> &, const OpGraph &, const OpNode &) {
+  /* No-op if we are not MIXED MakeContigous node */
+}
 
-// template <>
-// SupportWorkspace Executor::make_workspace<DALIOpType::SUPPORT>(const OpGraph &graph,
-//                                                                const OpNode &node) {
-//   SupportWorkspace ws;
-//   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
-//     auto tid = node.parent_tensors[j];
-//     add_input<DALIOpType::SUPPORT, DALIOpType::SUPPORT, DALITensorDevice::CPU>(
-//         ws, tensor_to_storage_[tid]);
-//   }
-//   add_argument_inputs(ws, node);
-//   for (int j = 0; j < node.spec.NumOutput(); ++j) {
-//     auto tid = node.children_tensors[j];
-//     add_output<DALIOpType::SUPPORT, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
-//   }
-//   return ws;
-// }
-
-// template <>
-// HostWorkspace Executor::make_workspace<DALIOpType::CPU>(const OpGraph &graph, const OpNode &node) {
-//   HostWorkspace ws;
-//   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
-//     auto tid = node.parent_tensors[j];
-//     add_input<DALIOpType::CPU, DALIOpType::CPU, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
-//   }
-//   add_argument_inputs(ws, node);
-//   for (int j = 0; j < node.spec.NumOutput(); ++j) {
-//     auto tid = node.children_tensors[j];
-//     add_output<DALIOpType::CPU, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
-//   }
-//   return ws;
-// }
-
-
-// TODO(klecki): WE SHOULD PRESERVE MakeContigous behaviour
+// TODO(klecki): this should be handled on Tensor level?
 template <>
-void Executor::fill_inputs<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph &graph,
+void Executor::PinWhereNeeded<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph &graph,
                                                            const OpNode &node) {
   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
     auto tid = node.parent_tensors[j];
@@ -504,67 +473,8 @@ void Executor::fill_inputs<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph 
         t->set_pinned(true);
       }
     }
-    add_input<DALIOpType::MIXED, DALIOpType::CPU, DALITensorDevice::CPU>(ws,
-                                                                         tensor_to_storage_[tid]);
-  }
-  // add_argument_inputs(ws, node);
-  for (int j = 0; j < node.spec.NumOutput(); ++j) {
-    auto tid = node.children_tensors[j];
-    if (graph.Tensor(tid).producer_edge.storage_device == DALITensorDevice::CPU) {
-      add_output<DALIOpType::MIXED, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
-    } else {
-      add_output<DALIOpType::MIXED, DALITensorDevice::GPU>(ws, tensor_to_storage_[tid]);
-    }
   }
 }
-
-// template <>
-// DeviceWorkspace Executor::make_workspace<DALIOpType::GPU>(const OpGraph &graph,
-//                                                           const OpNode &node) {
-//   DeviceWorkspace ws;
-//   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
-//     auto tid = node.parent_tensors[j];
-//     auto &parent_node = graph.Node(graph.Tensor(tid).producer_edge.node);
-//     auto parent_op_type = parent_node.op_type;
-//     auto tensor_device = graph.Tensor(tid).producer_edge.storage_device;
-
-//     if (parent_op_type == DALIOpType::MIXED) {
-//       if (tensor_device == DALITensorDevice::CPU) {
-//         add_input<DALIOpType::GPU, DALIOpType::MIXED, DALITensorDevice::CPU>(
-//             ws, tensor_to_storage_[tid]);
-//       } else if (tensor_device == DALITensorDevice::GPU) {
-//         add_input<DALIOpType::GPU, DALIOpType::MIXED, DALITensorDevice::GPU>(
-//             ws, tensor_to_storage_[tid]);
-//       } else {
-//         DALI_FAIL("Executor encountered gpu op with non-cpu/gpu input.");
-//       }
-//     } else if (parent_op_type == DALIOpType::GPU) {
-//       if (tensor_device == DALITensorDevice::CPU) {
-//         // Note: This path should currently never occur, as we
-//         // do not allow gpu ops to produce cpu data outputs.
-//         add_input<DALIOpType::GPU, DALIOpType::GPU, DALITensorDevice::CPU>(ws,
-//                                                                            tensor_to_storage_[tid]);
-//       } else if (tensor_device == DALITensorDevice::GPU) {
-//         add_input<DALIOpType::GPU, DALIOpType::GPU, DALITensorDevice::GPU>(ws,
-//                                                                            tensor_to_storage_[tid]);
-//       } else {
-//         DALI_FAIL("Executor encountered gpu op with non-cpu/gpu input.");
-//       }
-//     } else {
-//       DALI_FAIL("Executor encountered gpu op with non-mixed/gpu input.");
-//     }
-//   }
-//   add_argument_inputs(ws, node);
-//   for (int j = 0; j < node.spec.NumOutput(); ++j) {
-//     auto tid = node.children_tensors[j];
-//     if (graph.Tensor(tid).producer_edge.storage_device == DALITensorDevice::CPU) {
-//       add_output<DALIOpType::GPU, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
-//     } else {
-//       add_output<DALIOpType::GPU, DALITensorDevice::GPU>(ws, tensor_to_storage_[tid]);
-//     }
-//   }
-//   return ws;
-// }
 
 void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
   DeviceGuard g(device_id_);
@@ -600,24 +510,28 @@ void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
       case DALIOpType::CPU: {
         auto &ws = get_workspace<DALIOpType::CPU>(wsb->op_data, node);
         fill_inputs<DALIOpType::CPU>(ws, *graph_, node);
+        PinWhereNeeded<DALIOpType::CPU>(ws, *graph_, node);
         wsb->cpu_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::GPU: {
         auto &ws = get_workspace<DALIOpType::GPU>(wsb->op_data, node);
         fill_inputs<DALIOpType::GPU>(ws, *graph_, node);
+        PinWhereNeeded<DALIOpType::GPU>(ws, *graph_, node);
         wsb->gpu_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::MIXED: {
         auto &ws = get_workspace<DALIOpType::MIXED>(wsb->op_data, node);
         fill_inputs<DALIOpType::MIXED>(ws, *graph_, node);
+        PinWhereNeeded<DALIOpType::MIXED>(ws, *graph_, node);
         wsb->mixed_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::SUPPORT: {
         auto &ws = get_workspace<DALIOpType::SUPPORT>(wsb->op_data, node);
         fill_inputs<DALIOpType::SUPPORT>(ws, *graph_, node);
+        PinWhereNeeded<DALIOpType::SUPPORT>(ws, *graph_, node);
         wsb->support_op_data[node.partition_index] = ws;
         break;
       }
