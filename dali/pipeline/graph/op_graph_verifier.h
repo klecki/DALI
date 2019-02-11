@@ -69,19 +69,23 @@ struct parent_constraints<DALIOpType::GPU> {
   static constexpr bool supports_argument_inputs = true;
 };
 
-template <DALIOpType op_type>
-static constexpr bool allows_op_input_impl(DALIOpType parent, size_t idx) {
+template <typename T, size_t N>
+static constexpr bool is_in_array(const T value, const T (&arr)[N], size_t idx) {
   // we encountered the end of array -> false
   // otherwise we found at current position or search in next position recursivelly
-  return idx < Size(parent_constraints<op_type>::allowed_input_ops) &&
-         (parent_constraints<op_type>::allowed_input_ops[idx] == parent ||
-          allows_op_input_impl<op_type>(parent, idx + 1));
+  return idx < N && (value == arr[idx] || is_in_array(value, arr, idx + 1));
 }
 
 template <DALIOpType op_type>
 static constexpr bool allows_op_input(DALIOpType parent) {
-  return allows_op_input_impl<op_type>(parent, 0);
+  return is_in_array(parent, parent_constraints<op_type>::allowed_input_ops, 0);
 }
+
+template <DALIOpType op_type>
+static constexpr bool allows_tensor_input(DALITensorDevice device) {
+  return is_in_array(device, parent_constraints<op_type>::allowed_input_tensors, 0);
+}
+
 
 std::vector<int> ArgumentInputConstraints();
 std::vector<std::set<DALIOpType>> ParentOpTypeConstraints();

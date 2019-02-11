@@ -52,13 +52,13 @@ constexpr DALITensorDevice GetStorageDevice(size_t storage_idx) {
 }
 
 // We use a tuple that can hold Output Type from Device, Host, Mixed and Support workspaces,
-// so we have a unifided place that can own any of this type
+// so we have a unifided place that can own any of this type.
 // Additionally, we use order of those types deifned by GetStorageIndex
 // We have 4 workspaces with two possible Backends, obtatining 8 types
 // TODO(klecki): this can be clearer as
 // std::tuple<DeviceOutputType<CPUBackend>, DeviceOutputType<GPUBackend>,
 //            HostOutputType<CPUBackend>, ...
-// but that way I ensure correct order of types and not use 8 static_asserts
+// but that way we ensure correct order of types and not use 8 static_asserts
 template <size_t storage_idx>
 struct storage_type_gen {
   using type = typename workspace_t<GetOpType(
@@ -191,10 +191,19 @@ Ret Switch_Device(DALITensorDevice device, T &&... args) {
                DALI_FAIL("Unexpected device"));
 }
 
+/**
+ * @brief Create the instance of of Workspace::OutputType for runtime pair of op_type and device
+ * storing it at apropraite index of storage_owner_t tuple
+ * Other entries of tuple are empty
+ */
 inline storage_owner_t BatchFactory(DALIOpType op_type, DALITensorDevice device, int batch_size) {
   return Switch_OpType_Device<FillStorageOwner, storage_owner_t>(op_type, device, batch_size);
 }
 
+/**
+ * @brief Set of wrappers for std::get, that for specified op_type and device
+ * retrive the appropriate Workspace::OutputType from the storage_owner_t tuple
+ */
 template <DALIOpType op_type, DALITensorDevice device>
 typename std::tuple_element<GetStorageIndex(op_type, device), storage_owner_t>::type&
 get_storage(storage_owner_t& owner) noexcept {

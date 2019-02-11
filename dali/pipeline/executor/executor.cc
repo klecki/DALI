@@ -391,28 +391,23 @@ workspace_t<op_type>& Executor::get_workspace(workspace_owner_t& wo, const OpNod
   return ws_vec[node.partition_index];
 }
 
+// We instantiate the operation of adding the input only for parent op_type and device
+// that are specifically allowed
 template <DALIOpType op_type, DALIOpType producer_type, DALITensorDevice device>
-en_if_t<allows_op_input<op_type>(producer_type)> add_input(
+en_if_t<allows_op_input<op_type>(producer_type) && allows_tensor_input<op_type>(device)> add_input(
     workspace_t<op_type> &ws, const storage_owner_t &storage) {
   auto tensor = get_storage<producer_type, device>(storage);
   ws.AddInput(tensor);
 }
 
+// If parent op_type or device is not allowed this is a no-op
 template <DALIOpType op_type, DALIOpType producer_type, DALITensorDevice device>
-en_if_t<!allows_op_input<op_type>(producer_type)> add_input(
-    workspace_t<op_type>, const storage_owner_t) {}
+en_if_t<!allows_op_input<op_type>(producer_type) || !allows_tensor_input<op_type>(device)>
+add_input(workspace_t<op_type>, const storage_owner_t) {}
 
-// void add_argument_inputs(ArgumentWorkspace &aws, const OpNode &node, const storage_owner_t &storage,
-//                          std::vector<storage_owner_t> &tensor_to_storage) {
-//   for (const auto &arg_pair : node.spec.ArgumentInputs()) {
-//     // Get each argument input and add them to this op's workspace.
-//     auto input_index = arg_pair.second;
-//     auto tid = node.parent_tensors[input_index];
-//     auto tensor = get_storage<DALIOpType::SUPPORT, DALITensorDevice::CPU>(tensor_to_storage[tid]);
-//     aws.AddArgumentInput(tensor, arg_pair.first);
-//   }
-// }
 
+
+// This will be only used for allowed ones (TODO(klecki) with exception of the device)
 template <DALIOpType op_type, DALITensorDevice device>
 void add_output(workspace_t<op_type> &ws, const storage_owner_t &storage) {
   auto tensor = get_storage<op_type, device>(storage);
@@ -422,8 +417,7 @@ void add_output(workspace_t<op_type> &ws, const storage_owner_t &storage) {
 
 
 template <DALIOpType op_type>
-workspace_t<op_type> Executor::make_workspace(const OpGraph &graph, const OpNode &node) {
-  workspace_t<op_type> ws;
+void Executor::fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node) {
   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
     auto tid = node.parent_tensors[j];
     auto &parent_node = graph.Node(graph.Tensor(tid).producer_edge.node);
@@ -460,7 +454,6 @@ workspace_t<op_type> Executor::make_workspace(const OpGraph &graph, const OpNode
     ),
     DALI_FAIL("Unexpected device"));
   }
-  return ws;
 }
 
 
@@ -496,34 +489,34 @@ workspace_t<op_type> Executor::make_workspace(const OpGraph &graph, const OpNode
 //   return ws;
 // }
 
-// template <>
-// MixedWorkspace Executor::make_workspace<DALIOpType::MIXED>(const OpGraph &graph,
-//                                                            const OpNode &node) {
-//   MixedWorkspace ws;
-//   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
-//     auto tid = node.parent_tensors[j];
-//     // Use pinned memory only when it is useful
-//     if (node.spec.name() == "MakeContiguous" && node.spec.NumOutput() == 1 &&
-//         node.spec.OutputDevice(0) == "gpu") {
-//       // TODO(klecki): we need some wrappers for WorkspaceOutputType with set_pinned in API
-//       for (auto t : get_storage<DALIOpType::CPU, DALITensorDevice::CPU>(tensor_to_storage_[tid])) {
-//         t->set_pinned(true);
-//       }
-//     }
-//     add_input<DALIOpType::MIXED, DALIOpType::CPU, DALITensorDevice::CPU>(ws,
-//                                                                          tensor_to_storage_[tid]);
-//   }
-//   add_argument_inputs(ws, node);
-//   for (int j = 0; j < node.spec.NumOutput(); ++j) {
-//     auto tid = node.children_tensors[j];
-//     if (graph.Tensor(tid).producer_edge.storage_device == DALITensorDevice::CPU) {
-//       add_output<DALIOpType::MIXED, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
-//     } else {
-//       add_output<DALIOpType::MIXED, DALITensorDevice::GPU>(ws, tensor_to_storage_[tid]);
-//     }
-//   }
-//   return ws;
-// }
+
+// TODO(klecki): WE SHOULD PRESERVE MakeContigous behaviour
+template <>
+void Executor::fill_inputs<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph &graph,
+                                                           const OpNode &node) {
+  for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
+    auto tid = node.parent_tensors[j];
+    // Use pinned memory only when it is useful
+    if (node.spec.name() == "MakeContiguous" && node.spec.NumOutput() == 1 &&
+        node.spec.OutputDevice(0) == "gpu") {
+      // TODO(klecki): we need some wrappers for WorkspaceOutputType with set_pinned in API
+      for (auto t : get_storage<DALIOpType::CPU, DALITensorDevice::CPU>(tensor_to_storage_[tid])) {
+        t->set_pinned(true);
+      }
+    }
+    add_input<DALIOpType::MIXED, DALIOpType::CPU, DALITensorDevice::CPU>(ws,
+                                                                         tensor_to_storage_[tid]);
+  }
+  // add_argument_inputs(ws, node);
+  for (int j = 0; j < node.spec.NumOutput(); ++j) {
+    auto tid = node.children_tensors[j];
+    if (graph.Tensor(tid).producer_edge.storage_device == DALITensorDevice::CPU) {
+      add_output<DALIOpType::MIXED, DALITensorDevice::CPU>(ws, tensor_to_storage_[tid]);
+    } else {
+      add_output<DALIOpType::MIXED, DALITensorDevice::GPU>(ws, tensor_to_storage_[tid]);
+    }
+  }
+}
 
 // template <>
 // DeviceWorkspace Executor::make_workspace<DALIOpType::GPU>(const OpGraph &graph,
@@ -606,25 +599,25 @@ void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
     switch (node.op_type) {
       case DALIOpType::CPU: {
         auto &ws = get_workspace<DALIOpType::CPU>(wsb->op_data, node);
-        ws = make_workspace<DALIOpType::CPU>(*graph_, node);
+        fill_inputs<DALIOpType::CPU>(ws, *graph_, node);
         wsb->cpu_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::GPU: {
         auto &ws = get_workspace<DALIOpType::GPU>(wsb->op_data, node);
-        ws = make_workspace<DALIOpType::GPU>(*graph_, node);
+        fill_inputs<DALIOpType::GPU>(ws, *graph_, node);
         wsb->gpu_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::MIXED: {
         auto &ws = get_workspace<DALIOpType::MIXED>(wsb->op_data, node);
-        ws = make_workspace<DALIOpType::MIXED>(*graph_, node);
+        fill_inputs<DALIOpType::MIXED>(ws, *graph_, node);
         wsb->mixed_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::SUPPORT: {
         auto &ws = get_workspace<DALIOpType::SUPPORT>(wsb->op_data, node);
-        ws = make_workspace<DALIOpType::SUPPORT>(*graph_, node);
+        fill_inputs<DALIOpType::SUPPORT>(ws, *graph_, node);
         wsb->support_op_data[node.partition_index] = ws;
         break;
       }

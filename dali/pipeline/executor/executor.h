@@ -125,7 +125,7 @@ class DLL_PUBLIC Executor {
   workspace_t<op_type>& get_workspace(workspace_owner_t& wo, const OpNode &node);
 
   template <DALIOpType op_type>
-  workspace_t<op_type> make_workspace(const OpGraph &graph, const OpNode &node);
+  void fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node);
 
 
   template <typename Backend>
