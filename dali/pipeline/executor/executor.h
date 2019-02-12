@@ -89,18 +89,18 @@ class DLL_PUBLIC Executor {
  protected:
   struct WorkspaceBlob {
     // std::tuple<std::vector<
-    vector<HostWorkspace> cpu_op_data;
-    vector<MixedWorkspace> mixed_op_data;
-    vector<DeviceWorkspace> gpu_op_data;
-    vector<SupportWorkspace> support_op_data;
+    // vector<HostWorkspace> cpu_op_data;
+    // vector<MixedWorkspace> mixed_op_data;
+    // vector<DeviceWorkspace> gpu_op_data;
+    // vector<SupportWorkspace> support_op_data;
     // std::tuple<
     workspace_owner_t op_data;
 
     void Clear() {
-      cpu_op_data.clear();
-      mixed_op_data.clear();
-      gpu_op_data.clear();
-      support_op_data.clear();
+      // cpu_op_data.clear();
+      // mixed_op_data.clear();
+      // gpu_op_data.clear();
+      // support_op_data.clear();
       std::get<0>(op_data).clear();
       std::get<1>(op_data).clear();
       std::get<2>(op_data).clear();
@@ -120,6 +120,9 @@ class DLL_PUBLIC Executor {
   void SetupOutputQueuesForGraph();
 
   void SetOutputBuffersForIter(int queue_idx, WorkspaceBlob *wsb);
+
+  template <DALIOpType op_type>
+  workspace_t<op_type>& get_workspace(workspace_owner_t& wo, OpPartitionId partition_idx);
 
   template <DALIOpType op_type>
   workspace_t<op_type>& get_workspace(workspace_owner_t& wo, const OpNode &node);

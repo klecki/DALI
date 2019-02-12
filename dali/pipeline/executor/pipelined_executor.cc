@@ -208,7 +208,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
     int support_op_id = graph_->NodeIdx(node_id);
     int output_idx = info.prod_and_idx.second;
-    wsb->support_op_data[support_op_id].SetOutput(
+    get_workspace<DALIOpType::SUPPORT>(wsb->op_data, support_op_id).SetOutput(
         output_idx, tvp.Get(queue_idx));
 
     for (size_t j = 0; j < info.con_and_idx.size(); ++j) {
@@ -219,13 +219,13 @@ void PipelinedExecutor::SetStageOutputsForIter(
       const OpSpec& spec = op_node.spec;
       std::string arg_name = spec.ArgumentInputName(input_idx);
       if (graph_->NodeType(node_id) == DALIOpType::MIXED) {
-        wsb->mixed_op_data[child_op_id].SetArgumentInput(
+        get_workspace<DALIOpType::MIXED>(wsb->op_data, child_op_id).SetArgumentInput(
           tvp.Get(queue_idx), arg_name);
       } else if (graph_->NodeType(node_id) == DALIOpType::GPU) {
-        wsb->gpu_op_data[child_op_id].SetArgumentInput(
+        get_workspace<DALIOpType::GPU>(wsb->op_data, child_op_id).SetArgumentInput(
           tvp.Get(queue_idx), arg_name);
       } else {
-        wsb->cpu_op_data[child_op_id].SetArgumentInput(
+        get_workspace<DALIOpType::CPU>(wsb->op_data, child_op_id).SetArgumentInput(
           tvp.Get(queue_idx), arg_name);
       }
     }
@@ -239,7 +239,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
     int cpu_op_id = graph_->NodeIdx(node_id);
     int output_idx = info.prod_and_idx.second;
-    wsb->cpu_op_data[cpu_op_id].SetOutput(
+    get_workspace<DALIOpType::CPU>(wsb->op_data, cpu_op_id).SetOutput(
         output_idx, tvp.Get(queue_idx));
 
     for (size_t j = 0; j < info.con_and_idx.size(); ++j) {
@@ -247,7 +247,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
       if (graph_->NodeType(node_id) == DALIOpType::MIXED) {
         int mixed_op_id = graph_->NodeIdx(node_id);
         int input_idx = info.con_and_idx[j].second;
-        wsb->mixed_op_data[mixed_op_id].SetInput(
+        get_workspace<DALIOpType::MIXED>(wsb->op_data, mixed_op_id).SetInput(
           input_idx, tvp.Get(queue_idx));
         const OpNode &node = graph_->Node(DALIOpType::MIXED, mixed_op_id);
         std::vector<int> hints = GetMemoryHints(node.spec);
@@ -267,7 +267,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
       } else if (graph_->NodeType(node_id) == DALIOpType::CPU) {
         int cpu_op_id = graph_->NodeIdx(node_id);
         int input_idx = info.con_and_idx[j].second;
-        wsb->cpu_op_data[cpu_op_id].SetInput(
+        get_workspace<DALIOpType::CPU>(wsb->op_data, cpu_op_id).SetInput(
           input_idx, tvp.Get(queue_idx));
       } else {
           DALI_FAIL("Internal error - found non-CPU/mixed consumer");
@@ -283,7 +283,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
     int mixed_op_id = graph_->NodeIdx(node_id);
     int output_idx = info.prod_and_idx.second;
-    wsb->mixed_op_data[mixed_op_id].SetOutput(
+    get_workspace<DALIOpType::MIXED>(wsb->op_data, mixed_op_id).SetOutput(
         output_idx, tlp.Get(queue_idx));
 
     for (size_t j = 0; j < info.con_and_idx.size(); ++j) {
@@ -292,7 +292,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
       int gpu_op_id = graph_->NodeIdx(node_id);
       int input_idx = info.con_and_idx[j].second;
-      wsb->gpu_op_data[gpu_op_id].SetInput(
+      get_workspace<DALIOpType::GPU>(wsb->op_data, gpu_op_id).SetInput(
           input_idx, tlp.Get(queue_idx));
     }
   }
@@ -306,7 +306,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
     int mixed_op_id = graph_->NodeIdx(node_id);
     int output_idx = info.prod_and_idx.second;
-    wsb->mixed_op_data[mixed_op_id].SetOutput(
+    get_workspace<DALIOpType::MIXED>(wsb->op_data, mixed_op_id).SetOutput(
         output_idx, tlp.Get(queue_idx));
 
     for (size_t j = 0; j < info.con_and_idx.size(); ++j) {
@@ -315,7 +315,7 @@ void PipelinedExecutor::SetStageOutputsForIter(
 
       int gpu_op_id = graph_->NodeIdx(node_id);
       int input_idx = info.con_and_idx[j].second;
-      wsb->gpu_op_data[gpu_op_id].SetInput(
+      get_workspace<DALIOpType::GPU>(wsb->op_data, gpu_op_id).SetInput(
           input_idx, tlp.Get(queue_idx));
     }
   }
