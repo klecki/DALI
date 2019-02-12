@@ -111,7 +111,7 @@ class DLL_PUBLIC Executor {
 
   void PruneUnusedGraphNodes();
 
-  void SetupDataForGraph(WorkspaceBlob *wsb);
+  void SetupWorkspacesForGraph(WorkspaceBlob *wsb);
 
   void PresizeData(WorkspaceBlob *wsb);
 
@@ -125,12 +125,13 @@ class DLL_PUBLIC Executor {
   workspace_t<op_type>& get_workspace(workspace_owner_t& wo, const OpNode &node);
 
   template <DALIOpType op_type>
-  void fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node);
+  void SetupInputOutput(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node);
 
   template <DALIOpType op_type>
-  void PinWhereNeeded(workspace_t<op_type> &ws, const OpGraph &graph, const OpNode &node);
+  void SetupPinned(workspace_t<op_type> &ws, const OpGraph &graph, const OpNode &node);
 
-
+  template <DALIOpType op_type>
+  void SetupStreamsAndEvents(workspace_t<op_type> &ws, const OpGraph &graph, const OpNode &node);
 
 
   template <typename Backend>
@@ -228,6 +229,8 @@ class DLL_PUBLIC Executor {
   bool exec_error_;
   ExecutorCallback cb_;
   std::vector<storage_owner_t> tensor_to_storage_;
+  cudaStream_t mixed_op_stream_, gpu_op_stream_;
+  std::vector<cudaEvent_t> mixed_op_events_;  // To introduce dependency from MIXED to GPU Ops
 };
 
 #define USE_EXECUTOR_MEMBERS()                             \

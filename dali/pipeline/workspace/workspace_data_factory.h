@@ -229,6 +229,25 @@ get_storage(const storage_owner_t&& owner) noexcept {
 }
 
 
+template <typename Backend>
+void SetPinned(SupportWorkspace::output_t<Backend> &t, bool pinned) {
+  t->set_pinned(pinned);
+}
+
+template <typename Backend>
+void SetPinned(HostWorkspace::output_t<Backend> &t, bool pinned) {
+  for (auto &tensor_ptr : t) {
+    tensor_ptr->set_pinned(pinned);
+  }
+}
+
+// Device is the same as Mixed
+template <typename Backend>
+void SetPinned(DeviceWorkspace::output_t<Backend> &t, bool pinned) {
+  t->set_pinned(pinned);
+}
+
+
 }  // namespace dali
 
 #endif  // DALI_PIPELINE_WORKSPACE_WORKSPACE_DATA_FACTORY_H_

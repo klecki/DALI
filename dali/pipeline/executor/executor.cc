@@ -22,6 +22,8 @@
 #include "dali/pipeline/graph/op_graph_verifier.h"
 
 #include "dali/pipeline/workspace/workspace_data_factory.h"
+#include "dali/pipeline/graph/op_graph_storage.h"
+
 
 namespace dali {
 
@@ -46,17 +48,25 @@ void Executor::Build(OpGraph *graph, vector<string> output_names) {
 
   // Check if graph is ok for execution
   CheckGraphConstraints(*graph_);
+  // Clear the old data
+  tensor_to_storage_.clear();
+  // Create corresponding storage type for TensorNodes in graph
+  tensor_to_storage_ = CreateBackingStorageForTensorNodes(*graph_, batch_size_);
+  // Setup stream and events that will be used for execution
+  {
+    DeviceGuard g(device_id_);
+    mixed_op_stream_ = stream_pool_.GetStream();
+    gpu_op_stream_ = stream_pool_.GetStream();
+    mixed_op_events_ = CreateEventsForMixedOps(event_pool_, *graph_);
+  }
 
   // Setup workspaces for each op and connect
   // their inputs and outputs.
   WorkspaceBlob base_wsb;
-  SetupDataForGraph(&base_wsb);
+  SetupWorkspacesForGraph(&base_wsb);
 
   // Presize the workspaces based on the hint
   PresizeData(&base_wsb);
-
-  // Assign streams to all mixed & gpu ops
-  SetupStreamsForGraph(&base_wsb);
 
   SetupOutputQueuesForGraph();
 
@@ -416,7 +426,7 @@ void add_output(workspace_t<op_type> &ws, const storage_owner_t &storage) {
 // all DALIOpTypes -> implement `add_input` and add_output for all of the subclasses
 // as well with later operations
 template <DALIOpType op_type>
-void Executor::fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node) {
+void Executor::SetupInputOutput(workspace_t<op_type>& ws, const OpGraph &graph, const OpNode &node) {
   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
     auto tid = node.parent_tensors[j];
     auto &parent_node = graph.Node(graph.Tensor(tid).producer_edge.node);
@@ -455,13 +465,13 @@ void Executor::fill_inputs(workspace_t<op_type>& ws, const OpGraph &graph, const
 }
 
 template <DALIOpType op_type>
-void Executor::PinWhereNeeded(workspace_t<op_type> &, const OpGraph &, const OpNode &) {
+void Executor::SetupPinned(workspace_t<op_type> &, const OpGraph &, const OpNode &) {
   /* No-op if we are not MIXED MakeContigous node */
 }
 
 // TODO(klecki): this should be handled on Tensor level?
 template <>
-void Executor::PinWhereNeeded<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph &graph,
+void Executor::SetupPinned<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph &graph,
                                                            const OpNode &node) {
   for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
     auto tid = node.parent_tensors[j];
@@ -476,22 +486,45 @@ void Executor::PinWhereNeeded<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGra
   }
 }
 
-void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
+template <DALIOpType op_type>
+void Executor::SetupStreamsAndEvents(workspace_t<op_type> &ws, const OpGraph &graph, const OpNode &node) {
+  /* No-op if we are not Mixed or GPU */
+}
+
+template <>
+void Executor::SetupStreamsAndEvents<DALIOpType::MIXED>(MixedWorkspace& ws, const OpGraph &graph, const OpNode &node) {
+  // We assign unique stream to mixed ops.
+  // This ensures that we won't have false dependencies
+  // between mixed ops and the previous iterations
+  // gpu ops.
+  ws.set_stream(mixed_op_stream_);
+  ws.set_event(mixed_op_events_[node.partition_index]);
+}
+
+template <>
+void Executor::SetupStreamsAndEvents<DALIOpType::GPU>(DeviceWorkspace &ws, const OpGraph &graph, const OpNode &node) {
+  // I/O pipeline is always going to be launched alongside
+  // some other GPU work (like DL training).
+  // Therefore it is not necessary to use more than
+  // 1 stream for GPU ops, even though we may not fill
+  // the whole GPU with just I/O pipeline kernels
+  // by doing so.
+  ws.set_stream(gpu_op_stream_);
+  for (const auto& p : node.parents) {
+    if (graph.NodeType(p) == DALIOpType::MIXED) {
+      const auto &parent_op = graph.Node(p);
+      // We need to block on this op's event to
+      // make sure that we respect the dependency
+      ws.AddParentEvent(mixed_op_events_[parent_op.partition_index]);
+    }
+  }
+}
+
+void Executor::SetupWorkspacesForGraph(WorkspaceBlob *wsb) {
   DeviceGuard g(device_id_);
 
   // Clear any old data setup
   wsb->Clear();
-
-  // Clear old data
-  tensor_to_storage_.clear();
-  tensor_to_storage_.resize(graph_->NumTensor());
-
-  // Assign data to each Tensor node in graph
-  for (int i = 0; i < graph_->NumTensor(); i++) {
-    const auto &tensor = graph_->Tensor(i);
-    auto producer_op_type = graph_->Node(tensor.producer_edge.node).op_type;
-    tensor_to_storage_[i] = BatchFactory(producer_op_type, tensor.producer_edge.storage_device, batch_size_);
-  }
 
   // Create workspaces for each operator
   wsb->cpu_op_data.resize(graph_->NumOp(DALIOpType::CPU));
@@ -509,29 +542,33 @@ void Executor::SetupDataForGraph(WorkspaceBlob *wsb) {
     switch (node.op_type) {
       case DALIOpType::CPU: {
         auto &ws = get_workspace<DALIOpType::CPU>(wsb->op_data, node);
-        fill_inputs<DALIOpType::CPU>(ws, *graph_, node);
-        PinWhereNeeded<DALIOpType::CPU>(ws, *graph_, node);
+        SetupInputOutput<DALIOpType::CPU>(ws, *graph_, node);
+        SetupPinned<DALIOpType::CPU>(ws, *graph_, node);
+        SetupStreamsAndEvents<DALIOpType::CPU>(ws, *graph_, node);
         wsb->cpu_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::GPU: {
         auto &ws = get_workspace<DALIOpType::GPU>(wsb->op_data, node);
-        fill_inputs<DALIOpType::GPU>(ws, *graph_, node);
-        PinWhereNeeded<DALIOpType::GPU>(ws, *graph_, node);
+        SetupInputOutput<DALIOpType::GPU>(ws, *graph_, node);
+        SetupPinned<DALIOpType::GPU>(ws, *graph_, node);
+        SetupStreamsAndEvents<DALIOpType::GPU>(ws, *graph_, node);
         wsb->gpu_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::MIXED: {
         auto &ws = get_workspace<DALIOpType::MIXED>(wsb->op_data, node);
-        fill_inputs<DALIOpType::MIXED>(ws, *graph_, node);
-        PinWhereNeeded<DALIOpType::MIXED>(ws, *graph_, node);
+        SetupInputOutput<DALIOpType::MIXED>(ws, *graph_, node);
+        SetupPinned<DALIOpType::MIXED>(ws, *graph_, node);
+        SetupStreamsAndEvents<DALIOpType::MIXED>(ws, *graph_, node);
         wsb->mixed_op_data[node.partition_index] = ws;
         break;
       }
       case DALIOpType::SUPPORT: {
         auto &ws = get_workspace<DALIOpType::SUPPORT>(wsb->op_data, node);
-        fill_inputs<DALIOpType::SUPPORT>(ws, *graph_, node);
-        PinWhereNeeded<DALIOpType::SUPPORT>(ws, *graph_, node);
+        SetupInputOutput<DALIOpType::SUPPORT>(ws, *graph_, node);
+        SetupPinned<DALIOpType::SUPPORT>(ws, *graph_, node);
+        SetupStreamsAndEvents<DALIOpType::SUPPORT>(ws, *graph_, node);
         wsb->support_op_data[node.partition_index] = ws;
         break;
       }
@@ -612,42 +649,6 @@ void Executor::PresizeData(WorkspaceBlob *wsb) {
         if (tl.is_pinned()) {
           tl.reserve(hint*batch_size_);
         }
-      }
-    }
-  }
-}
-
-void Executor::SetupStreamsForGraph(WorkspaceBlob *wsb) {
-  DeviceGuard g(device_id_);
-  auto mixed_op_stream = stream_pool_.GetStream();
-  for (int i = 0; i < graph_->NumOp(DALIOpType::MIXED); ++i) {
-    // We assign unique stream to mixed ops.
-    // This ensures that we won't have false dependencies
-    // between mixed ops and the previous iterations
-    // gpu ops.
-    MixedWorkspace &ws = wsb->mixed_op_data[i];
-    ws.set_stream(mixed_op_stream);
-    ws.set_event(event_pool_.GetEvent());
-  }
-
-  // I/O pipeline is always going to be launched alongside
-  // some other GPU work (like DL training).
-  // Therefore it is not necessary to use more than
-  // 1 stream for GPU ops, even though we may not fill
-  // the whole GPU with just I/O pipeline kernels
-  // by doing so.
-  auto gpu_op_stream = stream_pool_.GetStream();
-  for (int i = 0; i < graph_->NumOp(DALIOpType::GPU); ++i) {
-    DeviceWorkspace &ws = wsb->gpu_op_data[i];
-    ws.set_stream(gpu_op_stream);
-    const OpNode &node = graph_->Node(DALIOpType::GPU, i);
-    for (const auto& p : node.parents) {
-      if (graph_->NodeType(p) == DALIOpType::MIXED) {
-        // We need to block on this op's event to
-        // make sure that we respect the dependency
-        int parent_op_idx = graph_->NodeIdx(p);
-        MixedWorkspace parent_ws = wsb->mixed_op_data[parent_op_idx];
-        ws.AddParentEvent(parent_ws.event());
       }
     }
   }
