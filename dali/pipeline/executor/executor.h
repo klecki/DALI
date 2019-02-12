@@ -133,6 +133,10 @@ class DLL_PUBLIC Executor {
   template <DALIOpType op_type>
   void SetupStreamsAndEvents(workspace_t<op_type> &ws, const OpGraph &graph, const OpNode &node);
 
+  // TODO(klecki): this would require queue indexes for parents and children
+  template <DALIOpType op_type>
+  workspace_t<op_type> CreateWorkspace(const OpGraph &graph, const OpNode &node);
+
 
   template <typename Backend>
   class TensorListPool {

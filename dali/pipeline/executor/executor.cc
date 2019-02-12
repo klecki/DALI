@@ -395,6 +395,13 @@ void Executor::PruneUnusedGraphNodes() {
 }
 
 template <DALIOpType op_type>
+workspace_t<op_type>& Executor::get_workspace(workspace_owner_t& wo, OpPartitionId partition_idx) {
+  auto& ws_vec = std::get<static_cast<size_t>(op_type)>(wo);
+  // static_assert(false, "TROLOLOLO");
+  return ws_vec[partition_idx];
+}
+
+template <DALIOpType op_type>
 workspace_t<op_type>& Executor::get_workspace(workspace_owner_t& wo, const OpNode &node) {
   DALI_ENFORCE(node.op_type == op_type, "Wrong variant of method selected. DALIOpType does not match.");
   auto& ws_vec = std::get<static_cast<size_t>(op_type)>(wo);
@@ -520,6 +527,15 @@ void Executor::SetupStreamsAndEvents<DALIOpType::GPU>(DeviceWorkspace &ws, const
   }
 }
 
+template <DALIOpType op_type>
+workspace_t<op_type> Executor::CreateWorkspace(const OpGraph &graph, const OpNode &node) {
+  workspace_t<op_type> ws;
+  SetupInputOutput<op_type>(ws, graph, node);
+  SetupPinned<op_type>(ws, graph, node);
+  SetupStreamsAndEvents<op_type>(ws, graph, node);
+  return ws;
+}
+
 void Executor::SetupWorkspacesForGraph(WorkspaceBlob *wsb) {
   DeviceGuard g(device_id_);
 
@@ -539,42 +555,47 @@ void Executor::SetupWorkspacesForGraph(WorkspaceBlob *wsb) {
 
   for (int i = 0; i < graph_->NumOp(); i++) {
     auto &node = graph_->Node(i);
-    switch (node.op_type) {
-      case DALIOpType::CPU: {
-        auto &ws = get_workspace<DALIOpType::CPU>(wsb->op_data, node);
-        SetupInputOutput<DALIOpType::CPU>(ws, *graph_, node);
-        SetupPinned<DALIOpType::CPU>(ws, *graph_, node);
-        SetupStreamsAndEvents<DALIOpType::CPU>(ws, *graph_, node);
-        wsb->cpu_op_data[node.partition_index] = ws;
-        break;
-      }
-      case DALIOpType::GPU: {
-        auto &ws = get_workspace<DALIOpType::GPU>(wsb->op_data, node);
-        SetupInputOutput<DALIOpType::GPU>(ws, *graph_, node);
-        SetupPinned<DALIOpType::GPU>(ws, *graph_, node);
-        SetupStreamsAndEvents<DALIOpType::GPU>(ws, *graph_, node);
-        wsb->gpu_op_data[node.partition_index] = ws;
-        break;
-      }
-      case DALIOpType::MIXED: {
-        auto &ws = get_workspace<DALIOpType::MIXED>(wsb->op_data, node);
-        SetupInputOutput<DALIOpType::MIXED>(ws, *graph_, node);
-        SetupPinned<DALIOpType::MIXED>(ws, *graph_, node);
-        SetupStreamsAndEvents<DALIOpType::MIXED>(ws, *graph_, node);
-        wsb->mixed_op_data[node.partition_index] = ws;
-        break;
-      }
-      case DALIOpType::SUPPORT: {
-        auto &ws = get_workspace<DALIOpType::SUPPORT>(wsb->op_data, node);
-        SetupInputOutput<DALIOpType::SUPPORT>(ws, *graph_, node);
-        SetupPinned<DALIOpType::SUPPORT>(ws, *graph_, node);
-        SetupStreamsAndEvents<DALIOpType::SUPPORT>(ws, *graph_, node);
-        wsb->support_op_data[node.partition_index] = ws;
-        break;
-      }
-      default:
-        DALI_FAIL("Invalid op type");
-    }
+    VALUE_SWITCH(node.op_type, op_type_static, (DALIOpType::SUPPORT, DALIOpType::CPU, DALIOpType::MIXED, DALIOpType::GPU),
+    (
+      auto &ws = get_workspace<op_type_static>(wsb->op_data, node);
+      ws = CreateWorkspace<op_type_static>(*graph_, node);
+    ), DALI_FAIL("Invalid op type"));
+    // switch (node.op_type) {
+    //   case DALIOpType::CPU: {
+    //     auto &ws = get_workspace<DALIOpType::CPU>(wsb->op_data, node);
+    //     SetupInputOutput<DALIOpType::CPU>(ws, *graph_, node);
+    //     SetupPinned<DALIOpType::CPU>(ws, *graph_, node);
+    //     SetupStreamsAndEvents<DALIOpType::CPU>(ws, *graph_, node);
+    //     wsb->cpu_op_data[node.partition_index] = ws;
+    //     break;
+    //   }
+    //   case DALIOpType::GPU: {
+    //     auto &ws = get_workspace<DALIOpType::GPU>(wsb->op_data, node);
+    //     SetupInputOutput<DALIOpType::GPU>(ws, *graph_, node);
+    //     SetupPinned<DALIOpType::GPU>(ws, *graph_, node);
+    //     SetupStreamsAndEvents<DALIOpType::GPU>(ws, *graph_, node);
+    //     wsb->gpu_op_data[node.partition_index] = ws;
+    //     break;
+    //   }
+    //   case DALIOpType::MIXED: {
+    //     auto &ws = get_workspace<DALIOpType::MIXED>(wsb->op_data, node);
+    //     SetupInputOutput<DALIOpType::MIXED>(ws, *graph_, node);
+    //     SetupPinned<DALIOpType::MIXED>(ws, *graph_, node);
+    //     SetupStreamsAndEvents<DALIOpType::MIXED>(ws, *graph_, node);
+    //     wsb->mixed_op_data[node.partition_index] = ws;
+    //     break;
+    //   }
+    //   case DALIOpType::SUPPORT: {
+    //     auto &ws = get_workspace<DALIOpType::SUPPORT>(wsb->op_data, node);
+    //     SetupInputOutput<DALIOpType::SUPPORT>(ws, *graph_, node);
+    //     SetupPinned<DALIOpType::SUPPORT>(ws, *graph_, node);
+    //     SetupStreamsAndEvents<DALIOpType::SUPPORT>(ws, *graph_, node);
+    //     wsb->support_op_data[node.partition_index] = ws;
+    //     break;
+    //   }
+    //   default:
+    //     DALI_FAIL("Invalid op type");
+    // }
   }
 }
 
