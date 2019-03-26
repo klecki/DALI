@@ -151,6 +151,12 @@ struct UniformQueuePolicy {
  protected:
   bool exec_error_ = false;
 
+  ~UniformQueuePolicy() {
+    while (!in_use_queue_.empty()) {
+      ReleaseOutputIdxs();
+    }
+  }
+
  private:
   std::queue<int> ready_queue_, free_queue_, in_use_queue_;
   std::mutex ready_mutex_, free_mutex_;
@@ -293,6 +299,12 @@ struct SeparateQueuePolicy {
 
   bool IsErrorSignaled() {
     return exec_error_;
+  }
+
+  ~SeparateQueuePolicy() {
+    while (!in_use_queue_.empty()) {
+      ReleaseOutputIdxs();
+    }
   }
 
  private:
