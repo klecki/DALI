@@ -139,10 +139,17 @@ struct UniformQueuePolicy {
     }
   }
 
-  void SignalError() {
-    exec_error_ = true;
+  void NotifyAll() {
     ready_cond_.notify_all();
     free_cond_.notify_all();
+  }
+
+  void SignalError() {
+    {
+      std::lock_guard<std::mutex> l(free_mutex_);
+      exec_error_ = true;
+    }
+    NotifyAll();
   }
 
   bool IsErrorSignaled() {
@@ -293,10 +300,14 @@ struct SeparateQueuePolicy {
     }
   }
 
-  void SignalError() {
-    exec_error_ = true;
+  void NotifyAll() {
     ready_output_cv_.notify_all();
     free_cond_.notify_all();
+  }
+
+  void SignalError() {
+    exec_error_ = true;
+    NotifyAll();
   }
 
   bool IsErrorSignaled() {
