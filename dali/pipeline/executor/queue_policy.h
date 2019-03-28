@@ -146,7 +146,7 @@ struct UniformQueuePolicy {
 
   void SignalStop() {
     {
-      std::unique_lock<std::mutex> lock(ready_mutex_);
+      std::lock_guard<std::mutex> lock(ready_mutex_);
       ready_stop_ = true;
     }
     for (int i = 0; i < static_cast<int>(OpType::COUNT); ++i) {
@@ -319,7 +319,7 @@ struct SeparateQueuePolicy {
 
   void SignalStop() {
     {
-      std::unique_lock<std::mutex> lock(ready_output_mutex_);
+      std::lock_guard<std::mutex> lock(ready_output_mutex_);
       ready_stop_ = true;
     }
     for (int i = 0; i < static_cast<int>(OpType::COUNT); ++i) {
@@ -356,14 +356,11 @@ struct SeparateQueuePolicy {
     stage_free_cv_[released_stage].notify_one();
   }
 
-<<<<<<< HEAD
   void ReleaseStageIdx(OpType stage, QueueIdxs idxs) {
     ReleaseStageIdx(stage, idxs[stage]);
   }
 
-=======
   static const int kOpCount = static_cast<int>(OpType::COUNT);
->>>>>>> 7f0e4c6... Fix lint
   // For syncing free and ready buffers between stages
   std::array<std::mutex, kOpCount> stage_free_mutex_;
   std::array<std::mutex, kOpCount> stage_ready_mutex_;
