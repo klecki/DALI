@@ -354,7 +354,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunMixed() {
   }
 
   // Pass the work to the gpu stage
-  QueuePolicy::ReleaseIdxs(OpType::MIXED, mixed_idx);
+  QueuePolicy::ReleaseIdxs(OpType::MIXED, mixed_idx, mixed_op_stream_);
 }
 
 template <typename WorkspacePolicy, typename QueuePolicy>
@@ -432,7 +432,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunGPU() {
 
 
   // We do not release, but handle to used outputs
-  QueuePolicy::QueueOutputIdxs(gpu_idx);
+  QueuePolicy::QueueOutputIdxs(gpu_idx, gpu_op_stream_);
 
   // Save the queue_idx so we can enforce the
   // dependency between consecutive iterations
