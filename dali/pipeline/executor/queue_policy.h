@@ -396,7 +396,8 @@ struct SeparateQueuePolicy {
 
 // void (CUDART_CB *cudaStreamCallback_t)(cudaStream_t stream, cudaError_t status, void *userData);
 void release_callback(cudaStream_t stream, cudaError_t status, void *userData) {
-  auto command = static_cast<ReleaseCommand*>(userData);
+  auto *command = static_cast<ReleaseCommand*>(userData);
+  std::cout << "CALLBACK THINGY FOR " << to_string(command->stage) << " " << command->idx << std::endl;
   command->policy->ReleaseStageIdx(command->stage, command->idx);
 }
 

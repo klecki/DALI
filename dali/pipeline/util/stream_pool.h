@@ -40,6 +40,7 @@ class StreamPool {
   }
 
   inline ~StreamPool() noexcept(false) {
+    std::cout << "STREAM POOL RELEASING" << std::endl;
     for (auto &stream : streams_) {
       int device = stream_devices_[stream];
       DeviceGuard g(device);
