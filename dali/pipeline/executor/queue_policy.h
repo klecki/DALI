@@ -19,6 +19,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <iostream>
 
 #include "dali/pipeline/executor/queue_metadata.h"
 
@@ -195,6 +196,10 @@ static void release_callback(cudaStream_t stream, cudaError_t status, void *user
 // Ready buffers from previous stage imply that we can process corresponding buffers from current
 // stage
 struct SeparateQueuePolicy {
+  ~SeparateQueuePolicy() {
+    std::cout << "Policy destructor" << std::endl;
+  }
+
   static bool IsUniformPolicy() {
     return false;
   }
