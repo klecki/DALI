@@ -19,6 +19,8 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <vector>
+
 
 #include "dali/pipeline/executor/queue_metadata.h"
 
@@ -259,7 +261,7 @@ struct SeparateQueuePolicy {
       command.policy = this;
       command.idx = idxs[OpType::CPU];
       command.stage = OpType::CPU;
-      cudaStreamAddCallback(stage_stream, &release_callback, (void*)&command, 0);
+      cudaStreamAddCallback(stage_stream, &release_callback, static_cast<void*>(&command), 0);
     }
     {
       std::lock_guard<std::mutex> ready_current_lock(stage_ready_mutex_[current_stage]);
@@ -282,7 +284,7 @@ struct SeparateQueuePolicy {
     command.policy = this;
     command.idx = idxs[OpType::SUPPORT];
     command.stage = OpType::SUPPORT;
-    cudaStreamAddCallback(gpu_op_stream, &release_callback, (void*)&command, 0);
+    cudaStreamAddCallback(gpu_op_stream, &release_callback, static_cast<void*>(&command), 0);
   }
 
   OutputIdxs UseOutputIdxs() {
