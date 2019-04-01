@@ -49,6 +49,7 @@ namespace dali {
 
 // Each stage requires ready buffers from previous stage and free buffers from current stage
 struct UniformQueuePolicy {
+  static const int kInvalidIdx = -1;
   static bool IsUniformPolicy() {
     return true;
   }
@@ -74,7 +75,7 @@ struct UniformQueuePolicy {
         return !free_queue_.empty() || stage_work_stop_[static_cast<int>(stage)];
       });
       if (stage_work_stop_[static_cast<int>(stage)]) {
-        return QueueIdxs{-1};  // We return anything due to exec error
+        return QueueIdxs{kInvalidIdx};  // We return anything due to exec error
       }
       int queue_idx = free_queue_.front();
       free_queue_.pop();
@@ -91,8 +92,7 @@ struct UniformQueuePolicy {
   }
 
   void ReleaseIdxs(OpType stage, QueueIdxs idxs, cudaStream_t = 0) {
-    // Invalid index
-    if (idxs[stage] == -1) {
+    if (idxs[stage] == kInvalidIdx) {
       return;
     }
     if (HasNextStage(stage)) {
@@ -119,7 +119,7 @@ struct UniformQueuePolicy {
       return !ready_queue_.empty() || ready_stop_;
     });
     if (ready_stop_) {
-      return OutputIdxs{-1};
+      return OutputIdxs{kInvalidIdx};
     }
     int output_idx = ready_queue_.front();
     ready_queue_.pop();
@@ -195,6 +195,8 @@ static void release_callback(cudaStream_t stream, cudaError_t status, void *user
 // Ready buffers from previous stage imply that we can process corresponding buffers from current
 // stage
 struct SeparateQueuePolicy {
+  static const int kInvalidIdx = -1;
+
   static bool IsUniformPolicy() {
     return false;
   }
@@ -223,7 +225,7 @@ struct SeparateQueuePolicy {
         return !stage_ready_[previous_stage].empty() || stage_ready_stop_[previous_stage];
       });
       if (stage_ready_stop_[previous_stage]) {
-        return QueueIdxs{-1};
+        return QueueIdxs{kInvalidIdx};
       }
       // We fill the information about all the previous stages herew
       result = stage_ready_[previous_stage].front();
@@ -237,7 +239,7 @@ struct SeparateQueuePolicy {
         return !stage_free_[current_stage].empty() || stage_free_stop_[current_stage];
       });
       if (stage_free_stop_[current_stage]) {
-        return QueueIdxs{-1};
+        return QueueIdxs{kInvalidIdx};
       }
       // We add info about current stage
       result[stage] = stage_free_[current_stage].front();
@@ -247,7 +249,7 @@ struct SeparateQueuePolicy {
   }
 
   void ReleaseIdxs(OpType stage, QueueIdxs idxs, cudaStream_t stage_stream = 0) {
-    if (idxs[stage] == -1) {
+    if (idxs[stage] == kInvalidIdx) {
       return;
     }
     int current_stage = static_cast<int>(stage);
@@ -291,7 +293,7 @@ struct SeparateQueuePolicy {
       return !ready_output_queue_.empty() || ready_stop_;
     });
     if (ready_stop_) {
-      return OutputIdxs{-1, -1};
+      return OutputIdxs{kInvalidIdx, kInvalidIdx};
     }
     auto output_idx = ready_output_queue_.front();
     ready_output_queue_.pop();
