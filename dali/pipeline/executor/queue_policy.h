@@ -91,6 +91,10 @@ struct UniformQueuePolicy {
   }
 
   void ReleaseIdxs(OpType stage, QueueIdxs idxs, cudaStream_t = 0) {
+    // Invalid index
+    if (idxs[stage] == -1) {
+      return;
+    }
     if (HasNextStage(stage)) {
       auto next_stage = NextStage(stage);
       std::lock_guard<std::mutex> lock(stage_work_mutex_[static_cast<int>(next_stage)]);
@@ -243,6 +247,9 @@ struct SeparateQueuePolicy {
   }
 
   void ReleaseIdxs(OpType stage, QueueIdxs idxs, cudaStream_t stage_stream = 0) {
+    if (idxs[stage] == -1) {
+      return;
+    }
     int current_stage = static_cast<int>(stage);
     // TODO(klecki) when we move to CUDA 10, we should move to cudaLaunchHostFunc
     if (stage == OpType::MIXED) {
