@@ -44,9 +44,6 @@ namespace dali {
 
 class DLL_PUBLIC ExecutorBase {
  public:
-  ExecutorBase(int max_num_stream) :
-        stream_pool_(max_num_stream, true),
-        event_pool_(max_num_stream) {}
   using ExecutorCallback = std::function<void(void)>;
   DLL_PUBLIC virtual ~ExecutorBase() noexcept(false) {}
   DLL_PUBLIC virtual void Build(OpGraph *graph, vector<string> output_names) = 0;
@@ -65,8 +62,6 @@ class DLL_PUBLIC ExecutorBase {
 
   template <typename T>
   friend class ExecutorTest;
-  StreamPool stream_pool_;
-  EventPool event_pool_;
 };
 
 /**
@@ -82,10 +77,11 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
                              size_t bytes_per_sample_hint, bool set_affinity = false,
                              int max_num_stream = -1,
                              QueueSizes prefetch_queue_depth = QueueSizes{2, 2})
-      : ExecutorBase(max_num_stream),
-        batch_size_(batch_size),
+      : batch_size_(batch_size),
         device_id_(device_id),
         bytes_per_sample_hint_(bytes_per_sample_hint),
+        stream_pool_(max_num_stream, true),
+        event_pool_(max_num_stream),
         thread_pool_(num_thread, device_id, set_affinity),
         exec_error_(false),
         callback_(nullptr),
@@ -191,6 +187,8 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
   std::array<int, static_cast<int>(OpType::COUNT)> stage_queue_depths_;
 
   OpGraph *graph_ = nullptr;
+  StreamPool stream_pool_;
+  EventPool event_pool_;
   ThreadPool thread_pool_;
   std::vector<std::string> errors_;
   std::mutex errors_mutex_;
