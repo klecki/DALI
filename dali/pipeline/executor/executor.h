@@ -310,31 +310,29 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunCPU() {
   }
 
   // Run the cpu-ops in the thread pool
-  for (int i = 0; i < batch_size_; ++i) {
-    thread_pool_.DoWorkWithID(std::bind(
-          [this, cpu_idxs] (int data_idx, int tid) {
-          TimeRange tr("[Executor] RunCPU on " + to_string(data_idx));
-          SampleWorkspace ws;
-          for (int j = 0; j < graph_->NumOp(OpType::CPU); ++j) {
-            OpNode &op_node = graph_->Node(OpType::CPU, j);
-            OperatorBase &op = *op_node.op;
-            WorkspacePolicy::template GetWorkspace<OpType::CPU>(cpu_idxs, *graph_, op_node)
-                .GetSample(&ws, data_idx, tid);
-            TimeRange tr("[Executor] Run CPU op " + op_node.instance_name
-                + " on " + to_string(data_idx),
-                TimeRange::kBlue1);
-            op.Run(&ws);
-          }
-          }, i, std::placeholders::_1));
-  }
-  try {
-    thread_pool_.WaitForWork();
-  } catch (std::runtime_error& e) {
-    exec_error_ = true;
-    QueuePolicy::SignalStop();
-    std::lock_guard<std::mutex> errors_lock(errors_mutex_);
-    errors_.push_back(e.what());
-    // Let the ReleaseIdx chain wake the output cv
+  for (int j = 0; j < graph_->NumOp(OpType::CPU); ++j) {
+    for (int i = 0; i < batch_size_; ++i) {
+      int data_idx = i;
+      OpNode *op_node = &graph_->Node(OpType::CPU, j);
+      thread_pool_.DoWorkWithID([this, op_node, data_idx, cpu_idxs] (int tid) {
+            TimeRange tr("[Executor] RunCPU on " + op_node->instance_name + to_string(data_idx));
+            SampleWorkspace ws;
+              OperatorBase &op = *op_node->op;
+              WorkspacePolicy::template GetWorkspace<OpType::CPU>(cpu_idxs, *graph_, *op_node)
+                  .GetSample(&ws, data_idx, tid);
+              op.Run(&ws);
+          });
+    }
+    try {
+      thread_pool_.WaitForWork();
+    } catch (std::runtime_error& e) {
+      exec_error_ = true;
+      QueuePolicy::SignalStop();
+      std::lock_guard<std::mutex> errors_lock(errors_mutex_);
+      errors_.push_back(e.what());
+      // Let the ReleaseIdx chain wake the output cv
+      break;
+    }
   }
   // Pass the work to the mixed stage
   QueuePolicy::ReleaseIdxs(OpType::CPU, cpu_idxs);
