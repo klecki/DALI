@@ -19,11 +19,10 @@
 #include "dali/util/image.h"
 
 namespace dali {
-
 class Alexnet : public DALIBenchmark {
 };
 
-BENCHMARK_DEFINE_F(Alexnet, CaffePipe)(benchmark::State& st) { // NOLINT
+BENCHMARK_DEFINE_F(Alexnet, CPUPipe)(benchmark::State& st) { // NOLINT
   int executor = st.range(0);
   bool fast_resize = st.range(1);
   int batch_size = st.range(2);
@@ -146,6 +145,124 @@ static void PipeArgs(benchmark::internal::Benchmark *b) {
       }
     }
   }
+}
+
+BENCHMARK_REGISTER_F(Alexnet, CPUPipe)->Iterations(100)
+->Unit(benchmark::kMillisecond)
+->UseRealTime()
+->Apply(PipeArgs);
+
+BENCHMARK_DEFINE_F(Alexnet, CaffePipe)(benchmark::State& st) { // NOLINT
+  int executor = st.range(0);
+  bool fast_resize = st.range(1);
+  int batch_size = st.range(2);
+  int num_thread = st.range(3);
+  DALIImageType img_type = DALI_RGB;
+
+  bool pipelined = executor > 0;
+  bool async = executor > 1;
+
+  // Create the pipeline
+  Pipeline pipe(
+      batch_size,
+      num_thread,
+      0, -1, pipelined, 2,
+      async);
+
+  dali::string path(std::getenv("DALI_TEST_CAFFE_LMDB_PATH"));
+  pipe.AddOperator(
+      OpSpec("CaffeReader")
+      .AddArg("device", "cpu")
+      .AddArg("path", path)
+      .AddOutput("compressed_images", "cpu")
+      .AddOutput("labels", "cpu"));
+
+  pipe.AddOperator(
+      OpSpec("HostDecoder")
+      .AddArg("device", "cpu")
+      .AddArg("output_type", img_type)
+      .AddInput("compressed_images", "cpu")
+      .AddOutput("images", "cpu"));
+
+  // Add uniform RNG
+  pipe.AddOperator(
+      OpSpec("Uniform")
+      .AddArg("device", "support")
+      .AddArg("range", vector<float>{0, 1})
+      .AddOutput("uniform1", "cpu"));
+
+  pipe.AddOperator(
+      OpSpec("Uniform")
+      .AddArg("device", "support")
+      .AddArg("range", vector<float>{0, 1})
+      .AddOutput("uniform2", "cpu"));
+
+  // Add coin flip RNG for mirror mask
+  pipe.AddOperator(
+      OpSpec("CoinFlip")
+      .AddArg("device", "support")
+      .AddArg("probability", 0.5f)
+      .AddOutput("mirror", "cpu"));
+
+  // Add a resize+crop+mirror op
+  pipe.AddOperator(
+      OpSpec("FastResizeCropMirror")
+      .AddArg("device", "cpu")
+      .AddArg("resize_x", 256)
+      .AddArg("resize_y", 256)
+      .AddArg("crop", vector<float>{224, 224})
+      .AddInput("images", "cpu")
+      .AddArgumentInput("crop_pos_x", "uniform1")
+      .AddArgumentInput("crop_pos_y", "uniform2")
+      .AddArgumentInput("mirror", "mirror")
+      .AddOutput("resized", "cpu"));
+
+  pipe.AddOperator(
+      OpSpec("NormalizePermute")
+      .AddArg("device", "cpu")
+      .AddArg("output_type", DALI_FLOAT16)
+      .AddArg("mean", vector<float>{128, 128, 128})
+      .AddArg("std", vector<float>{1, 1, 1})
+      .AddArg("height", 224)
+      .AddArg("width", 224)
+      .AddArg("channels", 3)
+      .AddInput("resized", "cpu")
+      .AddOutput("final_batch", "cpu"));
+
+  // Build and run the pipeline
+  vector<std::pair<string, string>> outputs = {{"final_batch", "cpu"}};
+  pipe.Build(outputs);
+
+  string serialized = pipe.SerializeToProtobuf();
+
+  // Run once to allocate the memory
+  DeviceWorkspace ws;
+  pipe.RunCPU();
+  pipe.RunGPU();
+  pipe.Outputs(&ws);
+
+  while (st.KeepRunning()) {
+    if (st.iterations() == 1 && pipelined) {
+      // We will start he processing for the next batch
+      // immediately after issueing work to the gpu to
+      // pipeline the cpu/copy/gpu work
+      pipe.RunCPU();
+      pipe.RunGPU();
+    }
+    pipe.RunCPU();
+    pipe.RunGPU();
+    pipe.Outputs(&ws);
+
+    if (st.iterations() == st.max_iterations && pipelined) {
+      // Block for the last batch to finish
+      pipe.Outputs(&ws);
+    }
+  }
+
+  WriteCHWBatch<float16>(ws.Output<GPUBackend>(0), 128, 1, "img");
+  int num_batches = st.iterations() + static_cast<int>(pipelined);
+  st.counters["FPS"] = benchmark::Counter(batch_size*num_batches,
+      benchmark::Counter::kIsRate);
 }
 
 BENCHMARK_REGISTER_F(Alexnet, CaffePipe)->Iterations(100)
