@@ -78,8 +78,8 @@ BENCHMARK_DEFINE_F(Alexnet, CPUPipe)(benchmark::State& st) { // NOLINT
   pipe.AddOperator(
       OpSpec("FastResizeCropMirror")
       .AddArg("device", "cpu")
-      .AddArg("resize_x", 256)
-      .AddArg("resize_y", 256)
+      .AddArg("resize_x", 256.f)
+      .AddArg("resize_y", 256.f)
       .AddArg("crop", vector<float>{224, 224})
       .AddInput("images", "cpu")
       .AddArgumentInput("crop_pos_x", "uniform1")
@@ -208,8 +208,8 @@ BENCHMARK_DEFINE_F(Alexnet, CaffePipe)(benchmark::State& st) { // NOLINT
   pipe.AddOperator(
       OpSpec("FastResizeCropMirror")
       .AddArg("device", "cpu")
-      .AddArg("resize_x", 256)
-      .AddArg("resize_y", 256)
+      .AddArg("resize_x", 256.f)
+      .AddArg("resize_y", 256.f)
       .AddArg("crop", vector<float>{224, 224})
       .AddInput("images", "cpu")
       .AddArgumentInput("crop_pos_x", "uniform1")
