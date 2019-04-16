@@ -140,8 +140,8 @@ BENCHMARK_DEFINE_F(RN50, CPUPipe)(benchmark::State& st) { // NOLINT
 static void PipeArgs(benchmark::internal::Benchmark *b) {
   for (int executor = 2; executor < 3; ++executor) {
     for (int fast_resize = 0; fast_resize < 2; ++fast_resize) {
-      for (int batch_size = 128; batch_size <= 128; batch_size += 32) {
-        for (int num_thread = 1; num_thread <= 4; ++num_thread) {
+      for (int batch_size = 16; batch_size <= 1024; batch_size *= 2) {
+        for (int num_thread = 1; num_thread <= 16; num_thread *= 2) {
           b->Args({executor, fast_resize, batch_size, num_thread});
         }
       }
