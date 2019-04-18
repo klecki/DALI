@@ -11,17 +11,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     dh-autoreconf \
     gcc-aarch64-linux-gnu \
     g++-aarch64-linux-gnu \
-    && rm -rf /var/lib/apt/lists/*   
+    && rm -rf /var/lib/apt/lists/*
 
 RUN wget https://developer.download.nvidia.com/devzone/devcenter/mobile/jetpack_l4t/4.1.1/xddsn.im/JetPackL4T_4.1.1_b57/16.04/cuda-repo-ubuntu1604-10-0-local-10.0.117-410.38_1.0-1_amd64.deb
 
 ENV REPO_DEBS="cuda-repo-ubuntu1604-10-0-local-10.0.117-410.38_1.0-1_amd64.deb"
-    
+
 RUN dpkg -i $REPO_DEBS
-    
+
 ENV CUDA_CROSS_VERSION=10-0
 
-ENV CUDA_CROSS_PACKAGES="cublas cudart cufft curand cusolver cusparse driver misc-headers npp" 
+ENV CUDA_CROSS_PACKAGES="cublas cudart cufft curand cusolver cusparse driver misc-headers npp"
 #nvml nvrtc nvgraph"
 
 RUN echo "for i in \$CUDA_CROSS_PACKAGES; do echo \"cuda-\$i-cross-aarch64-\${CUDA_CROSS_VERSION}\";done" | bash > /tmp/cuda-packages.txt
@@ -29,7 +29,7 @@ RUN echo "for i in \$CUDA_CROSS_PACKAGES; do echo \"cuda-\$i-cross-aarch64-\${CU
 RUN apt-get update \
    && apt-get install -y $(cat /tmp/cuda-packages.txt) \
    && rm -rf /var/lib/apt/lists/* \
-   && rm -rf /tmp/cuda-packages.txt 
+   && rm -rf /tmp/cuda-packages.txt
 
 # Boost
 RUN BOOST_VERSION=1_66_0 \
@@ -47,7 +47,7 @@ RUN CMAKE_VERSION=3.5 && \
     rm -rf /cmake-${CMAKE_BUILD}
 
 # protobuf v3.5.1
-ENV PROTOBUF_VERSION=3.5.1 
+ENV PROTOBUF_VERSION=3.5.1
 RUN curl -L https://github.com/google/protobuf/releases/download/v${PROTOBUF_VERSION}/protobuf-all-${PROTOBUF_VERSION}.tar.gz | tar -xzf - && \
     cd /protobuf-${PROTOBUF_VERSION} && \
     ./autogen.sh && \
@@ -116,7 +116,7 @@ RUN curl -L https://github.com/opencv/opencv/archive/${OPENCV_VERSION}.tar.gz | 
           -DVIBRANTE=TRUE \
           VERBOSE=1 ../  && \
     make -j"$(grep ^processor /proc/cpuinfo | wc -l)" install && \
-    rm -rf /opencv-${OPENCV_VERSION} 
+    rm -rf /opencv-${OPENCV_VERSION}
 
 # FFMpeg
 ENV FFMPEG_VERSION=3.4.2
@@ -151,29 +151,29 @@ VOLUME /dali
 
 WORKDIR /dali
 
-     
+
 ENV PATH=/usr/local/cuda-10.0/bin:$PATH
 
-CMD echo "VERSIONS:\n    opencv-${OPENCV_VERSION}\n    protobuf-${PROTOBUF_VERSION}\n    ffmpeg-${FFMPEG_VERSION}\n\n" \ 
-&& mkdir -p build && cd build && cmake \ 
--DCMAKE_INSTALL_PREFIX=./install \
--DARCH=aarch64-linux \
--DCMAKE_COLOR_MAKEFILE=ON \
--DBUILD_NVJPEG=OFF \
--DBUILD_TENSORFLOW=OFF \
--DBUILD_TEST=OFF \
--DBUILD_JPEG_TURBO=ON \
--DJPEG_INCLUDE_DIR=/usr/aarch64-linux-gnu/include \
--DJPEG_LIBRARY=/usr/aarch64-linux-gnu/lib \
--DBUILD_PYTHON=OFF \
--DBUILD_LMDB=OFF \
--DBUILD_NVTX=OFF \
--DCMAKE_TOOLCHAIN_FILE:STRING="$PWD/../platforms/aarch64-linux/aarch64-linux.toolchain.cmake" \
--DBUILD_BENCHMARK=OFF \
--DCUDA_HOST=/usr/local/cuda-10.0 \
--DOPENCV_PATH=/usr/aarch64-linux-gnu/ \
--DCUDA_TARGET=/usr/local/cuda-10.0/targets/aarch64-linux \
--DPROTOBUF_TARGET=/usr/aarch64-linux-gnu/ \
--DProtobuf_LIBRARIES=/usr/aarch64-linux-gnu/lib \
--DFFMPEG_ROOT_DIR=/usr/aarch64-linux-gnu/ \
-../ && make install -j12
+# CMD echo "VERSIONS:\n    opencv-${OPENCV_VERSION}\n    protobuf-${PROTOBUF_VERSION}\n    ffmpeg-${FFMPEG_VERSION}\n\n" \
+# && mkdir -p build && cd build && cmake \
+# -DCMAKE_INSTALL_PREFIX=./install \
+# -DARCH=aarch64-linux \
+# -DCMAKE_COLOR_MAKEFILE=ON \
+# -DBUILD_NVJPEG=OFF \
+# -DBUILD_TENSORFLOW=OFF \
+# -DBUILD_TEST=OFF \
+# -DBUILD_JPEG_TURBO=ON \
+# -DJPEG_INCLUDE_DIR=/usr/aarch64-linux-gnu/include \
+# -DJPEG_LIBRARY=/usr/aarch64-linux-gnu/lib \
+# -DBUILD_PYTHON=OFF \
+# -DBUILD_LMDB=OFF \
+# -DBUILD_NVTX=OFF \
+# -DCMAKE_TOOLCHAIN_FILE:STRING="$PWD/../platforms/aarch64-linux/aarch64-linux.toolchain.cmake" \
+# -DBUILD_BENCHMARK=OFF \
+# -DCUDA_HOST=/usr/local/cuda-10.0 \
+# -DOPENCV_PATH=/usr/aarch64-linux-gnu/ \
+# -DCUDA_TARGET=/usr/local/cuda-10.0/targets/aarch64-linux \
+# -DPROTOBUF_TARGET=/usr/aarch64-linux-gnu/ \
+# -DProtobuf_LIBRARIES=/usr/aarch64-linux-gnu/lib \
+# -DFFMPEG_ROOT_DIR=/usr/aarch64-linux-gnu/ \
+# ../ && make install -j12
