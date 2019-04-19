@@ -34,39 +34,20 @@ if (BUILD_NVTX)
   add_definitions(-DDALI_USE_NVTX)
 endif()
 
-
-##############################
-#         OPENCV
-##############################
-
-# Path to architecture specific opencv
-if(NOT DEFINED OPENCV_PATH)
-  message("OpenCV path not exported for architecture configured")
-endif()
-
-message(STATUS "Found OpenCV at ${OPENCV_PATH}")
-
-set(OpenCV_INCLUDE_DIRS ${OPENCV_PATH}/include)
-set(OpenCV_LIBRARIES ${OPENCV_PATH}/lib)
-
-include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
-message("OPENCV check for ${OpenCV_LIBRARIES} and include dir ${OpenCV_INCLUDE_DIRS}")
-list(APPEND DALI_LIBS ${OpenCV_LIBRARIES}/libopencv_core.so)
-list(APPEND DALI_LIBS ${OpenCV_LIBRARIES}/libopencv_imgproc.so)
-list(APPEND DALI_LIBS ${OpenCV_LIBRARIES}/libopencv_imgcodecs.so)
-
 ##################################################################
-# PyBind
+# Common dependencies
 ##################################################################
-if (BUILD_PYTHON)
-  set(PYBIND11_CPP_STANDARD -std=c++11)
-  check_and_add_cmake_submodule(${PROJECT_SOURCE_DIR}/third_party/pybind11)
-endif()
 
-##################################################################
-# protobuf
-##################################################################
+include(cmake/Dependencies.common.cmake)
+
+# ##################################################################
+# # protobuf
+# ##################################################################
+set(Protobuf_DEBUG YES)
+set(Protobuf_CROSS YES)
+set(Protobuf_USE_STATIC_LIBS YES)
 find_package(Protobuf 2.0 REQUIRED)
+message(STATUS "PROTOBUF CALL 2")
 if(${Protobuf_VERSION} VERSION_LESS "3.0")
   message(STATUS "TensorFlow TFRecord file format support is not available with Protobuf 2")
 else()
@@ -75,19 +56,19 @@ else()
   set(BUILD_PROTO3 ON CACHE STRING "Build proto3")
 endif()
 
-include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIRS})
-list(APPEND DALI_LIBS ${PROTOBUF_LIBRARY})
+include_directories(SYSTEM ${Protobuf_INCLUDE_DIRS})
+list(APPEND DALI_LIBS ${Protobuf_LIBRARY} ${Protobuf_PROTOC_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
 
-add_definitions(-DGOOGLE_PROTOBUF_ARCH_64_BIT)
-add_definitions(-D__aarch64__)
+# add_definitions(-DGOOGLE_PROTOBUF_ARCH_64_BIT)
+# add_definitions(-D__aarch64__)
 
-set(PROTO_LIB_PATH ${PROTOBUF_TARGET}/lib)
+# set(PROTO_LIB_PATH ${PROTOBUF_TARGET}/lib)
 
-list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotobuf.so)
-list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotobuf-lite.so)
-list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotoc.so)
+# list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotobuf.so)
+# list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotobuf-lite.so)
+# list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotoc.so)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${PROTO_LIB_PATH} -lprotobuf -lprotobuf-lite -lprotoc")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${PROTO_LIB_PATH} -lprotobuf -lprotobuf-lite -lprotoc")
 
 ###################################################################
 # ffmpeg
@@ -118,17 +99,3 @@ set(CMAKE_EXTRA_INCLUDE_FILES libavcodec/avcodec.h)
 CHECK_TYPE_SIZE("AVBSFContext" AVBSFCONTEXT LANGUAGE CXX)
 
 list(APPEND DALI_LIBS ${FFmpeg_LIBS})
-
-##################################################################
-# libjpeg-turbo
-##################################################################
-if (BUILD_JPEG_TURBO)
-  find_package(JPEG 62 REQUIRED) # 1.5.3 version
-  include_directories(SYSTEM ${JPEG_INCLUDE_DIR})
-  message("Using libjpeg-turbo at ${JPEG_LIBRARY}")
-  list(APPEND DALI_LIBS ${JPEG_LIBRARY})
-  add_definitions(-DDALI_USE_JPEG_TURBO)
-else()
-  # Note: Support for disabling libjpeg-turbo is unofficial
-  message(STATUS "Building WITHOUT JpegTurbo")
-endif()

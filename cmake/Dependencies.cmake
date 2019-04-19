@@ -1,25 +1,6 @@
 # Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
 
 ##################################################################
-# Google C++ testing framework
-##################################################################
-if (BUILD_TEST)
-    set(BUILD_GTEST ON CACHE INTERNAL "Build gtest submodule")
-    set(BUILD_GMOCK OFF CACHE INTERNAL "Build gmock submodule")
-    check_and_add_cmake_submodule(${PROJECT_SOURCE_DIR}/third_party/googletest EXCLUDE_FROM_ALL)
-    include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/googletest/googletest/include)
-endif()
-
-##################################################################
-# Google Benchmark
-##################################################################
-if (BUILD_BENCHMARK)
-    set(BENCHMARK_ENABLE_TESTING OFF CACHE INTERNAL "Build benchmark testsuite")
-    check_and_add_cmake_submodule(${PROJECT_SOURCE_DIR}/third_party/benchmark EXCLUDE_FROM_ALL)
-    include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/benchmark/include/benchmark)
-endif()
-
-##################################################################
 # CUDA Toolkit libraries (including NVJPEG)
 ##################################################################
 # Note: CUDA 8 support is unofficial.  CUDA 9 is officially supported
@@ -84,79 +65,30 @@ list(APPEND DALI_EXCLUDES libculibos.a)
 
 # NVTX for profiling
 if (BUILD_NVTX)
-    find_cuda_helper_libs(nvToolsExt)
-    list(APPEND DALI_LIBS ${CUDA_nvToolsExt_LIBRARY})
-    add_definitions(-DDALI_USE_NVTX)
+  find_cuda_helper_libs(nvToolsExt)
+  list(APPEND DALI_LIBS ${CUDA_nvToolsExt_LIBRARY})
+  add_definitions(-DDALI_USE_NVTX)
 endif()
 
-##################################################################
-# libjpeg-turbo
-##################################################################
-if (BUILD_JPEG_TURBO)
-  find_package(JPEG 62 REQUIRED) # 1.5.3 version
-  include_directories(SYSTEM ${JPEG_INCLUDE_DIR})
-  message("Using libjpeg-turbo at ${JPEG_LIBRARY}")
-  list(APPEND DALI_LIBS ${JPEG_LIBRARY})
-  add_definitions(-DDALI_USE_JPEG_TURBO)
-else()
-    # Note: Support for disabling libjpeg-turbo is unofficial
-    message(STATUS "Building WITHOUT JpegTurbo")
-endif()
 
-##################################################################
-# OpenCV
-##################################################################
-# For OpenCV 3 and later, 'imdecode()' is in the imgcodecs library
-find_package(OpenCV 4.0 QUIET COMPONENTS core imgproc imgcodecs)
-if(NOT OpenCV_FOUND)
-  find_package(OpenCV 3.0 QUIET COMPONENTS core imgproc imgcodecs)
-endif()
-if(NOT OpenCV_FOUND)
-    # Note: OpenCV 2 support is unofficial
-    # For OpenCV 2.x, image encode/decode functions are in highgui
-    find_package(OpenCV 2.0 REQUIRED COMPONENTS core imgproc highgui)
-endif()
-
-message(STATUS "Found OpenCV: ${OpenCV_INCLUDE_DIRS} (found suitable version \"${OpenCV_VERSION}\", minimum required is \"2.0\")")
-include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS})
-list(APPEND DALI_LIBS ${OpenCV_LIBRARIES})
-message("OpenCV libraries: ${OpenCV_LIBRARIES}")
-list(APPEND DALI_EXCLUDES libopencv_core.a;libopencv_imgproc.a;libopencv_highgui.a;libopencv_imgcodecs.a;liblibwebp.a;libittnotify.a;libpng.a;liblibtiff.a;liblibjasper.a;libIlmImf.a;liblibjpeg-turbo.a)
-
-##################################################################
-# PyBind
-##################################################################
-if (BUILD_PYTHON)
-    set(PYBIND11_CPP_STANDARD -std=c++11)
-    check_and_add_cmake_submodule(${PROJECT_SOURCE_DIR}/third_party/pybind11)
-endif()
-
-##################################################################
-# LMDB
-##################################################################
-if (BUILD_LMDB)
-    find_package(LMDB 0.9 REQUIRED)
-    include_directories(SYSTEM ${LMDB_INCLUDE_DIR})
-    list(APPEND DALI_LIBS ${LMDB_LIBRARIES})
-    list(APPEND DALI_EXCLUDES liblmdb.a)
-endif()
+include(cmake/Dependencies.common.cmake)
 
 ##################################################################
 # protobuf
 ##################################################################
 # link statically
-set(Protobuf_USE_STATIC_LIBS "ON")
+set(Protobuf_USE_STATIC_LIBS YES)
 find_package(Protobuf 2.0 REQUIRED)
 if(${Protobuf_VERSION} VERSION_LESS "3.0")
-    message(STATUS "TensorFlow TFRecord file format support is not available with Protobuf 2")
+  message(STATUS "TensorFlow TFRecord file format support is not available with Protobuf 2")
 else()
-    message(STATUS "Enabling TensorFlow TFRecord file format support")
-    add_definitions(-DDALI_BUILD_PROTO3=1)
-    set(BUILD_PROTO3 ON CACHE STRING "Build proto3")
+  message(STATUS "Enabling TensorFlow TFRecord file format support")
+  add_definitions(-DDALI_BUILD_PROTO3=1)
+  set(BUILD_PROTO3 ON CACHE STRING "Build proto3")
 endif()
 
-include_directories(SYSTEM ${PROTOBUF_INCLUDE_DIRS})
-list(APPEND DALI_LIBS ${PROTOBUF_LIBRARY})
+include_directories(SYSTEM ${Protobuf_INCLUDE_DIRS})
+list(APPEND DALI_LIBS ${Protobuf_LIBRARY})
 # hide things from the protobuf, all we export is only is API generated from our proto files
 list(APPEND DALI_EXCLUDES libprotobuf.a)
 
