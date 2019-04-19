@@ -178,3 +178,19 @@ CMD echo "VERSIONS:\n    opencv-${OPENCV_VERSION}\n    protobuf-${PROTOBUF_VERSI
 -DProtobuf_LIBRARIES=/usr/aarch64-linux-gnu/lib \
 -DFFMPEG_ROOT_DIR=/usr/aarch64-linux-gnu/ \
 ../ && make install -j12
+
+#cmake \
+# -DCMAKE_INSTALL_PREFIX=./install \
+# -DARCH=aarch64-linux \
+# -DCMAKE_COLOR_MAKEFILE=ON \
+# -DBUILD_NVJPEG=OFF \
+# -DBUILD_TENSORFLOW=OFF \
+# -DBUILD_TEST=OFF \
+# -DBUILD_JPEG_TURBO=ON \
+# -DBUILD_PYTHON=OFF \
+# -DBUILD_LMDB=OFF \
+# -DBUILD_NVTX=OFF \
+# -DCMAKE_TOOLCHAIN_FILE:STRING="$PWD/../platforms/aarch64-linux/aarch64-linux.toolchain.cmake" \
+# -DBUILD_BENCHMARK=OFF \
+# -DFFMPEG_ROOT_DIR=/usr/aarch64-linux-gnu/ \
+# ..

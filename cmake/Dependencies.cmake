@@ -5,8 +5,46 @@
 ##################################################################
 # Note: CUDA 8 support is unofficial.  CUDA 9 is officially supported
 find_package(CUDA 8.0 REQUIRED)
+message(STATUS "CUDA_VARIABLES:")
+
+message(STATUS "CUDA_VERSION_MAJOR: ${CUDA_VERSION_MAJOR}")
+message(STATUS "CUDA_VERSION_MINOR: ${CUDA_VERSION_MINOR}")
+message(STATUS "CUDA_VERSION: ${CUDA_VERSION}")
+message(STATUS "CUDA_VERSION_STRING: ${CUDA_VERSION_STRING}")
+message(STATUS "CUDA_HAS_FP16: ${CUDA_HAS_FP16}")
+message(STATUS "CUDA_TOOLKIT_ROOT_DIR: ${CUDA_TOOLKIT_ROOT_DIR}")
+message(STATUS "CUDA_SDK_ROOT_DIR: ${CUDA_SDK_ROOT_DIR}")
+message(STATUS "CUDA_INCLUDE_DIRS: ${CUDA_INCLUDE_DIRS}")
+message(STATUS "CUDA_LIBRARIES: ${CUDA_LIBRARIES}")
+message(STATUS "CUDA_CUFFT_LIBRARIES: ${CUDA_CUFFT_LIBRARIES}")
+message(STATUS "CUDA_CUBLAS_LIBRARIES: ${CUDA_CUBLAS_LIBRARIES}")
+message(STATUS "CUDA_cudart_static_LIBRARY: ${CUDA_cudart_static_LIBRARY}")
+message(STATUS "CUDA_cudadevrt_LIBRARY: ${CUDA_cudadevrt_LIBRARY}")
+message(STATUS "CUDA_cupti_LIBRARY: ${CUDA_cupti_LIBRARY}")
+message(STATUS "CUDA_curand_LIBRARY: ${CUDA_curand_LIBRARY}")
+message(STATUS "CUDA_cusolver_LIBRARY: ${CUDA_cusolver_LIBRARY}")
+message(STATUS "CUDA_cusparse_LIBRARY: ${CUDA_cusparse_LIBRARY}")
+message(STATUS "CUDA_npp_LIBRARY: ${CUDA_npp_LIBRARY}")
+message(STATUS "CUDA_nppc_LIBRARY: ${CUDA_nppc_LIBRARY}")
+message(STATUS "CUDA_nppi_LIBRARY: ${CUDA_nppi_LIBRARY}")
+message(STATUS "CUDA_nppial_LIBRARY: ${CUDA_nppial_LIBRARY}")
+message(STATUS "CUDA_nppicc_LIBRARY: ${CUDA_nppicc_LIBRARY}")
+message(STATUS "CUDA_nppicom_LIBRARY: ${CUDA_nppicom_LIBRARY}")
+message(STATUS "CUDA_nppidei_LIBRARY: ${CUDA_nppidei_LIBRARY}")
+message(STATUS "CUDA_nppif_LIBRARY: ${CUDA_nppif_LIBRARY}")
+message(STATUS "CUDA_nppig_LIBRARY: ${CUDA_nppig_LIBRARY}")
+message(STATUS "CUDA_nppim_LIBRARY: ${CUDA_nppim_LIBRARY}")
+message(STATUS "CUDA_nppist_LIBRARY: ${CUDA_nppist_LIBRARY}")
+message(STATUS "CUDA_nppisu_LIBRARY: ${CUDA_nppisu_LIBRARY}")
+message(STATUS "CUDA_nppitc_LIBRARY: ${CUDA_nppitc_LIBRARY}")
+message(STATUS "CUDA_npps_LIBRARY: ${CUDA_npps_LIBRARY}")
+message(STATUS "CUDA_nvcuvenc_LIBRARY: ${CUDA_nvcuvenc_LIBRARY}")
+message(STATUS "CUDA_nvcuvid_LIBRARY: ${CUDA_nvcuvid_LIBRARY}")
+
 include_directories(${CUDA_INCLUDE_DIRS})
 list(APPEND DALI_LIBS ${CUDA_LIBRARIES})
+
+
 list(APPEND DALI_EXCLUDES libcudart_static.a)
 
 # For NVJPEG
@@ -62,6 +100,13 @@ list(APPEND DALI_EXCLUDES libnppc_static.a)
 find_cuda_helper_libs(culibos)
 list(APPEND DALI_LIBS ${CUDA_culibos_LIBRARY})
 list(APPEND DALI_EXCLUDES libculibos.a)
+
+
+message(STATUS "CUDA_nppc_static_LIBRARY: ${CUDA_nppc_static_LIBRARY}")
+message(STATUS "CUDA_nppicom_static_LIBRARY: ${CUDA_nppicom_static_LIBRARY}")
+message(STATUS "CUDA_nppicc_static_LIBRARY: ${CUDA_nppicc_static_LIBRARY}")
+message(STATUS "CUDA_nppig_static_LIBRARY: ${CUDA_nppig_static_LIBRARY}")
+message(STATUS "CUDA_culibos_LIBRARY: ${CUDA_culibos_LIBRARY}")
 
 # NVTX for profiling
 if (BUILD_NVTX)
