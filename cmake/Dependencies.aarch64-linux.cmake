@@ -57,33 +57,3 @@ endif()
 
 include_directories(SYSTEM ${Protobuf_INCLUDE_DIRS})
 list(APPEND DALI_LIBS ${Protobuf_LIBRARY} ${Protobuf_PROTOC_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
-
-###################################################################
-# ffmpeg
-###################################################################
-include(CheckStructHasMember)
-include(CheckTypeSize)
-
-foreach(m avformat avcodec avfilter avutil)
-  # We do a find_library only if FFMPEG_ROOT_DIR is provided
-  if(NOT FFMPEG_ROOT_DIR)
-    string(TOUPPER ${m} M)
-    pkg_check_modules(${m} REQUIRED lib${m})
-    list(APPEND FFmpeg_LIBS ${m})
-  else()
-    find_library(FFmpeg_Lib ${m}
-      PATHS ${FFMPEG_ROOT_DIR}
-      PATH_SUFFIXES lib lib64
-      NO_DEFAULT_PATH)
-    list(APPEND FFmpeg_LIBS ${FFmpeg_Lib})
-    message(STATUS ${m})
-  endif()
-endforeach(m)
-
-include_directories(${avformat_INCLUDE_DIRS})
-list(APPEND DALI_LIBS ${avformat_LIBRARIES})
-CHECK_STRUCT_HAS_MEMBER("struct AVStream" codecpar libavformat/avformat.h HAVE_AVSTREAM_CODECPAR LANGUAGE C)
-set(CMAKE_EXTRA_INCLUDE_FILES libavcodec/avcodec.h)
-CHECK_TYPE_SIZE("AVBSFContext" AVBSFCONTEXT LANGUAGE CXX)
-
-list(APPEND DALI_LIBS ${FFmpeg_LIBS})

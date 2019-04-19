@@ -92,3 +92,38 @@ if (BUILD_LMDB)
 else()
   message(STATUS "Building WITHOUT LMDB support")
 endif()
+
+##################################################################
+# FFmpeg
+##################################################################
+
+include(CheckStructHasMember)
+include(CheckTypeSize)
+
+set(FFMPEG_ROOT_DIR "" CACHE PATH "Folder contains FFmeg")
+set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH YES)
+
+find_package(PkgConfig REQUIRED)
+foreach(m avformat avcodec avfilter avutil)
+  # We do a find_library only if FFMPEG_ROOT_DIR is provided
+  if(NOT FFMPEG_ROOT_DIR)
+    string(TOUPPER ${m} M)
+    pkg_check_modules(${m} REQUIRED lib${m})
+    list(APPEND FFmpeg_LIBS ${m})
+  else()
+    find_library(FFmpeg_Lib ${m}
+      PATHS ${FFMPEG_ROOT_DIR}
+      PATH_SUFFIXES lib lib64
+      NO_DEFAULT_PATH)
+    list(APPEND FFmpeg_LIBS ${FFmpeg_Lib})
+    message(STATUS ${m})
+  endif()
+endforeach(m)
+
+include_directories(${avformat_INCLUDE_DIRS})
+list(APPEND DALI_LIBS ${avformat_LIBRARIES})
+CHECK_STRUCT_HAS_MEMBER("struct AVStream" codecpar libavformat/avformat.h HAVE_AVSTREAM_CODECPAR LANGUAGE CXX)
+set(CMAKE_EXTRA_INCLUDE_FILES libavcodec/avcodec.h)
+CHECK_TYPE_SIZE("AVBSFContext" AVBSFCONTEXT LANGUAGE CXX)
+
+list(APPEND DALI_LIBS ${FFmpeg_LIBS})
