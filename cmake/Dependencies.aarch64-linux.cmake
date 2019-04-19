@@ -8,36 +8,35 @@ set(CUDA_TOOLKIT_ROOT_DIR ${CUDA_HOST})
 set(CUDA_TOOLKIT_TARGET_DIR ${CUDA_TARGET})
 set(CUDA_TOOLKIT_ROOT_DIR_INTERNAL ${CUDA_TOOLKIT_ROOT_DIR})
 set(CUDA_TOOLKIT_TARGET_DIR_INTERNAL ${CUDA_TOOLKIT_TARGET_DIR})
-set(CUDA_LIBRARIES ${CUDA_TOOLKIT_TARGET_DIR}/lib)
+set(CUDA_TARGET_LIBRARIES_DIR ${CUDA_TOOLKIT_TARGET_DIR}/lib)
 
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libcudart.so)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libnppc_static.a)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libnppicom_static.a)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libnppicc_static.a)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libnppig_static.a)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libculibos.a)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libcudart.so)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppc_static.a)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppicom_static.a)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppicc_static.a)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppig_static.a)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libculibos.a)
 list(APPEND DALI_LIBS ${CMAKE_DL_LIBS})
 
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/stubs/libnppc.so)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/stubs/libnppicom.so)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/stubs/libnppicc.so)
-list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/stubs/libnppig.so)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppc.so)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppicom.so)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppicc.so)
+list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppig.so)
 
 include_directories(${CUDA_TOOLKIT_TARGET_DIR}/include)
 include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CUDA_LIBRARIES} -L${CUDA_LIBRARIES}/stubs -lcudart -lnppc_static -lnppicom_static -lnppicc_static -lnppig_static -lnpps -lnppc -lculibos")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CUDA_TARGET_LIBRARIES_DIR} -L${CUDA_TARGET_LIBRARIES_DIR}/stubs -lcudart -lnppc_static -lnppicom_static -lnppicc_static -lnppig_static -lnpps -lnppc -lculibos")
 
 # NVTX for profiling
 if (BUILD_NVTX)
-  list(APPEND DALI_LIBS ${CUDA_LIBRARIES}/libnvToolsExt.so)
+  list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnvToolsExt.so)
   add_definitions(-DDALI_USE_NVTX)
 endif()
 
 ##################################################################
 # Common dependencies
 ##################################################################
-
 include(cmake/Dependencies.common.cmake)
 
 ##################################################################
