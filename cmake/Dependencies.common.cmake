@@ -13,6 +13,11 @@
 # limitations under the License.
 
 ##################################################################
+# Boost prerocessor
+##################################################################
+include_directories(${PROJECT_SOURCE_DIR}/third_party/preprocessor/include)
+
+##################################################################
 # OpenCV
 ##################################################################
 # For OpenCV 3 and later, 'imdecode()' is in the imgcodecs library
