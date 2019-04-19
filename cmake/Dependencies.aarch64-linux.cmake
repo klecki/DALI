@@ -40,10 +40,9 @@ endif()
 
 include(cmake/Dependencies.common.cmake)
 
-# ##################################################################
-# # protobuf
-# ##################################################################
-set(Protobuf_DEBUG YES)
+##################################################################
+# protobuf
+##################################################################
 set(Protobuf_CROSS YES)
 set(Protobuf_USE_STATIC_LIBS YES)
 find_package(Protobuf 2.0 REQUIRED)
@@ -58,17 +57,6 @@ endif()
 
 include_directories(SYSTEM ${Protobuf_INCLUDE_DIRS})
 list(APPEND DALI_LIBS ${Protobuf_LIBRARY} ${Protobuf_PROTOC_LIBRARIES} ${Protobuf_LITE_LIBRARIES})
-
-# add_definitions(-DGOOGLE_PROTOBUF_ARCH_64_BIT)
-# add_definitions(-D__aarch64__)
-
-# set(PROTO_LIB_PATH ${PROTOBUF_TARGET}/lib)
-
-# list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotobuf.so)
-# list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotobuf-lite.so)
-# list(APPEND DALI_LIBS ${PROTO_LIB_PATH}/libprotoc.so)
-
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${PROTO_LIB_PATH} -lprotobuf -lprotobuf-lite -lprotoc")
 
 ###################################################################
 # ffmpeg
