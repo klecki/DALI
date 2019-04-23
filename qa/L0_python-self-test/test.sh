@@ -15,8 +15,8 @@ test_body() {
     # nosetests --verbose test_decoders.py
 
     # python test_detection_pipeline.py -i 300
-    python test_RN50_data_pipeline.py -i 10
-    # python test_RN50_data_fw_iterators.py -i 30 -b 13
+    # python test_RN50_data_pipeline.py -i 10
+    python test_RN50_data_fw_iterators.py -i 30 -b 13
 
     # # DALI TF tests
 
