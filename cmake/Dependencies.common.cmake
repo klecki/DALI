@@ -103,7 +103,7 @@ include(CheckTypeSize)
 set(FFMPEG_ROOT_DIR "" CACHE PATH "Folder contains FFmeg")
 set(PKG_CONFIG_USE_CMAKE_PREFIX_PATH YES)
 
-find_package(PkgConfig REQUIRED)
+find_package(PkgConfig QUIET)
 foreach(m avformat avcodec avfilter avutil)
   # We do a find_library only if FFMPEG_ROOT_DIR is provided
   if(NOT FFMPEG_ROOT_DIR)
