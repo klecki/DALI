@@ -2,6 +2,12 @@
 #        CUDA TOOLKIT
 #############################
 
+message(STATUS "CMAKE_CROSSCOMPILING ${CMAKE_CROSSCOMPILING}")
+
+
+set(CUDA_TOOLKIT_ROOT_DIR ${CUDA_HOST})
+set(CUDA_TOOLKIT_TARGET_DIR ${CUDA_TARGET})
+
 find_package(CUDA 10.0 REQUIRED)
 message(STATUS "CUDA_VARIABLES:")
 
@@ -39,6 +45,9 @@ message(STATUS "CUDA_npps_LIBRARY: ${CUDA_npps_LIBRARY}")
 message(STATUS "CUDA_nvcuvenc_LIBRARY: ${CUDA_nvcuvenc_LIBRARY}")
 message(STATUS "CUDA_nvcuvid_LIBRARY: ${CUDA_nvcuvid_LIBRARY}")
 
+message(STATUS "CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR}")
+message(STATUS "CUDA_TOOLKIT_TARGET_DIR ${CUDA_TOOLKIT_TARGET_DIR}")
+
 set(CUDA_TOOLKIT_ROOT_DIR ${CUDA_HOST})
 set(CUDA_TOOLKIT_TARGET_DIR ${CUDA_TARGET})
 set(CUDA_TOOLKIT_ROOT_DIR_INTERNAL ${CUDA_TOOLKIT_ROOT_DIR})
@@ -52,17 +61,44 @@ list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppicom_static.a)
 list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppicc_static.a)
 list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libnppig_static.a)
 list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/libculibos.a)
-list(APPEND DALI_LIBS ${CMAKE_DL_LIBS})
+# list(APPEND DALI_LIBS ${CMAKE_DL_LIBS})
 
-list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppc.so)
-list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppicom.so)
-list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppicc.so)
-list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppig.so)
+
+# NVIDIA NPPC library
+find_cuda_helper_libs(nppc_static)
+find_cuda_helper_libs(nppicom_static)
+find_cuda_helper_libs(nppicc_static)
+find_cuda_helper_libs(nppig_static)
+list(APPEND DALI_LIBS ${CUDA_nppicom_static_LIBRARY}
+  ${CUDA_nppicc_static_LIBRARY}
+  ${CUDA_nppig_static_LIBRARY})
+list(APPEND DALI_EXCLUDES libnppicom_static.a
+  libnppicc_static.a
+  libnppig_static.a)
+list(APPEND DALI_LIBS ${CUDA_nppc_static_LIBRARY})
+list(APPEND DALI_EXCLUDES libnppc_static.a)
+
+# CULIBOS needed when using static CUDA libs
+find_cuda_helper_libs(culibos)
+list(APPEND DALI_LIBS ${CUDA_culibos_LIBRARY})
+list(APPEND DALI_EXCLUDES libculibos.a)
+
+
+message(STATUS "CUDA_nppc_static_LIBRARY: ${CUDA_nppc_static_LIBRARY}")
+message(STATUS "CUDA_nppicom_static_LIBRARY: ${CUDA_nppicom_static_LIBRARY}")
+message(STATUS "CUDA_nppicc_static_LIBRARY: ${CUDA_nppicc_static_LIBRARY}")
+message(STATUS "CUDA_nppig_static_LIBRARY: ${CUDA_nppig_static_LIBRARY}")
+message(STATUS "CUDA_culibos_LIBRARY: ${CUDA_culibos_LIBRARY}")
+
+# list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppc.so)
+# list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppicom.so)
+# list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppicc.so)
+# list(APPEND DALI_LIBS ${CUDA_TARGET_LIBRARIES_DIR}/stubs/libnppig.so)
 
 include_directories(${CUDA_TOOLKIT_TARGET_DIR}/include)
 include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CUDA_TARGET_LIBRARIES_DIR} -L${CUDA_TARGET_LIBRARIES_DIR}/stubs -lcudart -lnppc_static -lnppicom_static -lnppicc_static -lnppig_static -lnpps -lnppc -lculibos")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -L${CUDA_TARGET_LIBRARIES_DIR} -L${CUDA_TARGET_LIBRARIES_DIR}/stubs -lcudart -lnppc_static -lnppicom_static -lnppicc_static -lnppig_static -lculibos")
 
 # NVTX for profiling
 if (BUILD_NVTX)

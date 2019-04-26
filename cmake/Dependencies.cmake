@@ -101,6 +101,13 @@ find_cuda_helper_libs(culibos)
 list(APPEND DALI_LIBS ${CUDA_culibos_LIBRARY})
 list(APPEND DALI_EXCLUDES libculibos.a)
 
+
+message(STATUS "CUDA_nppc_static_LIBRARY: ${CUDA_nppc_static_LIBRARY}")
+message(STATUS "CUDA_nppicom_static_LIBRARY: ${CUDA_nppicom_static_LIBRARY}")
+message(STATUS "CUDA_nppicc_static_LIBRARY: ${CUDA_nppicc_static_LIBRARY}")
+message(STATUS "CUDA_nppig_static_LIBRARY: ${CUDA_nppig_static_LIBRARY}")
+message(STATUS "CUDA_culibos_LIBRARY: ${CUDA_culibos_LIBRARY}")
+
 # NVTX for profiling
 if (BUILD_NVTX)
   find_cuda_helper_libs(nvToolsExt)
