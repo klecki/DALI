@@ -70,7 +70,9 @@ RUN curl -L https://github.com/libjpeg-turbo/libjpeg-turbo/archive/${JPEG_TURBO_
     cd /libjpeg-turbo-${JPEG_TURBO_VERSION} && \
     autoreconf -fiv && \
     ./configure \
-      --enable-shared \
+      --disable-shared \
+      CFLAGS="-fPIC" \
+      CXXFLAGS="-fPIC" \
       CC=aarch64-linux-gnu-gcc \
       CXX=aarch64-linux-gnu-g++ \
       --host=aarch64-unknown-linux-gnu \
