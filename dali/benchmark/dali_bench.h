@@ -27,7 +27,7 @@
 namespace dali {
 
 // Note: this is setup for the binary to be executed from "build"
-const string image_folder = "/data/dali/benchmark/benchmark_images";  // NOLINT
+const string image_folder = "/home/klecki/dldata/dali/benchmark/benchmark_images";  // NOLINT
 
 class DALIBenchmark : public benchmark::Fixture {
  public:

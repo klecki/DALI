@@ -19,7 +19,7 @@ import nvidia.dali.types as types
 import numpy as np
 from timeit import default_timer as timer
 
-image_folder = "/data/dali/benchmark/benchmark_images"
+image_folder = "/home/klecki/dldata/dali/benchmark/benchmark_images"
 
 def read_jpegs(folder):
     with open(folder + "/image_list.txt", 'r') as file:

@@ -25,7 +25,7 @@ namespace testing {
 namespace {
 
 const std::string &base_folder() {
-  static const std::string path = "/data/dali/test/test_images/";
+  static const std::string path = "/home/klecki/dldata/dali/test/test_images/";
   return path;
 }
 

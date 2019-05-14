@@ -34,7 +34,7 @@ class DataLoadStoreTest : public DALITest {
 };
 
 typedef ::testing::Types<CPUBackend> TestTypes;
-string loader_test_image_folder = "/data/dali/benchmark";  // NOLINT
+string loader_test_image_folder = "/home/klecki/dldata/dali/benchmark";  // NOLINT
 
 TYPED_TEST_SUITE(DataLoadStoreTest, TestTypes);
 
