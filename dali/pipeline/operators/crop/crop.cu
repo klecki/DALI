@@ -115,7 +115,7 @@ void Crop<GPUBackend>::SetupSharedSampleParams(DeviceWorkspace *ws) {
   if (output_type_ == DALI_NO_TYPE) output_type_ = input.type().id();
 
   for (int i = 0; i < total_batch_size; ++i)
-    SetupSharedSampleParams(ws, input.tensor_shape(i), i, i);
+    SetupSharedSampleParamsImpl(ws, input.tensor_shape(i), i, i);
 }
 
 template <>

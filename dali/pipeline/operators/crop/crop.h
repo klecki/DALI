@@ -116,6 +116,7 @@ class Crop : public Operator<Backend>, protected CropAttr {
   const int C_;
 
   USE_OPERATOR_MEMBERS();
+  using Operator<Backend>::RunImpl;
 
  private:
   void DataDependentSetup(Workspace<Backend> *ws, int idx);
@@ -129,7 +130,7 @@ class Crop : public Operator<Backend>, protected CropAttr {
     DALI_FAIL("Expected 3-dimensional or 4-dimensional input");
   }
 
-  void SetupSharedSampleParams(const ArgumentWorkspace *ws,
+  void SetupSharedSampleParamsImpl(const ArgumentWorkspace *ws,
                                const vector<Index> &inputShape, int threadIdx,
                                int dataIdx) {
     Index H, W, C;

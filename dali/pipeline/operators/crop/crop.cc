@@ -104,7 +104,7 @@ void Crop<CPUBackend>::SetupSharedSampleParams(SampleWorkspace *ws) {
     output_type_ = input.type().id();
   }
   CropAttr::ProcessArguments(ws);
-  SetupSharedSampleParams(ws, CheckShapes(ws), ws->thread_idx(),
+  SetupSharedSampleParamsImpl(ws, CheckShapes(ws), ws->thread_idx(),
                           ws->data_idx());
 }
 
