@@ -50,6 +50,18 @@ inline void CheckInputLayouts(const Workspace *ws, const OpSpec &spec) {
   }
 }
 
+
+template <>
+inline void CheckInputLayouts(const HostWorkspace *ws, const OpSpec &spec) {
+  for (int i = 0; i < spec.NumRegularInput(); ++i) {
+    for (int sample_id = 0; sample_id < spec.GetArgument<int>("batch_size"); ++sample_id) {
+      auto& input = ws->template Input<CPUBackend>(i, sample_id);
+      CheckInputLayout(input, spec);
+    }
+  }
+}
+
+
 template <>
 inline void CheckInputLayouts(const DeviceWorkspace *ws, const OpSpec &spec) {
   for (int i = 0; i < spec.NumRegularInput(); ++i) {
@@ -85,9 +97,9 @@ class DLL_PUBLIC OperatorBase {
   DLL_PUBLIC virtual inline ~OperatorBase() noexcept(false) {}
 
   /**
-   * @brief Executes the operator on a single sample on the CPU.
+   * @brief Executes the operator on a batch of samples on the CPU.
    */
-  DLL_PUBLIC virtual void Run(SampleWorkspace *ws) {
+  DLL_PUBLIC virtual void Run(HostWorkspace *ws) {
     DALI_FAIL("CPU execution is not implemented for this operator!");
   }
 
@@ -198,18 +210,22 @@ class Operator<CPUBackend> : public OperatorBase {
   inline ~Operator() noexcept(false) override {}
 
   using OperatorBase::Run;
-  void Run(SampleWorkspace *ws) override {
+
+  void Run(HostWorkspace *ws) override {
     CheckInputLayouts(ws, spec_);
     SetupSharedSampleParams(ws);
     for (int i = 0; i < input_sets_; ++i) {
       RunImpl(ws, i);
     }
+
+    ws->GetThreadPool().WaitForWork();
   }
 
   /**
    * @brief Legacy implementation of CPU operator using per-sample approach
    *
-   * Usage of this API will be deprecated.
+   * Usage of this API is deprecated. For CPU Ops `void RunImpl(HostWorkspace *ws, int idx)`
+   * should be overrided instead.
    */
   virtual void RunImpl(SampleWorkspace *ws, int idx = 0) {}
 
@@ -217,13 +233,25 @@ class Operator<CPUBackend> : public OperatorBase {
    * @brief Implementation of the operator - to be implemented by derived ops.
    */
   virtual void RunImpl(HostWorkspace *ws, int idx = 0) {
-    DALI_ENFORCE(false, "Not implemented yet");
+    // This is implemented, as a default, using the RunImpl that accepts SampleWorkspace,
+    // allowing for fallback to old per-sample implementations.
+
+    for (int data_idx = 0; data_idx < batch_size_; ++data_idx) {
+      auto &tp = ws->GetThreadPool();
+      tp.DoWorkWithID([this, ws, data_idx, idx](int tid) {
+        SampleWorkspace sample;
+        ws->GetSample(&sample, data_idx, tid);
+        this->SetupSharedSampleParams(&sample);
+        this->RunImpl(&sample, idx);
+      });
+    }
   }
 
   /**
-   * @brief Shared param setup. Legacy implementation for per-sample approach
+   * @brief Shared param setup. Legacy implementation for per-sample approach/
    *
-   * Usage of this API will be deprecated.
+   * Usage of this API is deprecated. For CPU Ops `void SetupSharedSampleParams(HostWorkspace *ws)`
+   * should be used instead.
    */
   virtual void SetupSharedSampleParams(SampleWorkspace *ws) {}
 
