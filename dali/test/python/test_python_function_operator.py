@@ -140,3 +140,6 @@ def test_python_operator_invalid_function():
         invalid_pipe.run()
     except Exception as e:
         print(e)
+
+test_python_operator_flip()
+

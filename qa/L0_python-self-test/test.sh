@@ -8,10 +8,15 @@ source qa/setup_dali_extra.sh
 cd dali/test/python
 
 test_body() {
-    nosetests --verbose test_backend_impl.py
-    nosetests --verbose test_pipeline.py
-    nosetests --verbose test_decoders.py
-    nosetests --verbose test_python_function_operator.py
+    #nosetests --verbose test_backend_impl.py
+    #nosetests --verbose test_pipeline.py
+    #nosetests --verbose test_decoders.py
+    for i in `seq 1 100`; 
+    do
+        echo $i
+        gdb -ex='set confirm on' -ex=run -ex=quit --args  python test_python_function_operator.py
+    done
+    exit 0
     for test_script in $(ls test_operator_*.py); do
         nosetests --verbose ${test_script}
     done
