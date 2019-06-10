@@ -140,6 +140,24 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
 
   void SetupOutputQueuesForGraph();
 
+  template <typename Workspace>
+  void DoRun(OperatorBase &op, Workspace &ws) {
+    std::vector<kernels::TensorListShape<>> output_shapes;
+    std::vector<TypeInfo> output_types;
+    if (op.InferOutputs(output_shapes, output_types, ws)) {
+      for (int i = 0; i < ws.NumOutput(); i++) {
+        if (ws.template InputIsType<CPUBackend>(i)) {
+          ws.template OutputHandle<CPUBackend>(i)->Resize(output_shapes[i]);
+          ws.template OutputHandle<CPUBackend>(i)->set_type(output_types[i]);
+        } else {
+          ws.template OutputHandle<GPUBackend>(i)->Resize(output_shapes[i]);
+          ws.template OutputHandle<GPUBackend>(i)->set_type(output_types[i]);
+        }
+        op.Run(&ws);
+      }
+    }
+  }
+
   class EventList {
    public:
     inline EventList() {}
@@ -325,7 +343,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunCPU() {
     OperatorBase &op = *op_node->op;
 
     try {
-      op.Run(&ws);
+      DoRun(op, ws);
     } catch (std::exception &e) {
       HandleError(e.what());
     } catch (...) {
@@ -356,7 +374,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunMixed() {
           WorkspacePolicy::template GetWorkspace<OpType::MIXED>(mixed_idxs, *graph_, i);
       TimeRange tr("[Executor] Run Mixed op " + op_node.instance_name,
           TimeRange::kOrange);
-      op.Run(&ws);
+      DoRun(op, ws);
       if (ws.has_stream() && ws.has_event()) {
         CUDA_CALL(cudaEventRecord(ws.event(), ws.stream()));
       }
@@ -411,7 +429,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunGPU() {
 
       TimeRange tr("[Executor] Run GPU op " + op_node.instance_name,
           TimeRange::knvGreen);
-      op.Run(&ws);
+      DoRun(op, ws);
       if (ws.has_event()) {
         CUDA_CALL(cudaEventRecord(ws.event(), ws.stream()));
       }

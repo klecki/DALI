@@ -30,6 +30,7 @@
 #include "dali/pipeline/operators/op_spec.h"
 #include "dali/pipeline/workspace/sample_workspace.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
+#include "dali/kernels/tensor_shape.h"
 
 namespace dali {
 
@@ -95,6 +96,56 @@ class DLL_PUBLIC OperatorBase {
 
   DLL_PUBLIC virtual inline ~OperatorBase() {}
 
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, HostWorkspace &ws, int sample_idx) {
+    DALI_FAIL("CPU execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, DeviceWorkspace &ws, int sample_idx) {
+    DALI_FAIL("GPU execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, MixedWorkspace &ws, int sample_idx) {
+    DALI_FAIL("Mixed execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, SupportWorkspace &ws, int sample_idx) {
+    DALI_FAIL(name() + " is not a support operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, HostWorkspace &ws) {
+    DALI_FAIL("CPU execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, DeviceWorkspace &ws) {
+    DALI_FAIL("GPU execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, MixedWorkspace &ws) {
+    DALI_FAIL("Mixed execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, SupportWorkspace &ws) {
+    DALI_FAIL(name() + " is not a support operator!");
+  }
+
+
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, HostWorkspace &ws) {
+    DALI_FAIL("CPU execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, DeviceWorkspace &ws) {
+    DALI_FAIL("GPU execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, MixedWorkspace &ws) {
+    DALI_FAIL("Mixed execution is not implemented for this operator!");
+  }
+
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, SupportWorkspace &ws) {
+    DALI_FAIL(name() + " is not a support operator!");
+  }
+
+
   /**
    * @brief Executes the operator on a batch of samples on the CPU.
    */
@@ -157,6 +208,34 @@ class DLL_PUBLIC OperatorBase {
   int batch_size_;
   int input_sets_;
   int default_cuda_stream_priority_;
+
+  template <typename Workspace>
+  bool InferOutputsDefault(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, Workspace &ws) {
+    int num_outputs = ws.NumOutput();
+    std::vector<kernels::TensorListShape<>> result_shape(num_outputs);
+    std::vector<TypeInfo> result_type(num_outputs);
+
+    if (!InferType(result_type, ws)) {
+      return false;
+    }
+
+    for (int out_sample_idx = 0; out_sample_idx < batch_size_; out_sample_idx++) {
+      std::vector<kernels::TensorShape<>> sample_shape(num_outputs);
+      if (!InferSampleShape(sample_shape, ws, out_sample_idx)) {
+        return false;
+      }
+      for (int output_idx = 0; output_idx < num_outputs; output_idx++) {
+        if (out_sample_idx == 0) {
+          result_shape[output_idx].resize(batch_size_, sample_shape[output_idx].sample_dim());
+        }
+        result_shape[output_idx].set_tensor_shape(out_sample_idx, sample_shape[output_idx]);
+      }
+    }
+    shape = std::move(result_shape);
+    type = std::move(result_type);
+    return true;
+  }
+
 };
 
 #define USE_OPERATOR_MEMBERS()                       \
@@ -213,7 +292,18 @@ class Operator<CPUBackend> : public OperatorBase {
 
   inline ~Operator() override {}
 
+  using OperatorBase::InferSampleShape;
+  using OperatorBase::InferType;
+  using OperatorBase::InferOutputs;
   using OperatorBase::Run;
+
+  bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, HostWorkspace &ws, int sample_idx) override {
+    return false;
+  }
+
+  bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, HostWorkspace &ws) override {
+    return OperatorBase::InferOutputsDefault(shape, type, ws);
+  }
 
   void Run(HostWorkspace *ws) override {
     CheckInputLayouts(ws, spec_);

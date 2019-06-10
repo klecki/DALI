@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/graph/op_graph.h"
 #include "dali/pipeline/operators/operator.h"
 #include "dali/pipeline/workspace/device_workspace.h"
