@@ -140,6 +140,16 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
 
   void SetupOutputQueuesForGraph();
 
+  template <typename Workspace>
+  void DoRun(OperatorBase &op, Workspace &ws) {
+    std::vector<kernels::TensorListShape<>> output_shapes;
+    if (op.InferShape(output_shapes, ws)) {
+      for (int i = 0; i < ws.NumOutput(); i++) {
+        // ws.Output(i);
+      }
+    }
+  }
+
   class EventList {
    public:
     inline EventList() {}
@@ -299,7 +309,8 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunCPU() {
           WorkspacePolicy::template GetWorkspace<OpType::SUPPORT>(support_idxs, *graph_, i);
       TimeRange tr("[Executor] Run Support op " + op_node.instance_name,
           TimeRange::kCyan);
-      op.Run(&ws);
+      DoRun(op, ws);
+      // op.Run(&ws);
     }
   } catch (std::exception &e) {
     HandleError(e.what());
