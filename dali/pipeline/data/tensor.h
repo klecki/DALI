@@ -24,11 +24,12 @@
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/util.h"
+#include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
-#include "dali/pipeline/data/tensor_list.h"
 #include "dali/pipeline/data/meta.h"
-#include "dali/core/util.h"
+#include "dali/pipeline/data/tensor_list.h"
 
 namespace dali {
 
@@ -124,10 +125,13 @@ class Tensor : public Buffer<Backend> {
    * the current buffer is not large enough for the requested
    * number of elements.
    */
-  inline void Resize(const vector<Index> &shape) {
+  inline void Resize(const kernels::TensorShape<> &shape) {
     Index new_size = volume(shape);
     ResizeHelper(new_size);
-    shape_ = shape;
+    shape_.resize(shape.size());
+    for (int i = 0; i < shape.size(); i++) {
+      shape_[i] = shape[i];
+    }
   }
 
   /**
