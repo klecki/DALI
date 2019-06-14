@@ -83,7 +83,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     for (size_t i = 0; i < other.size(); ++i) {
       assert(type == other[i].type());
       assert(layout == other[i].GetLayout());
-      new_shape[i] = other[i].shape();
+      new_shape[i] = std::vector<int64_t>(other[i].shape().begin(), other[i].shape().end());
     }
 
     this->Resize(new_shape);

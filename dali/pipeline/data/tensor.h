@@ -318,9 +318,10 @@ class Tensor : public Buffer<Backend> {
     data_.reset(tl->raw_mutable_tensor(0), [](void *) {});
 
     // Get the meta-data for the target tensor
-    shape_ = tl->tensor_shape(0);
-    shape_.insert(shape_.begin(), tl->ntensor());
-    size_ = volume(shape_);
+    auto new_shape = tl->tensor_shape(0);
+    new_shape.insert(new_shape.begin(), tl->ntensor());
+    size_ = volume(new_shape);
+    shape_ = kernels::TensorShape<>(new_shape);
     type_ = tl->type();
     num_bytes_ = type_.size() * size_;
     device_ = tl->device_id();
@@ -330,7 +331,7 @@ class Tensor : public Buffer<Backend> {
   /**
    * @brief Returns the shape of the Tensor
    */
-  inline const vector<Index> &shape() const {
+  inline const kernels::TensorShape<> &shape() const {
     return shape_;
   }
 
@@ -357,10 +358,12 @@ class Tensor : public Buffer<Backend> {
    * of a Tensor
    */
   inline void Squeeze() {
-    shape_.erase(std::remove(shape_.begin(), shape_.end(), 1), shape_.end());
-    if (shape_.empty()) {
-      shape_.push_back(1);
+    std::vector<Index> shape(shape_.begin(), shape_.end());
+    shape.erase(std::remove(shape.begin(), shape.end(), 1), shape.end());
+    if (shape.empty()) {
+      shape.push_back(1);
     }
+    shape_ = shape;
   }
 
   /**
@@ -392,7 +395,7 @@ class Tensor : public Buffer<Backend> {
     device_ = t.device_;
     meta_ = std::move(t.meta_);
 
-    t.shape_.clear();
+    t.shape_ = kernels::TensorShape<>();
     t.backend_ = Backend();
     t.type_ = TypeInfo::Create<NoType>();
     t.data_.reset();
@@ -414,7 +417,7 @@ class Tensor : public Buffer<Backend> {
       device_ = t.device_;
       meta_ = std::move(t.meta_);
 
-      t.shape_.clear();
+      t.shape_ = kernels::TensorShape<>();
       t.backend_ = Backend();
       t.type_ = TypeInfo::Create<NoType>();
       t.data_.reset();
@@ -451,7 +454,7 @@ class Tensor : public Buffer<Backend> {
   }
 
  protected:
-  vector<Index> shape_;
+  kernels::TensorShape<> shape_;
   DALIMeta meta_;
   USE_BUFFER_MEMBERS();
 };

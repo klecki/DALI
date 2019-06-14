@@ -118,7 +118,7 @@ void CropMirrorNormalize<CPUBackend>::RunHelper(SampleWorkspace *ws,
   const int mirror_image = !has_mirror_ ? mirror_.data<int>()[0] :
      spec_.GetArgument<int>("mirror", ws, ws->data_idx());
 
-  vector<Index> input_shape = input.shape();
+  auto& input_shape = input.shape();
   DALI_ENFORCE(input_shape.size() == 3,
       "Expects 3-dimensional image input.");
 
