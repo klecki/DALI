@@ -276,7 +276,7 @@ class Tensor : public Buffer<Backend> {
    * all tensors need to be stored without
    * any padding between them)
    */
-  inline void ShareDataReshape(TensorList<Backend> *tl, const vector<Index> &new_shape) {
+  inline void ShareDataReshape(TensorList<Backend> *tl, const kernels::TensorShape<> &new_shape) {
     DALI_ENFORCE(tl != nullptr, "Input TensorList is nullptr");
     DALI_ENFORCE(tl->ntensor() > 0, "Input TensorList has 0 elements!");
     DALI_ENFORCE(IsValidType(tl->type()), "To share data, "
