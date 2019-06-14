@@ -443,7 +443,7 @@ class DALISingleOpTest : public DALITest {
 
   template <typename T>
   int CheckBuffers(int lenRaster, const T *img1, const T *img2, bool checkAll,
-                   double *pMean = nullptr, vector<Index> shape = {}) const {
+                   double *pMean = nullptr, const kernels::TensorShape<> &shape = {}) const {
 #if SAVE_TMP_IMAGES
   if (!shape.empty()) {
     static int i = 0;
@@ -654,7 +654,7 @@ class DALISingleOpTest : public DALITest {
   }
 
   void ReportTestFailure(double mean, int colorIdx, int idx = -1,
-                         vector<Index> shape = {}) const {
+                         const kernels::TensorShape<> &shape = {}) const {
     if (TestCheckType(t_checkNoAssert))
       cout << "\nTest warning:";
     else

@@ -567,7 +567,7 @@ struct TensorListShape<DynamicDimensions>
     : TensorListShapeBase<TensorListShape<DynamicDimensions>, DynamicDimensions> {
   using Base = TensorListShapeBase<TensorListShape<DynamicDimensions>, DynamicDimensions>;
 
-  TensorListShape() : Base(), dim(0) {}
+  TensorListShape() : Base(), dim(1) {}
 
   TensorListShape(const TensorListShape &) = default;
   TensorListShape(TensorListShape &&) = default;
@@ -612,7 +612,14 @@ struct TensorListShape<DynamicDimensions>
   }
 
   int sample_dim() const { return dim; }
-  int size() const { return shapes.size() / sample_dim(); }
+
+  // TODO(klecki): we cannot have a sample_dim() == 0
+  int size() const {
+    if (sample_dim() == 0) {
+      return 0;
+    }
+    return shapes.size() / sample_dim();
+  }
   void set_sample_dim(int dim) { this->dim = dim; }
 
   int dim;

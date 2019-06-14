@@ -46,7 +46,7 @@ using storage_tag_map_t = typename storage_tag_map<Backend>::type;
 
 template <int ndim, typename Backend>
 kernels::TensorListShape<ndim> list_shape(const TensorList<Backend> &tl) {
-  const auto &tshape = tl.tensor_shape(0);
+  const auto &tshape = tl.tensor_shape(0); // TODO TODO TODO
   if (ndim != kernels::DynamicDimensions)
     DALI_ENFORCE((int)tshape.size() == ndim, "Input has a wrong number of dimensions");
   return kernels::convert_dim<ndim>(kernels::TensorListShape<>(tl.shape()));

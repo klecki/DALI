@@ -242,7 +242,7 @@ void CropMirrorNormalize<GPUBackend>::DataDependentSetup(DeviceWorkspace *ws, co
 
   vector<Dims> output_shape(batch_size_);
   for (int i = 0; i < batch_size_; ++i) {
-    vector<Index> input_shape = input.tensor_shape(i);
+    auto input_shape = input.tensor_shape(i);
     DALI_ENFORCE(input_shape.size() == 3,
         "Expects 3-dimensional image input.");
 
@@ -349,7 +349,7 @@ void CropMirrorNormalize<GPUBackend>::SetupSharedSampleParams(DeviceWorkspace *w
   CropAttr::ProcessArguments(ws);
 
   for (int i = 0; i < batch_size_; ++i) {
-    vector<Index> input_shape = input.tensor_shape(i);
+    auto input_shape = input.tensor_shape(i);
     DALI_ENFORCE(input_shape.size() == 3,
         "Expects 3-dimensional image input.");
 

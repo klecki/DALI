@@ -331,11 +331,8 @@ TYPED_TEST(TensorTest, TestCopyEmptyToTensorList) {
   Tensor<TypeParam> tensor;
   int num_tensor = tl.ntensor();
   ASSERT_EQ(num_tensor, tensors.size());
-  const std::vector<Dims>& shape = tl.shape();
-  Index total_volume = std::accumulate(shape.begin(), shape.end(), 0,
-                                     [](dali::Index acc, const dali::Dims& s) {
-                                       return acc + dali::volume(s);
-                                     });
+  const auto &shape = tl.shape();
+  Index total_volume = shape.num_elements();
   ASSERT_EQ(total_volume, 0);
 }
 

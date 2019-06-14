@@ -22,10 +22,13 @@
 
 namespace dali {
 
+using kernels::TensorShape;
+using kernels::TensorListShape;
+
 template <typename Backend>
 class TensorListTest : public DALITest {
  public:
-  vector<Dims> GetRandShape() {
+  TensorListShape<> GetRandShape() {
     int num_tensor = this->RandInt(1, 64);
     vector<Dims> shape(num_tensor);
     int dims = this->RandInt(2, 3);
@@ -36,10 +39,10 @@ class TensorListTest : public DALITest {
       }
       shape[i] = tensor_shape;
     }
-    return shape;
+    return {shape};
   }
 
-  vector<Dims> GetSmallRandShape() {
+  TensorListShape<> GetSmallRandShape() {
     int num_tensor = this->RandInt(1, 32);
     vector<Dims> shape(num_tensor);
     int dims = this->RandInt(2, 3);
@@ -50,21 +53,22 @@ class TensorListTest : public DALITest {
       }
       shape[i] = tensor_shape;
     }
-    return shape;
+    return {shape};
   }
 
   /**
    * Initialize & check a TensorList based on an input shape
    */
   void SetupTensorList(TensorList<Backend> *tensor_list,
-                       const vector<Dims>& shape,
+                       const TensorListShape<>& shape,
                        vector<Index> *offsets) {
     const int num_tensor = shape.size();
 
     Index offset = 0;
-    for (auto &tmp : shape) {
+
+    for (int i = 0; i < shape.size(); i++) {
       offsets->push_back(offset);
-      offset += volume(tmp);
+      offset += volume(shape[i]);
     }
 
     // Resize the buffer
@@ -113,9 +117,9 @@ TYPED_TEST(TensorListTest, TestGetTypeSizeBytes) {
   int num_tensor = shape.size();
   vector<Index> offsets;
   Index size = 0;
-  for (auto &tmp : shape) {
+  for (int i = 0; i < shape.size(); i++) {
     offsets.push_back(size);
-    size += volume(tmp);
+    size += volume(shape[i]);
   }
 
   // Validate the internals
@@ -140,9 +144,9 @@ TYPED_TEST(TensorListTest, TestGetSizeTypeBytes) {
   int num_tensor = shape.size();
   vector<Index> offsets;
   Index size = 0;
-  for (auto& tmp : shape) {
+  for (int i = 0; i < shape.size(); i++) {
     offsets.push_back(size);
-    size += volume(tmp);
+    size += volume(shape[i]);
   }
 
   // Verify the internals
@@ -181,9 +185,9 @@ TYPED_TEST(TensorListTest, TestGetBytesThenNoAlloc) {
   int num_tensor = shape.size();
   vector<Index> offsets;
   Index size = 0;
-  for (auto &tmp : shape) {
+  for (int i = 0; i < shape.size(); i++) {
     offsets.push_back(size);
-    size += volume(tmp);
+    size += volume(shape[i]);
   }
 
   // Verify the internals
@@ -226,9 +230,9 @@ TYPED_TEST(TensorListTest, TestGetBytesThenAlloc) {
   int num_tensor = shape.size();
   vector<Index> offsets;
   Index size = 0;
-  for (auto &tmp : shape) {
+  for (int i = 0; i < shape.size(); i++) {
     offsets.push_back(size);
-    size += volume(tmp);
+    size += volume(shape[i]);
   }
 
   // Verify the internals
@@ -261,7 +265,7 @@ TYPED_TEST(TensorListTest, TestZeroSizeResize) {
   TensorList<TypeParam> tensor_list;
 
   vector<Dims> shape;
-  tensor_list.Resize(shape);
+  tensor_list.Resize({shape});
 
   ASSERT_EQ(tensor_list.template mutable_data<float>(), nullptr);
   ASSERT_EQ(tensor_list.nbytes(), 0);
@@ -273,8 +277,8 @@ TYPED_TEST(TensorListTest, TestMultipleZeroSizeResize) {
   TensorList<TypeParam> tensor_list;
 
   int num_tensor = this->RandInt(0, 128);
-  vector<Dims> shape(num_tensor);
-  tensor_list.Resize(shape);
+  vector<TensorShape<>> shape(num_tensor, TensorShape<>{0});
+  tensor_list.Resize({shape});
 
   ASSERT_EQ(tensor_list.template mutable_data<float>(), nullptr);
   ASSERT_EQ(tensor_list.nbytes(), 0);
@@ -283,7 +287,7 @@ TYPED_TEST(TensorListTest, TestMultipleZeroSizeResize) {
 
   ASSERT_EQ(tensor_list.ntensor(), num_tensor);
   for (int i = 0; i < num_tensor; ++i) {
-    ASSERT_EQ(tensor_list.tensor_shape(i), vector<Index>{});
+    ASSERT_EQ(tensor_list.tensor_shape(i), TensorShape<>{});
     ASSERT_EQ(tensor_list.tensor_offset(i), 0);
   }
 }
@@ -301,7 +305,7 @@ TYPED_TEST(TensorListTest, TestScalarResize) {
   ASSERT_FALSE(tensor_list.shares_data());
 
   for (int i = 0; i < num_scalar; ++i) {
-    ASSERT_EQ(tensor_list.tensor_shape(i), vector<Index>{1});
+    ASSERT_EQ(tensor_list.tensor_shape(i), TensorShape<>{1});
     ASSERT_EQ(tensor_list.tensor_offset(i), i);
   }
 }
@@ -310,7 +314,7 @@ TYPED_TEST(TensorListTest, TestResize) {
   TensorList<TypeParam> tensor_list;
 
   // Setup shape and offsets
-  vector<Dims> shape = this->GetRandShape();
+  auto shape = this->GetRandShape();
   vector<Index> offsets;
 
   // resize + check called in SetupTensorList
@@ -321,7 +325,7 @@ TYPED_TEST(TensorListTest, TestMultipleResize) {
   TensorList<TypeParam> tensor_list;
 
   int rand = this->RandInt(1, 20);
-  vector<Dims> shape;
+  TensorListShape<> shape;
   vector<Index> offsets;
   int num_tensor = 0;
   for (int i = 0; i < rand; ++i) {
@@ -330,9 +334,9 @@ TYPED_TEST(TensorListTest, TestMultipleResize) {
     shape = this->GetRandShape();
     num_tensor = shape.size();
     Index offset = 0;
-    for (auto &tmp : shape) {
+    for (int i = 0; i < shape.size(); i++) {
       offsets.push_back(offset);
-      offset += volume(tmp);
+      offset += volume(shape[i]);
     }
   }
 
@@ -363,7 +367,7 @@ TYPED_TEST(TensorListTest, TestCopy) {
   ASSERT_EQ(tl.type(), tl2.type());
   ASSERT_EQ(tl.size(), tl2.size());
 
-  for (size_t i = 0; i < shape.size(); ++i) {
+  for (int i = 0; i < shape.size(); ++i) {
     ASSERT_EQ(tl.tensor_shape(i), tl.tensor_shape(i));
     ASSERT_EQ(volume(tl.tensor_shape(i)), volume(tl2.tensor_shape(i)));
   }
@@ -385,7 +389,7 @@ TYPED_TEST(TensorListTest, TestTypeChangeSameSize) {
   TensorList<TypeParam> tensor_list;
 
   // Setup shape and offsets
-  vector<Dims> shape = this->GetRandShape();
+  auto shape = this->GetRandShape();
   vector<Index> offsets;
 
   this->SetupTensorList(&tensor_list, shape, &offsets);
@@ -413,7 +417,7 @@ TYPED_TEST(TensorListTest, TestTypeChangeSmaller) {
   TensorList<TypeParam> tensor_list;
 
   // Setup shape and offsets
-  vector<Dims> shape = this->GetRandShape();
+  auto shape = this->GetRandShape();
   vector<Index> offsets;
 
   this->SetupTensorList(&tensor_list, shape, &offsets);
@@ -443,7 +447,7 @@ TYPED_TEST(TensorListTest, TestTypeChangeLarger) {
   TensorList<TypeParam> tensor_list;
 
   // Setup shape and offsets
-  vector<Dims> shape = this->GetRandShape();
+  auto shape = this->GetRandShape();
   vector<Index> offsets;
 
   this->SetupTensorList(&tensor_list, shape, &offsets);
@@ -470,7 +474,7 @@ TYPED_TEST(TensorListTest, TestShareData) {
   TensorList<TypeParam> tensor_list;
 
   // Setup shape and offsets
-  vector<Dims> shape = this->GetRandShape();
+  auto shape = this->GetRandShape();
   vector<Index> offsets;
 
   this->SetupTensorList(&tensor_list, shape, &offsets);
@@ -480,7 +484,7 @@ TYPED_TEST(TensorListTest, TestShareData) {
 
   // Share the data
   tensor_list2.ShareData(&tensor_list);
-  tensor_list2.Resize(vector<Dims>{{tensor_list.size()}});
+  tensor_list2.Resize({{tensor_list.size()}});
   tensor_list2.template mutable_data<uint8>();
 
   // Make sure the pointers match

@@ -456,6 +456,24 @@ TEST(CalculatePointersTest, Result) {
   EXPECT_EQ(dynamic_ptrs, expected);
 }
 
+TEST(TensorListShapeTest, Size) {
+  TensorListShape<> tls_0(
+    std::vector<TensorShape<DynamicDimensions>>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}});
+  TensorListShape<3> tls_1({{1, 2, 3}, {2, 3, 4}, {3, 4, 5}});
+  ASSERT_EQ(tls_0.size(), 3);
+  ASSERT_EQ(tls_1.size(), 3);
+  TensorListShape<> empty_0{}, empty_1{}, empty_2{std::vector<std::vector<int64_t>>{{}}};
+  empty_0.resize(10);
+  ASSERT_EQ(empty_0.size(), 0);
+  ASSERT_EQ(empty_1.size(), 0);
+  ASSERT_EQ(empty_2.size(), 0);
+
+  TensorListShape<3> empty_3{}, empty_4{std::vector<std::vector<int64_t>>{{}}};
+  ASSERT_EQ(empty_3.size(), 0);
+  ASSERT_EQ(empty_4.size(), 0);
+}
+
+
 TEST(TensorListShapeTest, IsUniform) {
   TensorListShape<3> non_uniform({{1, 2, 3}, {2, 3, 4}, {3, 4, 5}});
   EXPECT_FALSE(is_uniform(non_uniform));

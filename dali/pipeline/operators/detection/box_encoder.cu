@@ -247,7 +247,7 @@ std::pair<vector<Dims>, vector<Dims>> BoxEncoder<GPUBackend>::CalculateDims(
   const TensorList<GPUBackend> &boxes_input) {
   vector<Dims> boxes_output_dim;
   vector<Dims> labels_output_dim;
-  for (const auto &sample_boxes_shape : boxes_input.shape()) {
+  for (size_t i = 0; i < boxes_input.ntensor(); i++) {
     boxes_output_dim.push_back({anchors_count_, BoundingBox::kSize});
     labels_output_dim.push_back({anchors_count_});
   }
@@ -258,8 +258,8 @@ std::pair<vector<Dims>, vector<Dims>> BoxEncoder<GPUBackend>::CalculateDims(
 int *BoxEncoder<GPUBackend>::CalculateBoxesOffsets(
   const TensorList<GPUBackend> &boxes_input, const cudaStream_t &stream) {
   vector<int> offsets {0};
-  for (const auto &sample_boxes_shape : boxes_input.shape())
-    offsets.push_back(sample_boxes_shape[0] + offsets.back());
+  for (int i = 0; i < boxes_input.shape().size(); i++)
+    offsets.push_back(boxes_input.shape().tensor_shape_span(i)[0] + offsets.back());
 
   auto offsets_data = boxes_offsets_.mutable_data<int>();
   MemCopy(offsets_data, offsets.data(), (batch_size_ + 1) * sizeof(int), stream);

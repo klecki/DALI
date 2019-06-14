@@ -76,7 +76,7 @@ class CropSequenceTest : public DaliOperatorTest {
         int nouttensors = output_tl->ntensor();
         ASSERT_EQ(nintensors, nouttensors);
         for (int idx = 0; idx < nouttensors; idx++) {
-            const Dims shape = output_tl->tensor_shape(idx);
+            auto shape = output_tl->tensor_shape(idx);
             const auto *data = output_tl->tensor<typename TestArgs::T>(idx);
             ASSERT_EQ(TestArgs::F, shape[0]);
             ASSERT_EQ(TestArgs::crop_H, shape[1]);
