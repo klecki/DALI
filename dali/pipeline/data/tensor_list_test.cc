@@ -277,12 +277,12 @@ TYPED_TEST(TensorListTest, TestMultipleZeroSizeResize) {
   TensorList<TypeParam> tensor_list;
 
   int num_tensor = this->RandInt(0, 128);
-  vector<TensorShape<>> shape(num_tensor, TensorShape<>{0});
+  vector<TensorShape<>> shape(num_tensor, TensorShape<>{});
   tensor_list.Resize({shape});
 
   ASSERT_EQ(tensor_list.template mutable_data<float>(), nullptr);
   ASSERT_EQ(tensor_list.nbytes(), 0);
-  ASSERT_EQ(tensor_list.size(), 0);
+  ASSERT_EQ(tensor_list.size(), num_tensor);
   ASSERT_FALSE(tensor_list.shares_data());
 
   ASSERT_EQ(tensor_list.ntensor(), num_tensor);
