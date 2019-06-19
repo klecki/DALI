@@ -270,13 +270,6 @@ TEST(TensorShapeTest, StaticComparisons) {
   EXPECT_TRUE(TensorShape<1>(1) != TensorShape<2>(1, 2));
   EXPECT_FALSE(TensorShape<2>(1, 2) == TensorShape<1>(1));
   EXPECT_TRUE(TensorShape<2>(1, 2) != TensorShape<1>(1));
-
-  TensorShape<0> dim_0_10_0, dim_0_10_1, dim_0_11;
-  dim_0_10_0.resize(10);
-  dim_0_10_1.resize(10);
-  dim_0_11.resize(11);
-  EXPECT_TRUE(dim_0_10_0 == dim_0_10_1);
-  EXPECT_FALSE(dim_0_10_0 == dim_0_11);
 }
 
 TEST(TensorShapeTest, DynamicComparisons) {
@@ -548,6 +541,13 @@ TEST(TensorListShapeTest, Comparisons) {
   EXPECT_TRUE(tls_1 == tls_1);
   TensorListShape<> tls_2(tls_1);
   EXPECT_TRUE(tls_1 == tls_2);
+
+  TensorListShape<0> dim_0_10_0, dim_0_10_1, dim_0_11;
+  dim_0_10_0.resize(10);
+  dim_0_10_1.resize(10);
+  dim_0_11.resize(11);
+  EXPECT_TRUE(dim_0_10_0 == dim_0_10_1);
+  EXPECT_FALSE(dim_0_10_0 == dim_0_11);
 }
 
 TEST(TensorListShapeTest, FirstStaticFromStatic) {
