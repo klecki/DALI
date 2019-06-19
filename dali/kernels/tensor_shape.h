@@ -528,8 +528,7 @@ struct TensorListShapeBase {
 
     Derived ret;
     int dim = dali::size(ss);
-    ret.set_sample_dim(dim);
-    ret.shapes.resize(dim * num_samples);
+    ret.resize(num_samples, dim);
 
     // copy the sample shape to the first entry
     auto it = std::begin(ss);
@@ -664,13 +663,13 @@ struct TensorListShape : TensorListShapeBase<TensorListShape<sample_ndim>, sampl
   TensorListShape(const std::vector<int64_t> &shapes, int num_samples, int ndim)
       : Base(shapes, num_samples) {
     assert(ndim == sample_ndim);
-    assert(num_samples == shapes.size() / ndim);
+    assert(num_samples == static_cast<int>(shapes.size()) / ndim);
   }
 
   TensorListShape(std::vector<int64_t> &&shapes, int num_samples, int ndim)
       : Base(std::move(shapes), num_samples) {
     assert(ndim == sample_ndim);
-    assert(num_samples == shapes.size() / ndim);
+    assert(num_samples == static_cast<int>(shapes.size()) / ndim);
   }
 
   TensorListShape &operator=(const TensorListShape &) = default;
@@ -778,6 +777,9 @@ TensorListShape<DynamicDimensions> TensorListShapeBase<Derived, sample_ndim>::la
 template <int left_ndim, int right_ndim>
 bool operator==(const TensorListShape<left_ndim> &left, const TensorListShape<right_ndim> &right) {
   if (left.sample_dim() != right.sample_dim()) {
+    return false;
+  }
+  if (left.num_samples() != right.num_samples()) {
     return false;
   }
   return left.shapes == right.shapes;

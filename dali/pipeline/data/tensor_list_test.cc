@@ -282,7 +282,8 @@ TYPED_TEST(TensorListTest, TestMultipleZeroSizeResize) {
 
   ASSERT_EQ(tensor_list.template mutable_data<float>(), nullptr);
   ASSERT_EQ(tensor_list.nbytes(), 0);
-  ASSERT_EQ(tensor_list.size(), num_tensor);
+  ASSERT_EQ(tensor_list.ntensor(), num_tensor);
+  ASSERT_EQ(tensor_list.size(), 0);
   ASSERT_FALSE(tensor_list.shares_data());
 
   ASSERT_EQ(tensor_list.ntensor(), num_tensor);

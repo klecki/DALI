@@ -342,7 +342,7 @@ class Tensor : public Buffer<Backend> {
    */
   inline virtual Index dim(int idx) const {
 #ifndef NDEBUG
-    DALI_ENFORCE((size_t)idx < shape_.size(), "index exceeds ndim");
+    DALI_ENFORCE(idx < shape_.size(), "index exceeds ndim");
     DALI_ENFORCE(idx >= 0, "negative index not supported");
 #endif
     return shape_[idx];

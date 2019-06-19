@@ -87,7 +87,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
       new_shape[i] = std::vector<int64_t>(other[i].shape().begin(), other[i].shape().end());
     }
 
-    this->Resize(new_shape);
+    this->Resize({new_shape});
     if (IsValidType(type)) {
       this->set_type(type);
     }

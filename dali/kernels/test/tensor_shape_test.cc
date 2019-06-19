@@ -213,6 +213,45 @@ TEST(TensorShapeTest, StaticDynamicConversions) {
   }
 }
 
+TEST(TensorListShapeTest, UniformListShapeDynamic) {
+  auto dynamic0 = uniform_list_shape(0, std::vector<int64_t>{});
+  EXPECT_EQ(dynamic0.size(), 0);
+  EXPECT_EQ(dynamic0.sample_dim(), 0);
+  EXPECT_EQ(dynamic0.shapes.size(), 0);
+  auto dynamic1 = uniform_list_shape(0, std::vector<int64_t>{0, 1, 2, 3});
+  EXPECT_EQ(dynamic1.size(), 0);
+  EXPECT_EQ(dynamic1.sample_dim(), 4);
+  EXPECT_EQ(dynamic1.shapes.size(), 0);
+  auto dynamic2 = uniform_list_shape(2, std::vector<int64_t>{});
+  EXPECT_EQ(dynamic2.size(), 2);
+  EXPECT_EQ(dynamic2.sample_dim(), 0);
+  EXPECT_EQ(dynamic2.shapes.size(), 0);
+  auto dynamic3 = uniform_list_shape(2, std::vector<int64_t>{0, 1, 2, 3});
+  EXPECT_EQ(dynamic3.size(), 2);
+  EXPECT_EQ(dynamic3.sample_dim(), 4);
+  EXPECT_EQ(dynamic3.shapes.size(), 8);
+}
+
+
+TEST(TensorListShapeTest, UniformListShapeStatic) {
+  auto static0 = uniform_list_shape<0>(0, std::vector<int64_t>{});
+  EXPECT_EQ(static0.size(), 0);
+  EXPECT_EQ(static0.sample_dim(), 0);
+  EXPECT_EQ(static0.shapes.size(), 0);
+  auto static1 = uniform_list_shape<4>(0, std::vector<int64_t>{0, 1, 2, 3});
+  EXPECT_EQ(static1.size(), 0);
+  EXPECT_EQ(static1.sample_dim(), 4);
+  EXPECT_EQ(static1.shapes.size(), 0);
+  auto static2 = uniform_list_shape<0>(2, std::vector<int64_t>{});
+  EXPECT_EQ(static2.size(), 2);
+  EXPECT_EQ(static2.sample_dim(), 0);
+  EXPECT_EQ(static2.shapes.size(), 0);
+  auto static3 = uniform_list_shape<4>(2, std::vector<int64_t>{0, 1, 2, 3});
+  EXPECT_EQ(static3.size(), 2);
+  EXPECT_EQ(static3.sample_dim(), 4);
+  EXPECT_EQ(static3.shapes.size(), 8);
+}
+
 TEST(TensorShapeTest, StaticComparisons) {
   // Static ndim
   EXPECT_TRUE(TensorShape<1>(1) == TensorShape<1>(1));
@@ -231,6 +270,13 @@ TEST(TensorShapeTest, StaticComparisons) {
   EXPECT_TRUE(TensorShape<1>(1) != TensorShape<2>(1, 2));
   EXPECT_FALSE(TensorShape<2>(1, 2) == TensorShape<1>(1));
   EXPECT_TRUE(TensorShape<2>(1, 2) != TensorShape<1>(1));
+
+  TensorShape<0> dim_0_10_0, dim_0_10_1, dim_0_11;
+  dim_0_10_0.resize(10);
+  dim_0_10_1.resize(10);
+  dim_0_11.resize(11);
+  EXPECT_TRUE(dim_0_10_0 == dim_0_10_1);
+  EXPECT_FALSE(dim_0_10_0 == dim_0_11);
 }
 
 TEST(TensorShapeTest, DynamicComparisons) {
