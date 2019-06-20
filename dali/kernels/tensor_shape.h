@@ -589,7 +589,6 @@ struct TensorListShape<DynamicDimensions>
   TensorListShape(TensorListShape<other_sample_ndim> &&other)
       : Base(std::move(other.shapes), other.size()), dim(other.sample_dim()) {
     other.num_samples_ = 0;
-    other.set_sample_dim(0);
   }
 
   TensorListShape(const std::vector<std::vector<int64_t>> &sample_shapes)
@@ -611,7 +610,6 @@ struct TensorListShape<DynamicDimensions>
     num_samples_ = other.size();
     dim = other.sample_dim();
     other.num_samples_ = 0;
-    other.set_sample_dim(0);
     return *this;
   }
 
@@ -629,7 +627,6 @@ struct TensorListShape<DynamicDimensions>
     num_samples_ = other.size();
     dim = other.sample_dim();
     other.num_samples_ = 0;
-    other.set_sample_dim(0);
     return *this;
   }
 
