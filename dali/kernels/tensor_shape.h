@@ -563,8 +563,10 @@ struct TensorListShapeBase {
   int sample_dim() const { return static_cast<const Derived *>(this)->sample_dim(); }
   void set_sample_dim(int dim) { static_cast<Derived *>(this)->set_sample_dim(dim); }
   TensorListShapeBase() = default;
-  TensorListShapeBase(const std::vector<int64_t> &shapes, int num_samples) : shapes(shapes), num_samples_(num_samples) {}
-  TensorListShapeBase(std::vector<int64_t> &&shapes, int num_samples) : shapes(std::move(shapes)), num_samples_(num_samples) {}
+  TensorListShapeBase(const std::vector<int64_t> &shapes, int num_samples)
+      : shapes(shapes), num_samples_(num_samples) {}
+  TensorListShapeBase(std::vector<int64_t> &&shapes, int num_samples)
+      : shapes(std::move(shapes)), num_samples_(num_samples) {}
 
   int num_samples_ = 0;
 };
@@ -591,13 +593,17 @@ struct TensorListShape<DynamicDimensions>
   }
 
   TensorListShape(const std::vector<std::vector<int64_t>> &sample_shapes)
-      : Base(flatten_shapes(sample_shapes), sample_shapes.size()), dim(get_dim_from_uniform(sample_shapes)) {}
+      : Base(flatten_shapes(sample_shapes), sample_shapes.size()),
+        dim(get_dim_from_uniform(sample_shapes)) {}
 
   TensorListShape(const std::vector<TensorShape<DynamicDimensions>> &sample_shapes)
-      : Base(flatten_shapes(sample_shapes), sample_shapes.size()), dim(get_dim_from_uniform(sample_shapes)) {}
+      : Base(flatten_shapes(sample_shapes), sample_shapes.size()),
+        dim(get_dim_from_uniform(sample_shapes)) {}
 
-  TensorListShape(const std::vector<int64_t> &shapes, int ndim) : Base(shapes, shapes.size() / ndim), dim(ndim) {}
-  TensorListShape(std::vector<int64_t> &&shapes, int ndim) : Base(std::move(shapes), shapes.size() / ndim), dim(ndim) {}
+  TensorListShape(const std::vector<int64_t> &shapes, int ndim)
+      : Base(shapes, shapes.size() / ndim), dim(ndim) {}
+  TensorListShape(std::vector<int64_t> &&shapes, int ndim)
+      : Base(std::move(shapes), shapes.size() / ndim), dim(ndim) {}
 
   TensorListShape &operator=(const TensorListShape &) = default;
   TensorListShape &operator=(TensorListShape &&other) {
