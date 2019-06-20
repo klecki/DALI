@@ -235,7 +235,7 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
           info.heights[0] = crop_window.h;
         }
       }
-      output_shape_.set_tensor_shape(i, kernels::TensorShape<>{info.heights[0], info.widths[0], c});
+      output_shape_.set_tensor_shape(i, {info.heights[0], info.widths[0], c});
       output_info_[i] = info;
     }
   }

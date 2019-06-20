@@ -595,11 +595,11 @@ struct TensorListShape<DynamicDimensions>
     other.num_samples_ = 0;
   }
 
-  TensorListShape(const std::vector<std::vector<int64_t>> &sample_shapes)
+  TensorListShape(const std::vector<std::vector<int64_t>> &sample_shapes)  // NOLINT
       : Base(flatten_shapes(sample_shapes), sample_shapes.size()),
         dim(get_dim_from_uniform(sample_shapes)) {}
 
-  TensorListShape(const std::vector<TensorShape<DynamicDimensions>> &sample_shapes)
+  TensorListShape(const std::vector<TensorShape<DynamicDimensions>> &sample_shapes)  // NOLINT
       : Base(flatten_shapes(sample_shapes), sample_shapes.size()),
         dim(get_dim_from_uniform(sample_shapes)) {}
 
@@ -683,7 +683,6 @@ struct TensorListShape : TensorListShapeBase<TensorListShape<sample_ndim>, sampl
   TensorListShape(const std::vector<TensorShape<sample_ndim>> &sample_shapes)  // NOLINT
       : Base(flatten_shapes(sample_shapes), sample_shapes.size()) {}
 
-  //todo - add argument to this for size
   TensorListShape(const std::vector<int64_t> &shapes, int num_samples, int ndim)
       : Base(shapes, num_samples) {
     assert(ndim == sample_ndim);

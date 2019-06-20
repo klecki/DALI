@@ -31,7 +31,6 @@ using kernels::TensorListShape;
 template <typename Backend>
 class TensorTest : public DALITest {
  public:
-
   TensorListShape<> GetRandShapeList() {
     TensorListShape<> shape;
     int num_tensor = this->RandInt(1, 128);

@@ -253,7 +253,8 @@ BoxEncoder<GPUBackend>::CalculateDims(
   labels_output_shape.resize(boxes_input.ntensor(), kLabelsOutputDim);
 
   for (size_t i = 0; i < boxes_input.ntensor(); i++) {
-    boxes_output_shape.set_tensor_shape(i, {anchors_count_, BoundingBox::kSize});
+    boxes_output_shape.set_tensor_shape(i,
+        {anchors_count_, static_cast<int64_t>(BoundingBox::kSize)});
     labels_output_shape.set_tensor_shape(i, {anchors_count_});
   }
 

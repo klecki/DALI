@@ -55,7 +55,7 @@ class DALIBenchmark : public benchmark::Fixture {
     kernels::TensorListShape<> shape;
     shape.resize(n, 1);
     for (int i = 0; i < n; ++i) {
-      shape.set_tensor_shape(i, kernels::TensorShape<>{ jpegs_.sizes_[i % nImgs] });
+      shape.set_tensor_shape(i, { jpegs_.sizes_[i % nImgs] });
     }
 
     tl->template mutable_data<uint8>();
