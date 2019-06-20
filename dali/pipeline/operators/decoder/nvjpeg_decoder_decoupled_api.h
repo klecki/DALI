@@ -23,14 +23,16 @@
 #include <memory>
 #include <numeric>
 #include <atomic>
-#include "dali/pipeline/operators/operator.h"
-#include "dali/pipeline/operators/decoder/nvjpeg_helper.h"
+
+#include "dali/core/device_guard.h"
+#include "dali/image/image_factory.h"
+#include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/operators/decoder/cache/cached_decoder_impl.h"
+#include "dali/pipeline/operators/decoder/nvjpeg_helper.h"
+#include "dali/pipeline/operators/operator.h"
+#include "dali/pipeline/util/thread_pool.h"
 #include "dali/util/image.h"
 #include "dali/util/ocv.h"
-#include "dali/image/image_factory.h"
-#include "dali/pipeline/util/thread_pool.h"
-#include "dali/core/device_guard.h"
 
 namespace dali {
 
@@ -49,7 +51,6 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
     decode_params_(batch_size_),
     decoder_host_state_(batch_size_),
     decoder_huff_hybrid_state_(batch_size_),
-    output_shape_(batch_size_),
     pinned_buffers_(num_threads_*2),
     jpeg_streams_(num_threads_*2),
     device_buffers_(num_threads_),
@@ -60,6 +61,7 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
     thread_pool_(num_threads_,
                  spec.GetArgument<int>("device_id"),
                  true /* pin threads */) {
+    output_shape_.resize(batch_size_, 3);
     NVJPEG_CALL(nvjpegCreateSimple(&handle_));
 
     size_t device_memory_padding = spec.GetArgument<Index>("device_memory_padding");
@@ -185,7 +187,7 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
 
       auto cached_shape = CacheImageShape(file_name);
       if (volume(cached_shape) > 0) {
-        output_shape_[i] = Dims({cached_shape[0], cached_shape[1], cached_shape[2]});
+        output_shape_.set_tensor_shape(i, {cached_shape[0], cached_shape[1], cached_shape[2]});
         continue;
       }
 
@@ -233,7 +235,7 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
           info.heights[0] = crop_window.h;
         }
       }
-      output_shape_[i] = Dims({info.heights[0], info.widths[0], c});
+      output_shape_.set_tensor_shape(i, kernels::TensorShape<>{info.heights[0], info.widths[0], c});
       output_info_[i] = info;
     }
   }
@@ -380,7 +382,7 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
   std::vector<nvjpegDecodeParams_t> decode_params_;
   std::vector<nvjpegJpegState_t> decoder_host_state_;
   std::vector<nvjpegJpegState_t> decoder_huff_hybrid_state_;
-  std::vector<Dims> output_shape_;
+  kernels::TensorListShape<> output_shape_;
 
   // Per thread - double buffered
   std::vector<nvjpegBufferPinned_t> pinned_buffers_;

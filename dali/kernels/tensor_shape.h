@@ -495,6 +495,10 @@ struct TensorListShapeBase {
     return out;
   }
 
+  void set_tensor_shape(int64_t sample, const TensorShape<sample_ndim> &sample_shape) {
+    set_tensor_shape<TensorShape<sample_ndim>>(sample, sample_shape);
+  }
+
   /// @brief Set a TensorShape for `sample`
   template <typename SampleShape>
   void set_tensor_shape(int64_t sample, const SampleShape &sample_shape) {

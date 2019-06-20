@@ -80,14 +80,20 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     auto type = other[0].type();
     auto layout = other[0].GetLayout();
 
-    vector<Dims> new_shape(other.size());
+    kernels::TensorListShape<> new_shape;
+    int dim = other[0].shape().sample_dim();
+    new_shape.resize(other.size(), dim);
     for (size_t i = 0; i < other.size(); ++i) {
+      DALI_ENFORCE(other[i].shape().sample_dim() == dim,
+         "TensorList can only have uniform dimensions across all samples, mismatch at index "
+         + std::to_string(i) + " expected Tensor with dim = " + to_string(dim)
+         + " found Tensor with dim = " + to_string(other[i].shape().sample_dim()));
       assert(type == other[i].type());
       assert(layout == other[i].GetLayout());
-      new_shape[i] = std::vector<int64_t>(other[i].shape().begin(), other[i].shape().end());
+      new_shape.set_tensor_shape(i, other[i].shape());
     }
 
-    this->Resize({new_shape});
+    this->Resize(new_shape);
     if (IsValidType(type)) {
       this->set_type(type);
     }

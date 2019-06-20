@@ -243,16 +243,21 @@ void BoxEncoder<GPUBackend>::ClearOutput(
       stream));
 }
 
-std::pair<vector<Dims>, vector<Dims>> BoxEncoder<GPUBackend>::CalculateDims(
+std::pair<kernels::TensorListShape<>, kernels::TensorListShape<>>
+BoxEncoder<GPUBackend>::CalculateDims(
   const TensorList<GPUBackend> &boxes_input) {
-  vector<Dims> boxes_output_dim;
-  vector<Dims> labels_output_dim;
+  kernels::TensorListShape<> boxes_output_shape;
+  boxes_output_shape.resize(boxes_input.ntensor(), kBoxesOutputDim);
+
+  kernels::TensorListShape<> labels_output_shape;
+  labels_output_shape.resize(boxes_input.ntensor(), kLabelsOutputDim);
+
   for (size_t i = 0; i < boxes_input.ntensor(); i++) {
-    boxes_output_dim.push_back({anchors_count_, BoundingBox::kSize});
-    labels_output_dim.push_back({anchors_count_});
+    boxes_output_shape.set_tensor_shape(i, {anchors_count_, BoundingBox::kSize});
+    labels_output_shape.set_tensor_shape(i, {anchors_count_});
   }
 
-  return {boxes_output_dim, labels_output_dim};
+  return {boxes_output_shape, labels_output_shape};
 }
 
 int *BoxEncoder<GPUBackend>::CalculateBoxesOffsets(

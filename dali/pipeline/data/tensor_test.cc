@@ -18,25 +18,32 @@
 
 #include <numeric>
 
+#include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
 #include "dali/test/dali_test.h"
 
 namespace dali {
 
+using kernels::TensorShape;
+using kernels::TensorListShape;
+
 template <typename Backend>
 class TensorTest : public DALITest {
  public:
-  vector<Dims> GetRandShapeList() {
+
+  TensorListShape<> GetRandShapeList() {
+    TensorListShape<> shape;
     int num_tensor = this->RandInt(1, 128);
-    vector<Dims> shape(num_tensor);
     int dims = this->RandInt(2, 3);
+    shape.resize(num_tensor, dims);
     for (int i = 0; i < num_tensor; ++i) {
-      vector<Index> tensor_shape(dims, 0);
+      TensorShape<> tensor_shape;
+      tensor_shape.resize(dims);
       for (int j = 0; j < dims; ++j) {
         tensor_shape[j] = this->RandInt(1, 512);
       }
-      shape[i] = tensor_shape;
+      shape.set_tensor_shape(i, tensor_shape);
     }
     return shape;
   }

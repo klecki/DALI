@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 
+#include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
 #include "dali/test/dali_test.h"
@@ -29,31 +30,35 @@ template <typename Backend>
 class TensorListTest : public DALITest {
  public:
   TensorListShape<> GetRandShape() {
+    TensorListShape<> shape;
     int num_tensor = this->RandInt(1, 64);
-    vector<Dims> shape(num_tensor);
     int dims = this->RandInt(2, 3);
+    shape.resize(num_tensor, dims);
     for (int i = 0; i < num_tensor; ++i) {
-      vector<Index> tensor_shape(dims, 0);
+      TensorShape<> tensor_shape;
+      tensor_shape.resize(dims);
       for (int j = 0; j < dims; ++j) {
         tensor_shape[j] = this->RandInt(1, 200);
       }
-      shape[i] = tensor_shape;
+      shape.set_tensor_shape(i, tensor_shape);
     }
-    return {shape};
+    return shape;
   }
 
   TensorListShape<> GetSmallRandShape() {
+    TensorListShape<> shape;
     int num_tensor = this->RandInt(1, 32);
-    vector<Dims> shape(num_tensor);
     int dims = this->RandInt(2, 3);
+    shape.resize(num_tensor, dims);
     for (int i = 0; i < num_tensor; ++i) {
-      vector<Index> tensor_shape(dims, 0);
+      TensorShape<> tensor_shape;
+      tensor_shape.resize(dims);
       for (int j = 0; j < dims; ++j) {
         tensor_shape[j] = this->RandInt(1, 64);
       }
-      shape[i] = tensor_shape;
+      shape.set_tensor_shape(i, tensor_shape);
     }
-    return {shape};
+    return shape;
   }
 
   /**
@@ -264,8 +269,8 @@ TYPED_TEST(TensorListTest, TestGetBytesThenAlloc) {
 TYPED_TEST(TensorListTest, TestZeroSizeResize) {
   TensorList<TypeParam> tensor_list;
 
-  vector<Dims> shape;
-  tensor_list.Resize({shape});
+  TensorListShape<> shape;
+  tensor_list.Resize(shape);
 
   ASSERT_EQ(tensor_list.template mutable_data<float>(), nullptr);
   ASSERT_EQ(tensor_list.nbytes(), 0);
@@ -277,7 +282,7 @@ TYPED_TEST(TensorListTest, TestMultipleZeroSizeResize) {
   TensorList<TypeParam> tensor_list;
 
   int num_tensor = this->RandInt(0, 128);
-  vector<TensorShape<>> shape(num_tensor, TensorShape<>{});
+  auto shape = kernels::uniform_list_shape(num_tensor, TensorShape<>{});
   tensor_list.Resize({shape});
 
   ASSERT_EQ(tensor_list.template mutable_data<float>(), nullptr);
@@ -297,7 +302,7 @@ TYPED_TEST(TensorListTest, TestScalarResize) {
   TensorList<TypeParam> tensor_list;
 
   int num_scalar = this->RandInt(1, 128);
-  vector<Dims> shape(num_scalar, {(Index)1});
+  auto shape = kernels::uniform_list_shape(num_scalar, {1});
   tensor_list.Resize(shape);
 
   ASSERT_NE(tensor_list.template mutable_data<float>(), nullptr);

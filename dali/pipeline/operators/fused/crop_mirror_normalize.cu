@@ -240,7 +240,8 @@ void CropMirrorNormalize<GPUBackend>::DataDependentSetup(DeviceWorkspace *ws, co
   DALI_ENFORCE(IsType<uint8>(input.type()),
       "Expected input data as uint8.");
 
-  vector<Dims> output_shape(batch_size_);
+  kernels::TensorListShape<> output_shape;
+  output_shape.resize(batch_size_, 3);
   for (int i = 0; i < batch_size_; ++i) {
     auto input_shape = input.tensor_shape(i);
     DALI_ENFORCE(input_shape.size() == 3,
@@ -273,9 +274,9 @@ void CropMirrorNormalize<GPUBackend>::DataDependentSetup(DeviceWorkspace *ws, co
 
     // Save the output shape of this image
     if (output_layout_ == DALI_NCHW) {
-      output_shape[i] = {pad_C, crop_h_, crop_w_};
+      output_shape.set_tensor_shape(i, {pad_C, crop_h_, crop_w_});
     } else {
-      output_shape[i] = {crop_h_, crop_w_, pad_C};
+      output_shape.set_tensor_shape(i, {crop_h_, crop_w_, pad_C});
     }
   }
 
