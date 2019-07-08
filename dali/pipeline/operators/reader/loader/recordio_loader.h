@@ -90,10 +90,16 @@ class RecordIOLoader : public IndexedFileLoader {
 
     // if image is cached, skip loading
     if (ShouldSkipImage(image_key)) {
-      tensor.set_type(TypeInfo::Create<uint8_t>());
-      tensor.Resize({1});
       tensor.SetSkipSample(true);
       should_seek_ = true;
+      if (tensor.shares_data()) {
+        auto meta = tensor.GetMeta();
+        tensor.UnshareData();
+        tensor.SetMeta(meta);
+        return;
+      }
+      tensor.set_type(TypeInfo::Create<uint8_t>());
+      tensor.Resize({0});
       return;
     }
 
@@ -113,7 +119,11 @@ class RecordIOLoader : public IndexedFileLoader {
         p = current_file_->Get(size);
         // file is divided between two files, we need to fallback to read here
         if (p == nullptr) {
+          if (tensor.shares_data()) {
+            tensor.UnshareData();
+          }
           tensor.Resize({size});
+          tensor.set_type(TypeInfo::Create<uint8_t>());
           use_read = true;
         } else {
           n_read = size;
