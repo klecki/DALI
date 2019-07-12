@@ -145,6 +145,7 @@ class DLL_PUBLIC OperatorBase {
     DALI_FAIL(name() + " is not a support operator!");
   }
 
+  DLL_PUBLIC virtual bool CanInferOutputs();
 
   /**
    * @brief Executes the operator on a batch of samples on the CPU.
