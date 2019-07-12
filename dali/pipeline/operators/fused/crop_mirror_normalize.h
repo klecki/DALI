@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 
+#include "dali/core/any.h"
 #include "dali/core/common.h"
 #include "dali/pipeline/operators/common.h"
 #include "dali/core/error_handling.h"
@@ -39,7 +40,10 @@ class CropMirrorNormalize : public Operator<Backend>, protected CropAttr {
         pad_output_(spec.GetArgument<bool>("pad_output")),
         slice_anchors_(batch_size_),
         slice_shapes_(batch_size_),
-        mirror_(batch_size_) {
+        mirror_(batch_size_),
+        kernel_args_(std::is_same<Backend, CPUBackend>::value ? batch_size_ : 0),
+        kernel_instances_(std::is_same<Backend, CPUBackend>::value ? batch_size_ : 0),
+        kernel_ctxs_(std::is_same<Backend, CPUBackend>::value ? batch_size_ : 0) { // TODO num_threads_?
     if (!spec.TryGetRepeatedArgument(mean_vec_, "mean")) {
       mean_vec_ = { spec.GetArgument<float>("mean") };
     }
@@ -57,13 +61,22 @@ class CropMirrorNormalize : public Operator<Backend>, protected CropAttr {
   inline ~CropMirrorNormalize() override = default;
 
  protected:
+  bool InferType(std::vector<TypeInfo> &type, const workspace_t<Backend> &ws) override {
+    const auto &input = ws.template InputHandle<Backend>(0);
+    input_type_ = input->type().id();
+    if (output_type_ == DALI_NO_TYPE)
+      output_type_ = input_type_;
+    type = {input->type()};
+    return true;
+  }
+
+  bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                        const workspace_t<Backend> &ws, int sample_idx) override;
+
   void RunImpl(Workspace<Backend> *ws, const int idx) override;
 
   void SetupSharedSampleParams(Workspace<Backend> *ws) override {
     const auto &input = ws->template Input<Backend>(0);
-    input_type_ = input.type().id();
-    if (output_type_ == DALI_NO_TYPE)
-      output_type_ = input_type_;
 
     input_layout_ = input.GetLayout();
     DALI_ENFORCE(input_layout_ == DALI_NHWC || input_layout_ == DALI_NCHW ||
@@ -74,6 +87,8 @@ class CropMirrorNormalize : public Operator<Backend>, protected CropAttr {
 
     CropAttr::ProcessArguments(ws);
   }
+
+  // void SetupSharedSampleParams(workspace_t<Backend> *ws) override;
 
   void DataDependentSetup(Workspace<Backend> *ws, const int idx);
 
@@ -149,6 +164,10 @@ class CropMirrorNormalize : public Operator<Backend>, protected CropAttr {
   std::conditional_t<std::is_same<Backend, GPUBackend>::value,
     kernels::ScratchpadAllocator,
     std::vector<kernels::ScratchpadAllocator>> scratch_alloc_;
+  // We need to hold a kernel that we already SetUp between InferOutputs and Run
+  std::vector<any> kernel_args_;
+  std::vector<any> kernel_instances_;
+  std::vector<kernels::KernelContext> kernel_ctxs_;
 
   USE_OPERATOR_MEMBERS();
 };

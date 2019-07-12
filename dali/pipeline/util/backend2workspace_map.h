@@ -62,6 +62,34 @@ class Backend2WorkspaceMap<MixedBackend> {
 template<typename Backend>
 using Workspace = typename Backend2WorkspaceMap<Backend>::Type;
 
+// Actual trait-conventions used, maps as above with exception of CPUBackend -> HostWorkspace
+template <typename Backend>
+struct backend_to_ws {};
+
+
+template <>
+struct backend_to_ws<SupportBackend> {
+  using type = SampleWorkspace;
+};
+
+template <>
+struct backend_to_ws<CPUBackend> {
+  using type = HostWorkspace;
+};
+
+template <>
+struct backend_to_ws<MixedBackend> {
+  using type = MixedWorkspace;
+};
+
+template <>
+struct backend_to_ws<GPUBackend> {
+  using type = DeviceWorkspace;
+};
+
+template <typename Backend>
+using workspace_t = typename backend_to_ws<Backend>::type;
+
 }  // namespace dali
 
 #endif  // DALI_PIPELINE_UTIL_BACKEND2WORKSPACE_MAP_H_

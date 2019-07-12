@@ -677,7 +677,13 @@ void Executor<WorkspacePolicy, QueuePolicy>::PresizeData(
               tensor_to_store_queue[tensor.id]);
           for (auto storage : queue) {
             if (hint && storage->is_pinned()) {
-              storage->reserve(hint, batch_size_);
+              ///TODO: Support ops do not fit here
+              if (node.op->CanInferOutputs()) {
+                storage->reserve(hint * batch_size_);
+              } else {
+                storage->reserve(hint, batch_size_);
+              }
+
             }
           }
         } else {
@@ -685,7 +691,11 @@ void Executor<WorkspacePolicy, QueuePolicy>::PresizeData(
               tensor_to_store_queue[tensor.id]);
           for (auto storage : queue) {
             if (hint) {
-              storage->reserve(hint, batch_size_);
+              if (node.op->CanInferOutputs()) {
+                storage->reserve(hint * batch_size_);
+              } else {
+                storage->reserve(hint, batch_size_);
+              }
             }
           }
         }

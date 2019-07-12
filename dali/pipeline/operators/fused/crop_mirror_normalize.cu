@@ -96,6 +96,12 @@ void RunHelper(TensorList<GPUBackend> &output,
 }  // namespace detail
 
 template <>
+bool CropMirrorNormalize<GPUBackend>::InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                        const DeviceWorkspace &ws, int sample_idx) {
+  return false;
+}
+
+template <>
 void CropMirrorNormalize<GPUBackend>::DataDependentSetup(DeviceWorkspace *ws, const int idx) {
   const auto &input = ws->Input<GPUBackend>(idx);
   for (int sample_idx = 0; sample_idx < batch_size_; sample_idx++) {

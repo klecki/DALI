@@ -16,26 +16,26 @@
 #define DALI_PIPELINE_OPERATORS_OPERATOR_H_
 
 #include <algorithm>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/pipeline/workspace/device_workspace.h"
+#include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
-#include "dali/pipeline/operators/operator_factory.h"
 #include "dali/pipeline/operators/op_schema.h"
 #include "dali/pipeline/operators/op_spec.h"
-#include "dali/pipeline/workspace/sample_workspace.h"
+#include "dali/pipeline/operators/operator_factory.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
-#include "dali/kernels/tensor_shape.h"
+#include "dali/pipeline/workspace/device_workspace.h"
+#include "dali/pipeline/workspace/sample_workspace.h"
 
 namespace dali {
 
 template <typename InputType>
-inline void CheckInputLayout(const InputType& input, const OpSpec& spec) {
+inline void CheckInputLayout(const InputType &input, const OpSpec &spec) {
   auto &schema = SchemaRegistry::GetSchema(spec.name());
   if (schema.EnforceInputLayout()) {
     DALI_ENFORCE(input.GetLayout() == schema.InputLayout());
@@ -45,31 +45,29 @@ inline void CheckInputLayout(const InputType& input, const OpSpec& spec) {
 template <typename Workspace>
 inline void CheckInputLayouts(const Workspace *ws, const OpSpec &spec) {
   for (int i = 0; i < spec.NumRegularInput(); ++i) {
-    auto& input = ws->template Input<CPUBackend>(i);
+    auto &input = ws->template Input<CPUBackend>(i);
     CheckInputLayout(input, spec);
   }
 }
-
 
 template <>
 inline void CheckInputLayouts(const HostWorkspace *ws, const OpSpec &spec) {
   for (int i = 0; i < spec.NumRegularInput(); ++i) {
     for (int sample_id = 0; sample_id < spec.GetArgument<int>("batch_size"); ++sample_id) {
-      auto& input = ws->template Input<CPUBackend>(i, sample_id);
+      auto &input = ws->template Input<CPUBackend>(i, sample_id);
       CheckInputLayout(input, spec);
     }
   }
 }
 
-
 template <>
 inline void CheckInputLayouts(const DeviceWorkspace *ws, const OpSpec &spec) {
   for (int i = 0; i < spec.NumRegularInput(); ++i) {
     if (ws->InputIsType<CPUBackend>(i)) {
-      auto& input = ws->Input<CPUBackend>(i);
+      auto &input = ws->Input<CPUBackend>(i);
       CheckInputLayout(input, spec);
     } else if (ws->InputIsType<GPUBackend>(i)) {
-      auto& input = ws->Input<GPUBackend>(i);
+      auto &input = ws->Input<GPUBackend>(i);
       CheckInputLayout(input, spec);
     } else {
       DALI_FAIL("Input has an unkown backend");
@@ -96,56 +94,67 @@ class DLL_PUBLIC OperatorBase {
 
   DLL_PUBLIC virtual inline ~OperatorBase() {}
 
-  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, HostWorkspace &ws, int sample_idx) {
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                                           const HostWorkspace &ws, int sample_idx) {
     DALI_FAIL("CPU execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, DeviceWorkspace &ws, int sample_idx) {
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                                           const DeviceWorkspace &ws, int sample_idx) {
     DALI_FAIL("GPU execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, MixedWorkspace &ws, int sample_idx) {
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                                           const MixedWorkspace &ws, int sample_idx) {
     DALI_FAIL("Mixed execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, SupportWorkspace &ws, int sample_idx) {
+  DLL_PUBLIC virtual bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                                           const SupportWorkspace &ws, int sample_idx) {
     DALI_FAIL(name() + " is not a support operator!");
   }
 
-  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, HostWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, const HostWorkspace &ws) {
     DALI_FAIL("CPU execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, DeviceWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, const DeviceWorkspace &ws) {
     DALI_FAIL("GPU execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, MixedWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, const MixedWorkspace &ws) {
     DALI_FAIL("Mixed execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, SupportWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferType(std::vector<TypeInfo> &type, const SupportWorkspace &ws) {
     DALI_FAIL(name() + " is not a support operator!");
   }
 
-
-  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, HostWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape,
+                                       std::vector<TypeInfo> &type, const HostWorkspace &ws) {
     DALI_FAIL("CPU execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, DeviceWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape,
+                                       std::vector<TypeInfo> &type, const DeviceWorkspace &ws) {
     DALI_FAIL("GPU execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, MixedWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape,
+                                       std::vector<TypeInfo> &type, const MixedWorkspace &ws) {
     DALI_FAIL("Mixed execution is not implemented for this operator!");
   }
 
-  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, SupportWorkspace &ws) {
+  DLL_PUBLIC virtual bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape,
+                                       std::vector<TypeInfo> &type, const SupportWorkspace &ws) {
     DALI_FAIL(name() + " is not a support operator!");
   }
 
-  DLL_PUBLIC virtual bool CanInferOutputs();
+
+  // This is more about supporting TensorList as output
+  DLL_PUBLIC virtual bool CanInferOutputs() {
+    return false;
+  }
 
   /**
    * @brief Executes the operator on a batch of samples on the CPU.
@@ -211,7 +220,8 @@ class DLL_PUBLIC OperatorBase {
   int default_cuda_stream_priority_;
 
   template <typename Workspace>
-  bool InferOutputsDefault(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, Workspace &ws) {
+  bool InferOutputsDefault(std::vector<kernels::TensorListShape<>> &shape,
+                           std::vector<TypeInfo> &type, const Workspace &ws) {
     int num_outputs = ws.NumOutput();
     std::vector<kernels::TensorListShape<>> result_shape(num_outputs);
     std::vector<TypeInfo> result_type(num_outputs);
@@ -236,14 +246,16 @@ class DLL_PUBLIC OperatorBase {
     type = std::move(result_type);
     return true;
   }
-
 };
 
 #define USE_OPERATOR_MEMBERS()                       \
   using OperatorBase::spec_;                         \
   using OperatorBase::num_threads_;                  \
   using OperatorBase::batch_size_;                   \
-  using OperatorBase::default_cuda_stream_priority_
+  using OperatorBase::default_cuda_stream_priority_; \
+  using OperatorBase::InferOutputs;                  \
+  using OperatorBase::InferSampleShape;              \
+  using OperatorBase::InferType
 
 /**
  * @brief Class defining an operator using specific backend.
@@ -293,16 +305,22 @@ class Operator<CPUBackend> : public OperatorBase {
 
   inline ~Operator() override {}
 
+  using OperatorBase::InferOutputs;
   using OperatorBase::InferSampleShape;
   using OperatorBase::InferType;
-  using OperatorBase::InferOutputs;
   using OperatorBase::Run;
 
-  bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, HostWorkspace &ws, int sample_idx) override {
+  bool InferType(std::vector<TypeInfo> &type, const HostWorkspace &ws) override {
     return false;
   }
 
-  bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type, HostWorkspace &ws) override {
+  bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, const HostWorkspace &ws,
+                        int sample_idx) override {
+    return false;
+  }
+
+  bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type,
+                    const HostWorkspace &ws) override {
     return OperatorBase::InferOutputsDefault(shape, type, ws);
   }
 
@@ -363,7 +381,25 @@ class Operator<GPUBackend> : public OperatorBase {
 
   inline ~Operator() override {}
 
+  using OperatorBase::InferOutputs;
+  using OperatorBase::InferSampleShape;
+  using OperatorBase::InferType;
   using OperatorBase::Run;
+
+  bool InferType(std::vector<TypeInfo> &type, const DeviceWorkspace &ws) override {
+    return false;
+  }
+
+  bool InferSampleShape(std::vector<kernels::TensorShape<>> &shape, const DeviceWorkspace &ws,
+                        int sample_idx) override {
+    return false;
+  }
+
+  bool InferOutputs(std::vector<kernels::TensorListShape<>> &shape, std::vector<TypeInfo> &type,
+                    const DeviceWorkspace &ws) override {
+    return OperatorBase::InferOutputsDefault(shape, type, ws);
+  }
+
   void Run(DeviceWorkspace *ws) override {
     CheckInputLayouts(ws, spec_);
     SetupSharedSampleParams(ws);
@@ -393,12 +429,12 @@ class Operator<GPUBackend> : public OperatorBase {
  private:
   void SyncHelper(int i, DeviceWorkspace *ws) {
     if (i != 0) {
-        CUDA_CALL(cudaStreamSynchronize(ws->stream()));
+      CUDA_CALL(cudaStreamSynchronize(ws->stream()));
     }
   }
 };
 
-template<>
+template <>
 class Operator<MixedBackend> : public OperatorBase {
  public:
   inline explicit Operator(const OpSpec &spec) : OperatorBase(spec) {}
@@ -418,26 +454,11 @@ DALI_DECLARE_OPTYPE_REGISTRY(MixedOperator, OperatorBase);
 DALI_DECLARE_OPTYPE_REGISTRY(SupportOperator, OperatorBase);
 
 // Must be called from .cc or .cu file
-#define DALI_REGISTER_OPERATOR(OpName, OpType, device)          \
-  int DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName();             \
-  static int ANONYMIZE_VARIABLE(OpName) =                       \
-    DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName();               \
-  DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType,                 \
-      device##Operator, ::dali::OperatorBase, #device)
+#define DALI_REGISTER_OPERATOR(OpName, OpType, device)                                  \
+  int DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName();                                     \
+  static int ANONYMIZE_VARIABLE(OpName) = DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName(); \
+  DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType, device##Operator, ::dali::OperatorBase, #device)
 
-class ResizeParamDescr;
-
-void DataDependentSetupCPU(const Tensor<CPUBackend> &input, Tensor<CPUBackend> &output,
-                           const char *pOpName = NULL,
-                           const uint8 **pInRaster = NULL, uint8 **ppOutRaster = NULL,
-                           vector<DALISize> *pSizes = NULL, const DALISize *out_size = NULL);
-bool DataDependentSetupGPU(const TensorList<GPUBackend> &input, TensorList<GPUBackend> &output,
-                           size_t batch_size, bool reshapeBatch = false,
-                           vector<const uint8 *> *iPtrs = NULL, vector<uint8 *> *oPtrs = NULL,
-                           vector<DALISize> *pSizes = NULL, ResizeParamDescr *pResizeParam = NULL);
-void CollectPointersForExecution(size_t batch_size,
-                                 const TensorList<GPUBackend> &input, vector<const uint8 *> *inPtrs,
-                                 TensorList<GPUBackend> &output, vector<uint8 *> *outPtrs);
 
 DLL_PUBLIC std::unique_ptr<OperatorBase> InstantiateOperator(const OpSpec &spec);
 

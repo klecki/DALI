@@ -72,45 +72,14 @@ void RunHelper(Tensor<CPUBackend> &output,
   auto input_layout = input.GetLayout();
   auto output_layout = output.GetLayout();
   VALUE_SWITCH(number_of_dims, Dims, (3, 4), (
-    auto in_view = view<const InputType, Dims>(input);
-
-    kernels::SliceFlipNormalizePermuteArgs<Dims> args(slice_shape);
-    for (std::size_t d = 0; d < Dims; d++) {
-      args.anchor[d] = slice_anchor[d];
-    }
-
-    if (pad_output) {
-      args.padded_shape[channels_dim(input_layout)] = 4;
-    }
-
-    if (horizontal_flip) {
-      args.flip[horizontal_dim_idx(input_layout)] = true;
-    }
-
-    // Check if permutation is needed
-    if (input_layout != output_layout) {
-      args.permuted_dims = permuted_dims<Dims>(input_layout, output_layout);
-    }
-
-    const bool should_normalize =
-         !std::all_of(mean.begin(), mean.end(), [](float x){ return x == 0.0f; })
-      || !std::all_of(inv_std_dev.begin(), inv_std_dev.end(), [](float x){ return x == 1.0f; });
-    if (should_normalize) {
-      args.mean = mean;
-      args.inv_stddev = inv_std_dev;
-      args.normalization_dim = channels_dim(input_layout);
-    }
-
-    kernels::SliceFlipNormalizePermuteCPU<OutputType, InputType, Dims> kernel;
-    kernels::KernelContext ctx;
-    kernels::KernelRequirements req = kernel.Setup(ctx, in_view, args);
 
     output.set_type(TypeInfo::Create<OutputType>());
     output.SetLayout(input.GetLayout());
-    output.Resize(req.output_shapes[0][0].shape.to_vector());
+    output.Resize(req.output_shapes[0][0]);
 
+    auto in_view = view<const InputType, Dims>(input);
     auto out_view = view<OutputType, Dims>(output);
-    kernel.Run(ctx, out_view, in_view, args);
+    kernel.Run(ctx, out_view, in_view, kernel_args_[sample_idx]);
   ), // NOLINT
   (
     DALI_FAIL("Not supported number of dimensions: " + std::to_string(number_of_dims));
@@ -118,6 +87,57 @@ void RunHelper(Tensor<CPUBackend> &output,
 }
 
 }  // namespace detail
+
+template <>
+bool CropMirrorNormalize<CPUBackend>::InferSampleShape(std::vector<kernels::TensorShape<>> &shape,
+                        const HostWorkspace &ws, int sample_idx) {
+  const auto &input = ws.template InputHandle<CPUBackend>(0);
+  std::size_t number_of_dims = input->shape().size();
+  DALI_TYPE_SWITCH_WITH_FP16_CPU(input_type_, InputType,
+    DALI_TYPE_SWITCH_WITH_FP16_CPU(output_type_, OutputType,
+      VALUE_SWITCH(number_of_dims, Dims, (3, 4),
+        (
+          auto in_view = view<const InputType, Dims>(input);
+
+          kernels::SliceFlipNormalizePermuteArgs<Dims> args(slice_shape);
+          for (std::size_t d = 0; d < Dims; d++) {
+            args.anchor[d] = slice_anchor[d];
+          }
+
+          if (pad_output) {
+            args.padded_shape[channels_dim(input_layout)] = 4;
+          }
+
+          if (horizontal_flip) {
+            args.flip[horizontal_dim_idx(input_layout)] = true;
+          }
+
+          // Check if permutation is needed
+          if (input_layout != output_layout) {
+            args.permuted_dims = permuted_dims<Dims>(input_layout, output_layout);
+          }
+
+          const bool should_normalize =
+              !std::all_of(mean.begin(), mean.end(), [](float x){ return x == 0.0f; })
+            || !std::all_of(inv_std_dev.begin(), inv_std_dev.end(), [](float x){ return x == 1.0f; });
+          if (should_normalize) {
+            args.mean = mean;
+            args.inv_stddev = inv_std_dev;
+            args.normalization_dim = channels_dim(input_layout);
+          }
+
+          kernel_args_[sample_idx] = args;
+          kernel_instances_[sample_idx] = kernels::SliceFlipNormalizePermuteCPU<OutputType, InputType, Dims>{};
+          kernels::KernelRequirements req = kernel.Setup(kernel_ctxs_[sample_idx], in_view, kernel_args_[sample_idx]);
+          shape[0] = req.output_shapes[0][0];
+
+        ),
+        (DALI_FAIL("Not supported number of dimensions: " + std::to_string(number_of_dims)))
+      )
+    )
+  );
+  return true;
+}
 
 template <>
 void CropMirrorNormalize<CPUBackend>::DataDependentSetup(SampleWorkspace *ws, const int idx) {
@@ -128,6 +148,11 @@ void CropMirrorNormalize<CPUBackend>::DataDependentSetup(SampleWorkspace *ws, co
   auto &output = ws->Output<CPUBackend>(idx);
   output.SetLayout(output_layout_);
 }
+
+// template <>
+// void CropMirrorNormalize<CPUBackend>::SetupSharedSampleParams(HostWorkspace *ws) {};
+
+
 
 template <>
 void CropMirrorNormalize<CPUBackend>::RunImpl(SampleWorkspace *ws, const int idx) {
