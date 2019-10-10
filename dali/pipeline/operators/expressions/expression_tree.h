@@ -24,40 +24,16 @@
 #include "dali/core/any.h"
 #include "dali/pipeline/data/types.h"
 #include "dali/pipeline/operators/expressions/arithmetic_meta.h"
+#include "dali/pipeline/operators/expressions/expression_tile.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {
 
-/**
- * @brief Describe a tile of data to be processed in expression evaluation.
- */
-struct TileDesc {
-  int sample_idx;       // id of sample inside within the batch
-  int extent_idx;       // the index of tile within this sample_idx
-  int64_t extent_size;  // actually covered extent in this tile, the last can be smaller
-  int64_t tile_size;    // the size of regular tile
-};
-
-inline std::ostream &operator<<(std::ostream &os, const TileDesc &v) {
-  os << "{" << v.sample_idx << ", " << v.extent_idx << ", " << v.extent_size << ", " << v.tile_size
-     << "}";
-  return os;
-}
-
-struct TileRange {
-  int begin;
-  int end;
-};
-
-inline std::ostream &operator<<(std::ostream &os, const TileRange &v) {
-  os << "{" << v.begin << ", " << v.end << "}";
-  return os;
-}
-
 class ExprNode;
 
 struct ExprImplContext {
+  cudaStream_t stream;
   const ExprNode *node;
 };
 
@@ -67,8 +43,8 @@ struct ExprImplContext {
  */
 class ExprImplBase {
  public:
-  virtual void Execute(ArgumentWorkspace &workspace, const OpSpec &spec, ExprImplContext &ctx,
-                       const std::vector<TileDesc> &tiles, TileRange range) = 0;
+  virtual void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles,
+                       TileRange range) = 0;
   virtual ~ExprImplBase() = default;
 };
 

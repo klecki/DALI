@@ -130,16 +130,23 @@ ParseResult ParseInput(const std::string &expr, int pos) {
   return std::make_tuple(std::move(node), pos);
 }
 
+std::tuple<DALIDataType, int> ParseDataType(const std::string &expr, int pos) {
+  EnforceNonEnd(expr, pos, "type name for constant");
+  int end_pos = pos + 1;
+  while (end_pos < static_cast<int>(expr.length()) && std::isalnum(expr[end_pos])) {
+    end_pos++;
+  }
+  auto type_name = std::string(&expr[pos], &expr[end_pos]);
+  return std::make_tuple(TypeNameToTypeId(type_name), end_pos);
+}
+
 ParseResult ParseConstant(const std::string &expr, int pos) {
   // DALI_FAIL("Constant description in expressions is not supported.");
   int mapped_input;
   std::tie(mapped_input, pos) = ParseInt(expr, pos);
   pos = ExpectChar(expr, pos, ':');
-  // TODO(klecki): Parse the type encoding
   DALIDataType type = DALIDataType::DALI_INT32;
-  while (std::isalnum(expr[pos])) {
-    pos++;
-  }
+  std::tie(type, pos) = ParseDataType(expr, pos);
   auto node = std::make_unique<ExprConstant>(mapped_input, type);
   return std::make_tuple(std::move(node), pos);
 }
