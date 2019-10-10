@@ -31,7 +31,9 @@ void ArithmeticGenericOp<CPUBackend>::RunImpl(HostWorkspace &ws) {
       for (int extent_idx = range.begin; extent_idx < range.end; extent_idx++) {
         // Go over expression tree in some provided order
         for (auto &expr_task : exec_order_) {
-          expr_task.impl->Execute(ws, spec_, expr_task.ctx, tile_cover_,
+
+          // todo, do not transform every time
+          expr_task.impl->Execute(expr_task.ctx, TransformDescs(tile_cover_),
                                   {extent_idx, extent_idx + 1});
         }
       }

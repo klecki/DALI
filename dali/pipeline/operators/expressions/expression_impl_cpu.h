@@ -33,21 +33,15 @@ namespace dali {
 template <ArithmeticOp op, typename Result,
           typename Left, bool LeftIsTensor,
           typename Right, bool RightIsTensor>
-class ExprImplBinCPU : public ExprImplBase, ExprImplParam<CPUBackend> {
+class ExprImplBinCPU : public ExprImplBase {
  public:
   ExprImplBinCPU() {}
 
-  void Execute(ArgumentWorkspace &workspace, const OpSpec &spec, ExprImplContext &ctx,
-               const std::vector<TileDesc> &tiles, TileRange range) override {
-    assert(range.begin + 1 == range.end &&
-           "CPU Expression implementation can handle only one tile at a time");
-    auto &ws = dynamic_cast<workspace_t<CPUBackend> &>(workspace);
-    const auto &expr = dynamic_cast<const ExprFunc&>(*ctx.node);
+  void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles, TileRange range) override {
+    DALI_ENFORCE(range.begin + 1 == range.end,
+                 "CPU Expression implementation can handle only one tile at a time");
     const auto &tile = tiles[range.begin];
-    auto left = ObtainInput<LeftIsTensor, Left>(expr, ws, spec, tile, 0);
-    auto right = ObtainInput<RightIsTensor, Right>(expr, ws, spec, tile, 1);
-    auto output = ObtainOutput<Result>(expr, ws, spec, tile);
-    Execute(output, left, right, tile.extent_size);
+    Execute(static_cast<Result*>(tile.output), static_cast<const Left*>(tile.args[0]), static_cast<const Right*>(tile.args[1]), tile.desc.extent_size);
   }
 
  private:

@@ -55,9 +55,21 @@ inline std::ostream &operator<<(std::ostream &os, const TileRange &v) {
   return os;
 }
 
+using OutputSamplePtr = void *;
+using InputSamplePtr = const void *;
+using ArgPack = SmallVector<InputSamplePtr, 3>;
+
+struct ExtendedTileDesc {
+  TileDesc desc;
+  OutputSamplePtr output;
+  ArgPack args;
+};
+
+
 class ExprNode;
 
 struct ExprImplContext {
+  cudaStream_t stream;
   const ExprNode *node;
 };
 
@@ -67,8 +79,7 @@ struct ExprImplContext {
  */
 class ExprImplBase {
  public:
-  virtual void Execute(ArgumentWorkspace &workspace, const OpSpec &spec, ExprImplContext &ctx,
-                       const std::vector<TileDesc> &tiles, TileRange range) = 0;
+  virtual void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles, TileRange range) = 0;
   virtual ~ExprImplBase() = default;
 };
 

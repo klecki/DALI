@@ -30,6 +30,8 @@ namespace dali {
 template <bool IsTensor, typename T>
 using in_desc_t = std::conditional_t<IsTensor, const T*, T>;
 
+
+
 // Using the distinction between the Tensors and Constant
 // Otherwise void* could be used.
 template <typename Result, typename Left, bool LeftIsTensor, typename Right, bool RightIsTensor>
@@ -79,25 +81,13 @@ dim3 GetGridLayout(int extent, int thread_num, int tiles) {
 template <ArithmeticOp op, typename Result,
           typename Left, bool LeftIsTensor,
           typename Right, bool RightIsTensor>
-class ExprImplBinGPU : public ExprImplBase, ExprImplParam<GPUBackend> {
+class ExprImplBinGPU : public ExprImplBase {
  public:
   ExprImplBinGPU() {}
 
-  void Execute(ArgumentWorkspace &workspace, const OpSpec &spec, ExprImplContext &ctx,
-               const std::vector<TileDesc> &tiles, TileRange range) override {
-    std::vector<Tile> target_tiles;
-    target_tiles.resize(range.end - range.begin);
-    auto &ws = dynamic_cast<workspace_t<GPUBackend> &>(workspace);
-    const auto &expr = dynamic_cast<const ExprFunc&>(*ctx.node);
-    for (int i = range.begin; i < range.end; i++) {
-      const auto &source_tile = tiles[i];
-      target_tiles[i].left = ObtainInput<LeftIsTensor, Left>(expr, ws, spec, source_tile, 0);
-      target_tiles[i].right = ObtainInput<RightIsTensor, Right>(expr, ws, spec, source_tile, 1);
-      target_tiles[i].result = ObtainOutput<Result>(expr, ws, spec, source_tile);
-      target_tiles[i].extent = source_tile.extent_size;
-    }
-    tiles_.Copy(target_tiles, ws.stream());
-    Invoke(tiles_.data<Tile>(), target_tiles.size(), ws.stream());
+  void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles, TileRange range) override {
+    tiles_.Copy(tiles, ctx.stream);
+    Invoke(tiles_.data<Tile>(), tiles.size(), ctx.stream);
   }
 
  private:
