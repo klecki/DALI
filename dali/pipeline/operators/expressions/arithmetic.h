@@ -27,6 +27,7 @@
 #include "dali/kernels/tensor_shape_print.h"
 #include "dali/kernels/type_tag.h"
 #include "dali/pipeline/operators/expressions/arithmetic_meta.h"
+#include "dali/pipeline/operators/expressions/constant_storage.h"
 #include "dali/pipeline/operators/expressions/expression_impl_factory.h"
 #include "dali/pipeline/operators/operator.h"
 
@@ -192,6 +193,20 @@ DLL_PUBLIC kernels::TensorListShape<> PropagateShapes(ExprNode &expr,
                         expr.GetSubexpressionCount(), "subexpressions."));
 }
 
+inline void GetConstantNodes(ExprNode &expr, std::vector<ExprConstant *> &nodes) {
+  if (expr.GetNodeType() == NodeType::Constant) {
+    nodes.push_back(dynamic_cast<ExprConstant*>(&expr));
+    return;
+  }
+  if (expr.GetNodeType() == NodeType::Tensor) {
+    return;
+  }
+  auto &func = dynamic_cast<ExprFunc&>(expr);
+  for (int i = 0; i < func.GetSubexpressionCount(); i++) {
+    GetConstantNodes(func[i], nodes);
+  }
+}
+
 /**
  * @brief Arithmetic operator capable of executing expression tree of element-wise
  *        arithmetic operations.
@@ -226,6 +241,9 @@ class ArithmeticGenericOp : public Operator<Backend> {
     if (!types_layout_inferenced_) {
       result_type_id_ = PropagateTypes<Backend>(*expr_, ws);
       result_layout_ = GetCommonLayout<Backend>(*expr_, ws);
+      std::vector<ExprConstant *> constant_nodes;
+      GetConstantNodes(*expr_, constant_nodes);
+      constant_storage_.Initialize(spec_, ws.stream(), constant_nodes);
       types_layout_inferenced_ = true;
     }
 
@@ -265,6 +283,7 @@ class ArithmeticGenericOp : public Operator<Backend> {
   std::vector<TileDesc> tile_cover_;
   std::vector<TileRange> tile_range_;
   std::vector<ExprImplTask> exec_order_;
+  ConstantStorage<Backend> constant_storage_;
   ExprImplCache cache_;
   // For CPU we limit the tile size to limit the sizes of intermediate buffers
   // For GPU it's better to execute more at one time.
