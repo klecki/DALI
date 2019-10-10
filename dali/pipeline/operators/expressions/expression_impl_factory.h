@@ -28,8 +28,50 @@
 #include "dali/pipeline/operators/op_spec.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/workspace.h"
+#include "include/dali/core/small_vector.h"
 
 namespace dali {
+
+struct ConstantStorage {
+  InputSamplePtr GetPointer(int constant_idx, DALIDataType type_id) {
+    return nullptr;
+  }
+};
+
+inline InputSamplePtr GetInputSamplePointer(HostWorkspace &ws, int input_idx, int sample_idx) {
+  return ws.template InputRef<CPUBackend>(input_idx)[sample_idx].raw_data();
+}
+
+inline InputSamplePtr GetInputSamplePointer(DeviceWorkspace &ws, int input_idx, int sample_idx) {
+  return ws.template InputRef<GPUBackend>(input_idx).raw_tensor(sample_idx);
+}
+
+
+template <typename Backend>
+inline ArgPack GetArgPack(const ExprFunc &func, workspace_t<Backend> &ws, ConstantStorage &st,
+                          const OpSpec &spec, TileDesc tile) {
+  ArgPack result;
+  result.resize(func.GetSubexpressionCount());
+  for (int i = 0; i < func.GetSubexpressionCount(); i++) {
+    if (func[i].GetNodeType() == NodeType::Function) {
+      DALI_FAIL("Function nodes not supported as subexpressions");
+    }
+    if (func[i].GetNodeType() == NodeType::Constant) {
+      const auto &constant = dynamic_cast<const ExprConstant &>(func[i]);
+      result[i] = st.GetPointer(constant.GetConstIndex(), constant.GetTypeId());
+    }
+    if (func[i].GetNodeType() == NodeType::Tensor) {
+      const auto &tensor = dynamic_cast<const ExprTensor &>(func[i]);
+      auto input_idx = tensor.GetInputIndex();
+      result[i] = GetInputSamplePointer(ws, input_idx, tile.sample_idx);
+    }
+  }
+  return result;
+}
+
+inline std::vector<ExtendedTileDesc> TransformDescs(const std::vector<TileDesc> &tiles) {
+  return {};
+}
 
 template <typename Backend>
 class ExprImplParam {
@@ -41,10 +83,9 @@ class ExprImplParam {
   template <bool IsTensor, typename Type>
   std::enable_if_t<IsTensor && is_cpu, const Type *> ObtainInput(const ExprFunc &expr,
                                                                  workspace_t<Backend> &ws,
-                                                                 const OpSpec &spec,
-                                                                 TileDesc tile,
+                                                                 const OpSpec &spec, TileDesc tile,
                                                                  int subexpr_id) {
-    int input_id = dynamic_cast<const ExprTensor&>(expr[subexpr_id]).GetInputIndex();
+    int input_id = dynamic_cast<const ExprTensor &>(expr[subexpr_id]).GetInputIndex();
     auto *tensor = ws.template InputRef<Backend>(input_id)[tile.sample_idx].template data<Type>();
     return tensor + tile.extent_idx * tile.tile_size;
   }
@@ -52,19 +93,17 @@ class ExprImplParam {
   template <bool IsTensor, typename Type>
   std::enable_if_t<IsTensor && !is_cpu, const Type *> ObtainInput(const ExprFunc &expr,
                                                                   workspace_t<Backend> &ws,
-                                                                  const OpSpec &spec,
-                                                                  TileDesc tile,
+                                                                  const OpSpec &spec, TileDesc tile,
                                                                   int subexpr_id) {
-    int input_id = dynamic_cast<const ExprTensor&>(expr[subexpr_id]).GetInputIndex();
+    int input_id = dynamic_cast<const ExprTensor &>(expr[subexpr_id]).GetInputIndex();
     auto *tensor = ws.template InputRef<Backend>(input_id).template tensor<Type>(tile.sample_idx);
     return tensor + tile.extent_idx * tile.tile_size;
   }
 
   template <bool IsTensor, typename Type>
-  std::enable_if_t<!IsTensor, Type> ObtainInput(const ExprFunc &expr,
-                                                workspace_t<Backend> &ws, const OpSpec &spec,
-                                                TileDesc tile, int subexpr_id) {
-    int scalar_id = dynamic_cast<const ExprConstant&>(expr[subexpr_id]).GetConstIndex();
+  std::enable_if_t<!IsTensor, Type> ObtainInput(const ExprFunc &expr, workspace_t<Backend> &ws,
+                                                const OpSpec &spec, TileDesc tile, int subexpr_id) {
+    int scalar_id = dynamic_cast<const ExprConstant &>(expr[subexpr_id]).GetConstIndex();
     if (IsIntegral(expr.GetTypeId())) {
       return static_cast<Type>(spec.GetArgument<std::vector<int>>("integer_scalars")[scalar_id]);
     }
@@ -72,9 +111,8 @@ class ExprImplParam {
   }
 
   template <typename Result>
-  std::enable_if_t<is_cpu, Result *> ObtainOutput(const ExprFunc &expr,
-                                                  workspace_t<Backend> &ws, const OpSpec &spec,
-                                                  TileDesc tile) {
+  std::enable_if_t<is_cpu, Result *> ObtainOutput(const ExprFunc &expr, workspace_t<Backend> &ws,
+                                                  const OpSpec &spec, TileDesc tile) {
     auto *tensor =
         ws.template OutputRef<Backend>(0)[tile.sample_idx].template mutable_data<Result>();
     return tensor + tile.extent_idx * tile.tile_size;
@@ -90,11 +128,9 @@ class ExprImplParam {
   }
 };
 
-std::unique_ptr<ExprImplBase> ExprImplFactory(const HostWorkspace &ws,
-                                              const ExprNode &expr);
+std::unique_ptr<ExprImplBase> ExprImplFactory(const HostWorkspace &ws, const ExprNode &expr);
 
-std::unique_ptr<ExprImplBase> ExprImplFactory(const DeviceWorkspace &ws,
-                                              const ExprNode &expr);
+std::unique_ptr<ExprImplBase> ExprImplFactory(const DeviceWorkspace &ws, const ExprNode &expr);
 
 struct ExprImplCache {
   template <typename Backend>

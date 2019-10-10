@@ -137,7 +137,7 @@ inline void CreateExecutionOrder(std::vector<ExprImplTask> &order, const ExprNod
   for (int i = 0; i < expr.GetSubexpressionCount(); i++) {
     CreateExecutionOrder<Backend>(order, func[i], cache);
   }
-  order.push_back({cache.GetExprImpl<Backend>(func), {&func}});
+  order.push_back({cache.GetExprImpl<Backend>(func), {NULL, &func}}); // TODO pass the stream
 }
 
 template <typename Backend>

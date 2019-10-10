@@ -23,7 +23,7 @@ void ArithmeticGenericOp<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   assert(tile_range_.size() == 1 && "Expected to cover whole GPU execution by 1 task");
   for (auto &expr_task : exec_order_) {
     // call impl for whole batch
-    expr_task.impl->Execute(ws, spec_, expr_task.ctx, tile_cover_, tile_range_[0]);
+    expr_task.impl->Execute(expr_task.ctx, TransformDescs(tile_cover_), tile_range_[0]);
   }
 }
 
