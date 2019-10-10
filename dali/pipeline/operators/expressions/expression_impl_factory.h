@@ -33,10 +33,19 @@
 namespace dali {
 
 struct ConstantStorage {
+  template <typename Backend>
   InputSamplePtr GetPointer(int constant_idx, DALIDataType type_id) {
     return nullptr;
   }
 };
+
+inline OutputSamplePtr GetOutputSamplePointer(HostWorkspace &ws, int output_idx, int sample_idx) {
+  return ws.template OutputRef<CPUBackend>(output_idx)[sample_idx].raw_mutable_data();
+}
+
+inline OutputSamplePtr GetOutputSamplePointer(DeviceWorkspace &ws, int output_idx, int sample_idx) {
+  return ws.template OutputRef<GPUBackend>(output_idx).raw_mutable_tensor(sample_idx);
+}
 
 inline InputSamplePtr GetInputSamplePointer(HostWorkspace &ws, int input_idx, int sample_idx) {
   return ws.template InputRef<CPUBackend>(input_idx)[sample_idx].raw_data();
@@ -46,7 +55,14 @@ inline InputSamplePtr GetInputSamplePointer(DeviceWorkspace &ws, int input_idx, 
   return ws.template InputRef<GPUBackend>(input_idx).raw_tensor(sample_idx);
 }
 
+template <typename Backend>
+inline OutputSamplePtr GetOutput(const ExprFunc &func, workspace_t<Backend> &ws, TileDesc tile) {
+  return GetOutputSamplePointer(ws, 0, tile.sample_idx);
+}
 
+/**
+ * @brief Type erased obtaining pointers to inputs
+ */
 template <typename Backend>
 inline ArgPack GetArgPack(const ExprFunc &func, workspace_t<Backend> &ws, ConstantStorage &st,
                           const OpSpec &spec, TileDesc tile) {
@@ -58,7 +74,7 @@ inline ArgPack GetArgPack(const ExprFunc &func, workspace_t<Backend> &ws, Consta
     }
     if (func[i].GetNodeType() == NodeType::Constant) {
       const auto &constant = dynamic_cast<const ExprConstant &>(func[i]);
-      result[i] = st.GetPointer(constant.GetConstIndex(), constant.GetTypeId());
+      result[i] = st.GetPointer<Backend>(constant.GetConstIndex(), constant.GetTypeId());
     }
     if (func[i].GetNodeType() == NodeType::Tensor) {
       const auto &tensor = dynamic_cast<const ExprTensor &>(func[i]);
