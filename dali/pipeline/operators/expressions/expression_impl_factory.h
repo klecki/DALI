@@ -73,61 +73,6 @@ inline std::vector<ExtendedTileDesc> TransformDescs(const std::vector<TileDesc> 
   return {};
 }
 
-template <typename Backend>
-class ExprImplParam {
- protected:
-  // We differentiate between TensorVector and TensorList, that still have inconsistent
-  // access patterns
-  static constexpr bool is_cpu = std::is_same<Backend, CPUBackend>::value;
-
-  template <bool IsTensor, typename Type>
-  std::enable_if_t<IsTensor && is_cpu, const Type *> ObtainInput(const ExprFunc &expr,
-                                                                 workspace_t<Backend> &ws,
-                                                                 const OpSpec &spec, TileDesc tile,
-                                                                 int subexpr_id) {
-    int input_id = dynamic_cast<const ExprTensor &>(expr[subexpr_id]).GetInputIndex();
-    auto *tensor = ws.template InputRef<Backend>(input_id)[tile.sample_idx].template data<Type>();
-    return tensor + tile.extent_idx * tile.tile_size;
-  }
-
-  template <bool IsTensor, typename Type>
-  std::enable_if_t<IsTensor && !is_cpu, const Type *> ObtainInput(const ExprFunc &expr,
-                                                                  workspace_t<Backend> &ws,
-                                                                  const OpSpec &spec, TileDesc tile,
-                                                                  int subexpr_id) {
-    int input_id = dynamic_cast<const ExprTensor &>(expr[subexpr_id]).GetInputIndex();
-    auto *tensor = ws.template InputRef<Backend>(input_id).template tensor<Type>(tile.sample_idx);
-    return tensor + tile.extent_idx * tile.tile_size;
-  }
-
-  template <bool IsTensor, typename Type>
-  std::enable_if_t<!IsTensor, Type> ObtainInput(const ExprFunc &expr, workspace_t<Backend> &ws,
-                                                const OpSpec &spec, TileDesc tile, int subexpr_id) {
-    int scalar_id = dynamic_cast<const ExprConstant &>(expr[subexpr_id]).GetConstIndex();
-    if (IsIntegral(expr.GetTypeId())) {
-      return static_cast<Type>(spec.GetArgument<std::vector<int>>("integer_scalars")[scalar_id]);
-    }
-    return static_cast<Type>(spec.GetArgument<std::vector<float>>("float_scalars")[scalar_id]);
-  }
-
-  template <typename Result>
-  std::enable_if_t<is_cpu, Result *> ObtainOutput(const ExprFunc &expr, workspace_t<Backend> &ws,
-                                                  const OpSpec &spec, TileDesc tile) {
-    auto *tensor =
-        ws.template OutputRef<Backend>(0)[tile.sample_idx].template mutable_data<Result>();
-    return tensor + tile.extent_idx * tile.tile_size;
-  }
-
-  template <typename Result>
-  std::enable_if_t<!is_cpu, Result *> ObtainOutput(const ExprFunc &expr,
-                                                   workspace_t<GPUBackend> &ws, const OpSpec &spec,
-                                                   TileDesc tile) {
-    auto *tensor =
-        ws.template OutputRef<Backend>(0).template mutable_tensor<Result>(tile.sample_idx);
-    return tensor + tile.extent_idx * tile.tile_size;
-  }
-};
-
 std::unique_ptr<ExprImplBase> ExprImplFactory(const HostWorkspace &ws, const ExprNode &expr);
 
 std::unique_ptr<ExprImplBase> ExprImplFactory(const DeviceWorkspace &ws, const ExprNode &expr);

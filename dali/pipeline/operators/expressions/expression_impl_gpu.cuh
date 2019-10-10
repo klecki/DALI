@@ -27,20 +27,7 @@
 #include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {
-template <bool IsTensor, typename T>
-using in_desc_t = std::conditional_t<IsTensor, const T*, T>;
 
-
-
-// Using the distinction between the Tensors and Constant
-// Otherwise void* could be used.
-template <typename Result, typename Left, bool LeftIsTensor, typename Right, bool RightIsTensor>
-struct GPUTileDesc {
-  Result *result;
-  in_desc_t<LeftIsTensor, Left> left;
-  in_desc_t<RightIsTensor, Right> right;
-  int64_t extent;
-};
 
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
 __device__ void ExecuteBin(Result *result, const Left *l, const Right *r, int64_t extent) {
@@ -68,8 +55,8 @@ __device__ void ExecuteBin(Result *result, const Left *l, Right r, int64_t exten
 
 template <ArithmeticOp op, typename Tile>
 __global__ void ExecuteTiled(const Tile *tiles, int num_tiles) {
-  const auto &tile = tiles[blockIdx.y];
-  ExecuteBin<op>(tile.result, tile.left, tile.right, tile.extent);
+  // const auto &tile = tiles[blockIdx.y];
+  // ExecuteBin<op>(tile.result, tile.left, tile.right, tile.extent);
 }
 
 dim3 GetGridLayout(int extent, int thread_num, int tiles) {
@@ -87,13 +74,11 @@ class ExprImplBinGPU : public ExprImplBase {
 
   void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles, TileRange range) override {
     tiles_.Copy(tiles, ctx.stream);
-    Invoke(tiles_.data<Tile>(), tiles.size(), ctx.stream);
+    Invoke(tiles_.data<ExtendedTileDesc>(), tiles.size(), ctx.stream);
   }
 
  private:
-  using Tile = GPUTileDesc<Result, Left, LeftIsTensor, Right, RightIsTensor>;
-
-  static void Invoke(const Tile *tiles, int num_tiles, cudaStream_t stream) {
+  static void Invoke(const ExtendedTileDesc *tiles, int num_tiles, cudaStream_t stream) {
     // TODO(klecki): TUNE THIS
     auto blocks = GetGridLayout(kBlocksX, kThreadNum, num_tiles);
     ExecuteTiled<op><<<blocks, kThreadNum, 0, stream>>>(tiles, num_tiles);
