@@ -53,8 +53,8 @@ __device__ void ExecuteBin(Result *result, const Left *l, Right r, int64_t exten
   }
 }
 
-template <ArithmeticOp op, typename Tile>
-__global__ void ExecuteTiled(const Tile *tiles, int num_tiles) {
+template <ArithmeticOp op>
+__global__ void ExecuteTiled(const ExtendedTileDesc *tiles, int num_tiles) {
   // const auto &tile = tiles[blockIdx.y];
   // ExecuteBin<op>(tile.result, tile.left, tile.right, tile.extent);
 }

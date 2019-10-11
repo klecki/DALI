@@ -243,7 +243,7 @@ class ArithmeticGenericOp : public Operator<Backend> {
       result_layout_ = GetCommonLayout<Backend>(*expr_, ws);
       std::vector<ExprConstant *> constant_nodes;
       GetConstantNodes(*expr_, constant_nodes);
-      constant_storage_.Initialize(spec_, ws.stream(), constant_nodes);
+      constant_storage_.Initialize(spec_, ws.has_stream() ? ws.stream() : 0, constant_nodes);
       types_layout_inferenced_ = true;
     }
 
@@ -283,6 +283,7 @@ class ArithmeticGenericOp : public Operator<Backend> {
   std::vector<TileDesc> tile_cover_;
   std::vector<TileRange> tile_range_;
   std::vector<ExprImplTask> exec_order_;
+  std::vector<std::vector<ExtendedTileDesc>> tiles_per_task_;
   ConstantStorage<Backend> constant_storage_;
   ExprImplCache cache_;
   // For CPU we limit the tile size to limit the sizes of intermediate buffers

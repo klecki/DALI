@@ -21,6 +21,11 @@ namespace dali {
 
 template <>
 void ArithmeticGenericOp<CPUBackend>::RunImpl(HostWorkspace &ws) {
+  tiles_per_task_.reserve(exec_order_.size());
+  for (auto &expr_task : exec_order_) {
+    tiles_per_task_.push_back(TransformDescs(tile_cover_, dynamic_cast<const ExprFunc &>(*expr_task.ctx.node),
+                                             ws, constant_storage_, spec_));
+  }
   auto &pool = ws.GetThreadPool();
   ws.OutputRef<CPUBackend>(0).SetLayout(result_layout_);
   for (size_t task_idx = 0; task_idx < tile_range_.size(); task_idx++) {
@@ -30,11 +35,9 @@ void ArithmeticGenericOp<CPUBackend>::RunImpl(HostWorkspace &ws) {
       // Go over "tiles"
       for (int extent_idx = range.begin; extent_idx < range.end; extent_idx++) {
         // Go over expression tree in some provided order
-        for (auto &expr_task : exec_order_) {
-
-          // todo, do not transform every time
-          expr_task.impl->Execute(expr_task.ctx, TransformDescs(tile_cover_),
-                                  {extent_idx, extent_idx + 1});
+        for (int i = 0; i < exec_order_.size(); i++) {
+          exec_order_[i].impl->Execute(exec_order_[i].ctx, tiles_per_task_[i],
+                                       {extent_idx, extent_idx + 1});
         }
       }
     });
@@ -65,9 +68,9 @@ Examples:
 add(&0 mul(&1 $0:int8))
 add(&0 rand()))code",
             DALIDataType::DALI_STRING, false)
-    .AddOptionalArg("integer_scalars", "", std::vector<int>{})
-    .NumInput(1, 64)  // TODO(klecki): Some arbitrary number that needs to be validated in operator
-    .AddOptionalArg("float_scalars", "", std::vector<float>{})
+    .AddOptionalArg("integer_scalars", "", std::vector<int32_t>{}, true)
+    .NumInput(1, 64)  // Some arbitrary number that needs to be validated in operator
+    .AddOptionalArg("float_scalars", "", std::vector<float>{}, true)
     .NumOutput(1)
     .MakeInternal();
 

@@ -51,7 +51,7 @@ inline InputSamplePtr GetInputSamplePointer(DeviceWorkspace &ws, int input_idx, 
 
 template <typename Backend>
 inline OutputSamplePtr GetOutput(const ExprFunc &func, workspace_t<Backend> &ws, TileDesc tile) {
-  return GetOutputSamplePointer(ws, 0, tile.sample_idx);
+  return reinterpret_cast<char*>(GetOutputSamplePointer(ws, 0, tile.sample_idx)) + tile.tile_size * tile.extent_idx * TypeTable::GetTypeInfo(func.GetTypeId()).size();
 }
 
 /**
@@ -73,18 +73,25 @@ inline ArgPack GetArgPack(const ExprFunc &func, workspace_t<Backend> &ws,
     if (func[i].GetNodeType() == NodeType::Tensor) {
       const auto &tensor = dynamic_cast<const ExprTensor &>(func[i]);
       auto input_idx = tensor.GetInputIndex();
-      result[i] = GetInputSamplePointer(ws, input_idx, tile.sample_idx);
+      const auto *ptr = reinterpret_cast<const char*>(GetInputSamplePointer(ws, input_idx, tile.sample_idx));
+      auto tile_offset = tile.tile_size * tile.extent_idx * TypeTable::GetTypeInfo(func.GetTypeId()).size();
+      result[i] = ptr + tile_offset;
     }
   }
   return result;
 }
 
 template <typename Backend>
-inline std::vector<ExtendedTileDesc> TransformDescs(const std::vector<TileDesc> &tiles, const ExprFunc &func, workspace_t<Backend> &ws,
-                          ConstantStorage<Backend> &st, const OpSpec &spec) {
+inline std::vector<ExtendedTileDesc> TransformDescs(const std::vector<TileDesc> &tiles,
+                                                    const ExprFunc &func, workspace_t<Backend> &ws,
+                                                    ConstantStorage<Backend> &st,
+                                                    const OpSpec &spec) {
+  std::vector<ExtendedTileDesc> result;
+  result.reserve(tiles.size());
   for (auto &tile : tiles) {
-
+    result.push_back({tile, GetOutput<Backend>(func, ws, tile), GetArgPack(func, ws, st, spec, tile)});
   }
+  return result;
 }
 
 std::unique_ptr<ExprImplBase> ExprImplFactory(const HostWorkspace &ws, const ExprNode &expr);
