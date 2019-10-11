@@ -14,18 +14,14 @@
 
 #include <vector>
 
-#include "dali/pipeline/operators/expressions/arithmetic.h"
 #include "dali/kernels/type_tag.h"
+#include "dali/pipeline/operators/expressions/arithmetic.h"
 
 namespace dali {
 
 template <>
 void ArithmeticGenericOp<CPUBackend>::RunImpl(HostWorkspace &ws) {
-  tiles_per_task_.reserve(exec_order_.size());
-  for (auto &expr_task : exec_order_) {
-    tiles_per_task_.push_back(TransformDescs(tile_cover_, dynamic_cast<const ExprFunc &>(*expr_task.ctx.node),
-                                             ws, constant_storage_, spec_));
-  }
+  PrepareTilesForTasks(ws);
   auto &pool = ws.GetThreadPool();
   ws.OutputRef<CPUBackend>(0).SetLayout(result_layout_);
   for (size_t task_idx = 0; task_idx < tile_range_.size(); task_idx++) {

@@ -30,8 +30,19 @@
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/workspace.h"
 #include "include/dali/core/small_vector.h"
+#include "dali/core/static_switch.h"
 
 namespace dali {
+
+//float16
+#define ALLOWED_TYPES \
+  (uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, double)
+
+#define ALLOWED_UN_OPS \
+  (ArithmeticOp::plus, ArithmeticOp::minus)
+
+#define ALLOWED_BIN_OPS \
+  (ArithmeticOp::add, ArithmeticOp::sub, ArithmeticOp::mul, ArithmeticOp::div, ArithmeticOp::mod)
 
 inline OutputSamplePtr GetOutputSamplePointer(HostWorkspace &ws, int output_idx, int sample_idx) {
   return ws.template OutputRef<CPUBackend>(output_idx)[sample_idx].raw_mutable_data();
@@ -93,6 +104,55 @@ inline std::vector<ExtendedTileDesc> TransformDescs(const std::vector<TileDesc> 
   }
   return result;
 }
+
+template <template <ArithmeticOp, typename...> class ImplTensor, typename Backend>
+std::unique_ptr<ExprImplBase> ExprImplFactory1(const workspace_t<Backend> &ws, const ExprFunc &expr) {
+  std::unique_ptr<ExprImplBase> result;
+  auto op = NameToOp(expr.GetFuncName());
+  auto input0_type = expr[0].GetTypeId();
+  TYPE_SWITCH(input0_type, type2id, Input0_t, ALLOWED_TYPES, (
+    VALUE_SWITCH(op, op_static, ALLOWED_UN_OPS, (
+      using Out_t = Input0_t;
+      if (expr[0].GetNodeType() == NodeType::Tensor) {
+        result.reset(new ImplTensor<op_static, Out_t, Input0_t>());
+      } else {
+        DALI_FAIL("Expression cannot have a constant operand");
+      }
+    ), DALI_FAIL("No suitable op value found"););  // NOLINT(whitespace/parens)
+  ), DALI_FAIL("No suitable type found"););  // NOLINT(whitespace/parens)
+  return result;
+}
+
+
+template <template <ArithmeticOp, typename...> class ImplTensorTensor, template <ArithmeticOp, typename...> class ImplTensorConstant, template <ArithmeticOp, typename...> class ImplConstatnTensor, typename Backend>
+std::unique_ptr<ExprImplBase> ExprImplFactory2(const workspace_t<Backend> &ws, const ExprFunc &expr) {
+  std::unique_ptr<ExprImplBase> result;
+  auto op = NameToOp(expr.GetFuncName());
+  auto left_type = expr[0].GetTypeId();
+  auto right_type = expr[1].GetTypeId();
+  // 4-fold static switch
+  TYPE_SWITCH(left_type, type2id, Left_t, ALLOWED_TYPES, (
+    TYPE_SWITCH(right_type, type2id, Right_t, ALLOWED_TYPES, (
+        VALUE_SWITCH(op, op_static, ALLOWED_BIN_OPS, (
+          using Out_t = binary_result_t<Left_t, Right_t>;
+          if (expr[0].GetNodeType() == NodeType::Tensor &&
+              expr[1].GetNodeType() == NodeType::Tensor) {
+            result.reset(new ImplTensorTensor<op_static, Out_t, Left_t, Right_t>());
+          } else if (expr[0].GetNodeType() == NodeType::Tensor &&
+                    expr[1].GetNodeType() == NodeType::Constant) {
+            result.reset(new ImplTensorConstant<op_static, Out_t, Left_t, Right_t>());
+          } else if (expr[0].GetNodeType() == NodeType::Constant &&
+                    expr[1].GetNodeType() == NodeType::Tensor) {
+            result.reset(new ImplConstatnTensor<op_static, Out_t, Left_t, Right_t>());
+          } else {
+            DALI_FAIL("Expression cannot have two scalar operands");
+          }
+      ), DALI_FAIL("No suitable op value found"););  // NOLINT(whitespace/parens)
+    ), DALI_FAIL("No suitable type found"););  // NOLINT(whitespace/parens)
+  ), DALI_FAIL("No suitable type found"););  // NOLINT(whitespace/parens)
+  return result;
+}
+
 
 std::unique_ptr<ExprImplBase> ExprImplFactory(const HostWorkspace &ws, const ExprNode &expr);
 

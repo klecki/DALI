@@ -28,65 +28,143 @@
 
 namespace dali {
 
+/**
+ * @brief Loop over tile of `extent` length
+ */
+template <ArithmeticOp op, typename Result, typename Input0>
+__device__ void ExecuteUnOp(Result *result, const Input0 *in0, int64_t extent) {
+  using meta = arithm_meta<op, GPUBackend>;
+  for (int64_t i = blockIdx.x * blockDim.x + threadIdx.x; i < extent; i += blockDim.x * gridDim.x) {
+    result[i] = meta::impl(in0[i]);
+  }
+}
 
+/**
+ * @brief Loop over tile of `extent` length, binary op with two buffers as inputs
+ */
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
-__device__ void ExecuteBin(Result *result, const Left *l, const Right *r, int64_t extent) {
+__device__ void ExecuteBinOp(Result *result, const Left *l, const Right *r, int64_t extent) {
   using meta = arithm_meta<op, GPUBackend>;
   for (int64_t i = blockIdx.x * blockDim.x + threadIdx.x; i < extent; i += blockDim.x * gridDim.x) {
     result[i] = meta::impl(l[i], r[i]);
   }
 }
 
+/**
+ * @brief Loop over tile of `extent` length, binary op with scalar on the left
+ */
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
-__device__ void ExecuteBin(Result *result, Left l, const Right *r, int64_t extent) {
+__device__ void ExecuteBinOp(Result *result, Left l, const Right *r, int64_t extent) {
   using meta = arithm_meta<op, GPUBackend>;
   for (int64_t i = blockIdx.x * blockDim.x + threadIdx.x; i < extent; i += blockDim.x * gridDim.x) {
     result[i] = meta::impl(l, r[i]);
   }
 }
 
+/**
+ * @brief Loop over tile of `extent` length, binary op with scalar on the right
+ */
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
-__device__ void ExecuteBin(Result *result, const Left *l, Right r, int64_t extent) {
+__device__ void ExecuteBinOp(Result *result, const Left *l, Right r, int64_t extent) {
   using meta = arithm_meta<op, GPUBackend>;
   for (int64_t i = blockIdx.x * blockDim.x + threadIdx.x; i < extent; i += blockDim.x * gridDim.x) {
     result[i] = meta::impl(l[i], r);
   }
 }
 
-template <ArithmeticOp op>
-__global__ void ExecuteTiled(const ExtendedTileDesc *tiles, int num_tiles) {
-  // const auto &tile = tiles[blockIdx.y];
-  // ExecuteBin<op>(tile.result, tile.left, tile.right, tile.extent);
+/**
+ * @brief Go over all tiles, unpacking them, casting to proper types and invoking loop over tile
+ */
+template <ArithmeticOp op, typename Result, typename Input0>
+__global__ void ExecuteTiledUnT(const ExtendedTileDesc *tiles, int num_tiles) {
+  const auto &tile = tiles[blockIdx.y];
+  auto output = static_cast<Result *>(tile.output);
+  auto in0 = static_cast<const Input0 *>(tile.args[0]);
+  ExecuteUnOp<op>(output, in0, tile.desc.extent_size);
 }
+
+/**
+ * @brief Pass as a pointer or dereverence the variable
+ */
+template <bool pass_as_pointer>
+struct argument {
+  template <typename T>
+  static DALI_HOST_DEV T pass(const T *ptr) {
+    return *ptr;
+  }
+};
+
+template <>
+struct argument<true> {
+  template <typename T>
+  static DALI_HOST_DEV const T *pass(const T *ptr) {
+    return ptr;
+  }
+};
+
+/**
+ * @brief Go over all tiles, unpacking them, casting to proper types and invoking loop over tile
+ */
+template <ArithmeticOp op, typename Result, typename Left, typename Right, bool IsLeftTensor,
+          bool IsRightTensor>
+__global__ void ExecuteTiledBin(const ExtendedTileDesc *tiles, int num_tiles) {
+  const auto &tile = tiles[blockIdx.y];
+  auto output = static_cast<Result *>(tile.output);
+  auto left = static_cast<const Left *>(tile.args[0]);
+  auto right = static_cast<const Right *>(tile.args[1]);
+  ExecuteBinOp<op>(output, argument<IsLeftTensor>::pass(left),
+                   argument<IsRightTensor>::pass(right), tile.desc.extent_size);
+}
+
+template <ArithmeticOp op, typename Result, typename Input0>
+struct InvokerUnOp {
+  static void Invoke(const ExtendedTileDesc *tiles, int num_tiles, dim3 grid, dim3 block,
+                     cudaStream_t stream) {
+    ExecuteTiledUnT<op, Result, Input0><<<grid, block, 0, stream>>>(tiles, num_tiles);
+  }
+};
+
+template <ArithmeticOp op, typename Result, typename Left, typename Right, bool IsLeftTensor, bool IsRightTensor>
+struct InvokerBinOp {
+  static void Invoke(const ExtendedTileDesc *tiles, int num_tiles, dim3 grid, dim3 block,
+                     cudaStream_t stream) {
+    ExecuteTiledBin<op, Result, Left, Right, IsLeftTensor, IsRightTensor>
+        <<<grid, block, 0, stream>>>(tiles, num_tiles);
+  }
+};
 
 dim3 GetGridLayout(int extent, int thread_num, int tiles) {
   return dim3(extent, tiles, 1);
 }
 
-// Assumes that it will get a workspace for given Backend,
-// and the backend will store the inputs and outputs at given Backend.
-template <ArithmeticOp op, typename Result,
-          typename Left, bool LeftIsTensor,
-          typename Right, bool RightIsTensor>
-class ExprImplBinGPU : public ExprImplBase {
+template <typename Invoker>
+class ExprImplBinGPUInvoke : public ExprImplBase {
  public:
-  ExprImplBinGPU() {}
-
-  void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles, TileRange range) override {
+  void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles,
+               TileRange range) override {
     tiles_.Copy(tiles, ctx.stream);
-    Invoke(tiles_.data<ExtendedTileDesc>(), tiles.size(), ctx.stream);
+    auto grid = GetGridLayout(kBlocksX, kThreadNum, tiles.size());
+    auto block = dim3(kThreadNum, 1, 1);
+    Invoker::Invoke(tiles_.data<ExtendedTileDesc>(), tiles.size(), grid, block, ctx.stream);
   }
 
  private:
-  static void Invoke(const ExtendedTileDesc *tiles, int num_tiles, cudaStream_t stream) {
-    // TODO(klecki): TUNE THIS
-    auto blocks = GetGridLayout(kBlocksX, kThreadNum, num_tiles);
-    ExecuteTiled<op><<<blocks, kThreadNum, 0, stream>>>(tiles, num_tiles);
-  }
   static constexpr int kThreadNum = 256;
   static constexpr int kBlocksX = 128;  // This should correspond to TypicalTileSize / kThreadNum?
   Tensor<GPUBackend> tiles_;
 };
+
+template <ArithmeticOp op, typename Result, typename Input0>
+using ExprImplGpuT = ExprImplBinGPUInvoke<InvokerUnOp<op, Result, Input0>>;
+
+template <ArithmeticOp op, typename Result, typename Left, typename Right>
+using ExprImplGpuTT = ExprImplBinGPUInvoke<InvokerBinOp<op, Result, Left, Right, true, true>>;
+
+template <ArithmeticOp op, typename Result, typename Left, typename Right>
+using ExprImplGpuCT = ExprImplBinGPUInvoke<InvokerBinOp<op, Result, Left, Right, false, true>>;
+
+template <ArithmeticOp op, typename Result, typename Left, typename Right>
+using ExprImplGpuTC = ExprImplBinGPUInvoke<InvokerBinOp<op, Result, Left, Right, true, false>>;
 
 }  // namespace dali
 

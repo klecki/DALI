@@ -19,11 +19,7 @@ namespace dali {
 
 template <>
 void ArithmeticGenericOp<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
-  tiles_per_task_.reserve(exec_order_.size());
-  for (auto &expr_task : exec_order_) {
-    tiles_per_task_.push_back(TransformDescs(tile_cover_, dynamic_cast<const ExprFunc&>(*expr_task.ctx.node),
-                                             ws, constant_storage_, spec_));
-  }
+  PrepareTilesForTasks(ws);
   ws.OutputRef<GPUBackend>(0).SetLayout(result_layout_);
   assert(tile_range_.size() == 1 && "Expected to cover whole GPU execution by 1 task");
   for (int i = 0; i < exec_order_.size(); i++) {

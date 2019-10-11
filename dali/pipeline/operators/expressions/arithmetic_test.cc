@@ -256,11 +256,11 @@ INSTANTIATE_TEST_SUITE_P(BinaryArithmeticOpsSuiteCPUint32, BinaryArithmeticOpCPU
 INSTANTIATE_TEST_SUITE_P(BinaryArithmeticOpsSuiteCPUfloat, BinaryArithmeticOpCPUfloatTest,
                          ::testing::ValuesIn(getOpNameRef<float>()));
 
-// INSTANTIATE_TEST_SUITE_P(BinaryArithmeticOpsSuiteGPUint32, BinaryArithmeticOpGPUint32Test,
-//                          ::testing::ValuesIn(getOpNameRef<int32_t>()));
+INSTANTIATE_TEST_SUITE_P(BinaryArithmeticOpsSuiteGPUint32, BinaryArithmeticOpGPUint32Test,
+                         ::testing::ValuesIn(getOpNameRef<int32_t>()));
 
-// INSTANTIATE_TEST_SUITE_P(BinaryArithmeticOpsSuiteGPUfloat, BinaryArithmeticOpGPUfloatTest,
-//                          ::testing::ValuesIn(getOpNameRef<float>()));
+INSTANTIATE_TEST_SUITE_P(BinaryArithmeticOpsSuiteGPUfloat, BinaryArithmeticOpGPUfloatTest,
+                         ::testing::ValuesIn(getOpNameRef<float>()));
 
 TEST(ArithmeticOpsTest, GenericPipeline) {
   constexpr int batch_size = 16;
@@ -367,6 +367,61 @@ TEST(ArithmeticOpsTest, ConstantsPipeline) {
   for (int i = 0; i < batch_size * tensor_elements; i++) {
     EXPECT_EQ(result0[i], i + 42);
     EXPECT_EQ(result1[i], i * 42.f);
+  }
+}
+
+
+
+TEST(ArithmeticOpsTest, UnaryPipeline) {
+  constexpr int batch_size = 16;
+  constexpr int num_threads = 4;
+  constexpr int tensor_elements = 16;
+  Pipeline pipe(batch_size, num_threads, 0);
+
+  pipe.AddExternalInput("data0");
+
+  pipe.AddOperator(OpSpec("ArithmeticGenericOp")
+                       .AddArg("device", "cpu")
+                       .AddArg("expression_desc", "minus(&0)")
+                       .AddInput("data0", "cpu")
+                       .AddOutput("result0", "cpu"),
+                   "arithm_cpu_neg");
+
+  pipe.AddOperator(OpSpec("ArithmeticGenericOp")
+                       .AddArg("device", "gpu")
+                       .AddArg("expression_desc", "plus(&0)")
+                       .AddInput("result0", "gpu")
+                       .AddOutput("result1", "gpu"),
+                   "arithm_gpu_pos");
+
+  vector<std::pair<string, string>> outputs = {{"result0", "cpu"}, {"result1", "gpu"}};
+
+  pipe.Build(outputs);
+
+  TensorList<CPUBackend> batch;
+  batch.Resize(kernels::uniform_list_shape(batch_size, {tensor_elements}));
+  batch.set_type(TypeInfo::Create<int32_t>());
+  for (int i = 0; i < batch_size; i++) {
+    auto *t = batch.mutable_tensor<int32_t>(i);
+    for (int j = 0; j < tensor_elements; j++) {
+      t[j] = i * tensor_elements + j;
+    }
+  }
+
+  pipe.SetExternalInput("data0", batch);
+  pipe.RunCPU();
+  pipe.RunGPU();
+  DeviceWorkspace ws;
+  pipe.Outputs(&ws);
+  auto *result0 = ws.OutputRef<CPUBackend>(0).data<int32_t>();
+
+  auto *result1 = ws.OutputRef<GPUBackend>(1).data<int32_t>();
+  vector<int32_t> result1_cpu(batch_size * tensor_elements);
+
+  MemCopy(result1_cpu.data(), result1, batch_size * tensor_elements * sizeof(int));
+  for (int i = 0; i < batch_size * tensor_elements; i++) {
+    EXPECT_EQ(result0[i], -i);
+    EXPECT_EQ(result1_cpu[i], -i);
   }
 }
 
