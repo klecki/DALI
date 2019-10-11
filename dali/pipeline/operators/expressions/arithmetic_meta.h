@@ -336,6 +336,25 @@ inline ArithmeticOp NameToOp(const std::string &op_name) {
   return it->second;
 }
 
+inline DALIDataType TypeNameToTypeId(const std::string &type_name) {
+  static std::map<std::string, DALIDataType> token_to_type_id = {
+    std::make_pair("uint8", DALIDataType::DALI_UINT8),
+    std::make_pair("uint16", DALIDataType::DALI_UINT16),
+    std::make_pair("uint32", DALIDataType::DALI_UINT32),
+    std::make_pair("uint64", DALIDataType::DALI_UINT64),
+    std::make_pair("int8", DALIDataType::DALI_INT8),
+    std::make_pair("int16", DALIDataType::DALI_INT16),
+    std::make_pair("int32", DALIDataType::DALI_INT32),
+    std::make_pair("int64", DALIDataType::DALI_INT64),
+    std::make_pair("float16", DALIDataType::DALI_FLOAT16),
+    std::make_pair("float32", DALIDataType::DALI_FLOAT),
+    std::make_pair("float64", DALIDataType::DALI_FLOAT64)
+    };
+  auto it = token_to_type_id.find(type_name);
+  DALI_ENFORCE(it != token_to_type_id.end(), "No DALIDataType for type \"" + type_name + "\".");
+  return it->second;
+}
+
 inline bool IsScalarLike(const kernels::TensorListShape<> &shape) {
   return shape.num_samples() == 1 && shape.num_elements() == 1;
 }

@@ -70,7 +70,7 @@ add(&0 rand()))code",
             DALIDataType::DALI_STRING, false)
     .AddOptionalArg("integer_scalars", "", std::vector<int32_t>{}, true)
     .NumInput(1, 64)  // Some arbitrary number that needs to be validated in operator
-    .AddOptionalArg("float_scalars", "", std::vector<float>{}, true)
+    .AddOptionalArg("real_scalars", "", std::vector<float>{}, true)
     .NumOutput(1)
     .MakeInternal();
 
