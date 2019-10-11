@@ -76,7 +76,7 @@ __device__ void ExecuteBinOp(Result *result, const Left *l, Right r, int64_t ext
  * @brief Go over all tiles, unpacking them, casting to proper types and invoking loop over tile
  */
 template <ArithmeticOp op, typename Result, typename Input0>
-__global__ void ExecuteTiledUnT(const ExtendedTileDesc *tiles, int num_tiles) {
+__global__ void ExecuteTiledUnOp(const ExtendedTileDesc *tiles, int num_tiles) {
   const auto &tile = tiles[blockIdx.y];
   auto output = static_cast<Result *>(tile.output);
   auto in0 = static_cast<const Input0 *>(tile.args[0]);
@@ -107,43 +107,44 @@ struct argument<true> {
  */
 template <ArithmeticOp op, typename Result, typename Left, typename Right, bool IsLeftTensor,
           bool IsRightTensor>
-__global__ void ExecuteTiledBin(const ExtendedTileDesc *tiles, int num_tiles) {
+__global__ void ExecuteTiledBinOp(const ExtendedTileDesc *tiles, int num_tiles) {
   const auto &tile = tiles[blockIdx.y];
   auto output = static_cast<Result *>(tile.output);
   auto left = static_cast<const Left *>(tile.args[0]);
   auto right = static_cast<const Right *>(tile.args[1]);
-  ExecuteBinOp<op>(output, argument<IsLeftTensor>::pass(left),
-                   argument<IsRightTensor>::pass(right), tile.desc.extent_size);
+  ExecuteBinOp<op>(output, argument<IsLeftTensor>::pass(left), argument<IsRightTensor>::pass(right),
+                   tile.desc.extent_size);
 }
 
 template <ArithmeticOp op, typename Result, typename Input0>
 struct InvokerUnOp {
   static void Invoke(const ExtendedTileDesc *tiles, int num_tiles, dim3 grid, dim3 block,
                      cudaStream_t stream) {
-    ExecuteTiledUnT<op, Result, Input0><<<grid, block, 0, stream>>>(tiles, num_tiles);
+    ExecuteTiledUnOp<op, Result, Input0><<<grid, block, 0, stream>>>(tiles, num_tiles);
   }
 };
 
-template <ArithmeticOp op, typename Result, typename Left, typename Right, bool IsLeftTensor, bool IsRightTensor>
+template <ArithmeticOp op, typename Result, typename Left, typename Right, bool IsLeftTensor,
+          bool IsRightTensor>
 struct InvokerBinOp {
   static void Invoke(const ExtendedTileDesc *tiles, int num_tiles, dim3 grid, dim3 block,
                      cudaStream_t stream) {
-    ExecuteTiledBin<op, Result, Left, Right, IsLeftTensor, IsRightTensor>
+    ExecuteTiledBinOp<op, Result, Left, Right, IsLeftTensor, IsRightTensor>
         <<<grid, block, 0, stream>>>(tiles, num_tiles);
   }
 };
 
-dim3 GetGridLayout(int extent, int thread_num, int tiles) {
+dim3 GetGridLayout(int extent, int tiles) {
   return dim3(extent, tiles, 1);
 }
 
 template <typename Invoker>
-class ExprImplBinGPUInvoke : public ExprImplBase {
+class ExprImplGPUInvoke : public ExprImplBase {
  public:
   void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles,
                TileRange range) override {
     tiles_.Copy(tiles, ctx.stream);
-    auto grid = GetGridLayout(kBlocksX, kThreadNum, tiles.size());
+    auto grid = GetGridLayout(kBlocksX, tiles.size());
     auto block = dim3(kThreadNum, 1, 1);
     Invoker::Invoke(tiles_.data<ExtendedTileDesc>(), tiles.size(), grid, block, ctx.stream);
   }
@@ -155,16 +156,16 @@ class ExprImplBinGPUInvoke : public ExprImplBase {
 };
 
 template <ArithmeticOp op, typename Result, typename Input0>
-using ExprImplGpuT = ExprImplBinGPUInvoke<InvokerUnOp<op, Result, Input0>>;
+using ExprImplGpuT = ExprImplGPUInvoke<InvokerUnOp<op, Result, Input0>>;
 
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
-using ExprImplGpuTT = ExprImplBinGPUInvoke<InvokerBinOp<op, Result, Left, Right, true, true>>;
+using ExprImplGpuTT = ExprImplGPUInvoke<InvokerBinOp<op, Result, Left, Right, true, true>>;
 
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
-using ExprImplGpuCT = ExprImplBinGPUInvoke<InvokerBinOp<op, Result, Left, Right, false, true>>;
+using ExprImplGpuCT = ExprImplGPUInvoke<InvokerBinOp<op, Result, Left, Right, false, true>>;
 
 template <ArithmeticOp op, typename Result, typename Left, typename Right>
-using ExprImplGpuTC = ExprImplBinGPUInvoke<InvokerBinOp<op, Result, Left, Right, true, false>>;
+using ExprImplGpuTC = ExprImplGPUInvoke<InvokerBinOp<op, Result, Left, Right, true, false>>;
 
 }  // namespace dali
 
