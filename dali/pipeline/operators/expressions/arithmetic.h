@@ -28,7 +28,9 @@
 #include "dali/kernels/tensor_shape_print.h"
 #include "dali/kernels/type_tag.h"
 #include "dali/pipeline/operators/expressions/arithmetic_meta.h"
+#include "dali/pipeline/operators/expressions/constant_storage.h"
 #include "dali/pipeline/operators/expressions/expression_impl_factory.h"
+#include "dali/pipeline/operators/expressions/expression_tile.h"
 #include "dali/pipeline/operators/operator.h"
 
 namespace dali {
@@ -61,7 +63,6 @@ inline TileCover GetTiledCover(const kernels::TensorListShape<> &shape, int tile
   }
   return std::make_tuple(descs, ranges);
 }
-
 
 /**
  * @brief Recurse over expression tree and return the only matching layout
@@ -97,7 +98,6 @@ DLL_PUBLIC TensorLayout GetCommonLayout(ExprNode &expr, const workspace_t<Backen
   }
   return result_layout;
 }
-
 
 /**
  * @brief Recurse over expression tree, fill the missing types of TensorInputs
@@ -205,6 +205,20 @@ DLL_PUBLIC inline kernels::TensorListShape<> PropagateShapes(ExprNode &expr,
   return func.GetShape();
 }
 
+inline void GetConstantNodes(ExprNode &expr, std::vector<ExprConstant *> &nodes) {
+  if (expr.GetNodeType() == NodeType::Constant) {
+    nodes.push_back(dynamic_cast<ExprConstant *>(&expr));
+    return;
+  }
+  if (expr.GetNodeType() == NodeType::Tensor) {
+    return;
+  }
+  auto &func = dynamic_cast<ExprFunc &>(expr);
+  for (int i = 0; i < func.GetSubexpressionCount(); i++) {
+    GetConstantNodes(func[i], nodes);
+  }
+}
+
 /**
  * @brief Arithmetic operator capable of executing expression tree of element-wise
  *        arithmetic operations.
@@ -239,6 +253,9 @@ class ArithmeticGenericOp : public Operator<Backend> {
     if (!types_layout_inferenced_) {
       result_type_id_ = PropagateTypes<Backend>(*expr_, ws);
       result_layout_ = GetCommonLayout<Backend>(*expr_, ws);
+      std::vector<ExprConstant *> constant_nodes;
+      GetConstantNodes(*expr_, constant_nodes);
+      constant_storage_.Initialize(spec_, ws.has_stream() ? ws.stream() : 0, constant_nodes);
       types_layout_inferenced_ = true;
     }
 
@@ -271,6 +288,19 @@ class ArithmeticGenericOp : public Operator<Backend> {
     // TODO(klecki): allocate memory for intermediate results and point the threads to them
   }
 
+  /**
+   * @brief Prepare lists of tiles for every task that we have to execute, filling the pointers
+   * to data.
+   */
+  void PrepareTilesForTasks(workspace_t<Backend> &ws) {
+    tiles_per_task_.reserve(exec_order_.size());
+    for (auto &expr_task : exec_order_) {
+      tiles_per_task_.push_back(TransformDescs(tile_cover_,
+                                               dynamic_cast<const ExprFunc &>(*expr_task.ctx.node),
+                                               ws, constant_storage_, spec_));
+    }
+  }
+
   std::unique_ptr<ExprNode> expr_;
   kernels::TensorListShape<> result_shape_;
   bool types_layout_inferenced_ = false;
@@ -279,6 +309,8 @@ class ArithmeticGenericOp : public Operator<Backend> {
   std::vector<TileDesc> tile_cover_;
   std::vector<TileRange> tile_range_;
   std::vector<ExprImplTask> exec_order_;
+  std::vector<std::vector<ExtendedTileDesc>> tiles_per_task_;
+  ConstantStorage<Backend> constant_storage_;
   ExprImplCache cache_;
   // For CPU we limit the tile size to limit the sizes of intermediate buffers
   // For GPU it's better to execute more at one time.
