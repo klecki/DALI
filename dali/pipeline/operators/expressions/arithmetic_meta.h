@@ -22,12 +22,15 @@
 #include <utility>
 
 #include "dali/core/cuda_utils.h"
+#include "dali/core/small_vector.h"
 #include "dali/core/static_switch.h"
 #include "dali/kernels/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/types.h"
 
 namespace dali {
+
+constexpr int kMaxArity = 2;
 
 enum class ArithmeticOp : int {
   plus,
@@ -179,6 +182,14 @@ inline DALIDataType TypePromotion(DALIDataType left, DALIDataType right) {
     (DALI_FAIL("Left operand data type not supported, DALIDataType: " + std::to_string(left));)
   );  // NOLINT(whitespace/parens)
   return result;
+}
+
+inline DALIDataType TypePromotion(SmallVector<DALIDataType, kMaxArity> types) {
+  assert(types.size() == 1 || types.size() == 2);
+  if (types.size() == 1) {
+    return types[0];
+  }
+  return TypePromotion(types[0], types[1]);
 }
 
 /**
@@ -333,6 +344,25 @@ inline ArithmeticOp NameToOp(const std::string &op_name) {
   };
   auto it = token_to_op.find(op_name);
   DALI_ENFORCE(it != token_to_op.end(), "No implementation for op \"" + op_name + "\".");
+  return it->second;
+}
+
+inline DALIDataType TypeNameToTypeId(const std::string &type_name) {
+  static std::map<std::string, DALIDataType> token_to_type_id = {
+    std::make_pair("uint8", DALIDataType::DALI_UINT8),
+    std::make_pair("uint16", DALIDataType::DALI_UINT16),
+    std::make_pair("uint32", DALIDataType::DALI_UINT32),
+    std::make_pair("uint64", DALIDataType::DALI_UINT64),
+    std::make_pair("int8", DALIDataType::DALI_INT8),
+    std::make_pair("int16", DALIDataType::DALI_INT16),
+    std::make_pair("int32", DALIDataType::DALI_INT32),
+    std::make_pair("int64", DALIDataType::DALI_INT64),
+    std::make_pair("float16", DALIDataType::DALI_FLOAT16),
+    std::make_pair("float32", DALIDataType::DALI_FLOAT),
+    std::make_pair("float64", DALIDataType::DALI_FLOAT64)
+    };
+  auto it = token_to_type_id.find(type_name);
+  DALI_ENFORCE(it != token_to_type_id.end(), "No DALIDataType for type \"" + type_name + "\".");
   return it->second;
 }
 
