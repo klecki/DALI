@@ -33,8 +33,16 @@ void GenerateShapeTestInputs(TensorList<Backend> &out, RNG &rng, int num_samples
       shape.tensor_shape_span(i)[j] = dist(rng);
     }
   }
+
+  TensorLayout out_layout;
+  std::string tmp = "A";
+  for (int i = 0; i < sample_dim; i++) {
+    out_layout = out_layout + TensorLayout(tmp);
+    tmp[0]++;
+  }
   out.Reset();
   out.Resize(shape);
+  out.SetLayout(out_layout);
   (void)out.template mutable_data<uint8_t>();
 }
 
@@ -65,7 +73,7 @@ class ShapesOpTest<ShapesTestArgs<OutputBackend, InputBackend, OutputType>>
   ShapesOpTest() {
     if (inputs<InputBackend>.empty()) {
       std::mt19937_64 rng(12345);
-      for (int dim = 1; dim <= 6; dim++) {
+      for (int dim = 1; dim <= max_dim; dim++) {
         inputs<InputBackend>.emplace_back(new TensorList<InputBackend>());
         inputs<InputBackend>.back()->set_pinned(false);
         int num_samples = 1 << (8-dim);  // Start with 128 and halve with each new dimension
@@ -78,13 +86,16 @@ class ShapesOpTest<ShapesTestArgs<OutputBackend, InputBackend, OutputType>>
       return {"Shapes"};
   }
 
-  void Run() {
+  void Run(const testing::Arguments &additional_args = {}, int min_dim = 1) {
     testing::Arguments args;
     args.emplace("type", TestArgs::type_id());
     args.emplace("device", testing::detail::BackendStringName<OutputBackend>());
-    for (auto &in : inputs<InputBackend>) {
+    for (const auto &additional_arg : additional_args) {
+      args.emplace(additional_arg);
+    }
+    for (int i = min_dim - 1; i < max_dim; i++) {
       testing::TensorListWrapper out;
-      this->RunTest(in.get(), out, args, VerifyShape);
+      this->RunTest(inputs<InputBackend>[i].get(), out, args, VerifyShape);
     }
   }
 
@@ -96,25 +107,40 @@ class ShapesOpTest<ShapesTestArgs<OutputBackend, InputBackend, OutputType>>
     ASSERT_TRUE(out_wrapper.has<OutputBackend>());
     auto &in = *in_wrapper.get<InputBackend>();
     auto &out = *out_wrapper.get<OutputBackend>();
-    VerifyShapeImpl(in, out);
+    VerifyShapeImpl(in, out, args);
   }
 
   static void VerifyShapeImpl(
       const TensorList<CPUBackend> &in,
-      const TensorList<GPUBackend> &out) {
+      const TensorList<GPUBackend> &out,
+      const testing::Arguments &args) {
     TensorList<CPUBackend> tmp;
     tmp.Copy(out, 0);
     cudaDeviceSynchronize();
-    VerifyShapeImpl(in, tmp);
+    VerifyShapeImpl(in, tmp, args);
   }
 
   static void VerifyShapeImpl(
       const TensorList<CPUBackend> &in,
-      const TensorList<CPUBackend> &out) {
+      const TensorList<CPUBackend> &out,
+      const testing::Arguments &args) {
     auto shape = in.shape();
     auto out_shape = out.shape();
+    std::vector<int> output_axes;
+    if (args.find("axes") != args.end()) {
+      output_axes = args.at("axes").GetValue<std::vector<int>>();
+    } else if (args.find("axis_names") != args.end()) {
+      auto axes = args.at("axis_names").GetValue<TensorLayout>();
+      auto layout = in.GetLayout();
+      for (const auto &axis : axes) {
+        output_axes.push_back(layout.find(axis));
+      }
+    } else {
+      output_axes.resize(shape.sample_dim());
+      std::iota(output_axes.begin(), output_axes.end(), 0);
+    }
     const int N = shape.num_samples();
-    const int D = shape.sample_dim();
+    const int D = output_axes.size();
     ASSERT_EQ(N, out_shape.num_samples());
     ASSERT_TRUE(is_uniform(out_shape));
     ASSERT_EQ(out_shape.sample_dim(), 1);
@@ -124,10 +150,11 @@ class ShapesOpTest<ShapesTestArgs<OutputBackend, InputBackend, OutputType>>
       const OutputType *shape_data = out.template tensor<OutputType>(i);
       auto tshape = shape.tensor_shape_span(i);
       for (int j = 0; j < D; j++) {
-        EXPECT_EQ(shape_data[j], static_cast<OutputType>(tshape[j]));
+        EXPECT_EQ(shape_data[j], static_cast<OutputType>(tshape[output_axes[j]]));
       }
     }
   }
+  static constexpr int max_dim = 6;
 };
 
 using ShapesOpArgs = ::testing::Types<
@@ -147,9 +174,48 @@ using ShapesOpArgs = ::testing::Types<
 
 TYPED_TEST_SUITE(ShapesOpTest, ShapesOpArgs);
 
-TYPED_TEST(ShapesOpTest, All) {
-    this->Run();
+TYPED_TEST(ShapesOpTest, AllNoArgs) {
+  this->Run();
 }
 
+TYPED_TEST(ShapesOpTest, EmptyAxes) {
+  ASSERT_THROW(this->Run({{"axes", std::vector<int>{}}}), std::runtime_error);
+}
+
+TYPED_TEST(ShapesOpTest, OneAxis) {
+  this->Run({{"axes", std::vector<int>{1}}}, 2);
+}
+
+TYPED_TEST(ShapesOpTest, Axes) {
+  this->Run({{"axes", std::vector<int>{0, 1}}}, 2);
+}
+
+TYPED_TEST(ShapesOpTest, AxesReorder) {
+  this->Run({{"axes", std::vector<int>{1, 0, 2}}}, 3);
+}
+
+TYPED_TEST(ShapesOpTest, WrongAxes) {
+  ASSERT_THROW(this->Run({{"axes", std::vector<int>{0, 16}}}, 2), std::runtime_error);
+}
+
+TYPED_TEST(ShapesOpTest, EmptyAxisNames) {
+  ASSERT_THROW(this->Run({{"axis_names", TensorLayout{}}}), std::runtime_error);
+}
+
+TYPED_TEST(ShapesOpTest, OneAxisName) {
+  this->Run({{"axis_names", TensorLayout{"A"}}}, 2);
+}
+
+TYPED_TEST(ShapesOpTest, AxisNames) {
+  this->Run({{"axis_names", TensorLayout{"AB"}}}, 2);
+}
+
+TYPED_TEST(ShapesOpTest, AxisNamesReorder) {
+  this->Run({{"axis_names", TensorLayout{"CAB"}}}, 3);
+}
+
+TYPED_TEST(ShapesOpTest, WrongAxisNames) {
+  ASSERT_THROW(this->Run({{"axis_names", TensorLayout{"ZW"}}}, 2), std::runtime_error);
+}
 
 }  // namespace dali

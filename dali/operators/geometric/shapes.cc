@@ -17,9 +17,18 @@
 namespace dali {
 
 DALI_SCHEMA(Shapes)
-    .DocStr(R"code(Returns the shapes of inputs.)code")
+    .DocStr(R"code(Returns the shapes of inputs. If one of the `axes` or `axis_names` arguments
+is provided the specified subset of shape is returned, otherwise the whole shape is returned.)code")
     .NumInput(1)
     .NumOutput(1)
+    .AddOptionalArg("axes",
+        R"code(Order of dimensions used for anchor and shape slice inputs, as dimension
+indexes. Mutually exclusive with `asix_names`.)code",
+        std::vector<int>{})
+    .AddOptionalArg("axis_names",
+        R"code(Order of dimensions used for anchor and shape slice inputs, as described in layout.
+Mutually exclusive with `axes`.)code",
+        "")
     .AddOptionalArg("type", R"code(Data type, to which the sizes are converted.)code", DALI_INT64);
 
 DALI_REGISTER_OPERATOR(Shapes, Shapes<CPUBackend>, CPU);
