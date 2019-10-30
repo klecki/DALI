@@ -31,6 +31,8 @@ version_long = u'0.0.0'
 with open("../VERSION") as f:
     version_long = f.readline()
 
+autodoc_mock_imports = ['torch', 'tf', 'mxnet']
+
 version_short = re.match('^[\d]+\.[\d]+', version_long).group(0)
 
 git_sha = os.getenv("GIT_SHA")

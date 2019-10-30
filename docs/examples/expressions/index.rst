@@ -1,9 +1,10 @@
 DALI expressions and arithmetic operations
-=====================
+==========================================
 
 .. toctree::
    :maxdepth: 2
    :glob:
 
-   expressions.ipynb
-   expressions.ipynb
+   expr_type_promotions.ipynb
+   expr_blend_image.ipynb
+   expr_prepare_arguments.ipynb
