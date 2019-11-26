@@ -20,6 +20,8 @@ import nvidia.dali.tfrecord as tfrec
 import glob
 import argparse
 import time
+from test_utils import get_dali_extra_path
+
 
 class CommonPipeline(Pipeline):
     def __init__(self, data_paths, num_gpus, batch_size, num_threads, device_id, prefetch, fp16, nhwc,
@@ -155,15 +157,16 @@ class TFRecordPipeline(CommonPipeline):
         return self.base_define_graph(images, labels)
 
 test_data = {
-            FileReadPipeline: [["/data/imagenet/train-jpeg"],
-                               ["/data/imagenet/val-jpeg"]],
-            MXNetReaderPipeline: [["/data/imagenet/train-480-val-256-recordio/train.rec", "/data/imagenet/train-480-val-256-recordio/train.idx"],
-                                   ["/data/imagenet/train-480-val-256-recordio/val.rec", "/data/imagenet/train-480-val-256-recordio/val.idx"]],
-            CaffeReadPipeline: [["/data/imagenet/train-lmdb-256x256"],
-                                 ["/data/imagenet/val-lmdb-256x256"]],
-            Caffe2ReadPipeline: [["/data/imagenet/train-c2lmdb-480"],
-                                  ["/data/imagenet/val-c2lmdb-256"]],
-            TFRecordPipeline: [["/data/imagenet/train-val-tfrecord-480/train-*", "/data/imagenet/train-val-tfrecord-480.idx/train-*"]],
+            FileReadPipeline : [[get_dali_extra_path() + "/db/single/jpeg"]]
+            # FileReadPipeline: [["/data/imagenet/train-jpeg"],
+            #                    ["/data/imagenet/val-jpeg"]],
+            # MXNetReaderPipeline: [["/data/imagenet/train-480-val-256-recordio/train.rec", "/data/imagenet/train-480-val-256-recordio/train.idx"],
+            #                        ["/data/imagenet/train-480-val-256-recordio/val.rec", "/data/imagenet/train-480-val-256-recordio/val.idx"]],
+            # CaffeReadPipeline: [["/data/imagenet/train-lmdb-256x256"],
+            #                      ["/data/imagenet/val-lmdb-256x256"]],
+            # Caffe2ReadPipeline: [["/data/imagenet/train-c2lmdb-480"],
+            #                       ["/data/imagenet/val-c2lmdb-256"]],
+            # TFRecordPipeline: [["/data/imagenet/train-val-tfrecord-480/train-*", "/data/imagenet/train-val-tfrecord-480.idx/train-*"]],
             }
 
 parser = argparse.ArgumentParser(description='Test nvJPEG based RN50 augmentation pipeline with different datasets')
