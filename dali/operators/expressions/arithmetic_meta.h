@@ -33,14 +33,23 @@ namespace dali {
 constexpr int kMaxArity = 2;
 
 enum class ArithmeticOp : int {
+  // Unary arithmetic ops
   plus,
   minus,
+  // Binary arithmetic ops
   add,
   sub,
   mul,
   div,
   fdiv,
   mod,
+  // Binary comparisons
+  eq,   // ==
+  neq,  // !=
+  lt,   // <
+  leq,  // <=
+  gt,   // >
+  geq   // >=
 };
 
 DALI_HOST_DEV constexpr int GetOpArity(ArithmeticOp op) {
@@ -53,15 +62,36 @@ DALI_HOST_DEV constexpr int GetOpArity(ArithmeticOp op) {
     case ArithmeticOp::mul:
     case ArithmeticOp::div:
     case ArithmeticOp::mod:
+    case ArithmeticOp::eq:
+    case ArithmeticOp::neq:
+    case ArithmeticOp::lt:
+    case ArithmeticOp::leq:
+    case ArithmeticOp::gt:
+    case ArithmeticOp::geq:
       return 2;
     default:
       return -1;
   }
 }
 
+DALI_HOST_DEV constexpr bool IsComparison(ArithmeticOp op) {
+  switch (op) {
+    case ArithmeticOp::eq:
+    case ArithmeticOp::neq:
+    case ArithmeticOp::lt:
+    case ArithmeticOp::leq:
+    case ArithmeticOp::gt:
+    case ArithmeticOp::geq:
+      return true;
+    default:
+      return false;
+  }
+}
+
+
 // TODO(klecki): float16
 #define ARITHMETIC_ALLOWED_TYPES \
-  (uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, double)
+  (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, double)
 
 /**
  * @brief Type promotion rules
@@ -102,6 +132,7 @@ REGISTER_TYPE_PROMOTION(double,  float16, double);
 
 REGISTER_TYPE_PROMOTION(double,  float, double);
 
+REGISTER_TYPE_PROMOTION(bool,     float16, float16);
 REGISTER_TYPE_PROMOTION(int8_t,   float16, float16);
 REGISTER_TYPE_PROMOTION(uint8_t,  float16, float16);
 REGISTER_TYPE_PROMOTION(int16_t,  float16, float16);
@@ -111,6 +142,7 @@ REGISTER_TYPE_PROMOTION(uint32_t, float16, float16);
 REGISTER_TYPE_PROMOTION(int64_t,  float16, float16);
 REGISTER_TYPE_PROMOTION(uint64_t, float16, float16);
 
+REGISTER_TYPE_PROMOTION(bool,     float, float);
 REGISTER_TYPE_PROMOTION(int8_t,   float, float);
 REGISTER_TYPE_PROMOTION(uint8_t,  float, float);
 REGISTER_TYPE_PROMOTION(int16_t,  float, float);
@@ -120,6 +152,7 @@ REGISTER_TYPE_PROMOTION(uint32_t, float, float);
 REGISTER_TYPE_PROMOTION(int64_t,  float, float);
 REGISTER_TYPE_PROMOTION(uint64_t, float, float);
 
+REGISTER_TYPE_PROMOTION(bool,     double, double);
 REGISTER_TYPE_PROMOTION(int8_t,   double, double);
 REGISTER_TYPE_PROMOTION(uint8_t,  double, double);
 REGISTER_TYPE_PROMOTION(int16_t,  double, double);
@@ -128,6 +161,15 @@ REGISTER_TYPE_PROMOTION(int32_t,  double, double);
 REGISTER_TYPE_PROMOTION(uint32_t, double, double);
 REGISTER_TYPE_PROMOTION(int64_t,  double, double);
 REGISTER_TYPE_PROMOTION(uint64_t, double, double);
+
+REGISTER_TYPE_PROMOTION(int8_t,   bool, int8_t);
+REGISTER_TYPE_PROMOTION(uint8_t,  bool, uint8_t);
+REGISTER_TYPE_PROMOTION(int16_t,  bool, int16_t);
+REGISTER_TYPE_PROMOTION(uint16_t, bool, uint16_t);
+REGISTER_TYPE_PROMOTION(int32_t,  bool, int32_t);
+REGISTER_TYPE_PROMOTION(uint32_t, bool, uint32_t);
+REGISTER_TYPE_PROMOTION(int64_t,  bool, int64_t);
+REGISTER_TYPE_PROMOTION(uint64_t, bool, uint64_t);
 
 REGISTER_TYPE_PROMOTION(uint8_t,  int8_t, int16_t);
 REGISTER_TYPE_PROMOTION(int16_t,  int8_t, int16_t);
@@ -277,6 +319,40 @@ REGISTER_BINARY_IMPL(ArithmeticOp::sub, -);
 REGISTER_BINARY_IMPL(ArithmeticOp::mul, *);
 REGISTER_BINARY_IMPL(ArithmeticOp::div, /);
 
+
+#define REGISTER_COMPARISON_IMPL_BACKEND(OP, EXPRESSION, BACKEND)                   \
+  template <>                                                                       \
+  struct arithm_meta<OP, BACKEND> {                                                 \
+    template <typename L, typename R>                                               \
+    using result_t = bool;                                         \
+                                                                                    \
+    template <typename L, typename R>                                               \
+    DALI_HOST_DEV static constexpr result_t<L, R> impl(L l, R r) {                  \
+      static_assert(GetOpArity(OP) == 2,                                            \
+                    "Registered operation arity does not match the requirements."); \
+      return l EXPRESSION r;                                                      \
+    }                                                                               \
+                                                                                    \
+    static inline std::string to_string() {                                         \
+      return #EXPRESSION;                                                           \
+    }                                                                               \
+                                                                                    \
+    static constexpr int num_inputs = 2;                                            \
+    static constexpr int num_outputs = 1;                                           \
+  }
+
+#define REGISTER_COMPARISON_IMPL(OP, EXPRESSION)                \
+  REGISTER_COMPARISON_IMPL_BACKEND(OP, EXPRESSION, CPUBackend); \
+  REGISTER_COMPARISON_IMPL_BACKEND(OP, EXPRESSION, GPUBackend)
+
+REGISTER_COMPARISON_IMPL(ArithmeticOp::eq,  ==);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::neq, !=);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::lt,  <);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::leq, <=);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::gt,  >);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::geq, >=);
+
+
 template <typename Backend>
 struct arithm_meta<ArithmeticOp::fdiv, Backend> {
   template <typename L, typename R>
@@ -403,6 +479,9 @@ inline DALIDataType TypePromotion(ArithmeticOp op, span<DALIDataType> types) {
   if (types.size() == 1) {
     return types[0];
   }
+  if (IsComparison(op)) {
+    return DALIDataType::DALI_BOOL;
+  }
   if (op == ArithmeticOp::fdiv) {
     if (!IsFloatingPoint(types[0]) && !IsFloatingPoint(types[1])) {
       return DALIDataType::DALI_FLOAT;
@@ -421,7 +500,13 @@ inline ArithmeticOp NameToOp(const std::string &op_name) {
       {"mul",   ArithmeticOp::mul},
       {"div",   ArithmeticOp::div},
       {"fdiv",  ArithmeticOp::fdiv},
-      {"mod",   ArithmeticOp::mod}
+      {"mod",   ArithmeticOp::mod},
+      {"eq",    ArithmeticOp::eq},
+      {"neq",   ArithmeticOp::neq},
+      {"lt",    ArithmeticOp::lt},
+      {"leq",   ArithmeticOp::leq},
+      {"gt",    ArithmeticOp::gt},
+      {"geq",   ArithmeticOp::geq}
   };
   auto it = token_to_op.find(op_name);
   DALI_ENFORCE(it != token_to_op.end(), "No implementation for op \"" + op_name + "\".");

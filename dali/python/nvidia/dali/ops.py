@@ -65,8 +65,27 @@ class _EdgeReference(object):
 
     def __neg__(self):
         return _arithm_op("minus", self)
+
     def __pos__(self):
         return _arithm_op("plus", self)
+
+    def __eq__(self, other):
+        return _arithm_op("eq", self, other)
+
+    def __ne__(self, other):
+        return _arithm_op("neq", self, other)
+
+    def __lt__(self, other):
+        return _arithm_op("lt", self, other)
+
+    def __le__(self, other):
+        return _arithm_op("leq", self, other)
+
+    def __gt__(self, other):
+        return _arithm_op("gt", self, other)
+
+    def __ge__(self, other):
+        return _arithm_op("geq", self, other)
 
 _cpu_ops = set({})
 _gpu_ops = set({})
@@ -686,7 +705,7 @@ def _generate_input_desc(categories_idx, integers, reals):
             input_desc += " "
     return input_desc
 
-# Create arguments for ArithmeticGenericOp andd call it with supplied inputs.
+# Create arguments for ArithmeticGenericOp and call it with supplied inputs.
 # Select the `gpu` device if at least one of the inputs is `gpu`, otherwise `cpu`.
 def _arithm_op(name, *inputs):
     categories_idxs, edges, integers, reals = _group_inputs(inputs)
@@ -701,7 +720,7 @@ def _arithm_op(name, *inputs):
         dev_inputs = list(edge.gpu() for edge in edges)
     else:
         dev_inputs = edges
-    # Call it imediatelly
+    # Call it immediately
     return op(*dev_inputs)
 
 def cpu_ops():
