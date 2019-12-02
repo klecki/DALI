@@ -103,7 +103,8 @@ class CUDAStream:
         return self._ptr
 
 _float_types = [DALIDataType.FLOAT16, DALIDataType.FLOAT, DALIDataType.FLOAT64]
-_int_types = [DALIDataType.INT8, DALIDataType.INT16, DALIDataType.INT32, DALIDataType.INT64,
+_int_types = [DALIDataType.BOOL,
+              DALIDataType.INT8, DALIDataType.INT16, DALIDataType.INT32, DALIDataType.INT64,
               DALIDataType.UINT8, DALIDataType.UINT16, DALIDataType.UINT32, DALIDataType.UINT64]
 
 class Constant(object):
@@ -133,6 +134,9 @@ class Constant(object):
         elif isinstance(value, float):
             self.value = value
             self.dtype = DALIDataType.FLOAT
+
+    def bool(self):
+        return Constant(self.value, DALIDataType.BOOL)
 
     def int8(self):
         return Constant(self.value, DALIDataType.INT8)
@@ -168,7 +172,10 @@ class Constant(object):
         return Constant(self.value, DALIDataType.FLOAT64)
 
     def __eq__(self, other):
-        return self.value == other.value and self.dtype == other.dtype
+        if isinstance(other, Constant):
+            return self.value == other.value and self.dtype == other.dtype
+        # Delegate the call to the `__eq__` of other object, most probably an `_EdgeReference`
+        return other.__eq__(self)
 
     def __int__(self):
         if self.dtype in _int_types:

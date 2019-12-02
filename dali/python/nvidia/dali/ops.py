@@ -644,6 +644,7 @@ def _to_type_desc(input):
         return "float32" # TODO(klecki): current DALI limitation
     if isinstance(input, Constant):
         dtype_to_desc = {
+            DALIDataType.BOOL: "bool",
             DALIDataType.INT8: "int8",
             DALIDataType.INT16: "int16",
             DALIDataType.INT32: "int32",

@@ -29,8 +29,7 @@ batch_size = 4
 # Shape of the samples, currently forces the sample to have be covered by more than 1 tile
 shape_big = [(256, 256)] * batch_size
 # For the coverage of all type combinations we use smaller batch
-# TODO(klecki): revert to small batch
-shape_small = shape_big
+shape_small = [(42, 3), (4, 16), (8, 2), (1, 64)]
 
 # A number used to test constant inputs
 magic_number = 42
@@ -43,10 +42,13 @@ input_kinds = (list(itertools.product(["cpu", "gpu"], ["cpu", "gpu", "cpu_scalar
 
 
 # float16 is marked as TODO in backend for gpu
-input_types = [np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16, np.uint32, np.uint64,
-        np.float32, np.float64]
+input_types = [np.bool_,
+               np.int8, np.int16, np.int32, np.int64,
+               np.uint8, np.uint16, np.uint32, np.uint64,
+               np.float32, np.float64]
 
 np_types_to_dali = {
+    np.bool_:   types.BOOL,
     np.int8:    types.INT8,
     np.int16:   types.INT16,
     np.int32:   types.INT32,
@@ -62,6 +64,10 @@ np_types_to_dali = {
 
 sane_operations = [((lambda x, y: x + y), "+"), ((lambda x, y: x - y), "-"),
                    ((lambda x, y: x * y), "*")]
+
+comparisons_operations = [((lambda x, y: x == y), "=="), ((lambda x, y: x != y), "!="),
+                          ((lambda x, y: x < y), "<"), ((lambda x, y: x <= y), "<="),
+                          ((lambda x, y: x > y), ">"), ((lambda x, y: x >= y), ">="),]
 
 def as_cpu(tl):
     if isinstance(tl, TensorListGPU):
@@ -80,6 +86,9 @@ def float_bin_promote(left_dtype, right_dtype):
     return max_dtype('f', left_dtype, right_dtype)
 
 def signed_unsigned_bin_promote(signed_type, unsigned_type):
+    # Treat the booleans as smaller than anything
+    if unsigned_type.kind == 'b':
+        return signed_type
     if signed_type.itemsize > unsigned_type.itemsize:
         return np.dtype('i' + str(signed_type.itemsize))
     itemsize = min(unsigned_type.itemsize * 2, 8)
@@ -90,10 +99,14 @@ def bin_promote_dtype(left_dtype, right_dtype):
         return left_dtype
     if 'f' in left_dtype.kind or 'f' in right_dtype.kind:
         return float_bin_promote(left_dtype, right_dtype)
+    if 'b' in left_dtype.kind and 'b' in right_dtype.kind:
+        return np.dtype(np.bool_)
     if 'i' in left_dtype.kind and 'i' in right_dtype.kind:
         return max_dtype('i', left_dtype, right_dtype)
-    if 'u' in left_dtype.kind and 'u' in right_dtype.kind:
+    # Check if both types are either 'b' (bool) or 'u' (unsigned), 'b' op 'b' is checked above
+    if set([left_dtype.kind, right_dtype.kind]) <= set('bu'):
         return max_dtype('u', left_dtype, right_dtype)
+    # One of the types is signed
     if 'i' in left_dtype.kind:
         return signed_unsigned_bin_promote(left_dtype, right_dtype)
     return signed_unsigned_bin_promote(right_dtype, left_dtype)
@@ -120,26 +133,36 @@ def div_promote(left_type, right_type):
     return float_bin_promote(left_dtype, right_dtype).type
 
 
-def int_generator(shape, type):
+def int_generator(shape, type, no_zeros):
     iinfo = np.iinfo(type)
     result = np.random.randint(iinfo.min / 2, iinfo.max / 2, shape, type)
     zero_mask = result == 0
-    return result + zero_mask
+    if no_zeros:
+        return result + zero_mask
+    return result
 
+def bool_generator(shape, no_zeros):
+    result = np.random.choice(a=[True, False], size=shape)
+    zero_mask = result == False
+    if no_zeros:
+        return result | zero_mask
+    return result
 
-def float_generator(shape, type):
+def float_generator(shape, type, _):
     if (len(shape) == 2):
         return type(np.random.rand(*shape))
     else:
         return type([np.random.rand()])
 
+# Generates two inputs of required shape and type
+# if the kind contains 'scalar', than the result is batch of scalar tensors
 class ExternalInputIterator(object):
-    def __init__(self, batch_size, shape, left_type, right_type, left_kind, right_kind):
+    def __init__(self, batch_size, shape, left_type, right_type, left_kind, right_kind, is_right_div = False):
         self.batch_size = batch_size
         self.left_type = left_type
         self.right_type = right_type
-        self.gen_l = self.get_generator(self.left_type)
-        self.gen_r = self.get_generator(self.right_type)
+        self.gen_l = self.get_generator(self.left_type, False)
+        self.gen_r = self.get_generator(self.right_type, is_right_div)
         self.left_shape = shape if ("scalar" not in left_kind) else [(1,)] * batch_size
         self.right_shape = shape if ("scalar" not in right_kind) else [(1,)] * batch_size
 
@@ -154,12 +177,13 @@ class ExternalInputIterator(object):
             right.append(self.gen_r(self.right_shape[sample]))
         return (left, right)
 
-    def get_generator(self, type):
-        if type in [np.float16, np.float32, np.float64]:
-            return lambda shape : float_generator(shape, type)
+    def get_generator(self, type, no_zeros):
+        if type == np.bool_:
+            return lambda shape: bool_generator(shape, no_zeros)
+        elif type in [np.float16, np.float32, np.float64]:
+            return lambda shape : float_generator(shape, type, no_zeros)
         else:
-            return lambda shape : int_generator(shape, type)
-
+            return lambda shape : int_generator(shape, type, no_zeros)
 
     next = __next__
 
@@ -246,12 +270,33 @@ def test_arithmetic_ops():
             for types_in in itertools.product(input_types, input_types):
                 yield check_arithm_op, kinds, types_in, op, shape_small, op_desc
 
+
+# Comparisons - should always return bool
+def check_comparsion_op(kinds, types, op, shape, _):
+    left_type, right_type = types
+    left_kind, right_kind = kinds
+    target_type = np.bool_
+    iterator = iter(ExternalInputIterator(batch_size, shape, left_type, right_type, left_kind, right_kind))
+    pipe = ExprOpPipeline(kinds, types, iterator, op, batch_size = batch_size, num_threads = 2,
+            device_id = 0)
+    pipe.build()
+    pipe_out = pipe.run()
+    for sample in range(batch_size):
+        l_np, r_np, out = extract_data(pipe_out, sample, kinds, target_type)
+        np.testing.assert_array_equal(out, op(l_np, r_np))
+
+def test_comparison_ops():
+    for kinds in input_kinds:
+        for (op, op_desc) in comparisons_operations:
+            for types_in in itertools.product(input_types, input_types):
+                yield check_comparsion_op, kinds, types_in, op, shape_small, op_desc
+
 # The div operator that always returns floating point values
 def check_arithm_fdiv(kinds, types, shape):
     left_type, right_type = types
     left_kind, right_kind = kinds
     target_type = div_promote(left_type, right_type)
-    iterator = iter(ExternalInputIterator(batch_size, shape, left_type, right_type, left_kind, right_kind))
+    iterator = iter(ExternalInputIterator(batch_size, shape, left_type, right_type, left_kind, right_kind, True))
     pipe = ExprOpPipeline(kinds, types, iterator, (lambda x, y : x / y), batch_size = batch_size,
             num_threads = 2, device_id = 0)
     pipe.build()
@@ -276,7 +321,7 @@ def check_arithm_div(kinds, types, shape):
     left_type, right_type = types
     left_kind, right_kind = kinds
     target_type = bin_promote(left_type, right_type)
-    iterator = iter(ExternalInputIterator(batch_size, shape, left_type, right_type, left_kind, right_kind))
+    iterator = iter(ExternalInputIterator(batch_size, shape, left_type, right_type, left_kind, right_kind, True))
     pipe = ExprOpPipeline(kinds, types, iterator, (lambda x, y : x // y), batch_size = batch_size,
             num_threads = 2, device_id = 0)
     pipe.build()
