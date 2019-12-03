@@ -210,7 +210,7 @@ inline void GetConstantNodes(ExprNode &expr, std::vector<ExprConstant *> &nodes)
  */
 inline void CheckArithmeticOnBooleans(ExprFunc &func) {
   auto op = NameToOp(func.GetFuncName());
-  if (IsArithmetic(op) || op != ArithmeticOp::mul) {
+  if (IsArithmetic(op) && op != ArithmeticOp::mul) {
     bool inputs_are_bool = true;
     for (int i = 0; i < func.GetSubexpressionCount(); i++) {
       inputs_are_bool = inputs_are_bool && func[i].GetTypeId() == DALIDataType::DALI_BOOL;

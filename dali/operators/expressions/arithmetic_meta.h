@@ -61,6 +61,7 @@ DALI_HOST_DEV constexpr int GetOpArity(ArithmeticOp op) {
     case ArithmeticOp::sub:
     case ArithmeticOp::mul:
     case ArithmeticOp::div:
+    case ArithmeticOp::fdiv:
     case ArithmeticOp::mod:
     case ArithmeticOp::eq:
     case ArithmeticOp::neq:
@@ -82,6 +83,7 @@ DALI_HOST_DEV constexpr bool IsArithmetic(ArithmeticOp op) {
     case ArithmeticOp::sub:
     case ArithmeticOp::mul:
     case ArithmeticOp::div:
+    case ArithmeticOp::fdiv:
     case ArithmeticOp::mod:
       return true;
     default:
