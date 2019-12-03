@@ -262,18 +262,18 @@ def check_arithm_op(kinds, types, op, shape, _):
             np.testing.assert_array_equal(out, op(l_np, r_np))
 
 
-# def test_arithmetic_ops_big():
-#     for kinds in input_kinds:
-#         for (op, op_desc) in sane_operations:
-#             for types_in in [(np.int8, np.int8)]:
-#                 yield check_arithm_op, kinds, types_in, op, shape_big, op_desc
+def test_arithmetic_ops_big():
+    for kinds in input_kinds:
+        for (op, op_desc) in sane_operations:
+            for types_in in [(np.int8, np.int8)]:
+                yield check_arithm_op, kinds, types_in, op, shape_big, op_desc
 
-# def test_arithmetic_ops():
-#     for kinds in input_kinds:
-#         for (op, op_desc) in sane_operations:
-#             for types_in in itertools.product(input_types, input_types):
-#                 if types_in != (np.bool_, np.bool_) or op_desc == "*":
-#                     yield check_arithm_op, kinds, types_in, op, shape_small, op_desc
+def test_arithmetic_ops():
+    for kinds in input_kinds:
+        for (op, op_desc) in sane_operations:
+            for types_in in itertools.product(input_types, input_types):
+                if types_in != (np.bool_, np.bool_) or op_desc == "*":
+                    yield check_arithm_op, kinds, types_in, op, shape_small, op_desc
 
 
 # Comparisons - should always return bool
