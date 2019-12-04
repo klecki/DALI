@@ -49,7 +49,10 @@ enum class ArithmeticOp : int {
   lt,   // <
   leq,  // <=
   gt,   // >
-  geq   // >=
+  geq,  // >=
+  // Trigonometric
+  sin,
+  cos,
 };
 
 DALI_HOST_DEV constexpr int GetOpArity(ArithmeticOp op) {
@@ -303,6 +306,66 @@ struct arithm_meta;
 
 REGISTER_UNARY_IMPL(ArithmeticOp::plus, +);
 REGISTER_UNARY_IMPL(ArithmeticOp::minus, -);
+
+#define REGISTER_UNARY_IMPL(OP, EXPRESSION)                \
+  REGISTER_UNARY_IMPL_BACKEND(OP, EXPRESSION, CPUBackend); \
+  REGISTER_UNARY_IMPL_BACKEND(OP, EXPRESSION, GPUBackend)
+
+
+
+template <>
+struct arithm_meta<ArithmeticOp::sin, CPUBackend> {
+  template <typename T>
+  using result_t = std::conditional_t<!std::is_same<T, double>::value, float, double>;
+
+  template <typename T>
+  DALI_HOST_DEV static constexpr result_t<T> impl(T v) {
+    static_assert(GetOpArity(OP) == 1,
+                  "Registered operation arity does not match the requirements.");
+    auto v_ = static_cast<result_t<T>>(v);
+    return sin(v_);
+  }
+
+  static inline std::string to_string() {
+    return "sin";
+  }
+
+  static constexpr int num_inputs = 1;
+  static constexpr int num_outputs = 1;
+};
+
+template <>
+struct arithm_meta<ArithmeticOp::sin, GPUBackend> {
+  template <typename T>
+  using result_t = std::conditional_t<!std::is_same<T, double>::value, float, double>;
+
+  template <typename T>
+  DALI_HOST_DEV static constexpr std::enable_if_t<!std::is_same<T, double>::value, result_t<T>>
+  impl(T v) {
+    static_assert(GetOpArity(OP) == 1,
+                  "Registered operation arity does not match the requirements.");
+    auto v_ = static_cast<result_t<T>>(v);
+    return sinf(v_);
+  }
+
+  template <typename T>
+  DALI_HOST_DEV static constexpr std::enable_if_t<std::is_same<T, double>::value, result_t<T>>
+  impl(T v) {
+    static_assert(GetOpArity(OP) == 1,
+                  "Registered operation arity does not match the requirements.");
+    auto v_ = static_cast<result_t<T>>(v);
+    return sin(v_);
+  }
+
+  static inline std::string to_string() {
+    return "sin";
+  }
+
+  static constexpr int num_inputs = 1;
+  static constexpr int num_outputs = 1;
+};
+
+
 
 #define REGISTER_BINARY_IMPL_BACKEND(OP, EXPRESSION, BACKEND)                       \
   template <>                                                                       \
@@ -609,7 +672,9 @@ inline ArithmeticOp NameToOp(const std::string &op_name) {
       {"lt",    ArithmeticOp::lt},
       {"leq",   ArithmeticOp::leq},
       {"gt",    ArithmeticOp::gt},
-      {"geq",   ArithmeticOp::geq}
+      {"geq",   ArithmeticOp::geq},
+      {"sin",   ArithmeticOp::sin},
+      {"cos",   ArithmeticOp::cos}
   };
   auto it = token_to_op.find(op_name);
   DALI_ENFORCE(it != token_to_op.end(), "No implementation for op \"" + op_name + "\".");
