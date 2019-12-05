@@ -59,6 +59,8 @@ DALI_HOST_DEV constexpr int GetOpArity(ArithmeticOp op) {
   switch (op) {
     case ArithmeticOp::plus:
     case ArithmeticOp::minus:
+    case ArithmeticOp::sin:
+    case ArithmeticOp::cos:
       return 1;
     case ArithmeticOp::add:
     case ArithmeticOp::sub:
@@ -320,7 +322,7 @@ struct arithm_meta<ArithmeticOp::sin, CPUBackend> {
 
   template <typename T>
   DALI_HOST_DEV static constexpr result_t<T> impl(T v) {
-    static_assert(GetOpArity(OP) == 1,
+    static_assert(GetOpArity(ArithmeticOp::sin) == 1,
                   "Registered operation arity does not match the requirements.");
     auto v_ = static_cast<result_t<T>>(v);
     return sin(v_);
@@ -342,7 +344,7 @@ struct arithm_meta<ArithmeticOp::sin, GPUBackend> {
   template <typename T>
   DALI_HOST_DEV static constexpr std::enable_if_t<!std::is_same<T, double>::value, result_t<T>>
   impl(T v) {
-    static_assert(GetOpArity(OP) == 1,
+    static_assert(GetOpArity(ArithmeticOp::sin) == 1,
                   "Registered operation arity does not match the requirements.");
     auto v_ = static_cast<result_t<T>>(v);
     return sinf(v_);
@@ -351,7 +353,7 @@ struct arithm_meta<ArithmeticOp::sin, GPUBackend> {
   template <typename T>
   DALI_HOST_DEV static constexpr std::enable_if_t<std::is_same<T, double>::value, result_t<T>>
   impl(T v) {
-    static_assert(GetOpArity(OP) == 1,
+    static_assert(GetOpArity(ArithmeticOp::sin) == 1,
                   "Registered operation arity does not match the requirements.");
     auto v_ = static_cast<result_t<T>>(v);
     return sin(v_);

@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,16 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
+from nvidia.dali.ops import _arithm_op, _EdgeReference
 
-from . import ops
-from . import pipeline
-from . import tensors
-from . import check_edge
-from . import math
-from . import tfrecord
-from . import types
-from . import plugin_manager
-from . import sysconfig
-
-__version__ = '@DALI_VERSION@'
+def sin(tensor):
+    return _arithm_op("sin", tensor)
