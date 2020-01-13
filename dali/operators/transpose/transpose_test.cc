@@ -97,8 +97,7 @@ std::vector<testing::Arguments> GetPermutations(int rank) {
 }
 
 std::vector<testing::Arguments> devices = {
-// CPU transpose not supported yet
-//    {{"device", std::string{"cpu"}}},
+   {{"device", std::string{"cpu"}}},
     {{"device", std::string{"gpu"}}},
 };
 

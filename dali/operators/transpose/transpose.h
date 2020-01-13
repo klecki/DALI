@@ -67,14 +67,14 @@ class Transpose : public Operator<Backend> {
       "Invalid permutation: sorted `perm` is not equal to [0, ..., n-1].");
   }
 
-  ~Transpose() override;
+  ~Transpose() noexcept override;
 
   DISABLE_COPY_MOVE_ASSIGN(Transpose);
 
  protected:
   bool SetupImpl(std::vector<OutputDesc> &output_desc,
                  const workspace_t<Backend> &ws) override {
-    const auto &input = ws.template Input<Backend>(0);
+    const auto &input = ws.template InputRef<Backend>(0);
     auto in_layout = input.GetLayout();
     auto sample_ndim = input.shape().sample_dim();
     DALI_ENFORCE(in_layout.ndim() == sample_ndim || in_layout.empty());
@@ -85,10 +85,29 @@ class Transpose : public Operator<Backend> {
     } else if (transpose_layout_ && !in_layout.empty()) {
       output_layout_ = detail::Permute(in_layout, perm_);
     }
-    return false;
+
+    output_desc.resize(1);
+    if (is_uniform(input.shape())) {
+      auto permuted_dims = detail::Permute(input.shape()[0], perm_);
+      output_desc[0].shape = uniform_list_shape(batch_size_, permuted_dims);
+    } else {
+      TensorListShape<> tl_shape(batch_size_);
+      for (int i = 0; i < batch_size_; ++i) {
+        auto in_shape = input.shape().tensor_shape(i);
+        tl_shape.set_tensor_shape(i, detail::Permute(in_shape, perm_));
+      }
+      output_desc[0].shape = tl_shape;
+    }
+    output_desc[0].type = input.type();
+
+    return true;
   }
 
-  void RunImpl(Workspace<Backend> &ws) override;
+  bool CanInferOutputs() const override {
+    return true;
+  }
+
+  void RunImpl(workspace_t<Backend> &ws) override;
 
  private:
   std::vector<int> perm_;

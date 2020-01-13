@@ -12,9 +12,84 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "dali/kernels/common/transpose.h"
 #include "dali/operators/transpose/transpose.h"
 
 namespace dali {
+
+
+template<>
+void Transpose<CPUBackend>::RunImpl(HostWorkspace &ws) {
+  const auto& input = ws.InputRef<CPUBackend>(0);
+  auto& output = ws.OutputRef<CPUBackend>(0);
+
+  // TypeInfo itype = input.type();
+  // DALI_ENFORCE((itype.size() == 1 || itype.size() == 2 || itype.size() == 4 || itype.size() == 8),
+  //     "cuTT transpose supports only [1-2-4-8] bytes types.");
+
+  // output.set_type(itype);
+  // output.SetLayout(output_layout_);
+
+  // auto input_shape = input.tensor_shape(0);
+  // DALI_ENFORCE(input_shape.size() == static_cast<int>(perm_.size()),
+  //              "Transposed tensors rank should be equal to the permutation index list.");
+
+  // if (input.IsDenseTensor()) {
+  //   if (cutt_handle_ != 0) {
+  //     if (input_shape != previous_iter_shape_) {
+  //       cuttCheck(cuttDestroy(cutt_handle_));
+  //       cutt_handle_ = 0;
+  //       previous_iter_shape_ = input_shape;
+  //     }
+  //   } else {
+  //     previous_iter_shape_ = input_shape;
+  //   }
+  //   auto permuted_dims = detail::Permute(input_shape, perm_);
+  //   output.Resize(uniform_list_shape(batch_size_, permuted_dims));
+  //   if (itype.size() == 1) {
+  //     kernel::cuTTKernelBatched<uint8_t>(input, output, perm_, &cutt_handle_, ws.stream());
+  //   } else if (itype.size() == 2) {
+  //     kernel::cuTTKernelBatched<uint16_t>(input, output, perm_, &cutt_handle_, ws.stream());
+  //   } else if (itype.size() == 4) {
+  //     kernel::cuTTKernelBatched<int32_t>(input, output, perm_, &cutt_handle_, ws.stream());
+  //   } else {  // itype.size() == 8
+  //     kernel::cuTTKernelBatched<int64_t>(input, output, perm_, &cutt_handle_, ws.stream());
+  //   }
+  // } else {
+  //   std::vector<TensorShape<>> tl_shape;
+  //   for (int i = 0; i < batch_size_; ++i) {
+  //     auto in_shape = input.tensor_shape(i);
+  //     tl_shape.emplace_back(detail::Permute(in_shape, perm_));
+  //   }
+  //   output.Resize(tl_shape);
+  //   if (itype.size() == 1) {
+  //     kernel::cuTTKernel<uint8_t>(input, output, perm_, ws.stream());
+  //   } else if (itype.size() == 2) {
+  //     kernel::cuTTKernel<uint16_t>(input, output, perm_, ws.stream());
+  //   } else if (itype.size() == 4) {
+  //     kernel::cuTTKernel<int32_t>(input, output, perm_, ws.stream());
+  //   } else {  // itype.size() == 8
+  //     kernel::cuTTKernel<int64_t>(input, output, perm_, ws.stream());
+  //   }
+  // }
+}
+
+template <>
+Transpose<CPUBackend>::~Transpose() noexcept {
+  // meh
+  // if (cutt_handle_ > 0) {
+  //   auto err = cuttDestroy(cutt_handle_);
+  //   if (err != CUTT_SUCCESS) {
+  //     // Something terrible happened. Just quit now, before you'll loose your life or worse...
+  //     std::terminate();
+  //   }
+  // }
+}
+
+DALI_REGISTER_OPERATOR(Transpose, Transpose<CPUBackend>, CPU);
+
+
+
 
 DALI_SCHEMA(Transpose)
   .DocStr("Transpose tensor dimension to a new permutated dimension specified by `perm`.")
