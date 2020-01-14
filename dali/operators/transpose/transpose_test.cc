@@ -98,10 +98,21 @@ std::vector<testing::Arguments> GetPermutations(int rank) {
 
 std::vector<testing::Arguments> devices = {
    {{"device", std::string{"cpu"}}},
-    {{"device", std::string{"gpu"}}},
+    // {{"device", std::string{"gpu"}}},
 };
 
 namespace detail {
+
+// TODO(klecki): really inefficient temporary
+std::string print_vec(const std::vector<int> &vec) {
+  std::stringstream tmp;
+  tmp << "{";
+  for (auto &elem : vec) {
+    tmp << elem << ", ";
+  }
+  tmp << "}";
+  return tmp.str();
+}
 
 template <typename T, int Rank, int CurrDim>
 inline std::enable_if_t<Rank == CurrDim>
@@ -110,8 +121,9 @@ tensor_loop_impl(const T* in_tensor,
                  const TensorShape<>& /*unused*/,
                  const std::vector<int>& /*unused*/, const std::vector<int>& /*unused*/,
                  const std::vector<int>& /*unused*/,
-                 int in_idx, int out_idx) {
-  EXPECT_EQ(in_tensor[in_idx], out_tensor[out_idx]);
+                 int in_idx, int out_idx, std::vector<int> &position) {
+  ASSERT_EQ(in_tensor[in_idx], out_tensor[out_idx])
+      << "in_idx: " << in_idx << " out_idx: " << out_idx << "; pos: " << print_vec(position);
 }
 
 template <typename T, int Rank, int CurrDim>
@@ -121,13 +133,14 @@ tensor_loop_impl(const T* in_tensor,
                  const TensorShape<>& shape,
                  const std::vector<int>& old_strides, const std::vector<int>& new_strides,
                  const std::vector<int>& perm,
-                 int in_idx, int out_idx) {
+                 int in_idx, int out_idx, std::vector<int> &position) {
   for (int i = 0; i < shape[CurrDim]; ++i) {
+    position[CurrDim] = i;
     tensor_loop_impl<T, Rank, CurrDim +1>(in_tensor,
                                       out_tensor,
                                       shape, old_strides, new_strides, perm,
                                       in_idx + old_strides[perm[CurrDim]] * i,
-                                      out_idx + new_strides[CurrDim] * i);
+                                      out_idx + new_strides[CurrDim] * i, position);
   }
 }
 
@@ -137,9 +150,10 @@ inline void tensor_loop(const T* in_tensor,
                         const TensorShape<>& shape,
                         const std::vector<int>& old_strides, const std::vector<int>& new_strides,
                         const std::vector<int>& perm) {
+  std::vector<int> position(shape.size());
   detail::tensor_loop_impl<T, Rank, 0>(in_tensor, out_tensor,
                                        shape, old_strides, new_strides, perm,
-                                       0, 0);
+                                       0, 0, position);
 }
 
 }  // namespace detail

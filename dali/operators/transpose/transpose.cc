@@ -14,14 +14,29 @@
 
 #include "dali/kernels/common/transpose.h"
 #include "dali/operators/transpose/transpose.h"
+#include "dali/core/static_switch.h"
+#include "dali/pipeline/data/views.h"
+
 
 namespace dali {
+
+#define TRANSPOSE_ALLOWED_TYPES \
+  (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, float16, double)
 
 
 template<>
 void Transpose<CPUBackend>::RunImpl(HostWorkspace &ws) {
   const auto& input = ws.InputRef<CPUBackend>(0);
   auto& output = ws.OutputRef<CPUBackend>(0);
+
+  auto input_type = input.type().id();
+  TYPE_SWITCH(input_type, type2id, T, TRANSPOSE_ALLOWED_TYPES, (
+    for (int i = 0; i < batch_size_; i++) {
+      kernels::permute(view<T>(output[i]), view<const T>(input[i]), make_span(perm_));
+    }
+  ),
+  DALI_FAIL("Input type not supported."));
+
 
   // TypeInfo itype = input.type();
   // DALI_ENFORCE((itype.size() == 1 || itype.size() == 2 || itype.size() == 4 || itype.size() == 8),
