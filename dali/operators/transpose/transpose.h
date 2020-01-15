@@ -21,23 +21,9 @@
 
 #include "dali/pipeline/operator/operator.h"
 #include "dali/operators/transpose/cutt/cutt.h"
+#include "dali/kernels/common/utils.h"
 
 namespace dali {
-
-namespace detail {
-
-template <typename T>
-T Permute(const T& in, const std::vector<int>& permutation) {
-  T out = in;
-  for (size_t i = 0; i < permutation.size(); i++) {
-    auto idx = permutation[i];
-    out[i] = in[idx];
-  }
-  return out;
-}
-
-}  // namespace detail
-
 
 template <typename Backend>
 class Transpose : public Operator<Backend> {
@@ -83,18 +69,18 @@ class Transpose : public Operator<Backend> {
       DALI_ENFORCE(output_layout_.ndim() == sample_ndim);
       output_layout_ = output_layout_arg_;
     } else if (transpose_layout_ && !in_layout.empty()) {
-      output_layout_ = detail::Permute(in_layout, perm_);
+      output_layout_ = kernels::Permute(in_layout, perm_);
     }
 
     output_desc.resize(1);
     if (is_uniform(input.shape())) {
-      auto permuted_dims = detail::Permute(input.shape()[0], perm_);
+      auto permuted_dims = kernels::Permute(input.shape()[0], perm_);
       output_desc[0].shape = uniform_list_shape(batch_size_, permuted_dims);
     } else {
       TensorListShape<> tl_shape(batch_size_);
       for (int i = 0; i < batch_size_; ++i) {
         auto in_shape = input.shape().tensor_shape(i);
-        tl_shape.set_tensor_shape(i, detail::Permute(in_shape, perm_));
+        tl_shape.set_tensor_shape(i, kernels::Permute(in_shape, perm_));
       }
       output_desc[0].shape = tl_shape;
     }

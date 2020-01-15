@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include "dali/kernels/common/transpose.h"
-#include "dali/operators/transpose/transpose.h"
 #include "dali/core/static_switch.h"
+#include "dali/operators/transpose/transpose.h"
 #include "dali/pipeline/data/views.h"
 
 
@@ -32,7 +32,7 @@ void Transpose<CPUBackend>::RunImpl(HostWorkspace &ws) {
   auto input_type = input.type().id();
   TYPE_SWITCH(input_type, type2id, T, TRANSPOSE_ALLOWED_TYPES, (
     for (int i = 0; i < batch_size_; i++) {
-      kernels::permute(view<T>(output[i]), view<const T>(input[i]), make_span(perm_));
+      kernels::transpose(view<T>(output[i]), view<const T>(input[i]), make_span(perm_));
     }
   ),
   DALI_FAIL("Input type not supported."));

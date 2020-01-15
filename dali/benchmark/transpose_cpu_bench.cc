@@ -88,7 +88,7 @@ static void BM_Permute(benchmark::State& state) {
 
 
 template <typename T>
-class PermuteFixture : public benchmark::Fixture {
+class TransposeFixture : public benchmark::Fixture {
  public:
   void SetUp(benchmark::State& st) override {
     auto test_case = GetCase(st.range(0));
@@ -99,7 +99,7 @@ class PermuteFixture : public benchmark::Fixture {
         elem *= st.range(1);
     }
     perm_ = std::get<1>(test_case);
-    dst_shape_ = detail::Permute(src_shape_, perm_);
+    dst_shape_ = kernels::Permute(src_shape_, perm_);
     auto total_size = volume(src_shape_);
     dst_mem_.resize(total_size);
     src_mem_.resize(total_size);
@@ -120,46 +120,89 @@ class PermuteFixture : public benchmark::Fixture {
   std::vector<T> dst_mem_, src_mem_;
 };
 
-BENCHMARK_TEMPLATE_DEFINE_F(PermuteFixture, Uint8Test, uint8_t)(benchmark::State& st) {
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, Uint8Test, uint8_t)(benchmark::State& st) {
    for (auto _ : st) {
     benchmark::DoNotOptimize(src_mem_.data());
-    kernels::permute(dst_view_, src_view_, make_span(perm_));
+    kernels::transpose(dst_view_, src_view_, make_span(perm_));
     benchmark::DoNotOptimize(dst_mem_.data());
     benchmark::ClobberMemory();
   }
 }
 
-BENCHMARK_TEMPLATE_DEFINE_F(PermuteFixture, Uint16Test, uint16_t)(benchmark::State& st) {
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, Uint16Test, uint16_t)(benchmark::State& st) {
    for (auto _ : st) {
     benchmark::DoNotOptimize(src_mem_.data());
-    kernels::permute(dst_view_, src_view_, make_span(perm_));
+    kernels::transpose(dst_view_, src_view_, make_span(perm_));
     benchmark::DoNotOptimize(dst_mem_.data());
     benchmark::ClobberMemory();
   }
 }
 
-BENCHMARK_TEMPLATE_DEFINE_F(PermuteFixture, IntTest, int)(benchmark::State& st) {
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, IntTest, int)(benchmark::State& st) {
    for (auto _ : st) {
     benchmark::DoNotOptimize(src_mem_.data());
-    kernels::permute(dst_view_, src_view_, make_span(perm_));
+    kernels::transpose(dst_view_, src_view_, make_span(perm_));
     benchmark::DoNotOptimize(dst_mem_.data());
     benchmark::ClobberMemory();
   }
 }
 
-BENCHMARK_TEMPLATE_DEFINE_F(PermuteFixture, DoubleTest, double)(benchmark::State& st) {
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, DoubleTest, double)(benchmark::State& st) {
    for (auto _ : st) {
     benchmark::DoNotOptimize(src_mem_.data());
-    kernels::permute(dst_view_, src_view_, make_span(perm_));
+    kernels::transpose(dst_view_, src_view_, make_span(perm_));
     benchmark::DoNotOptimize(dst_mem_.data());
     benchmark::ClobberMemory();
   }
 }
 
-BENCHMARK_REGISTER_F(PermuteFixture, Uint8Test)->Apply(CustomArguments);
-BENCHMARK_REGISTER_F(PermuteFixture, Uint16Test)->Apply(CustomArguments);
-BENCHMARK_REGISTER_F(PermuteFixture, IntTest)->Apply(CustomArguments);
-BENCHMARK_REGISTER_F(PermuteFixture, DoubleTest)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, Uint8Test)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, Uint16Test)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, IntTest)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, DoubleTest)->Apply(CustomArguments);
+
+
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, MemcpyUint8Test, uint8_t)(benchmark::State& st) {
+   for (auto _ : st) {
+    benchmark::DoNotOptimize(src_mem_.data());
+    kernels::transpose_memcpy(dst_view_, src_view_, make_span(perm_));
+    benchmark::DoNotOptimize(dst_mem_.data());
+    benchmark::ClobberMemory();
+  }
+}
+
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, MemcpyUint16Test, uint16_t)(benchmark::State& st) {
+   for (auto _ : st) {
+    benchmark::DoNotOptimize(src_mem_.data());
+    kernels::transpose_memcpy(dst_view_, src_view_, make_span(perm_));
+    benchmark::DoNotOptimize(dst_mem_.data());
+    benchmark::ClobberMemory();
+  }
+}
+
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, MemcpyIntTest, int)(benchmark::State& st) {
+   for (auto _ : st) {
+    benchmark::DoNotOptimize(src_mem_.data());
+    kernels::transpose_memcpy(dst_view_, src_view_, make_span(perm_));
+    benchmark::DoNotOptimize(dst_mem_.data());
+    benchmark::ClobberMemory();
+  }
+}
+
+BENCHMARK_TEMPLATE_DEFINE_F(TransposeFixture, MemcpyDoubleTest, double)(benchmark::State& st) {
+   for (auto _ : st) {
+    benchmark::DoNotOptimize(src_mem_.data());
+    kernels::transpose_memcpy(dst_view_, src_view_, make_span(perm_));
+    benchmark::DoNotOptimize(dst_mem_.data());
+    benchmark::ClobberMemory();
+  }
+}
+
+BENCHMARK_REGISTER_F(TransposeFixture, MemcpyUint8Test)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, MemcpyUint16Test)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, MemcpyIntTest)->Apply(CustomArguments);
+BENCHMARK_REGISTER_F(TransposeFixture, MemcpyDoubleTest)->Apply(CustomArguments);
+
 
 }  // namespace dali
 
