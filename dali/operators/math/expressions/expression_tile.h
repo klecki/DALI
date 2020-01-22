@@ -32,10 +32,13 @@ namespace dali {
  * @brief Describe a tile of data to be processed in expression evaluation.
  */
 struct TileDesc {
-  int sample_idx;       // id of sample inside within the batch
-  int extent_idx;       // the index of tile within this sample_idx
-  int64_t extent_size;  // actually covered extent in this tile, the last can be smaller
-  int64_t tile_size;    // the size of regular tile
+  int sample_idx;        // id of sample inside within the batch
+  int extent_idx;        // the index of tile within this sample_idx
+  int64_t extent_size;   // actually covered extent in this tile, the last can be smaller
+  int64_t tile_size;     // the size of regular tile
+  TensorShape<> shape;   // most-expanded shape, matching the output
+  TensorShape<> anchor;  // coordinate of the starting point in the shape
+  TensorShape<> end_anchor;
 };
 
 inline std::ostream &operator<<(std::ostream &os, const TileDesc &v) {

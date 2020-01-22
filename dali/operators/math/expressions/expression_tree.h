@@ -124,7 +124,7 @@ class ExprFunc : public ExprNode {
    *
    * @param func_name the name of the operation, e.g. `add`, `sin`
    */
-  explicit ExprFunc(const std::string &func_name) : func_name_(func_name) {}
+  explicit ExprFunc(const std::string &func_name) : require_bcast(false), func_name_(func_name) {}
 
   ExprFunc(const std::string &func_name, int num_input) : func_name_(func_name) {
     subexpr_.resize(num_input);
@@ -167,6 +167,7 @@ class ExprFunc : public ExprNode {
     return *subexpr_[i];
   }
 
+  bool require_bcast;
  private:
   std::string func_name_;
   std::vector<std::unique_ptr<ExprNode>> subexpr_;

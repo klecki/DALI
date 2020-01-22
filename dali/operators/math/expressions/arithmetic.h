@@ -30,8 +30,21 @@
 #include "dali/operators/math/expressions/arithmetic_meta.h"
 #include "dali/operators/math/expressions/expression_impl_factory.h"
 #include "dali/pipeline/operator/operator.h"
+#include "dali/kernels/common/utils.h"
 
 namespace dali {
+
+// TODO(klecki): test
+inline TensorShape<> GetCoordinate(const TensorShape<> &size, Index offset) {
+  TensorShape<> result(size.sample_dim());
+  auto strides = kernels::GetStrides(size);
+  for (int i = 0; i < size.sample_dim(); i++) {
+    result[i] = offset / strides[i];
+    offset %= strides[i];
+  }
+  return result;
+}
+
 
 /**
  * @brief The first element contains vector of tiles, the second groups the tiles into task ranges
@@ -50,7 +63,7 @@ inline TileCover GetTiledCover(const TensorListShape<> &shape, int tile_size,
     Index sample_elements = shape[sample_idx].num_elements();
     for (Index covered = 0; covered < sample_elements; covered += tile_size, extent_idx++) {
       auto actual_tile_size =
-          std::min(static_cast<Index>(tile_size), shape[sample_idx].num_elements() - covered);
+          std::min(static_cast<Index>(tile_size), sample_elements - covered);
       descs.push_back({sample_idx, extent_idx, static_cast<int>(actual_tile_size), tile_size});
     }
   }
@@ -155,22 +168,56 @@ inline std::vector<ExprImplTask> CreateExecutionTasks(const ExprNode &expr, Expr
   return result;
 }
 
-inline TensorListShape<> ShapePromotion(std::string op, span<const TensorListShape<> *> shapes,
+inline TensorShape<> BcastShape(const TensorShape<> &s0, const TensorShape<> &s1) {
+  // TODO(klecki): propagate here sample number and be more explicit in error messages
+  // TODO(klecki): expand to non-matching dimensions, where we assume the rest are `1`.
+  DALI_ENFORCE(s0.sample_dim() == s1.sample_dim(), "Sample dim must match");
+  TensorShape<> result(s0.sample_dim());
+  for (int i = 0; i < s0.sample_dim(); i++) {
+    DALI_ENFORCE(s0[i] == s1[i] || s0[i] == 1 || s1[i] == 1, "In bcast shape dim must either match or one of them must be equal 1.");
+    result[i] = std::max(s0[i], s1[i]);
+  }
+  return result;
+}
+
+/**
+ * @brief Calculate resulting shape of the operation and return if bcast is required
+ *
+ * @return Promoted shape, is_bcast_required
+ */
+inline std::tuple<TensorListShape<>, bool> ShapePromotion(std::string op, span<const TensorListShape<> *> shapes,
                                         int batch_size) {
   const TensorListShape<> *out_shape = nullptr;
+  bool requires_bcast = false;
+  TensorListShape<> result;
   for (int i = 0; i < shapes.size(); i++) {
     if (IsScalarLike(*shapes[i]))
       continue;
     if (!out_shape) {
       out_shape = shapes[i];
     } else {
-      DALI_ENFORCE(*out_shape == *shapes[i],
-                   make_string("Input shapes of elemenetwise arithemtic operator \"", op,
-                              "\" do not match. Expected equal shapes, got: ", op, "(",
-                              *out_shape, ", ", *shapes[i], ")."));
+      // TODO(klecki): Limited case for bcast
+      DALI_ENFORCE(shapes.size() == 2 && i == 1, "This is the only way now for bcast");
+      // DALI_ENFORCE(*out_shape == *shapes[i],
+      //              make_string("Input shapes of elemenetwise arithemtic operator \"", op,
+      //                         "\" do not match. Expected equal shapes, got: ", op, "(",
+      //                         *out_shape, ", ", *shapes[i], ")."));
+      if (*out_shape == *shapes[i]) {
+        continue;
+      } else {
+        requires_bcast = true;
+        result.resize(batch_size, out_shape->sample_dim());
+        const auto &tl0 = *shapes[0];
+        const auto &tl1 = *shapes[1];
+        for (int j = 0; j < batch_size; j++) {
+          // TODO(klecki): more than two, generic case?
+          result.set_tensor_shape(j, BcastShape(tl0[j], tl1[j]));
+        }
+        return {result, requires_bcast};
+      }
     }
   }
-  return out_shape ? *out_shape : uniform_list_shape(batch_size, {1});
+  return { out_shape ? *out_shape : uniform_list_shape(batch_size, {1}), requires_bcast};
 }
 
 /**
@@ -201,7 +248,9 @@ DLL_PUBLIC inline const TensorListShape<> &PropagateShapes(ExprNode &expr,
   for (int i = 0; i < subexpression_count; i++) {
     shapes[i] = &PropagateShapes<Backend>(func[i], ws, batch_size);
   }
-  func.SetShape(ShapePromotion(func.GetFuncName(), make_span(shapes), batch_size));
+  auto shape_bcast = ShapePromotion(func.GetFuncName(), make_span(shapes), batch_size);
+  func.SetShape(std::get<0>(shape_bcast));
+  func.require_bcast = std::get<1>(shape_bcast);
   return func.GetShape();
 }
 
@@ -364,7 +413,7 @@ class ArithmeticGenericOp : public Operator<Backend> {
   // For CPU we limit the tile size to limit the sizes of intermediate buffers
   // For GPU it's better to execute more at one time.
   static constexpr int kTileSize = std::is_same<Backend, CPUBackend>::value ? 4096 : 16384;
-  // CPU packs up to 64 tiles in one task, GPU porcesses all of them in one task
+  // CPU packs up to 64 tiles in one task, GPU processes all of them in one task
   static constexpr int kTaskSize =
       std::is_same<Backend, CPUBackend>::value ? 64 : std::numeric_limits<int>::max();
   USE_OPERATOR_MEMBERS();
