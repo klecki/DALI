@@ -86,8 +86,8 @@ def _get_mnist_dataset(device='cpu', device_id=0, shard_id=0, num_shards=1):
     daliset = dali_tf.DALIDataset(
         pipeline=mnist_pipeline,
         batch_size=BATCH_SIZE,
-        shapes=shapes,
-        dtypes=dtypes,
+        output_shapes=shapes,
+        output_dtypes=dtypes,
         num_threads=4,
         device_id=device_id)
     return daliset.with_options(dataset_options())

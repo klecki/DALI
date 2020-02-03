@@ -46,7 +46,7 @@ _dali_tf = _dali_tf_module.dali
 
 _dali_tf.__doc__ = _dali_tf.__doc__ + """
 
-    Please keep in mind that TensorFlow allocates almost all available device memory by default. This might cause errors in 
+    Please keep in mind that TensorFlow allocates almost all available device memory by default. This might cause errors in
     DALI due to insufficient memory. On how to change this behaviour please look into the TensorFlow documentation, as it may
     differ based on your use case.
 """
@@ -152,13 +152,13 @@ if dataset_compatible_tensorflow():
       prefetch_queue_depth = 2,
       cpu_prefetch_queue_depth = 2,
       gpu_prefetch_queue_depth = 2,
-      shapes = [], 
-      dtypes = []):
+      output_shapes = [],
+      output_dtypes = []):
 
-      assert(len(shapes) == len(dtypes),
+      assert(len(output_shapes) == len(output_dtypes),
         "Different number of provided shapes and dtypes.")
 
-      output_classes = tuple(ops.Tensor for shape in shapes)
+      output_classes = tuple(ops.Tensor for shape in output_shapes)
 
       self._pipeline = pipeline.serialize()
       self._batch_size = batch_size
@@ -168,8 +168,8 @@ if dataset_compatible_tensorflow():
       self._prefetch_queue_depth = prefetch_queue_depth
       self._cpu_prefetch_queue_depth = cpu_prefetch_queue_depth
       self._gpu_prefetch_queue_depth = gpu_prefetch_queue_depth
-      self._shapes = tuple(tf.TensorShape(shape) for shape in shapes)
-      self._dtypes = tuple(dtype for dtype in dtypes)
+      self._shapes = tuple(tf.TensorShape(shape) for shape in output_shapes)
+      self._dtypes = tuple(dtype for dtype in output_dtypes)
 
       self._structure = structure.convert_legacy_structure(
         self._dtypes, self._shapes, output_classes)
@@ -197,8 +197,8 @@ if dataset_compatible_tensorflow():
         prefetch_queue_depth = self._prefetch_queue_depth,
         cpu_prefetch_queue_depth = self._cpu_prefetch_queue_depth,
         gpu_prefetch_queue_depth = self._gpu_prefetch_queue_depth,
-        shapes = self._shapes, 
-        dtypes = self._dtypes)
+        output_shapes = self._shapes,
+        output_dtypes = self._dtypes)
 
 
   if _get_tf_version() < StrictVersion('2.0'):
@@ -222,22 +222,22 @@ else:
       prefetch_queue_depth = 2,
       cpu_prefetch_queue_depth = 2,
       gpu_prefetch_queue_depth = 2,
-      shapes = [], 
-      dtypes = []):
+      output_shapes = [],
+      output_dtypes = []):
       raise RuntimeError('DALIDataset is not supported for detected version of TensorFlow.  DALIDataset supports versions: 1.15, 2.0')
 
 DALIDataset.__doc__ =  """Creates a `DALIDataset` compatible with tf.data.Dataset from a DALI pipeline. It supports TensorFlow 1.15 and 2.0
 
 
-    Please keep in mind that TensorFlow allocates almost all available device memory by default. This might cause errors in 
+    Please keep in mind that TensorFlow allocates almost all available device memory by default. This might cause errors in
     DALI due to insufficient memory. On how to change this behaviour please look into the TensorFlow documentation, as it may
     differ based on your use case.
 
 
     Parameters
     ----------
-    `pipeline` : `nvidia.dali.Pipeline` 
-        defining the augmentations to be performed. 
+    `pipeline` : `nvidia.dali.Pipeline`
+        defining the augmentations to be performed.
     `batch_size` : int
         batch size of the pipeline.
     `num_threads` : int
@@ -249,23 +249,23 @@ DALIDataset.__doc__ =  """Creates a `DALIDataset` compatible with tf.data.Datase
         overlapping CPU and GPU computation, typically resulting
         in faster execution speed, but larger memory consumption.
     `prefetch_queue_depth` : int
-        depth of the executor queue. Deeper queue makes DALI more 
-        resistant to uneven execution time of each batch, but it also 
+        depth of the executor queue. Deeper queue makes DALI more
+        resistant to uneven execution time of each batch, but it also
         consumes more memory for internal buffers.
         Value will be used with `exec_separated` set to False.
     `cpu_prefetch_queue_depth` : int
-        depth of the executor cpu queue. Deeper queue makes DALI more 
-        resistant to uneven execution time of each batch, but it also 
+        depth of the executor cpu queue. Deeper queue makes DALI more
+        resistant to uneven execution time of each batch, but it also
         consumes more memory for internal buffers.
         Value will be used with `exec_separated` set to True.
     `gpu_prefetch_queue_depth` : int
-        depth of the executor gpu queue. Deeper queue makes DALI more 
-        resistant to uneven execution time of each batch, but it also 
+        depth of the executor gpu queue. Deeper queue makes DALI more
+        resistant to uneven execution time of each batch, but it also
         consumes more memory for internal buffers.
         Value will be used with `exec_separated` set to True.
-    `shapes`: `List` of tuples 
+    `shapes`: `List` of tuples
         expected output shapes
-    `dtypes`: `List` of `tf.DType` 
+    `dtypes`: `List` of `tf.DType`
         expected output types
 
     Returns

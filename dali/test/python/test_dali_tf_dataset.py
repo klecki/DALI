@@ -78,7 +78,7 @@ class TestPipeline(Pipeline):
         if self.device is 'gpu':
             im_ids = im_ids.gpu()
         im_ids_16 = self.cast(im_ids)
-        reshaped = self.cast(self.reshape(im_ids))
+        reshaped = self.reshape(im_ids) + 0
 
         return (output, reshaped, im_ids_16)
 
@@ -99,7 +99,7 @@ def _test_tf_dataset(device, device_id = 0):
         (batch_size, 1)]
     dtypes = [
         tf.float32,
-        tf.int16,
+        tf.int32,
         tf.int16]
 
     dataset_results = []
@@ -107,8 +107,8 @@ def _test_tf_dataset(device, device_id = 0):
         daliset = dali_tf.DALIDataset(
             pipeline=dataset_pipeline,
             batch_size=batch_size,
-            shapes=shapes,
-            dtypes=dtypes,
+            output_shapes=shapes,
+            output_dtypes=dtypes,
             num_threads=num_threads,
             device_id=device_id)
         daliset = daliset.with_options(dataset_options())
@@ -131,21 +131,22 @@ def _test_tf_dataset(device, device_id = 0):
         else:
             standalone_results.append(
                 tuple(result.as_array() for result in standalone_pipeline.run()))
-    licznik = 0
+    # licznik = 0
     for dataset_result, standalone_result in zip(dataset_results, standalone_results):
-        print(licznik)
+        # print(licznik)
         for dataset_out, standalone_out in zip(dataset_result, standalone_result):
+            assert np.array_equal(dataset_out, standalone_out)
             # print("\n")
             # print(dataset_out.shape)
             # print(standalone_out.shape)
             # assert np.array_equal(dataset_out, standalone_out)
-            if not np.array_equal(dataset_out, standalone_out):
-                print("DIFF")
-                print(dataset_out.shape)
-                print(standalone_out.shape)
-                print(dataset_out)
-                print(standalone_out)
-        licznik += 1
+        #     if not np.array_equal(dataset_out, standalone_out):
+        #         print("DIFF")
+        #         print(dataset_out.shape)
+        #         print(standalone_out.shape)
+        #         print(dataset_out)
+        #         print(standalone_out)
+        # licznik += 1
 
 
 
@@ -180,8 +181,8 @@ def test_different_num_shapes_dtypes():
         dali_tf.DALIDataset(
             pipeline=dataset_pipeline,
             batch_size=batch_size,
-            shapes=shapes,
-            dtypes=dtypes,
+            output_shapes=shapes,
+            output_dtypes=dtypes,
             num_threads=num_threads)
 
 
@@ -209,8 +210,8 @@ def _test_tf_dataset_multigpu():
             daliset = dali_tf.DALIDataset(
                 pipeline=dataset_pipeline,
                 batch_size=batch_size,
-                shapes=shapes,
-                dtypes=dtypes,
+                output_shapes=shapes,
+                output_dtypes=dtypes,
                 num_threads=num_threads,
                 device_id=device_id)
             daliset = daliset.with_options(dataset_options())

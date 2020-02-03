@@ -64,8 +64,8 @@ class DALIDatasetOp : public DatasetOpKernel {
   explicit DALIDatasetOp(OpKernelConstruction *context)
       : DatasetOpKernel(context), is_gpu_device_(context->device_type() == "GPU") {
     FillPipelineDef(context, pipeline_def_);
-    OP_REQUIRES_OK(context, context->GetAttr("shapes", &shapes_));
-    OP_REQUIRES_OK(context, context->GetAttr("dtypes", &dtypes_));
+    OP_REQUIRES_OK(context, context->GetAttr("output_shapes", &shapes_));
+    OP_REQUIRES_OK(context, context->GetAttr("output_dtypes", &dtypes_));
   }
 
     void MakeDataset(OpKernelContext *context, DatasetBase **output) override {
@@ -162,8 +162,8 @@ class DALIDatasetOp : public DatasetOpKernel {
 
       auto attrs = PipelineDefToGraphDefAttrs(b, pipeline_def_);
 
-      SerializeField(attrs, b, "shapes", shapes_);
-      SerializeField(attrs, b, "dtypes", dtypes_);
+      SerializeField(attrs, b, "output_shapes", shapes_);
+      SerializeField(attrs, b, "output_dtypes", dtypes_);
 
       TF_RETURN_IF_ERROR(b->AddDataset(this, {}, attrs, output));
 
@@ -227,6 +227,8 @@ class DALIDatasetOp : public DatasetOpKernel {
 
       Status GetNextInternal(IteratorContext *context, std::vector<Tensor> *out_tensors,
                              bool *end_of_sequence) override {
+        // static int called_times = 0;
+        // std::cout << " [DALI LOG] Called: " << called_times++ << " times" << std::endl;
         tensorflow::mutex_lock l(mu_);
 
         DALI_CALL(daliShareOutput(&pipeline_handle_));
@@ -311,28 +313,27 @@ REGISTER_OP("DALIDataset")
   .Attr("prefetch_queue_depth: int")
   .Attr("cpu_prefetch_queue_depth: int")
   .Attr("gpu_prefetch_queue_depth: int")
-  .Attr("shapes: list(shape) >= 1")
-  .Attr("dtypes: list({half, float, uint8, int16, int32, int64}) >= 1")
+  .Attr("output_shapes: list(shape) >= 1")
+  .Attr("output_dtypes: list({half, float, uint8, int16, int32, int64}) >= 1")
   .Output("handle: variant")
   .SetIsStateful()
+  .SetShapeFn(shape_inference::ScalarShape)
   // .SetShapeFn([](shape_inference::InferenceContext* c) {
-  //   // std::vector<PartialTensorShape> shapes;
-  //   // TF_RETURN_IF_ERROR(c->GetAttr("shapes", &shapes));
-  //   // c->ExpandOutputs(shapes.size());
-  //   // std::cout << "PROFESJONALNY TECHNOLOGICZNY PRINT KONTROLNY " << shapes.size() << std::endl;
-  //   // for (unsigned i = 0; i < shapes.size(); ++i) {
-  //   //   std::cout << "Elo " << i << " " << shapes[i] << " dims: " << shapes[i].dims() << std::endl;
-  //   // }
-  //   // for (unsigned i = 0; i < shapes.size(); ++i) {
-  //   //   if (shapes[i].dims() > 0) {
-  //   //     shape_inference::ShapeHandle passed_shape;
-  //   //     // TF_RETURN_IF_ERROR(
-  //   //     //     c->MakeShapeFromPartialTensorShape(shapes[0], &passed_shape));
-  //   //     // TF_RETURN_IF_ERROR(
-  //   //     //     c->WithRank(passed_shape, shapes[i].dims(), &passed_shape));
-  //   //     // c->set_output(i, passed_shape);
-  //   //   }
-  //   // }
+  //   std::vector<PartialTensorShape> shapes;
+  //   TF_RETURN_IF_ERROR(c->GetAttr("shapes", &shapes));
+  //   c->ExpandOutputs(shapes.size());
+  //   std::cout << "PROFESJONALNY TECHNOLOGICZNY PRINT KONTROLNY " << shapes.size() << std::endl;
+  //   for (unsigned i = 0; i < shapes.size(); ++i) {
+  //     std::cout << "Elo " << i << " " << shapes[i] << " dims: " << shapes[i].dims() << std::endl;
+  //   }
+  //   for (unsigned i = 0; i < shapes.size(); ++i) {
+  //     if (shapes[i].dims() > 0) {
+  //       shape_inference::ShapeHandle passed_shape0, passed_shape1;
+  //       TF_RETURN_IF_ERROR(c->MakeShapeFromPartialTensorShape(shapes[i], &passed_shape0));
+  //       TF_RETURN_IF_ERROR(c->WithRank(passed_shape0, shapes[i].dims(), &passed_shape1));
+  //       c->set_output(i, passed_shape1);
+  //     }
+  //   }
   //   return Status::OK();
   // })
   .Doc(R"doc(
