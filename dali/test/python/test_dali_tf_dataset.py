@@ -93,14 +93,14 @@ def _test_tf_dataset(device, device_id = 0):
     iterations = 10
 
     dataset_pipeline = TestPipeline(batch_size, num_threads, device, device_id)
-    shapes = [
+    shapes = (
         (batch_size, 3, 224, 224),
         (batch_size, 1, 1),
-        (batch_size, 1)]
-    dtypes = [
+        (batch_size, 1))
+    dtypes = (
         tf.float32,
         tf.int32,
-        tf.int16]
+        tf.int16)
 
     dataset_results = []
     with tf.device('/{0}:{1}'.format(device, device_id)):

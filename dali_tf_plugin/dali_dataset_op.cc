@@ -42,6 +42,7 @@
 
 #include "dali/core/common.h"
 #include "dali/c_api/c_api.h"
+#include "dali_tf_plugin/dali_shape_helper.h"
 
 #define DALI_CALL(FUNC)                                                    \
 do {                                                                       \
@@ -65,6 +66,12 @@ class DALIDatasetOp : public DatasetOpKernel {
       : DatasetOpKernel(context), is_gpu_device_(context->device_type() == "GPU") {
     FillPipelineDef(context, pipeline_def_);
     OP_REQUIRES_OK(context, context->GetAttr("output_shapes", &shapes_));
+    std::stringstream ss;
+    ss << "[DALI LOG]";
+    for (auto &s : shapes_) {
+      ss << " shape: " << s << ",";
+    }
+    std::cout << ss.str() << std::endl;
     OP_REQUIRES_OK(context, context->GetAttr("output_dtypes", &dtypes_));
   }
 
@@ -150,7 +157,7 @@ class DALIDatasetOp : public DatasetOpKernel {
 
    protected:
     PipelineDef pipeline_def_;
-    const std::vector<PartialTensorShape> shapes_;
+    std::vector<PartialTensorShape> shapes_;
     const DataTypeVector dtypes_;
     cudaStream_t stream_ = 0;
     const device_type_t device_type_;
@@ -238,7 +245,35 @@ class DALIDatasetOp : public DatasetOpKernel {
 
         for (int out_id = 0; out_id < num_outputs; ++out_id) {
           TensorShape output_shape;
-          dataset()->shapes_[out_id].AsTensorShape(&output_shape);
+          // std::array<int, 4> shape = {1, 427, 640, 3};
+          // TensorShapeUtils::MakeShape(shape, &output_shape);
+          // dataset()->shapes_[out_id].AsTensorShape(&output_shape);
+          // output_shape[1] = 427;
+          // output_shape[2] = 640;
+          // TensorShape data_output_shape;
+          // TF_DALI_CALL(data_output_shape = DaliToShape(AutoCPtr<int64_t>(
+          //             daliShapeAt(&pipe_handle_, i))));
+          auto dali_shape = DaliToShape(AutoCPtr<int64_t>(daliShapeAt(&pipeline_handle_, out_id)));
+          auto status = CheckCompatibleShape(output_shape, dataset()->shapes_[out_id], dali_shape, dataset()->pipeline_def_.batch_size, out_id);
+          if (status != Status::OK()) {
+            return status;
+          }
+          std::cout << "[DALI LOG] >> Shape :" << output_shape << " " <<  dataset()->shapes_[out_id] << " " << dali_shape <<std::endl;
+
+          // The shapes are compatible, check if user provided a full, usable shape
+          // TensorShape concrete_shape;
+          // if (dataset()->shapes_[out_id].AsTensorShape(&concrete_shape)) {
+          //   output_shape = concrete_shape;
+          // }
+
+          // if (!dataset()->shapes_[out_id].IsCompatibleWith(output_shape)) {
+          //   std::cout << "NOT REALLY COMPATIBLE, IS IT? " << dataset()->shapes_[out_id] << " vs " << output_shape << std::endl;
+          //   if (dataset()->shapes_[out_id].num_elements() == output_shape.num_elements()) {
+          //     dataset()->shapes_[out_id].AsTensorShape(&output_shape);
+          //   } else {
+          //     std::cout << " DALI REPORT ERROR: No reshape possible " << std::endl;
+          //   }
+          // }
           out_tensors->emplace_back(context->allocator({}), dataset()->dtypes_[out_id],
                                     output_shape);
           tensorflow::Tensor &output = out_tensors->operator[](out_id);
@@ -286,6 +321,98 @@ class DALIDatasetOp : public DatasetOpKernel {
       }
 
      private:
+
+      Status CheckCompatibleShape(TensorShape &result, const PartialTensorShape &required_shape, const TensorShape &dali_shape, int batch_size, int output_idx) {
+        if (required_shape.IsCompatibleWith(dali_shape)) {
+          result = dali_shape;
+          return Status::OK();
+        }
+
+        // both ranks should be known at this points (otherwise shapes are compatible)
+        // If they are not compatible and have the same rank or the required shape is the bigger one
+        // we cannot make them compatible.
+        if (required_shape.dims() >= dali_shape.dims()) {
+          return errors::FailedPrecondition("Shape provided for output `" +
+                                            std::to_string(output_idx) +
+                                            "` is not compatible with the shape returned by DALI "
+                                            "Pipeline. Expected : [TODO], got: [TODO].");
+        }
+        for (int i = 0; i < required_shape.dims(); i++) {
+          result.AddDim(0);
+        }
+        // Non-trivial batch size case, diffrent dims
+        if (batch_size != 1) {
+          // Should not happen, batch size from DALI will always match
+          if (dali_shape.dim_size(0) != batch_size) {
+            return errors::FailedPrecondition(
+                "The DALI Dataset was configured with batch_size = " + std::to_string(batch_size) +
+                ", but the provided Pipeline returned tensor representing batch_size = " +
+                std::to_string(dali_shape.dim_size(0)) + " in output `" + std::to_string(output_idx) + "`.");
+          }
+          // It's easier to check it in C++ as in Python the structure is a bit convoluted
+          if (!DimSizeMatch(required_shape.dim_size(0), batch_size)) {
+            return errors::FailedPrecondition(
+                "The DALI Dataset was configured with batch_size = " + std::to_string(batch_size) +
+                ", but the provided output_shapes represent output `" + std::to_string(output_idx) +
+                "` as batch_size = " + std::to_string(required_shape.dim_size(0)) + ".");
+          }
+        }
+        int matches = CountShapeMatches(result, required_shape, dali_shape);
+        if (matches != 1) {
+          return errors::FailedPrecondition("Shape provided for output `" +
+                                            std::to_string(output_idx) +
+                                            "` does not match the shape returned by DALI Pipeline in unambiguous way. Expected : [TODO], got: [TODO].");
+
+        }
+        return Status::OK();
+      }
+
+
+      bool DimSizeMatch(int64_t required, int64_t dali) {
+        std::cout << "Compare: " << required << " " << dali << std::endl;
+        if (required < 0 || required == dali) {
+          return true;
+        }
+        return false;
+      }
+
+      int CountShapeMatches(TensorShape &result, const PartialTensorShape &required_shape, const TensorShape &dali_shape,
+                            int req_pos = 0, int dali_pos = 0) {
+        // We went over the whole shapes and they matched on the way
+        std::cout << "Enter" << required_shape << "[" << req_pos << "] and " << dali_shape << "[" << dali_pos << "]" << std::endl;
+        if (req_pos == required_shape.dims() && dali_pos == dali_shape.dims()) {
+          std::cout << "Matched " << required_shape << " and " << dali_shape << std::endl;
+          return 1;
+        }
+        if (req_pos == required_shape.dims() && dali_pos < dali_shape.dims()) {
+          if (dali_shape.dim_size(dali_pos) == 1) {
+            std::cout << "Skip dali " << required_shape << "[" << req_pos << "] and " << dali_shape << "[" << dali_pos << "]" << std::endl;
+            return CountShapeMatches(result, required_shape, dali_shape, req_pos, dali_pos + 1);
+          } else {
+            std::cout << "Override dali, no match " << required_shape << "[" << req_pos << "] and " << dali_shape << "[" << dali_pos << "]" << std::endl;
+            return 0;
+          }
+        }
+        if (req_pos < required_shape.dims() && dali_pos < dali_shape.dims()) {
+          int total = 0;
+          if (DimSizeMatch(required_shape.dim_size(req_pos), dali_shape.dim_size(dali_pos))) {
+            std::cout << "Pos compatible, recurse " << required_shape << "[" << req_pos << "] and " << dali_shape << "[" << dali_pos << "]" << std::endl;
+            int matches = CountShapeMatches(result, required_shape, dali_shape, req_pos + 1, dali_pos + 1);
+            if (matches == 1) {
+              result.set_dim(req_pos, dali_shape.dim_size(dali_pos));
+            }
+            total += matches;
+          }
+          if (dali_shape.dim_size(dali_pos) == 1) {
+            std::cout << "Skip 1 in dali " << required_shape << "[" << req_pos << "] and " << dali_shape << "[" << dali_pos << "]" << std::endl;
+            total += CountShapeMatches(result, required_shape, dali_shape, req_pos, dali_pos + 1);
+          }
+          std::cout << "Total " << total << " " << required_shape << "[" << req_pos << "] and " << dali_shape << "[" << dali_pos << "]" << std::endl;
+          return total;
+        }
+        return 0;
+      }
+
       tensorflow::mutex mu_;
       daliPipelineHandle pipeline_handle_;
     };  //Iterator
@@ -320,7 +447,7 @@ REGISTER_OP("DALIDataset")
   .SetShapeFn(shape_inference::ScalarShape)
   // .SetShapeFn([](shape_inference::InferenceContext* c) {
   //   std::vector<PartialTensorShape> shapes;
-  //   TF_RETURN_IF_ERROR(c->GetAttr("shapes", &shapes));
+  //   TF_RETURN_IF_ERROR(c->GetAttr("output_shapes", &shapes));
   //   c->ExpandOutputs(shapes.size());
   //   std::cout << "PROFESJONALNY TECHNOLOGICZNY PRINT KONTROLNY " << shapes.size() << std::endl;
   //   for (unsigned i = 0; i < shapes.size(); ++i) {

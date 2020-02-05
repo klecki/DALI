@@ -13,6 +13,9 @@
 # limitations under the License.
 
 import tensorflow as tf
+from tensorflow.python.data.util import nest
+from tensorflow.python.framework import tensor_shape
+
 import os
 import glob
 from collections import Iterable
@@ -144,21 +147,46 @@ if dataset_compatible_tensorflow():
   class _DALIDatasetV2(dataset_ops.DatasetSource):
     def __init__(
       self,
-      pipeline = '',
+      pipeline,
+      output_dtypes,
+      output_shapes = None,
       batch_size = 1,
       num_threads = 4,
       device_id = 0,
       exec_separated = False,
       prefetch_queue_depth = 2,
       cpu_prefetch_queue_depth = 2,
-      gpu_prefetch_queue_depth = 2,
-      output_shapes = [],
-      output_dtypes = []):
+      gpu_prefetch_queue_depth = 2):
 
-      assert(len(output_shapes) == len(output_dtypes),
-        "Different number of provided shapes and dtypes.")
+      # if output_dtypes is None:
+      #   raise ValueError("`output_dtypes` should not be None.")
 
-      output_classes = tuple(ops.Tensor for shape in output_shapes)
+      if not self._check_output_dtypes(output_dtypes):
+        raise TypeError(("`output_dtypes` should be provided as single tf.DType value " +
+            "or a tuple of tf.DType values. Got value `{}` of type `{}`.") \
+                .format(output_dtypes, type(output_dtypes)))
+      # if not (isinstance(output_dtypes, tuple)
+      #         and all(isinstance(dtype, tf.DType) for dtype in output_dtypes)):
+      #   raise TypeError(("`output_dtypes` should be provided as a tuple of tf.DType values. " +
+      #       "Got value `{}` of type `{}`.").format(output_dtypes, type(output_dtypes)))
+
+      # if isinstance(output_dtypes, tf.DType):
+      #   output_dtypes = (output_dtypes,)
+
+      # if len(output_dtypes) == 1:
+      #   if output_shapes is not None and isins
+
+      if output_shapes is None:
+        output_shapes = nest.map_structure(lambda _: tensor_shape.TensorShape(None), output_dtypes)
+      else:
+        output_shapes = nest.map_structure_up_to(output_dtypes, tensor_shape.as_shape, output_shapes)
+
+      # TODO(klecki): check if this is safe way of handling tuples
+      if not isinstance(output_dtypes, tuple):
+        output_dtypes = (output_dtypes,)
+        output_shapes = (output_shapes,)
+
+      output_classes = tuple(ops.Tensor for _ in output_dtypes)
 
       self._pipeline = pipeline.serialize()
       self._batch_size = batch_size
@@ -168,13 +196,25 @@ if dataset_compatible_tensorflow():
       self._prefetch_queue_depth = prefetch_queue_depth
       self._cpu_prefetch_queue_depth = cpu_prefetch_queue_depth
       self._gpu_prefetch_queue_depth = gpu_prefetch_queue_depth
-      self._shapes = tuple(tf.TensorShape(shape) for shape in output_shapes)
-      self._dtypes = tuple(dtype for dtype in output_dtypes)
+      self._output_shapes = output_shapes
+      self._output_dtypes = output_dtypes
 
       self._structure = structure.convert_legacy_structure(
-        self._dtypes, self._shapes, output_classes)
+        self._output_dtypes, self._output_shapes, output_classes)
 
       super(_DALIDatasetV2, self).__init__(self._as_variant_tensor())
+
+    def _check_output_dtypes(self, output_dtypes):
+      """Check whether output_dtypes is instance of tf.DType or tuple of tf.DType
+      """
+      if not isinstance(output_dtypes, tf.DType):
+        if isinstance(output_dtypes, tuple) \
+            and all(isinstance(dtype, tf.DType) for dtype in output_dtypes):
+          return True
+        else:
+          return False
+      else:
+        return True
 
 
     @property
@@ -197,8 +237,8 @@ if dataset_compatible_tensorflow():
         prefetch_queue_depth = self._prefetch_queue_depth,
         cpu_prefetch_queue_depth = self._cpu_prefetch_queue_depth,
         gpu_prefetch_queue_depth = self._gpu_prefetch_queue_depth,
-        output_shapes = self._shapes,
-        output_dtypes = self._dtypes)
+        output_shapes = self._output_shapes,
+        output_dtypes = self._output_dtypes)
 
 
   if _get_tf_version() < StrictVersion('2.0'):
@@ -214,16 +254,16 @@ else:
   class DALIDataset:
     def __init__(
       self,
-      pipeline = '',
+      pipeline,
+      output_dtypes,
+      output_shapes = None,
       batch_size = 1,
       num_threads = 4,
       device_id = 0,
       exec_separated = False,
       prefetch_queue_depth = 2,
       cpu_prefetch_queue_depth = 2,
-      gpu_prefetch_queue_depth = 2,
-      output_shapes = [],
-      output_dtypes = []):
+      gpu_prefetch_queue_depth = 2):
       raise RuntimeError('DALIDataset is not supported for detected version of TensorFlow.  DALIDataset supports versions: 1.15, 2.0')
 
 DALIDataset.__doc__ =  """Creates a `DALIDataset` compatible with tf.data.Dataset from a DALI pipeline. It supports TensorFlow 1.15 and 2.0
@@ -238,35 +278,42 @@ DALIDataset.__doc__ =  """Creates a `DALIDataset` compatible with tf.data.Datase
     ----------
     `pipeline` : `nvidia.dali.Pipeline`
         defining the augmentations to be performed.
-    `batch_size` : int
+    `output_dtypes`: `tf.DType` or `tuple` of `tf.DType`
+        expected output types
+    `output_shapes`: tuple of shapes, optional
+        expected output shapes. If provided, must match arity of the `output_dtypes`.
+        When set to None, DALI will infer the shapes on its own.
+        Individual shapes can be also set to None or contain None to indicate unknown dimensions.
+        If specified must be compatible with shape returned from DALI Pipeline
+        and with `batch_size` argument which will be the outermost dimension of returned tensors.
+        In case of `batch_size = 1` it can be omitted in the shape.
+        DALI Dataset will try to match requested shape by squeezing 1-sized dimensions
+        from shape obtained from Pipeline.
+    `batch_size` : int, optional
         batch size of the pipeline.
-    `num_threads` : int
+    `num_threads` : int, optional
         number of CPU threads used by the pipeline.
-    `device_id` : int
+    `device_id` : int, optional
         id of GPU used by the pipeline.
-    `exec_separated` : bool
+    `exec_separated` : bool, optional
         Whether to execute the pipeline in a way that enables
         overlapping CPU and GPU computation, typically resulting
         in faster execution speed, but larger memory consumption.
-    `prefetch_queue_depth` : int
+    `prefetch_queue_depth` : int, optional
         depth of the executor queue. Deeper queue makes DALI more
         resistant to uneven execution time of each batch, but it also
         consumes more memory for internal buffers.
         Value will be used with `exec_separated` set to False.
-    `cpu_prefetch_queue_depth` : int
+    `cpu_prefetch_queue_depth` : int, optional
         depth of the executor cpu queue. Deeper queue makes DALI more
         resistant to uneven execution time of each batch, but it also
         consumes more memory for internal buffers.
         Value will be used with `exec_separated` set to True.
-    `gpu_prefetch_queue_depth` : int
+    `gpu_prefetch_queue_depth` : int, optional
         depth of the executor gpu queue. Deeper queue makes DALI more
         resistant to uneven execution time of each batch, but it also
         consumes more memory for internal buffers.
         Value will be used with `exec_separated` set to True.
-    `shapes`: `List` of tuples
-        expected output shapes
-    `dtypes`: `List` of `tf.DType`
-        expected output types
 
     Returns
     -------

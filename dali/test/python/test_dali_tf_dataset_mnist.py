@@ -76,12 +76,12 @@ class MnistPipeline(Pipeline):
 def _get_mnist_dataset(device='cpu', device_id=0, shard_id=0, num_shards=1):
     mnist_pipeline = MnistPipeline(
         4, data_path, device, device_id, shard_id, num_shards)
-    shapes = [
-        (BATCH_SIZE, IMAGE_SIZE, IMAGE_SIZE),
-        (BATCH_SIZE)]
-    dtypes = [
+    shapes = (
+        (None),
+        (None,))
+    dtypes = (
         tf.float32,
-        tf.int32]
+        tf.int32)
 
     daliset = dali_tf.DALIDataset(
         pipeline=mnist_pipeline,
