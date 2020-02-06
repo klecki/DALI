@@ -13,25 +13,34 @@ data_path = os.path.join(os.environ['DALI_EXTRA_PATH'], 'db/single/jpeg/')
 file_list_path = os.path.join(data_path, 'image_list.txt')
 
 
-def _tf_pipe(shape):
-    def generator():
-        for file in [data_path + '/241/cute-4074304_1280.jpg', data_path + '/241/dog-1461239_1280.jpg',
-                        data_path + '/241/dog-4366295_1920.jpg', data_path + '/695/padlock-406986_640.jpg']:
-            data = tf.io.read_file(file)
-            image = tf.io.decode_jpeg(data)
-            # resized = tf.image.resize(image, (200, 200))
-            # yield resized
-            yield image
-            # yield np.zeros([2, 10, 10, 3])
+# def _tf_pipe(shape):
+#     def generator():
+#         for file in [data_path + '/241/cute-4074304_1280.jpg', data_path + '/241/dog-1461239_1280.jpg',
+#                         data_path + '/241/dog-4366295_1920.jpg', data_path + '/695/padlock-406986_640.jpg']:
+#             data = tf.io.read_file(file)
+#             image = tf.io.decode_jpeg(data)
+#             # resized = tf.image.resize(image, (200, 200))
+#             # yield resized
+#             yield image
+#             # yield np.zeros([2, 10, 10, 3])
 
-    ds = tf.data.Dataset.from_generator(generator, (tf.uint8,), shape) \
-            # .unbatch().unbatch()
-            # .batch(2, output_shapes = )
-    for image in ds:
-        print(image.shape)
+#     ds = tf.data.Dataset.from_generator(generator, (tf.uint8,), shape) \
+#             # .unbatch().unbatch()
+#             # .batch(2, output_shapes = )
+#     for image in ds:
+#         print(image.shape)
 
 
 def dali_pipe_batch_1(shapes, types):
+    target_sizes = [(853, 1280, 3),
+        (770, 1280, 3),
+        (640, 960, 3),
+        (720, 479, 3),
+        (603, 960, 3),
+        (853, 1280, 3),
+        (911, 1280, 3),
+        (806, 1280, 3)]
+
     class TestPipeline(pipeline.Pipeline):
         def __init__(self, **kwargs):
             super(TestPipeline, self).__init__(**kwargs)
@@ -43,19 +52,17 @@ def dali_pipe_batch_1(shapes, types):
             image = self.decoder(data)
             return image
 
-    pipe = TestPipeline(batch_size=1)
+    pipe = TestPipeline(batch_size=1, seed=0)
     ds = dali_tf.DALIDataset(pipe, batch_size=1, output_dtypes=types, output_shapes=shapes)
     ds_iter = iter(ds)
     # See if the iteration over different images works
     for i in range(10):
         image, = ds_iter.next()
-        print(image.shape)
+        if len(shapes) == 3:
+            assert image.shape == target_sizes[i]
+        else:
+            assert image.shape == ((1,) + target_sizes[i])
 
-
-# def test_something():
-#     _tf_pipe((None,))
-#     # for shape in [None, (None, None, None), (None, None, 3)]:
-#     #     yield _tf_pipe, shape
 
 def test_batch_1_different_shapes():
     for shape in [None, (None, None, None, None), (None, None, None),
@@ -68,9 +75,6 @@ def test_batch_1_different_shapes():
 def dali_pipe_batch_1_raises(shapes, types):
     dali_pipe_batch_1(shapes, types)
 
-# @raises(tf.errors.InvalidArgumentError)
-# def dali_pipe_1_raises_InvalidArgumentError(shapes, types):
-#     _dali_pipe_1(shapes, types)
 
 def test_batch_1_mixed_tuple():
     for shape in [(None, None, None, None), (None, None, None), (1, None, None, None),
@@ -96,7 +100,7 @@ def dali_pipe_batch_N(shapes, types, batch):
             resized = self.resize(image)
             return resized
 
-    pipe = TestPipeline(batch_size=batch)
+    pipe = TestPipeline(batch_size=batch, seed=0)
     ds = dali_tf.DALIDataset(pipe, batch_size=batch, output_dtypes=types, output_shapes=shapes)
     ds_iter = iter(ds)
     for i in range(10):
@@ -116,7 +120,7 @@ def test_batch_N_valid_shapes():
         for i in range(2 ** len(output_shape)):
             noned_shape = tuple([(dim if i & (2 ** idx) else None) for idx, dim in enumerate(output_shape)])
             yield dali_pipe_batch_N, noned_shape, tf.uint8, batch
-    # Omitted batch = 1
+    # Omitted batch of size `1`
     output_shape = (200, 200, 3)
     for i in range(2 ** len(output_shape)):
         noned_shape = tuple([(dim if i & (2 ** idx) else None) for idx, dim in enumerate(output_shape)])
@@ -137,7 +141,7 @@ def dali_pipe_multiple_out(shapes, types, batch):
             resized = self.resize(image)
             return resized, label
 
-    pipe = TestPipeline(batch_size=batch)
+    pipe = TestPipeline(batch_size=batch, seed=0)
     ds = dali_tf.DALIDataset(pipe, batch_size=batch, output_dtypes=types, output_shapes=shapes)
     ds_iter = iter(ds)
     for i in range(10):
@@ -177,15 +181,17 @@ def dali_pipe_artificial_shape(shapes, types, batch):
         def define_graph(self):
             return self.constant()
 
-    pipe = TestPipeline(batch_size=batch)
+    pipe = TestPipeline(batch_size=batch, seed=0)
     ds = dali_tf.DALIDataset(pipe, batch_size=batch, output_dtypes=types, output_shapes=shapes)
     ds_iter = iter(ds)
     for i in range(10):
         out, = ds_iter.next()
-        print(out.shape())
+        print(out.shape)
 
 def test_aa():
     for batch in [1, 10]:
         for shape in [(None, None, None, None), (None, None, 2), (batch, None, None, None),
-                    (batch, None, 2), (batch, 2)]:
+                    (batch, None, 2)]:
             dali_pipe_artificial_shape(shape, tf.uint8, batch)
+    dali_pipe_artificial_shape((10, 2), tf.uint8, 10)
+    dali_pipe_artificial_shape((2,), tf.uint8, 1)

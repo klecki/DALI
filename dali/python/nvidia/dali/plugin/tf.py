@@ -158,30 +158,16 @@ if dataset_compatible_tensorflow():
       cpu_prefetch_queue_depth = 2,
       gpu_prefetch_queue_depth = 2):
 
-      # if output_dtypes is None:
-      #   raise ValueError("`output_dtypes` should not be None.")
-
       if not self._check_output_dtypes(output_dtypes):
         raise TypeError(("`output_dtypes` should be provided as single tf.DType value " +
             "or a tuple of tf.DType values. Got value `{}` of type `{}`.") \
                 .format(output_dtypes, type(output_dtypes)))
-      # if not (isinstance(output_dtypes, tuple)
-      #         and all(isinstance(dtype, tf.DType) for dtype in output_dtypes)):
-      #   raise TypeError(("`output_dtypes` should be provided as a tuple of tf.DType values. " +
-      #       "Got value `{}` of type `{}`.").format(output_dtypes, type(output_dtypes)))
-
-      # if isinstance(output_dtypes, tf.DType):
-      #   output_dtypes = (output_dtypes,)
-
-      # if len(output_dtypes) == 1:
-      #   if output_shapes is not None and isins
 
       if output_shapes is None:
         output_shapes = nest.map_structure(lambda _: tensor_shape.TensorShape(None), output_dtypes)
       else:
         output_shapes = nest.map_structure_up_to(output_dtypes, tensor_shape.as_shape, output_shapes)
 
-      # TODO(klecki): check if this is safe way of handling tuples
       if not isinstance(output_dtypes, tuple):
         output_dtypes = (output_dtypes,)
         output_shapes = (output_shapes,)
