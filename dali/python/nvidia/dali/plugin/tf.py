@@ -186,7 +186,7 @@ if dataset_compatible_tensorflow():
         output_dtypes = (output_dtypes,)
         output_shapes = (output_shapes,)
 
-      output_classes = tuple(ops.Tensor for _ in output_dtypes)
+      output_classes = nest.map_structure(lambda _: ops.Tensor, output_dtypes)
 
       self._pipeline = pipeline.serialize()
       self._batch_size = batch_size

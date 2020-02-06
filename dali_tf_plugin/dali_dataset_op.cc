@@ -332,7 +332,7 @@ class DALIDatasetOp : public DatasetOpKernel {
         // If they are not compatible and have the same rank or the required shape is the bigger one
         // we cannot make them compatible.
         if (required_shape.dims() >= dali_shape.dims()) {
-          return errors::FailedPrecondition("Shape provided for output `" +
+          return errors::InvalidArgument("Shape provided for output `" +
                                             std::to_string(output_idx) +
                                             "` is not compatible with the shape returned by DALI "
                                             "Pipeline. Expected : [TODO], got: [TODO].");
@@ -344,14 +344,14 @@ class DALIDatasetOp : public DatasetOpKernel {
         if (batch_size != 1) {
           // Should not happen, batch size from DALI will always match
           if (dali_shape.dim_size(0) != batch_size) {
-            return errors::FailedPrecondition(
+            return errors::InvalidArgument(
                 "The DALI Dataset was configured with batch_size = " + std::to_string(batch_size) +
                 ", but the provided Pipeline returned tensor representing batch_size = " +
                 std::to_string(dali_shape.dim_size(0)) + " in output `" + std::to_string(output_idx) + "`.");
           }
           // It's easier to check it in C++ as in Python the structure is a bit convoluted
           if (!DimSizeMatch(required_shape.dim_size(0), batch_size)) {
-            return errors::FailedPrecondition(
+            return errors::InvalidArgument(
                 "The DALI Dataset was configured with batch_size = " + std::to_string(batch_size) +
                 ", but the provided output_shapes represent output `" + std::to_string(output_idx) +
                 "` as batch_size = " + std::to_string(required_shape.dim_size(0)) + ".");
@@ -359,7 +359,7 @@ class DALIDatasetOp : public DatasetOpKernel {
         }
         int matches = CountShapeMatches(result, required_shape, dali_shape);
         if (matches != 1) {
-          return errors::FailedPrecondition("Shape provided for output `" +
+          return errors::InvalidArgument("Shape provided for output `" +
                                             std::to_string(output_idx) +
                                             "` does not match the shape returned by DALI Pipeline in unambiguous way. Expected : [TODO], got: [TODO].");
 
