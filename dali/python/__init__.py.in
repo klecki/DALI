@@ -25,5 +25,6 @@ from . import tensors
 from . import check_edge
 from . import tfrecord
 from . import types
+from . import compose
 from . import plugin_manager
 from . import sysconfig
