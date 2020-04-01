@@ -23,6 +23,7 @@ import tensorflow as tf
 import nvidia.dali.plugin.tf as dali_tf
 from test_utils import get_dali_extra_path
 from nose.tools import raises
+import nvidia.dali.fn as fn
 
 try:
     tf.compat.v1.disable_eager_execution()
@@ -67,6 +68,37 @@ class CaffeReadPipeline(CommonPipeline):
         images, labels = self.input()
         return self.base_define_graph(images, labels)
 
+def get_external_source_batch(batch_size):
+    ret = []
+    rand_value = np.random.randint(0, 255)
+    print(" TEST VALUE IS: {}".format(rand_value))
+    for i in range(batch_size):
+        ret.append(np.full((720, 720, 3), rand_value + i, dtype=np.uint8))
+    return ret
+
+class ExternalSourcePipeline(Pipeline):
+    def __init__(self, batch_size, num_threads, device_id, num_gpus = 0):
+        super(ExternalSourcePipeline, self).__init__(batch_size, num_threads, device_id)
+
+        self.resize = ops.Resize(device = "gpu", image_type = types.RGB, interp_type = types.INTERP_LINEAR)
+        self.cmn = ops.CropMirrorNormalize(device = "gpu",
+                                           output_dtype = types.FLOAT,
+                                           crop = (227, 227),
+                                           image_type = types.RGB,
+                                           mean = [128., 128., 128.],
+                                           std = [1., 1., 1.])
+        self.uniform = ops.Uniform(range = (0.0, 1.0))
+        self.resize_rng = ops.Uniform(range = (256, 480))
+        self.label = ops.Constant(dtype = types.INT32, idata = [1] * batch_size)
+
+    def define_graph(self):
+        images = fn.external_source(lambda : get_external_source_batch(self.batch_size), name="external_input_0")
+        images = self.resize(images.gpu(), resize_shorter = self.resize_rng())
+        output = self.cmn(images,
+                          crop_pos_x = self.uniform(),
+                          crop_pos_y = self.uniform())
+        return (output, self.label().gpu())
+
 def get_batch_dali(batch_size, pipe_type, label_type, num_gpus=1):
     pipes = [pipe_type(batch_size=batch_size, num_threads=2, device_id = device_id, num_gpus = num_gpus) for device_id in range(num_gpus)]
 
@@ -81,6 +113,9 @@ def get_batch_dali(batch_size, pipe_type, label_type, num_gpus=1):
                 device_id = d)
             images.append(image)
             labels.append(label)
+    print(">>>>> {}".format(pipes[0]._input_callbacks))
+    print(">>>>> {}".format(pipes[0]._input_callbacks[0].instances[0]._callback))
+    print(">>>>> {}".format(pipes[0]._input_callbacks[0].instances[0].name))
 
     return [images, labels]
 
@@ -98,6 +133,32 @@ def test_dali_tf_op(pipe_type=CaffeReadPipeline, batch_size=16, iterations=32):
 
     gpu_options = GPUOptions(per_process_gpu_memory_fraction=0.5)
     config = ConfigProto(gpu_options=gpu_options)
+    with Session(config=config) as sess:
+        for i in range(iterations):
+            imgs, labels = sess.run(test_batch)
+            # Testing correctness of labels
+            for label in labels:
+                ## labels need to be integers
+                assert(np.equal(np.mod(label, 1), 0).all())
+                assert((label >= 0).all())
+                assert((label <= 999).all())
+
+def test_dali_tf_op_es(pipe_type=ExternalSourcePipeline, batch_size=12, iterations=32):
+    print(">>>>>>>> A")
+    test_batch = get_batch_dali(batch_size, pipe_type, tf.int32)
+    try:
+        from tensorflow.compat.v1 import GPUOptions
+        from tensorflow.compat.v1 import ConfigProto
+        from tensorflow.compat.v1 import Session
+    except:
+        # Older TF versions don't have compat.v1 layer
+        from tensorflow import GPUOptions
+        from tensorflow import ConfigProto
+        from tensorflow import Session
+
+    gpu_options = GPUOptions(per_process_gpu_memory_fraction=0.8)
+    # config = ConfigProto(gpu_options=gpu_options, allow_soft_placement=True, log_device_placement=True)
+    config = ConfigProto(gpu_options=gpu_options, log_device_placement=True)
     with Session(config=config) as sess:
         for i in range(iterations):
             imgs, labels = sess.run(test_batch)

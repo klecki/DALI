@@ -74,10 +74,24 @@ class DALIDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(context, context->GetAttr("fail_on_device_mismatch", &fail_on_device_mismatch_));
   }
 
-    void MakeDataset(OpKernelContext *context, DatasetBase **output) override {
-      *output = new Dataset(
-        context, pipeline_def_, shapes_, dtypes_, is_gpu_device_, fail_on_device_mismatch_);
+  static constexpr int NUM_INPUT = 1;
+
+  void MakeDataset(OpKernelContext *context, DatasetBase **output) override {
+    std::vector<DatasetBase*> inputs;
+    std::cout << "[DALI TF Plugin] num inputs: " << context->num_inputs() << std::endl;
+    for (int i = 0; i < NUM_INPUT; i++) {
+      DatasetBase* tmp;
+      OP_REQUIRES_OK(context, GetDatasetFromVariantTensor(context->input(i), &tmp));
+      inputs.push_back(tmp);
     }
+
+      *output = new Dataset(
+        context, inputs[0], pipeline_def_, shapes_, dtypes_, is_gpu_device_, fail_on_device_mismatch_);
+  }
+
+    // void MakeDataset(OpKernelContext* ctx, DatasetBase* input, DatasetBase** output) override {
+    //   *output = new Dataset(ctx, input, pipeline_def_, shapes_, dtypes_, is_gpu_device_);
+    // }
 
  private:
   struct PipelineDef {
@@ -112,6 +126,13 @@ class DALIDatasetOp : public DatasetOpKernel {
     OP_REQUIRES_OK(context, context->GetAttr(kCpuPrefetchQueueDepth, &def.cpu_prefetch_queue_depth));
     OP_REQUIRES_OK(context, context->GetAttr(kGpuPrefetchQueueDepth, &def.gpu_prefetch_queue_depth));
     OP_REQUIRES_OK(context, context->GetAttr(kGpuMemoryStats, &def.enable_memory_stats));
+
+    std::vector<Tensor> batch_0;
+    // OP_REQUIRES_OK(context, context->GetAttr("external_input_0_iter_0", &batch_0));
+    // std::cout << "[DALI TF Plugin] prefetched tensors: " << std::endl;
+    // for (const auto &t : batch_0) {
+    //   std::cout << "[DALI TF Plugin] " << t.DebugString() << std::endl;
+    // }
   }
 
   PipelineDef pipeline_def_;
@@ -121,16 +142,19 @@ class DALIDatasetOp : public DatasetOpKernel {
   bool fail_on_device_mismatch_;
   OpKernelConstruction *context_;
 
+  // This can be moved outsied of the Op if we want to reduce nesting
   class Dataset : public DatasetBase {
    public:
     explicit Dataset(
       OpKernelContext *context,
+      const DatasetBase* input,
       const PipelineDef pipeline_def,
       const std::vector<PartialTensorShape> &shapes,
       const DataTypeVector &dtypes,
       const bool is_gpu_device,
       const bool fail_on_device_mismatch)
         : DatasetBase(DatasetContext(context)),
+        input_(input),
         pipeline_def_(pipeline_def),
         shapes_(shapes),
         dtypes_(dtypes),
@@ -143,8 +167,8 @@ class DALIDatasetOp : public DatasetOpKernel {
 
     std::unique_ptr<IteratorBase> MakeIteratorInternal(const string &prefix) const override {
       daliPipelineHandle pipeline_handle;
-      TF_CHECK_OK(InitPipeline(&pipeline_handle));     
-      
+      TF_CHECK_OK(InitPipeline(&pipeline_handle));
+
       return absl::make_unique<Iterator>(Iterator::Params{this, strings::StrCat(prefix, "::DALI")},
                                          pipeline_handle, pipeline_def_.enable_memory_stats);
     }
@@ -163,6 +187,7 @@ class DALIDatasetOp : public DatasetOpKernel {
     tensorflow::int64 Cardinality() const override { return data::kInfiniteCardinality; }
 
    protected:
+    const DatasetBase* const input_;
     PipelineDef pipeline_def_;
     std::vector<PartialTensorShape> shapes_;
     const DataTypeVector dtypes_;
@@ -252,7 +277,7 @@ class DALIDatasetOp : public DatasetOpKernel {
             enable_memory_stats_(enable_memory_stats) {}
 
       Status Initialize(IteratorContext* context) override {
-        return CheckOutputDevices(); 
+        return CheckOutputDevices();
       }
 
       Status CheckOutputDevices() {
@@ -268,7 +293,7 @@ class DALIDatasetOp : public DatasetOpKernel {
               (dali_device_type == device_type_t::CPU ? "CPU" : "GPU"),
               " for output ",
               i);
-            
+
             if (dataset()->fail_on_device_mismatch_) {
               return Status(
                 tensorflow::error::Code::INTERNAL,
@@ -545,7 +570,7 @@ REGISTER_KERNEL_BUILDER(
 REGISTER_KERNEL_BUILDER(
   Name("DALIDataset")
     .Device(DEVICE_GPU)
-    .HostMemory("handle"),
+    .HostMemory("handle").HostMemory("input_datasets"),
   DALIDatasetOp);
 
 REGISTER_OP("DALIDataset")
@@ -559,8 +584,13 @@ REGISTER_OP("DALIDataset")
   .Attr("gpu_prefetch_queue_depth: int")
   .Attr("enable_memory_stats: bool = false")
   .Attr("output_shapes: list(shape) >= 1")
+  // .Attr("external_input_0_iter_0: list(tensor) = []") // for prefetching - it will work only in Graph mode.
   .Attr("output_dtypes: list({bool, half, float, uint8, uint16, uint32, uint64, int8, int16, int32, int64}) >= 1")
   .Attr("fail_on_device_mismatch: bool = true")
+  // .Attr("input_dtypes: list(type) >= 1")
+  // .Input("inputs: variant")
+  .Input("input_datasets: N * variant")
+  .Attr("N: int >= 1")
   .Output("handle: variant")
   .SetIsStateful()
   .SetShapeFn(shape_inference::ScalarShape)

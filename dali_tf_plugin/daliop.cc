@@ -65,7 +65,18 @@ REGISTER_OP("Dali")
   .Attr("batch_size: int = -1")
   .Attr("enable_memory_stats: bool = false")
   .Output("data: dtypes")
+  .Attr("num_external_sources: int = 0")
+  .Attr("external_input_0_iter_0: list(tensor) = []") // for prefetching
+  .Attr("external_input_0_iter_1: list(tensor) = []")
+  .Attr("external_input_0_iter_2: list(tensor) = []")
+  .Attr("external_input_0_iter_0_shape: list(shape) = []")
+  .Attr("external_input_0_iter_1_shape: list(shape) = []")
+  .Attr("external_input_0_iter_2_shape: list(shape) = []")
+  .Attr("external_input_0_type: list(type) = []") // we have to set 1, as 0 "invalid" means "error" instead of "not specified"
+  .Attr("input_dtypes: list({bool, half, float, uint8, uint16, uint32, uint64, int8, int16, int32, int64}) >= 1")
   .Attr("dtypes: list({half, float, uint8, int16, int32, int64}) >= 1")
+  .Input("inputs: input_dtypes")
+  .Output("data: dtypes")
   // To prevent replacing DALI op with constant tensor during TF constant folding process
   .SetIsStateful()
   .SetShapeFn([](tf::shape_inference::InferenceContext* c) {
@@ -90,6 +101,30 @@ Creates a DALI pipeline from a serialized pipeline, obtained from `serialized_pi
 `shapes` must match the shape of the coresponding DALI Pipeline output tensor shape.
 `dtypes` must match the type of the coresponding DALI Pipeline output tensors type.
  )doc");
+
+std::vector<const void *> list_to_pointers(const std::vector<tf::Tensor> &list) {
+  std::vector<const void *> result;
+  result.reserve(list.size());
+  for (const auto &t : list) {
+    auto str_piece = t.tensor_data(); //tf::StringPiece
+    result.push_back(str_piece.data()); // collect the pointer
+  }
+  return result;
+}
+
+std::vector<int64_t> list_to_shape(const std::vector<tf::Tensor> &list) {
+  std::vector<int64_t> result;
+  for (const auto &t : list) {
+    for (int i = 0; i < t.shape().dims(); i++) {
+      result.push_back(t.shape().dim_size(i));
+    }
+  }
+  return result;
+}
+
+int64_t get_dim(const std::vector<tf::Tensor> &list) {
+  return list[0].shape().dims();
+}
 
 class DaliOp : public tf::OpKernel {
  public:
@@ -145,6 +180,20 @@ class DaliOp : public tf::OpKernel {
                    prefetch_queue_depth_,
                    enable_memory_stats_));
 
+    std::vector<tf::Tensor> batch_0;
+    OP_REQUIRES_OK(context, context->GetAttr("external_input_0_iter_0", &batch_0));
+    std::cout << "[DALI TF Plugin] prefetched tensors: " << std::endl;
+    for (const auto &t : batch_0) {
+      std::cout << "[DALI TF Plugin] " << t.DebugString() << std::endl;
+    }
+    auto ptrs = list_to_pointers(batch_0);
+    auto shape = list_to_shape(batch_0);
+    auto sample_dim = get_dim(batch_0);
+    printf(">>>> Batch of tensors: %d; element: %d\n", (int)batch_0.size(), (int)(batch_0[0].flat<uint8_t>()(0)));
+    for (int i = 0; i < prefetch_queue_depth_; i++) {
+      daliSetExternalInputTensors(&pipe_handle_, "external_input_0", CPU, ptrs.data(), DALI_UINT8, shape.data(), sample_dim, nullptr, 0); // todo pass data from attrs
+    }
+
 #if USE_TF_ALLOCATOR
     SetupTFAllocator(device_id_);
     UpdateTFAllocaterContext<tf::OpKernelConstruction>(context, device_id_);
@@ -187,6 +236,24 @@ class DaliOp : public tf::OpKernel {
   }
 
   void Compute(tf::OpKernelContext* context) override {
+    // Grab the input tensor
+    const tf::Tensor& input_tensor = context->input(0);
+    std::vector<const void *> ptrs;
+    std::vector<int64_t> shape;
+    int64_t sample_dim;
+    //todo, split this loop over batch sizes and add mapping for all external inputs
+    for (int i = 0; i < context->num_inputs(); i++) {
+      auto &tensor = context->input(i);
+      std::cout << "[DALI TF Plugin] input " << i << ": " << tensor.DebugString() << std::endl;
+      ptrs.push_back(tensor.tensor_data().data());
+      for (int i = 0; i < tensor.shape().dims(); i++) {
+        shape.push_back(tensor.shape().dim_size(i));
+      }
+      sample_dim = tensor.shape().dims();
+    }
+
+    // TODO: Handle more than one external_input
+    daliSetExternalInputTensors(&pipe_handle_, "external_input_0", CPU, ptrs.data(), DALI_UINT8, shape.data(), sample_dim, nullptr, 0); // todo pass data from attrs
     auto total_s = Clock::now();
 
 #if USE_TF_ALLOCATOR
@@ -365,7 +432,7 @@ class DaliOp : public tf::OpKernel {
 
 using tf::int64;
 
-REGISTER_KERNEL_BUILDER(Name("Dali").Device(tf::DEVICE_GPU), DaliOp)
+REGISTER_KERNEL_BUILDER(Name("Dali").Device(tf::DEVICE_GPU).HostMemory("inputs"), DaliOp)
 REGISTER_KERNEL_BUILDER(Name("Dali").Device(tf::DEVICE_CPU), DaliOp)
 
 }  // namespace dali_tf_impl

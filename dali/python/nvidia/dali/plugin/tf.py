@@ -39,6 +39,58 @@ def serialize_pipeline(pipeline):
                        "(e.g. Python Operators) cannot be used with "
                        "tensorflow data set API and DALIIterator.") from e
 
+class TfExternalSourceWrapper(object):
+  def __init__(self, batch_size, es_group):
+    self.batch_size = batch_size
+    self.es_group = es_group
+    # if es_group.is_multioutput:
+    self.num_outputs = len(es_group.instances)
+    if es_group.accepts_iter_num:
+      raise RuntimeError("DALI TF Plugin does not support external source that accepts number of iterations as argument.")
+    if es_group.is_multioutput:
+      self.callback = lambda : _flatten_batch(es_group.instances[0]._callback())
+    else:
+      self.callback = es_group.instances[0]._callback
+
+  def type_signature(self):
+    return self._type_signature
+
+  # TODO: split this into calculating flat batches and prefetching?
+  def prefetch_and_inspect(self, prefetch_queue_depth):
+    self.prefetched_batches = []
+    for i in range(prefetch_queue_depth):
+      self.prefetched_batches.append(self.callback())
+    self.types = [tf.as_dtype(t.dtype) for t in self.prefetched_batches[0]]
+
+    if self.es_group.is_multioutput:
+      first_batches = self.prefetched_batches[0]
+      # with multioutput we got a tuple of batches
+      for b in first_batches:
+        # check the first element of each of them
+        self.types.append(tf.as_dtype(b[0].dtype))
+      for i in range(prefetch_queue_depth):
+        self.prefetched_batches[i] = _flatten_batch(self.prefetched_batches[i])
+    else:
+      # first element of first batch
+      first_batch = self.prefetched_batches[0]
+      # first tensor from the first batch
+      self.types.append(tf.as_dtype(first_batch[0].dtype))
+    type_signature = ()
+    for t in self.types:
+      type_signature = type_signature + (t,) * self.batch_size
+    self._type_signature = type_signature
+
+  def _flatten_batch(batches):
+    flat_batch = []
+    for b in batches:
+      flat_batch.extend(b)
+    return flat_batch
+
+  def _tf_proto(self, flat_batch):
+    return [tf.make_tensor_proto(t) for t in flat_batch]
+
+
+
 
 def DALIIteratorWrapper(pipeline = None, serialized_pipeline = None, sparse = [],
                         shapes = [], dtypes = [], batch_size = -1, prefetch_queue_depth = 2, **kwargs):
@@ -61,10 +113,36 @@ def DALIIteratorWrapper(pipeline = None, serialized_pipeline = None, sparse = []
   if serialized_pipeline is None:
     serialized_pipeline = serialize_pipeline(pipeline)
 
+  # Gather information required for handling the ExternalSource
+  # Serialize calls _prepare_graph internally, after that call we can inspect the _input_callbacks
+  batch_size = pipeline.batch_size
+  has_external_source = False
+  print("[DALI TF Plugin]: Input callbacks: {}".format(len(pipeline._input_callbacks)))
+  if len(pipeline._input_callbacks) > 0:
+    external_sources = []
+    has_external_source = True
+
+    for es_group in pipeline._input_callbacks:
+      tf_esw = TfExternalSourceWrapper(batch_size, es_group)
+      tf_esw.prefetch_and_inspect(gpu_prefetch_queue_depth)
+      # print(tf_esw.type_signature())
+      # print(tf_esw.prefetched_batches[0])
+      # print(tf_esw._tf_proto(tf_esw.prefetched_batches[0]))
+      external_sources.append(tf_esw)
+
+    #   if es_group.is_multioutput:
+    #     raise RuntimeError("DALI TensorFlow plugin doesn't support multiple outputs from ExternalSource")
+
+    # Iterate over
+    print("[DALI TF Plugin] Instances: {}".format(len(pipeline._input_callbacks[0].instances)))
+    print("[DALI TF Plugin] First instance name: {}".format(pipeline._input_callbacks[0].instances[0].name))
+
+
+
   # if batch_size is not provided we need to extract if from the shape arg
   if (not isinstance(shapes, Iterable) or len(shapes) == 0) and batch_size == -1:
     raise Exception('shapes and batch_size arguments cannot be empty, '
-                    'please provide at leas one shape argument element with the BATCH size or set batch_size')
+                    'please provide at least one shape argument element with the BATCH size or set batch_size')
 
   if len(sparse) > 0 and sparse[0] and batch_size == -1:
     if isinstance(shapes[0], Iterable) and len(shapes[0]) == 1:
@@ -95,8 +173,25 @@ def DALIIteratorWrapper(pipeline = None, serialized_pipeline = None, sparse = []
         new_shapes.append(shapes[i])
 
   # gpu_prefetch_queue_depth correspond to the global queue depth in the uniform case
-  out = _dali_tf(serialized_pipeline=serialized_pipeline, shapes=new_shapes, dtypes=new_dtypes, sparse=sparse, batch_size=batch_size,
-                 exec_separated=exec_separated, gpu_prefetch_queue_depth=gpu_prefetch_queue_depth, cpu_prefetch_queue_depth=cpu_prefetch_queue_depth, **kwargs)
+  if has_external_source:
+    np_callback = pipeline._input_callbacks[0].instances[0]._callback
+    np_callback()
+    np_callback()
+    with tf.device("/cpu:0"):
+      # This is already a list
+      input = tf.numpy_function(np_callback, [], (tf.uint8,) * 12)
+  else:
+    with tf.device("/cpu:0"):
+      [input] = tf.constant([], dtype=tf.int32)
+  print(input)
+  print(input[0].device)
+  # input = input[:6] + input[:6] # it works btw
+  tf_esw = external_sources[0]
+  batch_0 = tf_esw._tf_proto(tf_esw.prefetched_batches[0])
+  out = _dali_tf(input, serialized_pipeline=serialized_pipeline, shapes=new_shapes, dtypes=new_dtypes, sparse=sparse, batch_size=batch_size,
+                 exec_separated=exec_separated, gpu_prefetch_queue_depth=gpu_prefetch_queue_depth, cpu_prefetch_queue_depth=cpu_prefetch_queue_depth,
+                 external_input_0_iter_0 = batch_0,
+                 **kwargs)
   new_out = []
   j = 0
   for i in range(len(dtypes)):
@@ -123,7 +218,7 @@ def _get_tf_version():
 MIN_TENSORFLOW_VERSION = LooseVersion('1.15')
 def dataset_compatible_tensorflow():
     return LooseVersion(tf.__version__) >= MIN_TENSORFLOW_VERSION
- 
+
 def dataset_distributed_compatible_tensorflow():
     return LooseVersion(tf.__version__) >= LooseVersion('2.5.0')
 
@@ -236,7 +331,24 @@ if dataset_compatible_tensorflow():
 
 
     def _as_variant_tensor(self):
+    #   import numpy as np
+    #   t = np.full((20, 20), 42, dtype=np.uint8)
+    #   proto = tf.make_tensor_proto(t)
+    #   print("Passing {}".format(t))
+
+      import itertools
+
+      def gen():
+        for i in itertools.count(1):
+          yield (i, [1] * i)
+
+      # d = tf.data.Dataset.from_generator(gen, (tf.int64, tf.int64), (tf.TensorShape([]), tf.TensorShape([None])))
+      d = tf.data.Dataset.range(1, 4)
+      print("[DALI TF Plugin]: HERE HERE HERE")
+      # print(dataset)
       return _dali_tf_module.dali_dataset(
+        # [dataset],
+        [d._variant_tensor], # you know, there is no sane way to access this x.x
         pipeline = self._pipeline,
         batch_size = self._batch_size,
         num_threads = self._num_threads,
@@ -246,8 +358,9 @@ if dataset_compatible_tensorflow():
         cpu_prefetch_queue_depth = self._cpu_prefetch_queue_depth,
         gpu_prefetch_queue_depth = self._gpu_prefetch_queue_depth,
         output_shapes = self._output_shapes,
-        output_dtypes = self._output_dtypes,
-        fail_on_device_mismatch = self._fail_on_device_mismatch)
+        fail_on_device_mismatch = self._fail_on_device_mismatch,
+        output_dtypes = self._output_dtypes)
+        # external_input_0_iter_0 = [proto]) # doesn't work with eager mode
 
 
   if _get_tf_version() < LooseVersion('2.0'):
