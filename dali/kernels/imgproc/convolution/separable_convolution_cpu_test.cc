@@ -229,25 +229,11 @@ TEST(SeparableConvolutionTest, OneAxisTest) {
   scratch_alloc.Reserve(req.scratch_sizes);
   auto scratchpad = scratch_alloc.GetScratchpad();
   ctx.scratchpad = &scratchpad;
+
   kernel.Run(ctx, out, in, k_win, 0, 1);
-
   baseline_convolve(baseline_out, in, k_win, 0, r);
-
   Check(out, baseline_out);
 
-  for (int i = 0; i < input_len; i++) {
-    std::cout << "{ ";
-    for (int c = 0; c< num_channels; c++) {
-      std::cout << out.data[i * num_channels + c] << ", ";
-    }
-    std::cout << " }\t";
-    std::cout << "{ ";
-    for (int c = 0; c< num_channels; c++) {
-      std::cout << "  " << baseline_out.data[i * num_channels + c] << ", ";
-    }
-    std::cout << " }\n";
-  }
-  std::cout << std::endl;
 }
 
 
@@ -307,55 +293,17 @@ TEST(SeparableConvolutionTest, TwoAxesTest) {
   auto scratchpad = scratch_alloc.GetScratchpad();
   ctx.scratchpad = &scratchpad;
 
-
   // axis 0
   ConstantFill(out, -1);
   kernel.Run(ctx, out, in, k_win, 0, 2);
   baseline_convolve(baseline_out, in, k_win, 0, r);
   Check(out, baseline_out);
 
-  for (int h = 0; h < shape[0]; h++) {
-    for (int w = 0; w < shape[1]; w++) {
-      // std::cout << "{";
-      // for (int c = 0; c < shape[2]; c++) {
-      //   std::cout << *out(h, w, c) << ", ";
-      // }
-      // std::cout << "}, ";
-      std::cout << *out(h, w, 0) << ", ";
-    }
-    std::cout << std::endl;
-  }
-
   // axis 1
   ConstantFill(out, -1);
   kernel.Run(ctx, out, in, k_win, 1, 2);
   baseline_convolve(baseline_out, in, k_win, 1, r);
   Check(out, baseline_out);
-
-  for (int h = 0; h < shape[0]; h++) {
-    for (int w = 0; w < shape[1]; w++) {
-      // std::cout << "{";
-      // for (int c = 0; c < shape[2]; c++) {
-      //   std::cout << *out(h, w, c) << ", ";
-      // }
-      // std::cout << "}, ";
-      std::cout << *out(h, w, 0) << ", ";
-    }
-    std::cout << std::endl;
-  }
-  // for (int i = 0; i < input_len; i++) {
-  //   std::cout << "{ ";
-  //   for (int c = 0; c< num_channels; c++) {
-  //     std::cout << out.data[i * num_channels + c] << ", ";
-  //   }
-  //   std::cout << " }\t";
-  //   std::cout << "{ ";
-  //   for (int c = 0; c< num_channels; c++) {
-  //     std::cout << "  " << baseline_out.data[i * num_channels + c] << ", ";
-  //   }
-  //   std::cout << " }\n";
-  // }
-  // std::cout << std::endl;
 }
 
 
