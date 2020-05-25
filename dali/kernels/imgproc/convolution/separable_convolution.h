@@ -110,20 +110,6 @@ class CyclicPixelWrapper {
   int num_channels = 0;
 };
 
-// template <int border_type, typename T>
-// const T* fill_input_window(CyclicPixelWrapper<T>& in_window, const T* in, int64_t stride,
-//                            span<const T> fill_value, int num_channels, int r, int d) {
-//   for (int i = 0; i < r; i++) {
-//     in_window.PushPixel(fill_value);
-//   }
-//   // we insert center element + radius hence `<=`
-//   for (int i = 0; i <= r; i++) {  // TODO: DAMN BORDER CONDITIONS
-//     in_window.PushPixel(in);
-//     in += stride;
-//   }
-//   return in;
-// }
-
 template <typename T>
 void load_pixel_with_border(CyclicPixelWrapper<T>& cpw, const T* in_ptr, int in_idx, int stride,
                             int axis_size, span<const T> fill_value) {
@@ -167,41 +153,48 @@ std::enable_if_t<dim == ndim - 1> traverse_axes(Out* out, const In* in, const W*
 
   int in_idx = -r, out_idx = 0;
   for (in_idx = -r; in_idx < 0; in_idx++) {
+    printf("[0]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
     load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
   }
   // the window fits in axis
   if (r < axis_size) {
-    // we load the rest of window
-    for (; in_idx <= r; in_idx++) {
+    // we load the window without the last element
+    for (; in_idx < r; in_idx++) {
+      printf("[1]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
       load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
     }
     for (; out_idx < axis_size - r; out_idx++, in_idx++) {
       // TODO we assume channel-last, still this can be rewritten as two linear loops if compiler
       // doesn't realize
-      // Thanks to the input_window we have a copy of all values and can store outputs directly
+      // we load last element of the input window corresponding to the out_idx
+      printf("[2]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
+      load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
+      // we have the windows in contiguous buffers
       input_window.CalculateDot(pixel_tmp.data(), window);
       for (int c = 0; c < num_channels; c++) {
-        out_ptr[out_idx + c] = pixel_tmp[c];  // todo scale & clamp
+        out_ptr[out_idx * pixel_stride + c] = pixel_tmp[c];  // todo scale & clamp
       }
+      // remove one pixel, to make space for next out_idx and in_idx
       input_window.PopPixel();
-      load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
     }
   }
   // the widow didn't fit
   else {
     // we need to load the rest of the window, just handle all with border condition for simplicity
-    for (; in_idx <= r; in_idx++) {
+    for (; in_idx < r; in_idx++) {
+      printf("[3]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
       load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
     }
   }
   // we need write out the rest of the outputs, the input window is full of data
   for (; out_idx < axis_size; out_idx++, in_idx++) {
+    printf("[4]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
+    load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
     input_window.CalculateDot(pixel_tmp.data(), window);
     for (int c = 0; c < num_channels; c++) {
-      out_ptr[out_idx + c] = pixel_tmp[c];  // todo scale & clamp
+      out_ptr[out_idx * pixel_stride + c] = pixel_tmp[c];  // todo scale & clamp
     }
     input_window.PopPixel();
-    load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
   }
 }
 

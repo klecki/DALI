@@ -131,6 +131,9 @@ REGISTER_TYPED_TEST_SUITE_P(CyclicPixelWrapperTest, FillAndCycle, DotProduct);
 INSTANTIATE_TYPED_TEST_SUITE_P(CyclicPixelWrapper, CyclicPixelWrapperTest, CyclicPixelWrapperValues);
 
 
+// template <typename Out, typename In, typename W>
+// void
+
 TEST(SeparableConvolutionTest, OneAxisTest) {
   constexpr int window_size = 3;
   constexpr int num_channels = 3;
