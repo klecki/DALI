@@ -36,19 +36,27 @@ struct CyclicPixelWrapperTest: public ::testing::Test {
 
 TYPED_TEST_SUITE_P(CyclicPixelWrapperTest);
 
+
+template <int num_channels_, bool has_channels_>
+struct cpw_params {
+  static constexpr int num_channels = num_channels_;
+  static constexpr bool has_channels = has_channels_;
+};
+
 using CyclicPixelWrapperValues =
-    ::testing::Types<std::integral_constant<int, 1>, std::integral_constant<int, 3>>;
+    ::testing::Types<cpw_params<1, true>, cpw_params<3, true>, cpw_params<1, false>>;
 
 TYPED_TEST_P(CyclicPixelWrapperTest, FillAndCycle) {
   constexpr int size = 6;
-  constexpr int num_channels = TypeParam::value;
+  constexpr int num_channels = TypeParam::num_channels;
+  constexpr bool has_channels = TypeParam::has_channels;
   int tmp_buffer[size * num_channels];
   int input_buffer[size * num_channels];
   for (int i = 0; i < size * num_channels; i++) {
     input_buffer[i] = i;
     tmp_buffer[i] = -1;
   }
-  CyclicPixelWrapper<int> cpw(tmp_buffer, size, num_channels);
+  CyclicPixelWrapper<int, has_channels> cpw(tmp_buffer, size, num_channels);
   EXPECT_EQ(0, cpw.Size());
   for (int i = 0; i < size; i++) {
     cpw.PushPixel(input_buffer + i * num_channels);
@@ -86,7 +94,8 @@ void baseline_dot(span<int> result, span<const int> input, span<const int> windo
 
 TYPED_TEST_P(CyclicPixelWrapperTest, DotProduct) {
   constexpr int size = 6;
-  constexpr int num_channels = TypeParam::value;;
+  constexpr int num_channels = TypeParam::num_channels;
+  constexpr bool has_channels = TypeParam::has_channels;
   int tmp_buffer[size * num_channels];
   int input_buffer[size * num_channels];
   int window[size];
@@ -105,7 +114,7 @@ TYPED_TEST_P(CyclicPixelWrapperTest, DotProduct) {
     }
   }
 
-  CyclicPixelWrapper<int> cpw(tmp_buffer, size, num_channels);
+  CyclicPixelWrapper<int, has_channels> cpw(tmp_buffer, size, num_channels);
   for (int i = 0; i < size; i++) {
     cpw.PushPixel(input_buffer + i * num_channels);
   }
@@ -130,31 +139,70 @@ REGISTER_TYPED_TEST_SUITE_P(CyclicPixelWrapperTest, FillAndCycle, DotProduct);
 
 INSTANTIATE_TYPED_TEST_SUITE_P(CyclicPixelWrapper, CyclicPixelWrapperTest, CyclicPixelWrapperValues);
 
+template <typename Out, typename In, typename W>
+void baseline_convolve_axis(Out *out, const In* in, const W* window, int len, int r, int channel_num, int64_t stride) {
+  for (int i = 0; i < len; i++) {
+    for (int c = 0; c < channel_num; c++) {
+      out[i * stride + c] = 0;
+      for (int d = -r; d <= r; d++) {
+        if (i + d >= 0 && i + d < len) {
+          out[i * stride + c] += in[(i + d) * stride + c] * window[d + r];
+        } else {
+          //todo: border handling
+          out[i * stride + c] += 0 * window[d + r];
+        }
+      }
+    }
+  }
+}
 
-// template <typename Out, typename In, typename W>
-// void
+
+template <typename Out, typename In, typename W, int ndim>
+void baseline_convolve(const TensorView<StorageCPU, Out, ndim> &out,
+                       const TensorView<StorageCPU, In, ndim> &in,
+                       const TensorView<StorageCPU, W, 1> &window, int axis, int r,
+                       int current_axis = 0, int64_t offset = 0) {
+  if (current_axis == ndim - 1) {
+    auto stride = GetStrides(out.shape)[axis];
+    baseline_convolve_axis(out.data + offset, in.data + offset, window.data, out.shape[axis], r, in.shape[ndim-1], stride);
+  } else if (current_axis == axis) {
+    baseline_convolve(out, in, window, axis, r, current_axis + 1, offset);
+  } else {
+    for (int i = 0; i < out.shape[current_axis]; i++) {
+      auto stride = GetStrides(out.shape)[current_axis];
+      baseline_convolve(out, in, window, axis, r, current_axis + 1, offset + i * stride);
+    }
+  }
+}
+
+// struct convolution_test_setup {
+//   int window_size;
+//   int num_channels;
+// };
+
+
+// class SeparableConvolutionTest : public testing::TestWithParam
 
 TEST(SeparableConvolutionTest, OneAxisTest) {
   constexpr int window_size = 3;
   constexpr int num_channels = 3;
   constexpr int input_len = 11;
+  constexpr int r = window_size / 2;
   TestTensorList<float, 1> kernel_window;
   kernel_window.reshape(uniform_list_shape<1>(1, {window_size}));
   TestTensorList<uint8_t, 2> input;
   input.reshape(uniform_list_shape<2>(1, {input_len, num_channels}));
-  TestTensorList<uint8_t, 2> padded_input;
-  padded_input.reshape(uniform_list_shape<2>(1, {input_len + window_size - 1, num_channels}));
-  TestTensorList<float, 2> output;
+  TestTensorList<float, 2> output, baseline_output;
   output.reshape(uniform_list_shape<2>(1, {input_len, num_channels}));
+  baseline_output.reshape(uniform_list_shape<2>(1, {input_len, num_channels}));
 
-  using Kernel1d = SeparableConvolution<float, uint8_t, float, 2>;
-  using Kernel2d = SeparableConvolution<float, uint8_t, float, 3>;
-  using Kernel3d = SeparableConvolution<float, uint8_t, float, 4>;
+  using Kernel = SeparableConvolution<float, uint8_t, float, 2>;
 
   KernelContext ctx;
-  Kernel1d k1d;
+  Kernel kernel;
 
   auto out = output.cpu()[0];
+  auto baseline_out = baseline_output.cpu()[0];
   auto in = input.cpu()[0];
   auto k_win = kernel_window.cpu()[0];
   // almost box filter, with raised center
@@ -170,29 +218,147 @@ TEST(SeparableConvolutionTest, OneAxisTest) {
   for (int i = 0; i < input_len * num_channels; i++) {
     in.data[i] = 0;
   }
+  ConstantFill(in, 0);
   for (int c = 0; c < num_channels; c++) {
-    in.data[(input_len / 2) * num_channels + c] = 10;
+    in.data[(input_len / 2) * num_channels + c] = 10 + 2 * c;
   }
 
-  auto req = k1d.Setup(ctx, in, k_win, 0);
+  auto req = kernel.Setup(ctx, in, k_win, 0);
   // this is painful
   ScratchpadAllocator scratch_alloc;
   scratch_alloc.Reserve(req.scratch_sizes);
   auto scratchpad = scratch_alloc.GetScratchpad();
   ctx.scratchpad = &scratchpad;
-  k1d.Run(ctx, out, in, k_win, 0, 1);
+  kernel.Run(ctx, out, in, k_win, 0, 1);
+
+  baseline_convolve(baseline_out, in, k_win, 0, r);
+
+  Check(out, baseline_out);
+
   for (int i = 0; i < input_len; i++) {
     std::cout << "{ ";
     for (int c = 0; c< num_channels; c++) {
       std::cout << out.data[i * num_channels + c] << ", ";
     }
+    std::cout << " }\t";
+    std::cout << "{ ";
+    for (int c = 0; c< num_channels; c++) {
+      std::cout << "  " << baseline_out.data[i * num_channels + c] << ", ";
+    }
     std::cout << " }\n";
   }
   std::cout << std::endl;
-  Kernel2d k2d;
-  Kernel3d k3d;
+}
+
+
+
+TEST(SeparableConvolutionTest, TwoAxesTest) {
+  constexpr int window_size = 3;
+  constexpr int height = 11;
+  constexpr int width = 21;
+  constexpr int r = window_size / 2;
+  constexpr int ndim = 3;
+  constexpr int num_channels = 3;
+  TensorShape<ndim> shape = {11, 21, num_channels};
+
+  TestTensorList<float, 1> kernel_window;
+  kernel_window.reshape(uniform_list_shape<1>(1, {window_size}));
+  TestTensorList<uint8_t, ndim> input;
+  input.reshape(uniform_list_shape<ndim>(1, shape));
+  TestTensorList<float, ndim> output, baseline_output;
+  output.reshape(uniform_list_shape<ndim>(1, shape));
+  baseline_output.reshape(uniform_list_shape<ndim>(1, shape));
+
+  using Kernel = SeparableConvolution<float, uint8_t, float, ndim>;
+
+  KernelContext ctx;
+  Kernel kernel;
+
+  auto out = output.cpu()[0];
+  auto baseline_out = baseline_output.cpu()[0];
+  auto in = input.cpu()[0];
+  auto k_win = kernel_window.cpu()[0];
+
+  // almost box filter, with raised center
+  for (int i = 0; i < window_size; i++) {
+    if (i < window_size / 2) {
+      k_win.data[i] = 1;
+    } else if (i == window_size / 2) {
+      k_win.data[i] = 2;
+    } else {
+      k_win.data[i] = 1;
+    }
+  }
+
+  ConstantFill(in, 0);
+
+  for (int c = 0; c < num_channels; c++) {
+    *in(shape[0] / 2, shape[1] / 2, c) = 20 + 2 * c;
+    *in(shape[0] / 2 - 1, shape[1] / 2, c) = 10;
+    *in(shape[0] / 2 + 1, shape[1] / 2, c) = 10;
+    *in(shape[0] / 2, shape[1] / 2 - 1, c) = 10;
+    *in(shape[0] / 2, shape[1] / 2 + 1, c) = 10;
+  }
+
+  auto req = kernel.Setup(ctx, in, k_win, 0);
+  // this is painful
+  ScratchpadAllocator scratch_alloc;
+  scratch_alloc.Reserve(req.scratch_sizes);
+  auto scratchpad = scratch_alloc.GetScratchpad();
+  ctx.scratchpad = &scratchpad;
+
+
+  // axis 0
+  ConstantFill(out, -1);
+  kernel.Run(ctx, out, in, k_win, 0, 2);
+  baseline_convolve(baseline_out, in, k_win, 0, r);
+  Check(out, baseline_out);
+
+  for (int h = 0; h < shape[0]; h++) {
+    for (int w = 0; w < shape[1]; w++) {
+      // std::cout << "{";
+      // for (int c = 0; c < shape[2]; c++) {
+      //   std::cout << *out(h, w, c) << ", ";
+      // }
+      // std::cout << "}, ";
+      std::cout << *out(h, w, 0) << ", ";
+    }
+    std::cout << std::endl;
+  }
+
+  // axis 1
+  ConstantFill(out, -1);
+  kernel.Run(ctx, out, in, k_win, 1, 2);
+  baseline_convolve(baseline_out, in, k_win, 1, r);
+  Check(out, baseline_out);
+
+  for (int h = 0; h < shape[0]; h++) {
+    for (int w = 0; w < shape[1]; w++) {
+      // std::cout << "{";
+      // for (int c = 0; c < shape[2]; c++) {
+      //   std::cout << *out(h, w, c) << ", ";
+      // }
+      // std::cout << "}, ";
+      std::cout << *out(h, w, 0) << ", ";
+    }
+    std::cout << std::endl;
+  }
+  // for (int i = 0; i < input_len; i++) {
+  //   std::cout << "{ ";
+  //   for (int c = 0; c< num_channels; c++) {
+  //     std::cout << out.data[i * num_channels + c] << ", ";
+  //   }
+  //   std::cout << " }\t";
+  //   std::cout << "{ ";
+  //   for (int c = 0; c< num_channels; c++) {
+  //     std::cout << "  " << baseline_out.data[i * num_channels + c] << ", ";
+  //   }
+  //   std::cout << " }\n";
+  // }
+  // std::cout << std::endl;
 }
 
 
 }  // namespace kernels
 }  // namespace dali
+

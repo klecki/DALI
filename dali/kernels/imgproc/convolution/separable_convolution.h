@@ -18,65 +18,68 @@
 #include "dali/core/tensor_view.h"
 #include "dali/kernels/common/utils.h"
 #include "dali/kernels/kernel.h"
+#include "dali/core/convert.h"
 
 namespace dali {
 namespace kernels {
 
 // should it be channel aware?
 // let's assume that yes. and that channels are always dense
-template <typename T>
+template <typename T, bool has_channels = true>
 class CyclicPixelWrapper {
  public:
   CyclicPixelWrapper(T* ptr, int length, int num_channels)
-      : data(ptr), start(0), end(0), elements(0), length(length), num_channels(num_channels) {}
+      : data_(ptr), start_(0), end_(0), elements_(0), length_(length), num_channels_(num_channels) {
+    // DALI_ENFORCE(!has_channels )
+  }
 
   void PopPixel() {
-    assert(elements > 0);
-    elements--;
-    start++;
-    WrapPosition(start);
+    assert(elements_ > 0);
+    elements_--;
+    start_++;
+    WrapPosition(start_);
   }
 
   void PushPixel(const T* input) {
-    assert(elements < length);
-    for (int c = 0; c < num_channels; c++) {
-      data[end * num_channels + c] = *input;  // todo offset=end*num_channels; offset++
+    assert(elements_ < length_);
+    for (int c = 0; c < NumChannels(); c++) {
+      data_[end_ * NumChannels() + c] = *input;  // todo offset=end*num_channels; offset++
       input++;
     }
-    elements++;
-    end++;
-    WrapPosition(end);
+    elements_++;
+    end_++;
+    WrapPosition(end_);
   }
 
   void PushPixel(span<const T> input) {
-    assert(elements < length);
-    for (int c = 0; c < num_channels; c++) {
-      data[end * num_channels + c] = input[c];  // todo offset=end*num_channels; offset++
+    assert(elements_ < length_);
+    for (int c = 0; c < NumChannels(); c++) {
+      data_[end_ * NumChannels() + c] = input[c];  // todo offset=end*num_channels; offset++
     }
-    elements++;
-    end++;
-    WrapPosition(end);
+    elements_++;
+    end_++;
+    WrapPosition(end_);
   }
 
   T* GetPixelOffset(int idx) {
-    assert(idx < elements);
-    if (start + idx < length) {
-      return data + (start + idx) * num_channels;
+    assert(idx < elements_);
+    if (start_ + idx < length_) {
+      return data_ + (start_ + idx) * NumChannels();
     } else {
-      return data + (start + idx - length) * num_channels;
+      return data_ + (start_ + idx - length_) * NumChannels();
     }
   }
 
   // todo: move the if above loop
   template <typename W>
   void CalculateDot(W* accum, const W* window) {
-    assert(elements == length);
-    for (int c = 0; c < num_channels; c++) {
+    assert(elements_ == length_);
+    for (int c = 0; c < NumChannels(); c++) {
       accum[c] = 0;
     }
-    for (int idx = 0; idx < length; idx++) {
+    for (int idx = 0; idx < length_; idx++) {
       const auto* pixel = GetPixelOffset(idx);
-      for (int c = 0; c < num_channels; c++) {
+      for (int c = 0; c < NumChannels(); c++) {
         accum[c] += window[idx] * pixel[c];
       }
     }
@@ -84,34 +87,40 @@ class CyclicPixelWrapper {
 
   // size in pixels
   int Size() {
-    return elements;
+    return elements_;
   }
 
   bool Empty() {
-    return elements == 0;
-  }
-
-  int NumChannels() {
-    return num_channels;
+    return elements_ == 0;
   }
 
  private:
   void WrapPosition(int& pos) {
-    if (pos == length) {
+    if (pos == length_) {
       pos = 0;
     }
   }
 
-  T* data = nullptr;
-  int start = 0;
-  int end = 0;  ///< next empty element
-  int elements = 0;
-  int length = 0;
-  int num_channels = 0;
+  template <bool has_channels_ = has_channels>
+  std::enable_if_t<has_channels_, int> NumChannels() {
+    return num_channels_;
+  }
+
+  template <bool has_channels_ = has_channels>
+  std::enable_if_t<!has_channels_, int> NumChannels() {
+    return 1;
+  }
+
+  T* data_ = nullptr;
+  int start_ = 0;
+  int end_ = 0;  ///< next empty element
+  int elements_ = 0;
+  int length_ = 0;
+  int num_channels_ = 0;
 };
 
-template <typename T>
-void load_pixel_with_border(CyclicPixelWrapper<T>& cpw, const T* in_ptr, int in_idx, int stride,
+template <typename T, bool has_channels>
+void load_pixel_with_border(CyclicPixelWrapper<T, has_channels>& cpw, const T* in_ptr, int in_idx, int stride,
                             int axis_size, span<const T> fill_value) {
   if (in_idx < 0) {
     cpw.PushPixel(fill_value);
@@ -122,57 +131,62 @@ void load_pixel_with_border(CyclicPixelWrapper<T>& cpw, const T* in_ptr, int in_
   }
 }
 
-template <typename T>
-void load_pixel_no_border(CyclicPixelWrapper<T>& cpw, const T* in_ptr, int in_idx, int stride) {
+template <typename T, bool has_channels>
+void load_pixel_no_border(CyclicPixelWrapper<T, has_channels>& cpw, const T* in_ptr, int in_idx, int stride) {
   cpw.PushPixel(in_ptr + in_idx * stride);
 }
-
-
 template <typename T>
 struct inspect;
 
+constexpr bool is_convolution_inner_loop(int dim, int ndim, bool has_channels) {
+  if (has_channels) {
+    return dim == ndim - 1;
+  } else {
+    return dim == ndim;
+  }
+}
+template <int dim, int ndim, bool has_channels>
+using is_convolution_inner = std::enable_if_t<is_convolution_inner_loop(dim, ndim, has_channels)>;
+
+template <int dim, int ndim, bool has_channels>
+using is_convolution_outer = std::enable_if_t<!is_convolution_inner_loop(dim, ndim, has_channels)>;
+
 // we're in channel dim
-template <int dim = 0, typename Out, typename In, typename W, int ndim>
-std::enable_if_t<dim == ndim - 1> traverse_axes(Out* out, const In* in, const W* window, int axis,
-                                                const TensorShape<ndim>& shape,
-                                                const TensorShape<ndim>& strides, int d,
-                                                int64_t offset, span<const In> border_fill, In* input_window_buffer,
-                                                span<W> pixel_tmp) {
+template <int dim = 0, bool has_channels, typename Out, typename In, typename W, int ndim>
+is_convolution_inner<dim, ndim, has_channels> traverse_axes(
+    Out* out, const In* in, const W* window, int axis, const TensorShape<ndim>& shape,
+    const TensorShape<ndim>& strides, int d, int64_t offset, span<const In> border_fill,
+    In* input_window_buffer, span<W> pixel_tmp, W scale = 1) {
   auto pixel_stride = strides[axis];
   auto axis_size = shape[axis];
-  auto num_channels = shape[ndim - 1];  // channel-last is assumed
+  auto num_channels = has_channels ? shape[ndim - 1] : 1;  // channel-last is assumed
   int r = (d - 1) / 2;                  // radius = (diameter - 1) / 2
   // offset <- start of current axis
   auto* out_ptr = out + offset;
   auto* in_ptr = in + offset;
   // prolog: fill input window
 
-  CyclicPixelWrapper<In> input_window(input_window_buffer, d, num_channels);
+  CyclicPixelWrapper<In, has_channels> input_window(input_window_buffer, d, num_channels);
 
   constexpr int Border = 0;  // FILL
 
   int in_idx = -r, out_idx = 0;
   for (in_idx = -r; in_idx < 0; in_idx++) {
-    printf("[0]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
     load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
   }
   // the window fits in axis
   if (r < axis_size) {
     // we load the window without the last element
     for (; in_idx < r; in_idx++) {
-      printf("[1]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
       load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
     }
     for (; out_idx < axis_size - r; out_idx++, in_idx++) {
-      // TODO we assume channel-last, still this can be rewritten as two linear loops if compiler
-      // doesn't realize
       // we load last element of the input window corresponding to the out_idx
-      printf("[2]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
       load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
-      // we have the windows in contiguous buffers
+      // we have both windows as almost-contiguous buffers
       input_window.CalculateDot(pixel_tmp.data(), window);
       for (int c = 0; c < num_channels; c++) {
-        out_ptr[out_idx * pixel_stride + c] = pixel_tmp[c];  // todo scale & clamp
+        out_ptr[out_idx * pixel_stride + c] = ConvertSat<Out>(pixel_tmp[c] * scale);
       }
       // remove one pixel, to make space for next out_idx and in_idx
       input_window.PopPixel();
@@ -182,36 +196,34 @@ std::enable_if_t<dim == ndim - 1> traverse_axes(Out* out, const In* in, const W*
   else {
     // we need to load the rest of the window, just handle all with border condition for simplicity
     for (; in_idx < r; in_idx++) {
-      printf("[3]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
       load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
     }
   }
   // we need write out the rest of the outputs, the input window is full of data
   for (; out_idx < axis_size; out_idx++, in_idx++) {
-    printf("[4]: in_idx: %d, out_idx: %d\n", in_idx, out_idx);
     load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
     input_window.CalculateDot(pixel_tmp.data(), window);
     for (int c = 0; c < num_channels; c++) {
-      out_ptr[out_idx * pixel_stride + c] = pixel_tmp[c];  // todo scale & clamp
+      out_ptr[out_idx * pixel_stride + c] = ConvertSat<Out>(pixel_tmp[c] * scale);
     }
     input_window.PopPixel();
   }
 }
 
 /// todo:rename
-template <int dim = 0, typename Out, typename In, typename W, int ndim>
-std::enable_if_t<(dim < ndim - 1)> traverse_axes(Out* out, const In* in, const W* window, int axis,
+template <int dim = 0, bool has_channels, typename Out, typename In, typename W, int ndim>
+is_convolution_outer<dim, ndim, has_channels> traverse_axes(Out* out, const In* in, const W* window, int axis,
                                                  const TensorShape<ndim>& shape,
                                                  const TensorShape<ndim>& strides, int d,
                                                  int64_t offset, span<const In> border_fill, In* input_window_buffer,
-                                                 span<W> pixel_tmp) {
+                                                 span<W> pixel_tmp, W scale = 1) {
   if (dim == axis) {
-    traverse_axes<dim + 1>(out, in, window, axis, shape, strides, d, offset, border_fill, input_window_buffer,
-                           pixel_tmp);
+    traverse_axes<dim + 1, has_channels>(out, in, window, axis, shape, strides, d, offset, border_fill, input_window_buffer,
+                           pixel_tmp, scale);
   } else if (dim != axis) {
     for (int64_t i = 0; i < shape[dim]; i++) {
-      traverse_axes<dim + 1>(out, in, window, axis, shape, strides, d, offset, border_fill, input_window_buffer,
-                             pixel_tmp);
+      traverse_axes<dim + 1, has_channels>(out, in, window, axis, shape, strides, d, offset, border_fill, input_window_buffer,
+                             pixel_tmp, scale);
       offset += strides[dim];
     }
   }
@@ -251,14 +263,13 @@ struct SeparableConvolution {
     auto diameter = window.num_elements();
 
     auto border_fill = make_span(border_fill_buf, num_channels);
-    // WIP
-    border_fill[0] = 0;
-    border_fill[1] = 0;
-    border_fill[2] = 0;
+    for (int c = 0; c < num_channels; c++) {
+      border_fill[c] = 0;
+    }
     auto pixel_tmp = make_span(pixel_tmp_buf, num_channels);
     // inspect<decltype(in.data)> x;
 
-    traverse_axes<0, Out, In, W, ndim>(out.data, in.data, window.data, axis, in.shape, strides, diameter, 0, border_fill, input_window_buffer, pixel_tmp);
+    traverse_axes<0, true, Out, In, W, ndim>(out.data, in.data, window.data, axis, in.shape, strides, diameter, 0, border_fill, input_window_buffer, pixel_tmp);
   }
 
  private:
