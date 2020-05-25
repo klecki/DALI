@@ -223,14 +223,14 @@ TEST(SeparableConvolutionTest, OneAxisTest) {
     in.data[(input_len / 2) * num_channels + c] = 10 + 2 * c;
   }
 
-  auto req = kernel.Setup(ctx, in, k_win, 0);
+  auto req = kernel.Setup(ctx, in, k_win);
   // this is painful
   ScratchpadAllocator scratch_alloc;
   scratch_alloc.Reserve(req.scratch_sizes);
   auto scratchpad = scratch_alloc.GetScratchpad();
   ctx.scratchpad = &scratchpad;
 
-  kernel.Run(ctx, out, in, k_win, 0, 1);
+  kernel.Run(ctx, out, in, k_win, 0);
   baseline_convolve(baseline_out, in, k_win, 0, r);
   Check(out, baseline_out);
 
@@ -286,7 +286,7 @@ TEST(SeparableConvolutionTest, TwoAxesTest) {
     *in(shape[0] / 2, shape[1] / 2 + 1, c) = 10;
   }
 
-  auto req = kernel.Setup(ctx, in, k_win, 0);
+  auto req = kernel.Setup(ctx, in, k_win);
   // this is painful
   ScratchpadAllocator scratch_alloc;
   scratch_alloc.Reserve(req.scratch_sizes);
@@ -295,13 +295,13 @@ TEST(SeparableConvolutionTest, TwoAxesTest) {
 
   // axis 0
   ConstantFill(out, -1);
-  kernel.Run(ctx, out, in, k_win, 0, 2);
+  kernel.Run(ctx, out, in, k_win, 0);
   baseline_convolve(baseline_out, in, k_win, 0, r);
   Check(out, baseline_out);
 
   // axis 1
   ConstantFill(out, -1);
-  kernel.Run(ctx, out, in, k_win, 1, 2);
+  kernel.Run(ctx, out, in, k_win, 1);
   baseline_convolve(baseline_out, in, k_win, 1, r);
   Check(out, baseline_out);
 }
