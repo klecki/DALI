@@ -140,7 +140,7 @@ REGISTER_TYPED_TEST_SUITE_P(CyclicPixelWrapperTest, FillAndCycle, DotProduct);
 INSTANTIATE_TYPED_TEST_SUITE_P(CyclicPixelWrapper, CyclicPixelWrapperTest, CyclicPixelWrapperValues);
 
 template <typename Out, typename In, typename W>
-void baseline_convolve_axis(Out *out, const In* in, const W* window, int len, int r, int channel_num, int64_t stride) {
+void BaselineConvolveAxis(Out *out, const In* in, const W* window, int len, int r, int channel_num, int64_t stride) {
   for (int i = 0; i < len; i++) {
     for (int c = 0; c < channel_num; c++) {
       out[i * stride + c] = 0;
@@ -158,19 +158,19 @@ void baseline_convolve_axis(Out *out, const In* in, const W* window, int len, in
 
 
 template <typename Out, typename In, typename W, int ndim>
-void baseline_convolve(const TensorView<StorageCPU, Out, ndim> &out,
+void BaselineConvolve(const TensorView<StorageCPU, Out, ndim> &out,
                        const TensorView<StorageCPU, In, ndim> &in,
                        const TensorView<StorageCPU, W, 1> &window, int axis, int r,
                        int current_axis = 0, int64_t offset = 0) {
   if (current_axis == ndim - 1) {
     auto stride = GetStrides(out.shape)[axis];
-    baseline_convolve_axis(out.data + offset, in.data + offset, window.data, out.shape[axis], r, in.shape[ndim-1], stride);
+    BaselineConvolveAxis(out.data + offset, in.data + offset, window.data, out.shape[axis], r, in.shape[ndim-1], stride);
   } else if (current_axis == axis) {
-    baseline_convolve(out, in, window, axis, r, current_axis + 1, offset);
+    BaselineConvolve(out, in, window, axis, r, current_axis + 1, offset);
   } else {
     for (int i = 0; i < out.shape[current_axis]; i++) {
       auto stride = GetStrides(out.shape)[current_axis];
-      baseline_convolve(out, in, window, axis, r, current_axis + 1, offset + i * stride);
+      BaselineConvolve(out, in, window, axis, r, current_axis + 1, offset + i * stride);
     }
   }
 }
@@ -231,12 +231,10 @@ TEST(SeparableConvolutionTest, OneAxisTest) {
   ctx.scratchpad = &scratchpad;
 
   kernel.Run(ctx, out, in, k_win, 0);
-  baseline_convolve(baseline_out, in, k_win, 0, r);
+  BaselineConvolve(baseline_out, in, k_win, 0, r);
   Check(out, baseline_out);
 
 }
-
-
 
 TEST(SeparableConvolutionTest, TwoAxesTest) {
   constexpr int window_size = 3;
@@ -296,13 +294,13 @@ TEST(SeparableConvolutionTest, TwoAxesTest) {
   // axis 0
   ConstantFill(out, -1);
   kernel.Run(ctx, out, in, k_win, 0);
-  baseline_convolve(baseline_out, in, k_win, 0, r);
+  BaselineConvolve(baseline_out, in, k_win, 0, r);
   Check(out, baseline_out);
 
   // axis 1
   ConstantFill(out, -1);
   kernel.Run(ctx, out, in, k_win, 1);
-  baseline_convolve(baseline_out, in, k_win, 1, r);
+  BaselineConvolve(baseline_out, in, k_win, 1, r);
   Check(out, baseline_out);
 }
 
