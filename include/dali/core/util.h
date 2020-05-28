@@ -15,6 +15,7 @@
 #ifndef DALI_CORE_UTIL_H_
 #define DALI_CORE_UTIL_H_
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -342,6 +343,14 @@ static_assert(all_of<true, true, true>::value,
               "Should return true_type when all the values are true.");
 static_assert(!all_of<true, false, true>::value,
               "Should return false_type when any of the values is false.");
+
+
+template <typename T, size_t N>
+std::array<T, N> uniform_array(const T& t) {
+  std::array<T, N> result;
+  result.fill(t);
+  return result;
+}
 
 }  // namespace dali
 
