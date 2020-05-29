@@ -24,7 +24,7 @@
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
 #include "dali/kernels/kernel_manager.h"
-#include "dali/kernels/imgproc/convolution/convolution.h"
+#include "dali/kernels/imgproc/convolution/convolution_cpu.h"
 #include "dali/kernels/imgproc/convolution/gaussian_blur.h"
 #include "dali/core/static_switch.h"
 #include "dali/pipeline/data/views.h"

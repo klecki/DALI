@@ -17,6 +17,8 @@
 #include <complex>
 #include <tuple>
 #include <vector>
+#include <chrono>
+
 
 #include "dali/core/boundary.h"
 #include "dali/kernels/common/utils.h"
@@ -173,6 +175,8 @@ void BaselineConvolve(const TensorView<StorageCPU, Out, ndim> &out,
   }
 }
 
+using ConvolutionInputType = uint8_t;
+
 template <int ndim_, bool has_channels_, int axis_, int window_size_>
 struct convolution_params {
   static constexpr int ndim = ndim_;
@@ -184,7 +188,7 @@ struct convolution_params {
 
 template <typename T>
 struct ConvolutionCpuKernelTest : public ::testing::Test {
-  using Kernel = ConvolutionCpu<float, uint8_t, float, T::ndim, T::axis, T::has_channels>;
+  using Kernel = ConvolutionCpu<float, ConvolutionInputType, float, T::ndim, T::axis, T::has_channels>;
 
   TensorShape<T::ndim> GetShape() {
     if (T::has_channels) {
@@ -246,29 +250,51 @@ struct ConvolutionCpuKernelTest : public ::testing::Test {
     scratch_alloc.Reserve(req.scratch_sizes);
     auto scratchpad = scratch_alloc.GetScratchpad();
     ctx.scratchpad = &scratchpad;
+    const int kIters = 1000;
 
-    kernel.Run(ctx, out_, in_, k_win_);
     BaselineConvolve(baseline_out_, baseline_in_, k_win_, T::axis, T::window_size / 2);
+    auto start_b = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < kIters; i++) {
+      BaselineConvolve(baseline_out_, baseline_in_, k_win_, T::axis, T::window_size / 2);
+    }
+    auto end_b = std::chrono::high_resolution_clock::now();
+    kernel.Run(ctx, out_, in_, k_win_);
+    auto start_k = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < kIters; i++) {
+      scratchpad.Clear();
+      kernel.Run(ctx, out_, in_, k_win_);
+      // BaselineConvolve(baseline_out_, baseline_in_, k_win_, T::axis, T::window_size / 2);
+    }
+    auto end_k = std::chrono::high_resolution_clock::now();
+    // std::chrono::duration<double> elapsed = finish - start;
+    auto elapsed_b = std::chrono::duration_cast<std::chrono::milliseconds>(end_b - start_b);
+    auto elapsed_k = std::chrono::duration_cast<std::chrono::milliseconds>(end_k - start_k);
+    auto t_b = elapsed_b.count() * 1.0f;
+    auto t_k = elapsed_k.count() * 1.0f;
+    auto ops = volume(GetShape()) * T::window_size * kIters / 1000.f; //  * 1000 (milseconds) * 1000 (iters) / 1000000 M
+    std::cout << "Ops: " << ops << ", baseline: " << ops / t_b << ", kernel: " << ops / t_k << std::endl;
+
+
 
     // for validation we need the same shape
     TensorView<StorageCPU, float, T::ndim> baseline_out_reshaped = {baseline_out_.data, out_.shape};
-    Check(out_, baseline_out_reshaped);
+    // Check(out_, baseline_out_reshaped);
   }
 
   TestTensorList<float, 1> kernel_window_;
-  TestTensorList<uint8_t, T::ndim> input_;
+  TestTensorList<ConvolutionInputType, T::ndim> input_;
   TestTensorList<float, T::ndim> output_;
   TestTensorList<float, T::baseline_ndim> baseline_output_;
 
   TensorView<StorageCPU, float, 1> k_win_;
-  TensorView<StorageCPU, uint8_t, T::ndim> in_;
-  TensorView<StorageCPU, uint8_t, T::baseline_ndim> baseline_in_;
+  TensorView<StorageCPU, ConvolutionInputType, T::ndim> in_;
+  TensorView<StorageCPU, ConvolutionInputType, T::baseline_ndim> baseline_in_;
   TensorView<StorageCPU, float, T::ndim> out_;
   TensorView<StorageCPU, float, T::baseline_ndim> baseline_out_;
 
-  const TensorShape<> shape_ch_ = {13, 11, 21, 3};
-  const TensorShape<> shape_noch_ = {13, 11, 21};
-  const TensorShape<> shape_noch1_ = {13, 11, 21, 1};
+  const TensorShape<> shape_ch_ = {20, 800, 600, 3};
+  const TensorShape<> shape_noch_ = {20, 800, 600};
+  const TensorShape<> shape_noch1_ = {20, 800, 600, 1};
 };
 
 TYPED_TEST_SUITE_P(ConvolutionCpuKernelTest);
@@ -276,10 +302,15 @@ TYPED_TEST_SUITE_P(ConvolutionCpuKernelTest);
 using ConvolutionTestValues =
     ::testing::Types<convolution_params<1, false, 0, 3>, convolution_params<2, true, 0, 3>,
                      convolution_params<2, false, 0, 3>, convolution_params<2, false, 1, 3>,
+                     convolution_params<1, false, 0, 11>, convolution_params<2, true, 0, 11>,
+                     convolution_params<2, false, 0, 11>, convolution_params<2, false, 1, 11>,
+                     convolution_params<1, false, 0, 21>, convolution_params<2, true, 0, 21>,
+                     convolution_params<2, false, 0, 21>, convolution_params<2, false, 1, 21>,
                      convolution_params<3, true, 0, 3>, convolution_params<3, true, 1, 3>,
-                     convolution_params<3, false, 1, 3>, convolution_params<3, false, 1, 7>,
-                     convolution_params<3, false, 1, 11>, convolution_params<3, false, 1, 21>,
-                     convolution_params<3, false, 1, 101>>;
+                     convolution_params<3, true, 0, 21>, convolution_params<3, true, 1, 21>>;
+                    //  convolution_params<3, false, 1, 3>, convolution_params<3, false, 1, 7>,
+                    //  convolution_params<3, false, 1, 11>, convolution_params<3, false, 1, 21>,
+                    //  convolution_params<3, false, 1, 101>>;
 
 TYPED_TEST_P(ConvolutionCpuKernelTest, DoConvolution) {
   this->RunTest();

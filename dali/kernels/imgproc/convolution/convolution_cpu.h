@@ -104,11 +104,15 @@ class CyclicPixelWrapper {
     for (int c = 0; c < NumChannels(); c++) {
       accum[c] = 0;
     }
-    // TODO(klecki): the if from GetPixelOffset can be factored above the loop
-    for (int idx = 0; idx < length_; idx++) {
-      const auto* pixel = GetPixelOffset(idx);
+    int window_idx = 0;
+    for (int buf_idx = start_; buf_idx < length_; buf_idx++, window_idx++) {
       for (int c = 0; c < NumChannels(); c++) {
-        accum[c] += window[idx] * pixel[c];
+        accum[c] += window[window_idx] * data_[buf_idx * NumChannels() + c];
+      }
+    }
+    for (int buf_idx = 0; buf_idx < end_; buf_idx++, window_idx++) {
+      for (int c = 0; c < NumChannels(); c++) {
+        accum[c] += window[window_idx] * data_[buf_idx * NumChannels() + c];
       }
     }
   }
@@ -202,6 +206,7 @@ is_convolution_inner<dim, ndim, has_channels> ConvolutionCpuImpl(
       // we have both windows as almost-contiguous buffers
       input_window.CalculateDot(pixel_tmp.data(), window);
       for (int c = 0; c < num_channels; c++) {
+        // pixel_tmp[c] = 0.f;
         out_ptr[out_idx * pixel_stride + c] = ConvertSat<Out>(pixel_tmp[c] * scale);
       }
       // remove one pixel, to make space for next out_idx and in_idx

@@ -21,7 +21,7 @@
 #include "dali/kernels/common/utils.h"
 #include "dali/kernels/kernel.h"
 #include "dali/pipeline/util/operator_impl_utils.h"
-#include "dali/kernels/imgproc/convolution/convolution.h"
+#include "dali/kernels/imgproc/convolution/convolution_cpu.h"
 
 namespace dali {
 namespace kernels {
