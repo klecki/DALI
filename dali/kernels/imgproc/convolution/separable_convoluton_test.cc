@@ -22,14 +22,15 @@
 #include "dali/kernels/scratch.h"
 #include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
-#include "dali/kernels/imgproc/convolution/gaussian_blur_cpu.h"
+#include "dali/kernels/imgproc/convolution/separable_convolution_cpu.h"
 
 
 namespace dali {
 namespace kernels {
 
-TEST(GaussianBlurCpuTest, Compiles) {
-  GaussianBlurCpu<uint8_t, uint8_t, float, 2, true> test;
+TEST(SeparableConvolutionTest, Compiles) {
+  SeparableConvolutionCpu<uint8_t, uint8_t, float, 2, true> test;
+  SeparableConvolutionCpu<float, uint8_t, float, 3, true> test2;
 
 }
 

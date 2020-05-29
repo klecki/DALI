@@ -39,6 +39,6 @@ is used for ``H`` and ``sigma_1`` for ``W``.
 
 // constexpr int GaussianBlur<CPUBackend>::kMaxDim = 3;
 
-// DALI_REGISTER_OPERATOR(GaussianBlur, GaussianBlur<CPUBackend>, CPU);
+DALI_REGISTER_OPERATOR(GaussianBlur, GaussianBlur<CPUBackend>, CPU);
 
 }  // namespace dali
