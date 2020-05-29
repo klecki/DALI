@@ -104,11 +104,15 @@ class CyclicPixelWrapper {
     for (int c = 0; c < NumChannels(); c++) {
       accum[c] = 0;
     }
-    // TODO(klecki): the if from GetPixelOffset can be factored above the loop
-    for (int idx = 0; idx < length_; idx++) {
-      const auto* pixel = GetPixelOffset(idx);
+    int window_idx = 0;
+    for (int buf_idx = start_; buf_idx < length_; buf_idx++, window_idx++) {
       for (int c = 0; c < NumChannels(); c++) {
-        accum[c] += window[idx] * pixel[c];
+        accum[c] += window[window_idx] * data_[buf_idx * NumChannels() + c];
+      }
+    }
+    for (int buf_idx = 0; buf_idx < end_; buf_idx++, window_idx++) {
+      for (int c = 0; c < NumChannels(); c++) {
+        accum[c] += window[window_idx] * data_[buf_idx * NumChannels() + c];
       }
     }
   }
