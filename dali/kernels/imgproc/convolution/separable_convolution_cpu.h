@@ -99,8 +99,8 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 2, has_channels> {
     conv_outermost_.Run(ctx, out, intermediate, windows[0], scales[0]);
   }
 
-  ConvolutionCpu<W, In, W, ndim, has_channels> conv_innermost_;
-  ConvolutionCpu<Out, W, W, ndim, has_channels> conv_outermost_;
+  ConvolutionCpu<W, In, W, ndim, 1, has_channels> conv_innermost_;
+  ConvolutionCpu<Out, W, W, ndim, 0, has_channels> conv_outermost_;
   static_assert(std::is_same<W, float>::value,
                 "Only floats as intermediate values are currently supported.");
 };
@@ -150,9 +150,9 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 3, has_channels> {
     conv_outermost_.Run(ctx, out, intermediate, windows[0], scales[0]);
   }
 
-  ConvolutionCpu<W, In, W, ndim, has_channels> conv_innermost_;
-  ConvolutionCpu<W, In, W, ndim, has_channels> conv_middle_;
-  ConvolutionCpu<Out, W, W, ndim, has_channels> conv_outermost_;
+  ConvolutionCpu<W, In, W, ndim, 2, has_channels> conv_innermost_;
+  ConvolutionCpu<W, In, W, ndim, 1, has_channels> conv_middle_;
+  ConvolutionCpu<Out, W, W, ndim, 0, has_channels> conv_outermost_;
 };
 
 

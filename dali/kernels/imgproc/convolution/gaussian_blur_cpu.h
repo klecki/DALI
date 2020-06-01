@@ -83,7 +83,7 @@ struct GaussianBlurCpu {
       windows_tmp[i] = {win_ptr, TensorShape<1>{diams[i]}};
       FillGaussian(windows_tmp[i], sigmas[i]);
       windows[i] = windows_tmp[i];
-      scales[i] = 0;
+      scales[i] = 1.f;
     }
 
     conv_.Run(ctx, out, in, windows, scales);
