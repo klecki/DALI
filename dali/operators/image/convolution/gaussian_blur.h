@@ -75,10 +75,10 @@ class GaussianBlur : public Operator<Backend> {
 
 
     auto sigma = spec_.GetArgument<float>("sigma");
-    std::array<float, 2> sigmas = {sigma, sigma};
+    std::array<int, 2> window_sizes = {3, 3};
     for (int i = 0; i < nsamples; i++) {
       const auto in_view = view<const uint8_t, 3>(input[i]);
-      auto &req = kmgr_.Setup<Kernel>(i, ctx_, in_view, sigmas);
+      auto &req = kmgr_.Setup<Kernel>(i, ctx_, in_view, window_sizes);
       output_desc[0].shape.set_tensor_shape(i, req.output_shapes[0][0].shape);
     }
 
@@ -130,6 +130,7 @@ class GaussianBlur : public Operator<Backend> {
     auto& thread_pool = ws.GetThreadPool();
     using Kernel = kernels::GaussianBlurCpu<uint8_t, uint8_t, float, 3, true>;
     auto sigma = spec_.GetArgument<float>("sigma");
+    std::array<int, 2> window_sizes = {3, 3};
     std::array<float, 2> sigmas = {sigma, sigma};
 
     // TYPE_SWITCH(input.type().id(), type2id, T, MEL_FBANK_SUPPORTED_TYPES, (
@@ -137,10 +138,10 @@ class GaussianBlur : public Operator<Backend> {
     //     using MelFilterBankKernel = kernels::audio::MelFilterBankCpu<T, Dims>;
         for (int i = 0; i < input.shape().num_samples(); i++) {
           thread_pool.DoWorkWithID(
-            [this, &input, &output, i, sigmas](int thread_id) {
+            [this, &input, &output, i, window_sizes, sigmas](int thread_id) {
               auto in_view = view<const uint8_t, 3>(input[i]);
               auto out_view = view<uint8_t, 3>(output[i]);
-              kmgr_.Run<Kernel>(thread_id, i, ctx_, out_view, in_view, sigmas);
+              kmgr_.Run<Kernel>(thread_id, i, ctx_, out_view, in_view, window_sizes, sigmas);
             });
         }
     //   ), DALI_FAIL(make_string("Unsupported number of dimensions ", in_shape.size())));  // NOLINT

@@ -22,6 +22,7 @@
 #include "dali/kernels/imgproc/convolution/separable_convolution_cpu.h"
 #include "dali/kernels/kernel.h"
 #include "dali/pipeline/util/operator_impl_utils.h"
+#include "include/dali/core/util.h"
 
 namespace dali {
 namespace kernels {
@@ -49,21 +50,17 @@ struct GaussianBlurCpu {
   static constexpr int axes = ndim + (has_channels ? -1 : 0);
 
   KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
-                           const std::array<float, axes>& sigmas) {
+                           const std::array<int, axes> &window_sizes) {
     KernelRequirements req;
     ScratchpadEstimator se;
 
-    std::array<int, axes> diams;
-    std::array<TensorView<StorageCPU, const W, 1>, axes> windows;
     for (int i = 0; i < axes; i++) {
-      diams[i] = GetGaussianWindowDiameter(sigmas[i]);
-      se.add<W>(AllocType::Host, diams[i]);
-      windows[i] = {nullptr, TensorShape<1>{diams[i]}};
+      se.add<W>(AllocType::Host, window_sizes[i]);
     }
 
     req.scratch_sizes = se.sizes;
     req.output_shapes.push_back(uniform_list_shape<ndim>(1, in.shape));
-    auto req_conv = conv_.Setup(ctx, in, windows);
+    auto req_conv = conv_.Setup(ctx, in, window_sizes);
     req.AddInputSet(req_conv, false);
 
     return req;
@@ -71,22 +68,19 @@ struct GaussianBlurCpu {
 
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
-           const std::array<float, axes>& sigmas) {
-    std::array<int, axes> diams;
+          const std::array<int, axes> &window_sizes,
+           const std::array<float, axes>& sigmas = uniform_array<float, axes>(0.f)) {
     std::array<TensorView<StorageCPU, W, 1>, axes> windows_tmp;
     std::array<TensorView<StorageCPU, const W, 1>, axes> windows;
-    std::array<float, axes> scales;  // todo remove
 
     for (int i = 0; i < axes; i++) {
-      diams[i] = GetGaussianWindowDiameter(sigmas[i]);
-      auto* win_ptr = ctx.scratchpad->Allocate<W>(AllocType::Host, diams[i]);
-      windows_tmp[i] = {win_ptr, TensorShape<1>{diams[i]}};
+      auto* win_ptr = ctx.scratchpad->Allocate<W>(AllocType::Host, window_sizes[i]);
+      windows_tmp[i] = {win_ptr, TensorShape<1>{window_sizes[i]}};
       FillGaussian(windows_tmp[i], sigmas[i]);
       windows[i] = windows_tmp[i];
-      scales[i] = 1.f;
     }
 
-    conv_.Run(ctx, out, in, windows, scales);
+    conv_.Run(ctx, out, in, windows);
   }
   SeparableConvolutionCpu<Out, In, W, ndim, has_channels> conv_;
 };

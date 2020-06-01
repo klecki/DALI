@@ -63,7 +63,7 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 2, has_channels> {
   static constexpr int ndim = has_channels ? 3 : 2;
 
   KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
-                           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows) {
+                           const std::array<int, axes>& window_sizes) {
     KernelRequirements req;
 
     ScratchpadEstimator se;
@@ -76,8 +76,8 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 2, has_channels> {
 
     auto intermediate = TensorView<StorageCPU, W, ndim>{nullptr, in.shape};
 
-    auto req_inner = conv_innermost_.Setup(ctx, in, windows[1]);
-    auto req_outer = conv_outermost_.Setup(ctx, intermediate, windows[0]);
+    auto req_inner = conv_innermost_.Setup(ctx, in, window_sizes[1]);
+    auto req_outer = conv_outermost_.Setup(ctx, intermediate, window_sizes[0]);
 
     req.AddInputSet(req_inner, false);
     req.AddInputSet(req_outer, false);
@@ -88,7 +88,7 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 2, has_channels> {
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
            const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows,
-           const std::array<W, axes>& scales) {
+           const std::array<W, axes>& scales = uniform_array<W, axes>(1.f)) {
     W* tmp = nullptr;
     if (!std::is_same<Out, W>::value) {
       tmp = ctx.scratchpad->Allocate<W>(AllocType::Host, volume(in.shape));
@@ -111,7 +111,7 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 3, has_channels> {
   static constexpr int ndim = has_channels ? 4 : 3;
 
   KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
-                           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows) {
+                           const std::array<int, axes>& window_sizes) {
     KernelRequirements req;
 
     ScratchpadEstimator se;
@@ -124,9 +124,9 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 3, has_channels> {
 
     auto intermediate = TensorView<StorageCPU, W, ndim>{nullptr, in.shape};
 
-    auto req_inner = conv_innermost_.Setup(ctx, in, windows[2]);
-    auto req_middle = conv_middle_.Setup(ctx, intermediate, windows[1]);
-    auto req_outer = conv_outermost_.Setup(ctx, intermediate, windows[0]);
+    auto req_inner = conv_innermost_.Setup(ctx, in, window_sizes[2]);
+    auto req_middle = conv_middle_.Setup(ctx, intermediate, window_sizes[1]);
+    auto req_outer = conv_outermost_.Setup(ctx, intermediate, window_sizes[0]);
 
     req.AddInputSet(req_inner, false);
     req.AddInputSet(req_middle, false);
@@ -138,7 +138,7 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 3, has_channels> {
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
            const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows,
-           const std::array<W, axes>& scales) {
+           const std::array<W, axes>& scales = uniform_array<W, axes>(1.f)) {
     W* tmp = nullptr;
     if (!std::is_same<Out, W>::value) {
       tmp = ctx.scratchpad->Allocate<W>(AllocType::Host, volume(in.shape));

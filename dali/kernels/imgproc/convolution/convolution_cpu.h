@@ -255,14 +255,12 @@ is_convolution_outer<dim, ndim, has_channels> ConvolutionCpuImpl(
  */
 template <typename Out, typename In, typename W, int ndim, int axis, bool has_channels = true>
 struct ConvolutionCpu {
-  KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
-                           const TensorView<StorageCPU, const W, 1>& window) {
+  KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in, int window_size) {
     KernelRequirements req;
     ScratchpadEstimator se;
-    DALI_ENFORCE(
-        window.num_elements() % 2 == 1,
-        make_string("Kernel window should have odd length, got: ", window.num_elements(), "."));
-    se.add<In>(AllocType::Host, GetInputWindowBufSize(in, window));
+    DALI_ENFORCE(window_size % 2 == 1,
+                 make_string("Kernel window should have odd length, got: ", window_size, "."));
+    se.add<In>(AllocType::Host, GetInputWindowBufSize(in, window_size));
     se.add<In>(AllocType::Host, GetPixelSize(in));  // fill value
     se.add<W>(AllocType::Host, GetPixelSize(in));   // tmp result
     req.scratch_sizes = se.sizes;
@@ -274,7 +272,7 @@ struct ConvolutionCpu {
            const TensorView<StorageCPU, const In, ndim>& in,
            const TensorView<StorageCPU, const W, 1>& window, W scale = 1) {
     int num_channels = GetPixelSize(in);
-    int input_window_buf_size = GetInputWindowBufSize(in, window);
+    int input_window_buf_size = GetInputWindowBufSize(in, window.num_elements());
     auto* input_window_buffer =
         ctx.scratchpad->Allocate<In>(AllocType::Host, input_window_buf_size);
     auto* border_fill_buf = ctx.scratchpad->Allocate<In>(AllocType::Host, num_channels);
@@ -298,9 +296,8 @@ struct ConvolutionCpu {
                 "Selected axis must be in [0, ndim) when there is no channel axis, or in [0, ndim "
                 "- 1) for channel-last input");
 
-  int GetInputWindowBufSize(const TensorView<StorageCPU, const In, ndim>& in,
-                            const TensorView<StorageCPU, const W, 1>& window) {
-    return GetPixelSize(in) * window.num_elements();
+  int GetInputWindowBufSize(const TensorView<StorageCPU, const In, ndim>& in, int window_size) {
+    return GetPixelSize(in) * window_size;
   }
   int GetPixelSize(const TensorView<StorageCPU, const In, ndim>& in) {
     return has_channels ? in.shape[ndim - 1] : 1;

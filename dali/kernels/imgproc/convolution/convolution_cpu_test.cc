@@ -240,7 +240,7 @@ struct ConvolutionCpuKernelTest : public ::testing::Test {
     KernelContext ctx;
     Kernel kernel;
 
-    auto req = kernel.Setup(ctx, in_, k_win_);
+    auto req = kernel.Setup(ctx, in_, T::window_size);
     // this is painful
     ScratchpadAllocator scratch_alloc;
     scratch_alloc.Reserve(req.scratch_sizes);
