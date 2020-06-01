@@ -29,7 +29,7 @@ namespace dali {
 namespace kernels {
 
 TEST(GaussianBlurCpuTest, Compiles) {
-  GaussianBlurCpu<uint8_t, uint8_t, float, 2, true> test;
+  GaussianBlurCpu<uint8_t, uint8_t, float, 2, false> test;
 
 }
 

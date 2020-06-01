@@ -54,7 +54,7 @@ struct GaussianBlurCpu {
     ScratchpadEstimator se;
 
     std::array<int, axes> diams;
-    std::array<TensorView<StorageCPU, W, 1>, axes> windows;
+    std::array<TensorView<StorageCPU, const W, 1>, axes> windows;
     for (int i = 0; i < axes; i++) {
       diams[i] = GetGaussianWindowDiameter(sigmas[i]);
       se.add<W>(AllocType::Host, diams[i]);
@@ -73,20 +73,22 @@ struct GaussianBlurCpu {
            const TensorView<StorageCPU, const In, ndim>& in,
            const std::array<float, axes>& sigmas) {
     std::array<int, axes> diams;
-    std::array<TensorView<StorageCPU, W, 1>, axes> windows;
+    std::array<TensorView<StorageCPU, W, 1>, axes> windows_tmp;
+    std::array<TensorView<StorageCPU, const W, 1>, axes> windows;
     std::array<float, axes> scales;  // todo remove
 
     for (int i = 0; i < axes; i++) {
       diams[i] = GetGaussianWindowDiameter(sigmas[i]);
       auto* win_ptr = ctx.scratchpad->Allocate<W>(AllocType::Host, diams[i]);
-      windows[i] = {win_ptr, TensorShape<1>{diams[i]}};
-      FillGaussian(windows[i], sigmas[i]);
+      windows_tmp[i] = {win_ptr, TensorShape<1>{diams[i]}};
+      FillGaussian(windows_tmp[i], sigmas[i]);
+      windows[i] = windows_tmp[i];
       scales[i] = 0;
     }
 
     conv_.Run(ctx, out, in, windows, scales);
   }
-  SeparableConvolutionCpu<Out, In, W, axes, has_channels> conv_;
+  SeparableConvolutionCpu<Out, In, W, ndim, has_channels> conv_;
 };
 
 }  // namespace kernels

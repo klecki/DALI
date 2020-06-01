@@ -29,7 +29,7 @@ namespace dali {
 namespace kernels {
 
 TEST(SeparableConvolutionTest, Compiles) {
-  SeparableConvolutionCpu<uint8_t, uint8_t, float, 2, true> test;
+  SeparableConvolutionCpu<uint8_t, uint8_t, float, 2, false> test;
   SeparableConvolutionCpu<float, uint8_t, float, 3, true> test2;
 
 }

@@ -28,6 +28,7 @@ namespace kernels {
 
 /**
  * @brief Apply convolution in all axes, starting from the innermost to outermost.
+ *        If channel axis is pressent, the convolution is not applied there.
  *
  * If `Out` is same as `W` the intermediate stages are written to out,
  * otherwise the temporary buffer of `W` is required and allocated in scratchpad
@@ -37,10 +38,8 @@ namespace kernels {
  * `windows` and `scales` are specified per axis.
  *
  * Specialized for 2 or 3 axes, to not go overboard with TMP for generic solutions
- *
- * NOTE THE axes, need to specialize pair ndim, has_channels
  */
-template <typename Out, typename In, typename W, int axes, bool has_channels = true>
+template <typename Out, typename In, typename W, int ndim, bool has_channels = true>
 struct SeparableConvolutionCpu;
 
 template <typename Out, typename W, int ndim>
@@ -55,8 +54,11 @@ TensorView<StorageCPU, W, ndim> GetInterStageView(const TensorView<StorageCPU, W
   return out;
 }
 
+template <typename Out, typename In, typename W, int axes, bool has_channels>
+struct SeparableConvolutionCpuImpl;
+
 template <typename Out, typename In, typename W, bool has_channels>
-struct SeparableConvolutionCpu<Out, In, W, 2, has_channels> {
+struct SeparableConvolutionCpuImpl<Out, In, W, 2, has_channels> {
   static constexpr int axes = 2;
   static constexpr int ndim = has_channels ? 3 : 2;
 
@@ -72,8 +74,10 @@ struct SeparableConvolutionCpu<Out, In, W, 2, has_channels> {
     req.scratch_sizes = se.sizes;
     req.output_shapes.push_back(uniform_list_shape<ndim>(1, in.shape));
 
+    auto intermediate = TensorView<StorageCPU, W, ndim>{nullptr, in.shape};
+
     auto req_inner = conv_innermost_.Setup(ctx, in, windows[1]);
-    auto req_outer = conv_outermost_.Setup(ctx, in, windows[0]);
+    auto req_outer = conv_outermost_.Setup(ctx, intermediate, windows[0]);
 
     req.AddInputSet(req_inner, false);
     req.AddInputSet(req_outer, false);
@@ -102,7 +106,7 @@ struct SeparableConvolutionCpu<Out, In, W, 2, has_channels> {
 };
 
 template <typename Out, typename In, typename W, bool has_channels>
-struct SeparableConvolutionCpu<Out, In, W, 3, has_channels> {
+struct SeparableConvolutionCpuImpl<Out, In, W, 3, has_channels> {
   static constexpr int axes = 3;
   static constexpr int ndim = has_channels ? 4 : 3;
 
@@ -118,9 +122,11 @@ struct SeparableConvolutionCpu<Out, In, W, 3, has_channels> {
     req.scratch_sizes = se.sizes;
     req.output_shapes.push_back(uniform_list_shape<ndim>(1, in.shape));
 
+    auto intermediate = TensorView<StorageCPU, W, ndim>{nullptr, in.shape};
+
     auto req_inner = conv_innermost_.Setup(ctx, in, windows[2]);
-    auto req_middle = conv_middle_.Setup(ctx, in, windows[1]);
-    auto req_outer = conv_outermost_.Setup(ctx, in, windows[0]);
+    auto req_middle = conv_middle_.Setup(ctx, intermediate, windows[1]);
+    auto req_outer = conv_outermost_.Setup(ctx, intermediate, windows[0]);
 
     req.AddInputSet(req_inner, false);
     req.AddInputSet(req_middle, false);
@@ -148,6 +154,19 @@ struct SeparableConvolutionCpu<Out, In, W, 3, has_channels> {
   ConvolutionCpu<W, In, W, ndim, has_channels> conv_middle_;
   ConvolutionCpu<Out, W, W, ndim, has_channels> conv_outermost_;
 };
+
+
+template <typename Out, typename In, typename W>
+struct SeparableConvolutionCpu<Out, In, W, 2, false> : public SeparableConvolutionCpuImpl<Out, In, W, 2, false> {};
+
+template <typename Out, typename In, typename W>
+struct SeparableConvolutionCpu<Out, In, W, 3, true> : public SeparableConvolutionCpuImpl<Out, In, W, 2, true> {};
+
+template <typename Out, typename In, typename W>
+struct SeparableConvolutionCpu<Out, In, W, 3, false> : public SeparableConvolutionCpuImpl<Out, In, W, 3, false> {};
+
+template <typename Out, typename In, typename W>
+struct SeparableConvolutionCpu<Out, In, W, 4, true> : public SeparableConvolutionCpuImpl<Out, In, W, 3, true> {};
 
 }  // namespace kernels
 }  // namespace dali
