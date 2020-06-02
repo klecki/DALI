@@ -15,22 +15,93 @@
 #ifndef DALI_OPERATORS_IMAGE_CONVOLUTION_GAUSSIAN_BLUR_H_
 #define DALI_OPERATORS_IMAGE_CONVOLUTION_GAUSSIAN_BLUR_H_
 
-
 // #include "dali/core/common.h"
 // #include "dali/core/error_handling.h"
 // #include "dali/core/tensor_shape.h"
 // #include "dali/kernels/scratch.h"
 
+#include "dali/core/static_switch.h"
+#include "dali/kernels/imgproc/convolution/gaussian_blur_cpu.h"
+#include "dali/kernels/kernel_manager.h"
+#include "dali/pipeline/data/views.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
-#include "dali/kernels/kernel_manager.h"
-#include "dali/kernels/imgproc/convolution/gaussian_blur_cpu.h"
-#include "dali/core/static_switch.h"
-#include "dali/pipeline/data/views.h"
 
 namespace dali {
 
 // using Kernel = dali::kernels::GaussianBlur<uint8_t, uint8_t, float, 2, true>;
+
+struct DimDesc {
+  int usable_dim_start;
+  int usable_dim_count;
+  bool has_channels;
+  bool is_sequence;
+};
+
+struct GaussianSampleParams {
+  GaussianSampleParams() = default;
+  GaussianSampleParams(int axes) {
+    window_sizes.resize(axes);
+    sigmas.resize(axes);
+  }
+
+  template <int N>
+  std::array<float, N> GetSigmas() {
+    std::array<float, N> result;
+    for (int i = 0; i < N; i++) {
+      result[i] = sigmas[i];
+    }
+    return result;
+  }
+
+  template <int N>
+  std::array<int, N> GetWindowSizes() {
+    std::array<int, N> result;
+    for (int i = 0; i < N; i++) {
+      result[i] = window_sizes[i];
+    }
+    return result;
+  }
+
+  SmallVector<int, 3> window_sizes;
+  SmallVector<float, 3> sigmas;
+};
+
+DimDesc ParseAndValidateDim(int ndim, TensorLayout layout) {
+  static constexpr int kMaxDim = 3;
+  if (layout.empty()) {
+    // assuming plain data with no channels
+    DALI_ENFORCE(ndim <= kMaxDim,
+                 make_string("Input data with empty layout cannot have more than ", kMaxDim,
+                             " dimensions, got input with ", ndim, " dimensions."));
+    return {0, ndim, false, false};
+  }
+  // not-empty layout
+  int dim_start = 0;
+  int dim_count = ndim;
+  bool has_channels = ImageLayoutInfo::HasChannel(layout);
+  if (has_channels) {
+    dim_count--;
+    DALI_ENFORCE(ImageLayoutInfo::IsChannelLast(layout),
+                 "Only input data with no channels or channel-last is supported.");
+  }
+  bool is_sequence = layout.find('F') >= 0;
+  if (is_sequence) {
+    dim_start++;
+    dim_count--;
+    DALI_ENFORCE(
+        layout.find('F') == 0,
+        make_string("For sequence inputs frames 'F' should be the first dimension, got layout: \"",
+                    layout.str(), "\"."));
+  }
+  DALI_ENFORCE(dim_count <= kMaxDim, "Too many dimensions");
+  return {dim_start, dim_count, has_channels, is_sequence};
+}
+
+#define GAUSSIAN_BLUR_SUPPORTED_TYPES \
+  (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float, float16)
+
+#define GAUSSIAN_BLUR_SUPPORTED_AXES (1, 2, 3)
 
 template <typename Backend>
 class GaussianBlur : public Operator<Backend> {
@@ -53,152 +124,153 @@ class GaussianBlur : public Operator<Backend> {
   bool SetupImpl(std::vector<OutputDesc>& output_desc, const workspace_t<Backend>& ws) override {
     const auto& input = ws.template InputRef<Backend>(0);
     auto layout = input.GetLayout();
-    auto dim_desc = ParseAndValidateDim(input.shape().sample_dim(), layout);
-    // kmgrs_.resize(dim_desc.usable_dim_count);
-
+    dim_desc_ = ParseAndValidateDim(input.shape().sample_dim(), layout);
     int nsamples = input.size();
     auto nthreads = ws.GetThreadPool().size();
-
-    // for (auto &kmgr : kmgrs_) {
-    //   // kmgr.template Resize<kernels::SeparableConvolution<float, uint8_t, float, 3, true>>(nthreads, nsamples);
-    // }
-    using Kernel = kernels::GaussianBlurCpu<uint8_t, uint8_t, float, 3, true>;
-    kmgr_.template Initialize<Kernel>();
-    kmgr_.template Resize<Kernel>(nthreads, nsamples);
-
-    // auto req = kmgr_.Setup<Kernel>(thread_id, i, ctx, out_view, in_view, args_[i]);
-
-
     output_desc.resize(1);
     output_desc[0].type = TypeTable::GetTypeInfo(TypeTable::GetTypeID<uint8_t>());
-    output_desc[0].shape.resize(nsamples, 3);
+    output_desc[0].shape.resize(nsamples, input.shape().sample_dim());
+    params_.resize(nsamples);
 
+    // clang-format off
+    TYPE_SWITCH(input.type().id(), type2id, T, GAUSSIAN_BLUR_SUPPORTED_TYPES, (
+      VALUE_SWITCH(dim_desc_.usable_dim_count, AXES, GAUSSIAN_BLUR_SUPPORTED_AXES, (
+        // To WAR the switch over bool
+        VALUE_SWITCH(static_cast<int>(dim_desc_.has_channels), HAS_CHANNELS, (0, 1), (
+          constexpr bool has_channels = HAS_CHANNELS;
+          constexpr int ndim = AXES + HAS_CHANNELS;
+          using Kernel = kernels::GaussianBlurCpu<T, T, float, ndim, has_channels>;
+          kmgr_.template Initialize<Kernel>();
+          kmgr_.template Resize<Kernel>(nthreads, nsamples);
 
-    auto sigma = spec_.GetArgument<float>("sigma");
-    std::array<int, 2> window_sizes = {3, 3};
-    for (int i = 0; i < nsamples; i++) {
-      const auto in_view = view<const uint8_t, 3>(input[i]);
-      auto &req = kmgr_.Setup<Kernel>(i, ctx_, in_view, window_sizes);
-      output_desc[0].shape.set_tensor_shape(i, req.output_shapes[0][0].shape);
-    }
+          for (int i = 0; i < nsamples; i++) {
+            params_[i] = GetSampleParams(AXES, i, spec_, ws);
+            auto elem_shape = input[i].shape().template last<ndim>();
+            // For sequence it will hold the first element, the rest will have the same shapes
+            const auto in_view = TensorView<StorageCPU, const T, ndim>{input[i].template data<T>(), elem_shape};
+            auto& req = kmgr_.Setup<Kernel>(i, ctx_, in_view, params_[i].template GetWindowSizes<AXES>());
+            // The shape of data stays untouched
+            output_desc[0].shape.set_tensor_shape(i, input[i].shape());
+          }
 
-
-
-    // TYPE_SWITCH(input.type().id(), type2id, T, ERASE_SUPPORTED_TYPES, (
-    //   VALUE_SWITCH(in_shape.sample_dim(), Dims, ERASE_SUPPORTED_NDIMS, (
-    //     impl_ = std::make_unique<EraseImplCpu<T, Dims>>(spec_);
-    //   ), DALI_FAIL(make_string("Unsupported number of dimensions ", in_shape.size())));  // NOLINT
-    // ), DALI_FAIL(make_string("Unsupported data type: ", input.type().id())));  // NOLINT
-
-    // layout.
-    // layout.
-    // const auto& in_shape = input.shape();  // temporary in some cases
-    // DALI_ENFORCE(in_shape.sample_dim() > 1, "Sequence elements must have at least 1 dim");
-    // output_desc.resize(1);
-    // output_desc[0].type = input.type();
-    // output_desc[0].shape = TensorListShape<>(in_shape.num_samples(), in_shape.sample_dim());
-    // if (single_order_) {
-    //   TensorView<StorageCPU, const int, 1> new_order(new_order_.data(),
-    //                                                  TensorShape<1>(new_order_.size()));
-    //   for (int i = 0; i < batch_size_; i++) {
-    //     ValidateSeqRearrange(in_shape[i], new_order, i);
-    //     output_desc[0].shape.set_tensor_shape(i, GetSeqRearrangedShape(in_shape[i], new_order));
-    //   }
-    // } else {
-    //   const auto& new_orders = ws.ArgumentInput("new_order");
-    //   for (int i = 0; i < batch_size_; i++) {
-    //     auto new_order = view<const int, 1>(new_orders[i]);
-    //     ValidateSeqRearrange(in_shape[i], new_order, i);
-    //     output_desc[0].shape.set_tensor_shape(i, GetSeqRearrangedShape(in_shape[i], new_order));
-    //   }
-    // }
-
-    // auto layout = input.GetLayout();
-    // DALI_ENFORCE(layout.empty() || layout.find('F') == 0,
-    //              make_string("Expected sequence as the input, where outermost dimension represents "
-    //                          "frames dimension `F`, got data with layout = \"",
-    //                          layout, "\"."));
+        ), (DALI_FAIL("Got value different than {0, 1} when converting bool to int.")));
+      ), DALI_FAIL(""));
+    ),
+      DALI_FAIL(make_string("Unsupported data type: ", input.type().id()))
+    );
+    // clang-format on
 
     return true;
   }
 
   void RunImpl(workspace_t<Backend>& ws) override {
-
-    const auto &input = ws.template InputRef<CPUBackend>(0);
-    auto &output = ws.template OutputRef<CPUBackend>(0);
+    const auto& input = ws.template InputRef<CPUBackend>(0);
+    auto& output = ws.template OutputRef<CPUBackend>(0);
     auto in_shape = input.shape();
     auto& thread_pool = ws.GetThreadPool();
-    using Kernel = kernels::GaussianBlurCpu<uint8_t, uint8_t, float, 3, true>;
-    auto sigma = spec_.GetArgument<float>("sigma");
-    std::array<int, 2> window_sizes = {3, 3};
-    std::array<float, 2> sigmas = {sigma, sigma};
 
-    // TYPE_SWITCH(input.type().id(), type2id, T, MEL_FBANK_SUPPORTED_TYPES, (
-    //   VALUE_SWITCH(in_shape.sample_dim(), Dims, MEL_FBANK_SUPPORTED_NDIMS, (
-    //     using MelFilterBankKernel = kernels::audio::MelFilterBankCpu<T, Dims>;
-        for (int i = 0; i < input.shape().num_samples(); i++) {
-          thread_pool.DoWorkWithID(
-            [this, &input, &output, i, window_sizes, sigmas](int thread_id) {
-              auto in_view = view<const uint8_t, 3>(input[i]);
-              auto out_view = view<uint8_t, 3>(output[i]);
-              kmgr_.Run<Kernel>(thread_id, i, ctx_, out_view, in_view, window_sizes, sigmas);
+    // clang-format off
+    TYPE_SWITCH(input.type().id(), type2id, T, GAUSSIAN_BLUR_SUPPORTED_TYPES, (
+      VALUE_SWITCH(dim_desc_.usable_dim_count, AXES, GAUSSIAN_BLUR_SUPPORTED_AXES, (
+        // To WAR the switch over bool
+        VALUE_SWITCH(static_cast<int>(dim_desc_.has_channels), HAS_CHANNELS, (0, 1), (
+          constexpr bool has_channels = HAS_CHANNELS;
+          constexpr int ndim = AXES + HAS_CHANNELS;
+          using Kernel = kernels::GaussianBlurCpu<T, T, float, ndim, has_channels>;
+
+          for (int i = 0; i < input.shape().num_samples(); i++) {
+            thread_pool.DoWorkWithID([this, &input, &output, i](int thread_id) {
+              auto elem_shape = input[i].shape().template last<ndim>();
+              auto in_view = TensorView<StorageCPU, const T, ndim>{input[i].template data<T>(), elem_shape};
+              auto out_view = TensorView<StorageCPU, T, ndim>{output[i].template mutable_data<T>(), elem_shape};
+              int64_t stride = 0;
+              int seq_elements = 1;
+              if (dim_desc_.is_sequence) {
+                seq_elements = input[i].shape()[0];
+                stride = volume(elem_shape);
+              }
+              auto window_sizes = params_[i].template GetWindowSizes<AXES>();
+              auto sigmas = params_[i].template GetSigmas<AXES>();
+              for (int elem_idx = 0; elem_idx < seq_elements; elem_idx++) {
+                kmgr_.Run<Kernel>(thread_id, i, ctx_, out_view, in_view, window_sizes, sigmas);
+                in_view.data += stride;
+                out_view.data += stride;
+              }
             });
-        }
-    //   ), DALI_FAIL(make_string("Unsupported number of dimensions ", in_shape.size())));  // NOLINT
-    // ), DALI_FAIL(make_string("Unsupported data type: ", input.type().id())));  // NOLINT
+          }
+
+        ), (DALI_FAIL("Got value different than {0, 1} when converting bool to int.")));
+      ), DALI_FAIL(""));
+    ),
+      DALI_FAIL(make_string("Unsupported data type: ", input.type().id()))
+    );
+    // clang-format on
+
 
     thread_pool.WaitForWork();
   }
 
-
-
  private:
+  float GetSigma(int dim, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
+    if (spec.ArgumentDefined(kSigmaPerAxisArgNames[dim])) {
+      return spec.GetArgument<float>(kSigmaPerAxisArgNames[dim], &ws, sample);
+    } else {
+      return spec.GetArgument<float>(kSigmaArgName, &ws, sample);
+    }
+  }
 
-  struct DimDesc {
-    int usable_dim_start;
-    int usable_dim_count;
-    bool has_channels;
-    bool is_sequence;
-  };
+  int GetWindowSize(int dim, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
+    if (spec.ArgumentDefined(kWindowSizePerAxisArgNames[dim])) {
+      return spec.GetArgument<float>(kWindowSizePerAxisArgNames[dim], &ws, sample);
+    } else {
+      return spec.GetArgument<float>(kWindowSizeArgName, &ws, sample);
+    }
+  }
 
-  DimDesc ParseAndValidateDim(int ndim, TensorLayout layout) {
-    static constexpr int kMaxDim = 3;
-    if (layout.empty()) {
-      // assuming plain data with no channels
-      DALI_ENFORCE(ndim <= kMaxDim, make_string("Input data with empty layout cannot have more than ", kMaxDim, " dimensions, got input with ", ndim, " dimensions."));
-      return {0, ndim, false, false};
+  GaussianSampleParams GetSampleParams(int axes, int sample, const OpSpec& spec,
+                                       const ArgumentWorkspace& ws) {
+    GaussianSampleParams params(axes);
+    for (int i = 0; i < axes; i++) {
+      params.sigmas[i] = GetSigma(i, sample, spec, ws);
+      params.window_sizes[i] = GetWindowSize(i, sample, spec, ws);
+      DALI_ENFORCE(
+          !(params.sigmas[i] == 0 && params.window_sizes[i] == 0),
+          make_string("`sigma` and `window_size` shouldn't be 0 at the same time for sample ",
+                      sample, "."));
+      DALI_ENFORCE(params.sigmas[i] >= 0,
+                   make_string("`sigma` must have non-negative values, got ", params.sigmas[i],
+                               " for sample: ", sample, ", axis: ", i, "."));
+      DALI_ENFORCE(params.window_sizes[i] >= 0,
+                   make_string("`window_size` must have non-negative values, got ",
+                               params.sigmas[i], " for sample: ", sample, ", axis : ", i, "."));
+      if (params.window_sizes[i] == 0 && params.sigmas[i] > 0.f) {
+        params.window_sizes[i] = ceilf(params.sigmas[i] * 3);
+      }
     }
-    // not-empty layout
-    int dim_start = 0;
-    int dim_count = ndim;
-    bool has_channels = ImageLayoutInfo::HasChannel(layout);
-    if (has_channels) {
-      dim_count--;
-      DALI_ENFORCE(ImageLayoutInfo::IsChannelLast(layout), "Only input data with no channels or channel-last is supported.");
-    }
-    bool is_sequence = layout.find('F') >= 0;
-    if (is_sequence) {
-      dim_start++;
-      dim_count--;
-      DALI_ENFORCE(layout.find('F') == 0, make_string("For sequence inputs frames 'F' should be the first dimension, got layout: \"", layout.str(), "\"."));
-    }
-    DALI_ENFORCE(dim_count <= kMaxDim, "Too many dimensions");
-    return {dim_start, dim_count, has_channels, is_sequence};
+    return params;
   }
 
   USE_OPERATOR_MEMBERS();
-
 
   std::unique_ptr<OpImplBase<Backend>> impl_;
 
   kernels::KernelManager kmgr_;
   kernels::KernelContext ctx_;
+  DimDesc dim_desc_;
+  constexpr static const char* kSigmaArgName = "sigma";
+  constexpr static const char* kSigmaPerAxisArgNames[] = {"sigma_0", "sigma_1", "sigma_2"};
+
+  constexpr static const char* kWindowSizeArgName = "window_size";
+  constexpr static const char* kWindowSizePerAxisArgNames[] = {"window_size_0", "window_size_1",
+                                                               "window_size_2"};
+
+  std::vector<GaussianSampleParams> params_;
+
   // std::vector<kernels::KernelManager> kmgrs_;
   // bool single_order_ = false;
   // std::vector<int> new_order_;
   // static constexpr int kMaxDim = 3; /// wth linker, pls?
 };
-
 
 }  // namespace dali
 

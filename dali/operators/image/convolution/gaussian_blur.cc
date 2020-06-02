@@ -32,7 +32,8 @@ is used for ``H`` and ``sigma_1`` for ``W``.
     .NumOutput(1)
     .AllowSequences()
     .SupportVolumetric()
-    .AddOptionalArg<float>("sigma", R"code()code", 1.f, true)
+    .AddOptionalArg("window_size", "The diameter of kernel window", 0, true)
+    .AddOptionalArg<float>("sigma", R"code()code", 0.f, true)
     .AddOptionalArg<float>("sigma_0", R"code()code", nullptr, true)
     .AddOptionalArg<float>("sigma_1", R"code()code", nullptr, true)
     .AddOptionalArg<float>("sigma_2", R"code()code", nullptr, true);
