@@ -57,6 +57,35 @@ TensorView<StorageCPU, W, ndim> GetInterStageView(const TensorView<StorageCPU, W
 template <typename Out, typename In, typename W, int axes, bool has_channels>
 struct SeparableConvolutionCpuImpl;
 
+
+template <typename Out, typename In, typename W, bool has_channels>
+struct SeparableConvolutionCpuImpl<Out, In, W, 1, has_channels> {
+  static constexpr int axes = 1;
+  static constexpr int ndim = has_channels ? 2 : 1;
+
+  KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
+                           const std::array<int, axes>& window_sizes) {
+    KernelRequirements req;
+    req.output_shapes.push_back(uniform_list_shape<ndim>(1, in.shape));
+
+    auto req_conv = conv_.Setup(ctx, in, window_sizes[0]);
+    req.AddInputSet(req_conv, false);
+
+    return req;
+  }
+
+  void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
+           const TensorView<StorageCPU, const In, ndim>& in,
+           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows,
+           const std::array<W, axes>& scales = uniform_array<W, axes>(1.f)) {
+    conv_.Run(ctx, out, in, windows[0], scales[0]);
+  }
+
+  ConvolutionCpu<W, In, W, ndim, 0, has_channels> conv_;
+  static_assert(std::is_same<W, float>::value,
+                "Only floats as intermediate values are currently supported.");
+};
+
 template <typename Out, typename In, typename W, bool has_channels>
 struct SeparableConvolutionCpuImpl<Out, In, W, 2, has_channels> {
   static constexpr int axes = 2;
@@ -155,18 +184,29 @@ struct SeparableConvolutionCpuImpl<Out, In, W, 3, has_channels> {
   ConvolutionCpu<Out, W, W, ndim, 0, has_channels> conv_outermost_;
 };
 
+template <typename Out, typename In, typename W>
+struct SeparableConvolutionCpu<Out, In, W, 1, false>
+    : public SeparableConvolutionCpuImpl<Out, In, W, 1, false> {};
 
 template <typename Out, typename In, typename W>
-struct SeparableConvolutionCpu<Out, In, W, 2, false> : public SeparableConvolutionCpuImpl<Out, In, W, 2, false> {};
+struct SeparableConvolutionCpu<Out, In, W, 2, true>
+    : public SeparableConvolutionCpuImpl<Out, In, W, 1, true> {};
 
 template <typename Out, typename In, typename W>
-struct SeparableConvolutionCpu<Out, In, W, 3, true> : public SeparableConvolutionCpuImpl<Out, In, W, 2, true> {};
+struct SeparableConvolutionCpu<Out, In, W, 2, false>
+    : public SeparableConvolutionCpuImpl<Out, In, W, 2, false> {};
 
 template <typename Out, typename In, typename W>
-struct SeparableConvolutionCpu<Out, In, W, 3, false> : public SeparableConvolutionCpuImpl<Out, In, W, 3, false> {};
+struct SeparableConvolutionCpu<Out, In, W, 3, true>
+    : public SeparableConvolutionCpuImpl<Out, In, W, 2, true> {};
 
 template <typename Out, typename In, typename W>
-struct SeparableConvolutionCpu<Out, In, W, 4, true> : public SeparableConvolutionCpuImpl<Out, In, W, 3, true> {};
+struct SeparableConvolutionCpu<Out, In, W, 3, false>
+    : public SeparableConvolutionCpuImpl<Out, In, W, 3, false> {};
+
+template <typename Out, typename In, typename W>
+struct SeparableConvolutionCpu<Out, In, W, 4, true>
+    : public SeparableConvolutionCpuImpl<Out, In, W, 3, true> {};
 
 }  // namespace kernels
 }  // namespace dali

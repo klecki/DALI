@@ -162,7 +162,7 @@ class GaussianBlur : public Operator<Backend> {
   };
 
   DimDesc ParseAndValidateDim(int ndim, TensorLayout layout) {
-  static constexpr int kMaxDim = 3;
+    static constexpr int kMaxDim = 3;
     if (layout.empty()) {
       // assuming plain data with no channels
       DALI_ENFORCE(ndim <= kMaxDim, make_string("Input data with empty layout cannot have more than ", kMaxDim, " dimensions, got input with ", ndim, " dimensions."));
