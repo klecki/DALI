@@ -27,21 +27,27 @@
 namespace dali {
 namespace kernels {
 
-int GetGaussianWindowDiameter(float sigma) {
-  // Used by OpenCV: sigma = 0.3*((ksize-1)*0.5 - 1) + 0.8
-  // (sigma - 0.8) / 0.3 = (ksize - 1)*0.5 -1
-  // r = (ksize - 1) / 2 = (sigma - 0.8) / 0.3 + 1 = sigma / 0.3 - 1.(6)
-  // TODO(klecki): approx:
-  int radius = ceilf(sigma * 3);
-  int diameter = 1 + 2 * radius;
-  return diameter;
-}
-
 void FillGaussian(const TensorView<StorageCPU, float, 1>& window, float sigma) {
   int r = (window.num_elements() - 1) / 2;
-  for (int x = -r; x <= r; x++) {
-    // directly using the formula, todo:optimize and calculate only half
-    *window(x + r) = 1.0 / sqrt(2 * M_PI * sigma * sigma) * exp(-((x * x) / (2 * sigma * sigma)));
+  // Based on OpenCV
+  sigma = sigma > 0 ? sigma : (r - 1) * 0.3 + 0.8;
+  double exp_scale = 0.5 / (sigma * sigma);
+  double sum = 0.;
+  // Calculate first half
+  for (int x = -r; x < 0; x++) {
+    *window(x + r) = exp(-(x * x * exp_scale));
+    sum += *window(x + r);
+  }
+  // Total sum, it's symmetric with 1 in the center.
+  sum *= 2.;
+  sum += 1.;
+  double scale = 1. / sum;
+  // place center, scaled element
+  *window(r) = scale;
+  // scale all elements so they sum up to 1, duplicate the second half
+  for (int x = 0; x < r; x++) {
+    *window(x) *= scale;
+    *window(2 * r - x) = *window(x);
   }
 }
 
@@ -50,7 +56,7 @@ struct GaussianBlurCpu {
   static constexpr int axes = ndim + (has_channels ? -1 : 0);
 
   KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
-                           const std::array<int, axes> &window_sizes) {
+                           const std::array<int, axes>& window_sizes) {
     KernelRequirements req;
     ScratchpadEstimator se;
 
@@ -68,7 +74,7 @@ struct GaussianBlurCpu {
 
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
-          const std::array<int, axes> &window_sizes,
+           const std::array<int, axes>& window_sizes,
            const std::array<float, axes>& sigmas = uniform_array<float, axes>(0.f)) {
     std::array<TensorView<StorageCPU, W, 1>, axes> windows_tmp;
     std::array<TensorView<StorageCPU, const W, 1>, axes> windows;
