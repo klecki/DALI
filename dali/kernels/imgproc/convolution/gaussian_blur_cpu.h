@@ -32,18 +32,19 @@ void FillGaussian(const TensorView<StorageCPU, float, 1>& window, float sigma) {
   // Based on OpenCV
   sigma = sigma > 0 ? sigma : (r - 1) * 0.3 + 0.8;
   double exp_scale = 0.5 / (sigma * sigma);
+  double mul_scale = 1.0 / sqrt(2 * M_PI * sigma * sigma); // TODO mul_scale actually disappears, can be removed
   double sum = 0.;
   // Calculate first half
   for (int x = -r; x < 0; x++) {
-    *window(x + r) = exp(-(x * x * exp_scale));
+    *window(x + r) = mul_scale * exp(-(x * x * exp_scale));
     sum += *window(x + r);
   }
-  // Total sum, it's symmetric with 1 in the center.
+  // Total sum, it's symmetric with `mul_scale * 1` in the center.
   sum *= 2.;
-  sum += 1.;
+  sum += mul_scale;
   double scale = 1. / sum;
   // place center, scaled element
-  *window(r) = scale;
+  *window(r) = mul_scale * scale;
   // scale all elements so they sum up to 1, duplicate the second half
   for (int x = 0; x < r; x++) {
     *window(x) *= scale;

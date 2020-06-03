@@ -244,7 +244,7 @@ class GaussianBlur : public Operator<Backend> {
                    make_string("`window_size` must have non-negative values, got ",
                                params.sigmas[i], " for sample: ", sample, ", axis : ", i, "."));
       if (params.window_sizes[i] == 0 && params.sigmas[i] > 0.f) {
-        params.window_sizes[i] = ceilf(params.sigmas[i] * 3);
+        params.window_sizes[i] = 2 * ceilf(params.sigmas[i] * 3) + 1;
       }
     }
     return params;
