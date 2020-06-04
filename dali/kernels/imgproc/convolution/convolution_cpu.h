@@ -35,7 +35,7 @@ namespace kernels {
 template <typename T, bool has_channels = true>
 class CyclicPixelWrapper {
  public:
-  CyclicPixelWrapper(T* ptr, int length, int num_channels = 1)
+  CyclicPixelWrapper(T* __restrict__ ptr, int length, int num_channels = 1)
       : data_(ptr),
         start_(0),
         end_(0),
@@ -57,12 +57,13 @@ class CyclicPixelWrapper {
    * @brief Add a pixel, represented by contiguous `NumChannels()` elements and starting at `input`,
    * to the buffer.
    */
-  void PushPixel(const T* input) {
+  void PushPixel(const T* __restrict__ input) {
     assert(elements_ < length_);
-    for (int c = 0; c < NumChannels(); c++) {
-      data_[end_ * NumChannels() + c] = *input;
-      input++;
-    }
+    memcpy(data_ + end_ * NumChannels(), input, sizeof(T) * NumChannels());
+    // for (int c = 0; c < NumChannels(); c++) {
+    //   data_[end_ * NumChannels() + c] = *input;
+    //   input++;
+    // }
     elements_++;
     end_++;
     WrapPosition(end_);
@@ -99,7 +100,7 @@ class CyclicPixelWrapper {
    * at construction. The result is stored in pixel stored at `accum`.
    */
   template <typename W>
-  void CalculateDot(W* accum, const W* window) {
+  void CalculateDot(W* __restrict__ accum, const W* __restrict__ window) {
     assert(elements_ == length_);
     for (int c = 0; c < NumChannels(); c++) {
       accum[c] = 0;
@@ -142,7 +143,7 @@ class CyclicPixelWrapper {
     return 1;
   }
 
-  T* data_ = nullptr;
+  T* __restrict__ data_ = nullptr;
   int start_ = 0;
   int end_ = 0;  ///< next empty element
   int elements_ = 0;
@@ -175,6 +176,74 @@ using is_convolution_inner = std::enable_if_t<is_convolution_inner_loop(dim, ndi
 template <int dim, int ndim, bool has_channels>
 using is_convolution_outer = std::enable_if_t<!is_convolution_inner_loop(dim, ndim, has_channels)>;
 
+
+// we're in channel dim
+template <int axis, bool has_channels, int dim = 0, typename Out, typename In, typename W, int ndim>
+void ConvolutionCpuImplCh(
+    Out* out, const In* in, const W* window, const TensorShape<ndim>& shape,
+    const TensorShape<ndim>& strides, int d, int64_t offset, span<const In> border_fill,
+    In* input_window_buffer, span<W> pixel_tmp, W scale, int stripe_size) {
+  auto pixel_stride = strides[axis];
+  auto axis_size = shape[axis];
+  auto num_channels = has_channels ? shape[ndim - 1] : 1;  // channel-last is assumed
+  // if (!has_channels) {
+  //   if (axis < ndim - 1) {
+  //     num_channels *= 10;
+  //     axis_size /= 10;
+  //   }
+  // } else {
+  //   if (axis < ndim - 2) {
+  //     num_channels *= 10;
+  //     axis_size /= 10;
+  //   }
+  // }
+  int r = (d - 1) / 2;                                     // radius = (diameter - 1) / 2
+  // offset <- start of current axis
+  auto* out_ptr = out + offset;
+  auto* in_ptr = in + offset;
+  // std::cout << " >> " << stripe_size << " " << num_channels <<std::endl;
+  num_channels = stripe_size;
+
+  CyclicPixelWrapper<In, has_channels> input_window(input_window_buffer, d, stripe_size);
+
+  int in_idx = -r, out_idx = 0;
+  for (in_idx = -r; in_idx < 0; in_idx++) {
+    load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
+  }
+  if (r < axis_size) {
+    // we load the window without the last element
+    for (; in_idx < r; in_idx++) {
+      load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
+    }
+    for (; out_idx < axis_size - r; out_idx++, in_idx++) {
+      // we load last element of the input window corresponding to the out_idx
+      load_pixel_no_border(input_window, in_ptr, in_idx, pixel_stride);
+      // we have both windows as almost-contiguous buffers
+      input_window.CalculateDot(pixel_tmp.data(), window);
+      for (int c = 0; c < num_channels; c++) {
+        // pixel_tmp[c] = 0.f;
+        out_ptr[out_idx * pixel_stride + c] = ConvertSat<Out>(pixel_tmp[c] * scale);
+      }
+      // remove one pixel, to make space for next out_idx and in_idx
+      input_window.PopPixel();
+    }
+  } else {
+    // we need to load the rest of the window, just handle all with border condition for simplicity
+    for (; in_idx < r; in_idx++) {
+      load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
+    }
+  }
+  // we need write out the rest of the outputs, the input window is full of data
+  for (; out_idx < axis_size; out_idx++, in_idx++) {
+    load_pixel_with_border(input_window, in_ptr, in_idx, pixel_stride, axis_size, border_fill);
+    input_window.CalculateDot(pixel_tmp.data(), window);
+    for (int c = 0; c < num_channels; c++) {
+      out_ptr[out_idx * pixel_stride + c] = ConvertSat<Out>(pixel_tmp[c] * scale);
+    }
+    input_window.PopPixel();
+  }
+}
+
 // we're in channel dim
 template <int axis, bool has_channels, int dim = 0, typename Out, typename In, typename W, int ndim>
 is_convolution_inner<dim, ndim, has_channels> ConvolutionCpuImpl(
@@ -184,12 +253,24 @@ is_convolution_inner<dim, ndim, has_channels> ConvolutionCpuImpl(
   auto pixel_stride = strides[axis];
   auto axis_size = shape[axis];
   auto num_channels = has_channels ? shape[ndim - 1] : 1;  // channel-last is assumed
+  // if (!has_channels) {
+  //   if (axis < ndim - 1) {
+  //     num_channels *= 10;
+  //     axis_size /= 10;
+  //   }
+  // } else {
+  //   if (axis < ndim - 2) {
+  //     num_channels *= 10;
+  //     axis_size /= 10;
+  //   }
+  // }
   int r = (d - 1) / 2;                                     // radius = (diameter - 1) / 2
   // offset <- start of current axis
   auto* out_ptr = out + offset;
   auto* in_ptr = in + offset;
 
   CyclicPixelWrapper<In, has_channels> input_window(input_window_buffer, d, num_channels);
+  SmallVector<W, 16> tmp; // todo
 
   int in_idx = -r, out_idx = 0;
   for (in_idx = -r; in_idx < 0; in_idx++) {
@@ -234,18 +315,57 @@ is_convolution_outer<dim, ndim, has_channels> ConvolutionCpuImpl(
     Out* out, const In* in, const W* window, const TensorShape<ndim>& shape,
     const TensorShape<ndim>& strides, int d, int64_t offset, span<const In> border_fill,
     In* input_window_buffer, span<W> pixel_tmp, W scale = 1) {
-  if (dim == axis) {
-    ConvolutionCpuImpl<axis, has_channels, dim + 1>(out, in, window, shape, strides, d, offset,
-                                                    border_fill, input_window_buffer, pixel_tmp,
-                                                    scale);
-  } else if (dim != axis) {
-    for (int64_t i = 0; i < shape[dim]; i++) {
-      ConvolutionCpuImpl<axis, has_channels, dim + 1>(out, in, window, shape, strides, d, offset,
-                                                      border_fill, input_window_buffer, pixel_tmp,
-                                                      scale);
-      offset += strides[dim];
+
+  int64_t outer_elements = volume(&shape[0], &shape[axis]);
+  int64_t axis_elements  = shape[axis];
+  int64_t inner_elements = volume(&shape[axis + 1], &shape[ndim]); // This will be num_channels? sometimes
+  assert(stride[axis] == inner_elements); // we just go through all elements between pixel stride
+
+  // std::cout << outer_elements << ", " << axis_elements << ", " <<  inner_elements << std::endl;
+
+
+
+  int stripe_size = 8;
+  if (has_channels && axis == ndim - 2) {
+    stripe_size = shape[ndim-1];
+  }
+
+  // if (!has_channels) {
+  //   if (axis < ndim - 1) {
+  //     num_channels *= 10;
+  //     axis_size /= 10;
+  //   }
+  // } else {
+  //   if (axis < ndim - 2) {
+  //     num_channels *= 10;
+  //     axis_size /= 10;
+  //   }
+  // }
+
+  for (int outer_idx = 0; outer_idx < outer_elements; outer_idx++) {
+    for (int inner_idx = 0; inner_idx < inner_elements; inner_idx += stripe_size) {
+      offset = outer_idx * (axis > 0 ? strides[axis - 1] : 0);
+      offset = offset + inner_idx * (1); // todo what stride to use here?
+      int left_stripe = std::min<int>(inner_elements - inner_idx, stripe_size);
+      // std:: cout << "IDX: " << shape <<  "; " << outer_idx << " " << inner_idx << " " << left_stripe << std::endl;
+      ConvolutionCpuImplCh<axis, has_channels, ndim-1>(out, in, window, shape, strides, d, offset,
+                                                        border_fill, input_window_buffer, pixel_tmp,
+                                                        scale, left_stripe);
     }
   }
+
+  // if (dim == axis) {
+  //   ConvolutionCpuImpl<axis, has_channels, dim + 1>(out, in, window, shape, strides, d, offset,
+  //                                                   border_fill, input_window_buffer, pixel_tmp,
+  //                                                   scale);
+  // } else if (dim != axis) {
+  //   for (int64_t i = 0; i < shape[dim]; i++) {
+  //     ConvolutionCpuImpl<axis, has_channels, dim + 1>(out, in, window, shape, strides, d, offset,
+  //                                                     border_fill, input_window_buffer, pixel_tmp,
+  //                                                     scale);
+  //     offset += strides[dim];
+  //   }
+  // }
 }
 
 /**
@@ -256,6 +376,7 @@ is_convolution_outer<dim, ndim, has_channels> ConvolutionCpuImpl(
  */
 template <typename Out, typename In, typename W, int ndim, int axis, bool has_channels = true>
 struct ConvolutionCpu {
+  static constexpr int stripe_size = 8;
   KernelRequirements Setup(KernelContext& ctx, const InTensorCPU<In, ndim>& in,
                            const TensorView<StorageCPU, const W, 1>& window) {
     KernelRequirements req;
@@ -301,10 +422,10 @@ struct ConvolutionCpu {
 
   int GetInputWindowBufSize(const TensorView<StorageCPU, const In, ndim>& in,
                             const TensorView<StorageCPU, const W, 1>& window) {
-    return GetPixelSize(in) * window.num_elements();
+    return stripe_size * window.num_elements();
   }
   int GetPixelSize(const TensorView<StorageCPU, const In, ndim>& in) {
-    return has_channels ? in.shape[ndim - 1] : 1;
+    return stripe_size;
   }
 };
 

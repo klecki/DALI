@@ -278,7 +278,7 @@ struct ConvolutionCpuKernelTest : public ::testing::Test {
 
     // for validation we need the same shape
     TensorView<StorageCPU, float, T::ndim> baseline_out_reshaped = {baseline_out_.data, out_.shape};
-    // Check(out_, baseline_out_reshaped);
+    Check(out_, baseline_out_reshaped);
   }
 
   TestTensorList<float, 1> kernel_window_;
