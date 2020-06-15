@@ -41,40 +41,43 @@ If only the kernel window size is provided, the sigma is calculated using the fo
   radius = (window_size - 1) / 2
   sigma = (radius - 1) * 0.3 + 0.8
 
-Both sigma and kernel window size can be specified as single values for all data axes
+Both sigma and kernel window size can be specified as single value for all data axes
 or per data axis.
 
 When specifying the sigma or window size per axis, index 0 represents the outermost data axis.
 The channel ``C`` and frame ``F`` dimensions are not considered data axes.
 
-For example with ``HWC`` layout, ``sigma_0`` corresponds to ``H``, and ``sigma_1`` to ``W``.
-With ``FHWC``, it's the same: ``sigma_0`` corresponds to ``H``, and ``sigma_1`` to ``W``.
-For ``DHWC``, ``sigma_0`` corresponds to ``D``, ``sigma_1`` to ``H`` and ``sigma_2`` to ``W``.
+For example, with ``HWC`` input, user can provide ``sigma=1.0`` or ``sigma=(1.0, 2.0)`` as there
+are two data axes H and W.
 
-Same for ``window_size_i``.
+The same input can be provided as per-sample tensors.
 )code")
     .NumInput(1)
     .NumOutput(1)
     .AllowSequences()
     .SupportVolumetric()
-    .AddOptionalArg(kWindowSizeArgName, "The diameter of kernel.", 0, true)
-    .AddOptionalArg<int>(kWindowSizePerAxisArgNames[0],
-                         "The diameter of kernel window in first, outermost axis 0.", nullptr,
-                         true)
-    .AddOptionalArg<int>(kWindowSizePerAxisArgNames[1], "The diameter of kernel window for axis 1.",
-                         nullptr, true)
-    .AddOptionalArg<int>(kWindowSizePerAxisArgNames[2], "The diameter of kernel window for axis 2.",
-                         nullptr, true)
-    .AddOptionalArg<float>(kSigmaArgName, R"code(Sigma value for Gaussian Kernel.)code", 0.f, true)
-    .AddOptionalArg<float>(kSigmaPerAxisArgNames[0],
-                           R"code(Sigma value for Gaussian Kernel, for axis 0.)code", nullptr, true)
-    .AddOptionalArg<float>(kSigmaPerAxisArgNames[1],
-                           R"code(Sigma value for Gaussian Kernel, for axis 1.)code", nullptr, true)
-    .AddOptionalArg<float>(kSigmaPerAxisArgNames[2],
-                           R"code(Sigma value for Gaussian Kernel, for axis 2.)code", nullptr,
-                           true);
+    .AddOptionalArg(kWindowSizeArgName, "The diameter of kernel.", std::vector<int>{0}, true)
+    // .AddOptionalArg<int>(kWindowSizePerAxisArgNames[0],
+    //                      "The diameter of kernel window in first, outermost axis 0.", nullptr,
+    //                      true)
+    // .AddOptionalArg<int>(kWindowSizePerAxisArgNames[1], "The diameter of kernel window for axis 1.",
+    //                      nullptr, true)
+    // .AddOptionalArg<int>(kWindowSizePerAxisArgNames[2], "The diameter of kernel window for axis 2.",
+                        //  nullptr, true)
+    .AddOptionalArg<float>(kSigmaArgName, R"code(Sigma value for Gaussian Kernel.)code", std::vector<float>{0.f}, true);
+    // .AddOptionalArg<float>(kSigmaPerAxisArgNames[0],
+    //                        R"code(Sigma value for Gaussian Kernel, for axis 0.)code", nullptr, true)
+    // .AddOptionalArg<float>(kSigmaPerAxisArgNames[1],
+    //                        R"code(Sigma value for Gaussian Kernel, for axis 1.)code", nullptr, true)
+    // .AddOptionalArg<float>(kSigmaPerAxisArgNames[2],
+    //                        R"code(Sigma value for Gaussian Kernel, for axis 2.)code", nullptr,
+    //                        true);
 
-float GetSigma(int dim, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
+float GetSigma(int dim, int dims, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
+  if (spec.HasTensorArgument(kSigmaArgName)) {
+
+  }
+  // auto spec.GetRepeatedArgument<float>(kSigmaArgName);
   if (spec.ArgumentDefined(kSigmaPerAxisArgNames[dim])) {
     return spec.GetArgument<float>(kSigmaPerAxisArgNames[dim], &ws, sample);
   } else {
@@ -82,7 +85,7 @@ float GetSigma(int dim, int sample, const OpSpec& spec, const ArgumentWorkspace&
   }
 }
 
-int GetWindowSize(int dim, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
+int GetWindowSize(int dim, int dims, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
   if (spec.ArgumentDefined(kWindowSizePerAxisArgNames[dim])) {
     return spec.GetArgument<int>(kWindowSizePerAxisArgNames[dim], &ws, sample);
   } else {
@@ -95,8 +98,8 @@ GaussianSampleParams<axes> GetSampleParams(int sample, const OpSpec& spec,
                                            const ArgumentWorkspace& ws) {
   GaussianSampleParams<axes> params;
   for (int i = 0; i < axes; i++) {
-    params.sigmas[i] = GetSigma(i, sample, spec, ws);
-    params.window_sizes[i] = GetWindowSize(i, sample, spec, ws);
+    params.sigmas[i] = GetSigma(i, axes, sample, spec, ws);
+    params.window_sizes[i] = GetWindowSize(i, axes, sample, spec, ws);
     DALI_ENFORCE(
         !(params.sigmas[i] == 0 && params.window_sizes[i] == 0),
         make_string("`sigma` and `window_size` shouldn't be 0 at the same time for sample ", sample,
