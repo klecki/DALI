@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/image/convolution/gaussian_blur.h"
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "dali/core/static_switch.h"
 #include "dali/kernels/imgproc/convolution/separable_convolution_cpu.h"
 #include "dali/kernels/kernel_manager.h"
+#include "dali/operators/image/convolution/gaussian_blur.h"
 #include "dali/operators/image/convolution/gaussian_blur_params.h"
 #include "dali/pipeline/data/views.h"
+#include "dali/pipeline/operator/common.h"
 
 namespace dali {
 
 constexpr static const char* kSigmaArgName = "sigma";
-constexpr static const char* kSigmaPerAxisArgNames[] = {"sigma_0", "sigma_1", "sigma_2"};
-
 constexpr static const char* kWindowSizeArgName = "window_size";
-constexpr static const char* kWindowSizePerAxisArgNames[] = {"window_size_0", "window_size_1",
-                                                             "window_size_2"};
 
 DALI_SCHEMA(GaussianBlur)
     .DocStr(R"code(Apply Gaussian Blur to the input.
@@ -57,53 +58,59 @@ The same input can be provided as per-sample tensors.
     .AllowSequences()
     .SupportVolumetric()
     .AddOptionalArg(kWindowSizeArgName, "The diameter of kernel.", std::vector<int>{0}, true)
-    // .AddOptionalArg<int>(kWindowSizePerAxisArgNames[0],
-    //                      "The diameter of kernel window in first, outermost axis 0.", nullptr,
-    //                      true)
-    // .AddOptionalArg<int>(kWindowSizePerAxisArgNames[1], "The diameter of kernel window for axis 1.",
-    //                      nullptr, true)
-    // .AddOptionalArg<int>(kWindowSizePerAxisArgNames[2], "The diameter of kernel window for axis 2.",
-                        //  nullptr, true)
-    .AddOptionalArg<float>(kSigmaArgName, R"code(Sigma value for Gaussian Kernel.)code", std::vector<float>{0.f}, true);
-    // .AddOptionalArg<float>(kSigmaPerAxisArgNames[0],
-    //                        R"code(Sigma value for Gaussian Kernel, for axis 0.)code", nullptr, true)
-    // .AddOptionalArg<float>(kSigmaPerAxisArgNames[1],
-    //                        R"code(Sigma value for Gaussian Kernel, for axis 1.)code", nullptr, true)
-    // .AddOptionalArg<float>(kSigmaPerAxisArgNames[2],
-    //                        R"code(Sigma value for Gaussian Kernel, for axis 2.)code", nullptr,
-    //                        true);
+    .AddOptionalArg<float>(kSigmaArgName, R"code(Sigma value for Gaussian Kernel.)code",
+                           std::vector<float>{0.f}, true);
 
-float GetSigma(int dim, int dims, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
-  if (spec.HasTensorArgument(kSigmaArgName)) {
-
+/**
+ * @brief Fill the result span with the argument which can be provided as:
+ * * ArgumentInput - {result.size()}-shaped Tensor
+ * * ArgumentInput - {1}-shaped Tensor, the value will be replicated `result.size()` times
+ * * Vector input - single "repeated argument" of length {result.size()} or {1}
+ * * scalar argument - it will be replicated `result.size()` times
+ *
+ * TODO(klecki): we may want to make this a generic utility and propagate the span-approach to
+ * the rest of the related argument gettters
+ */
+template <typename T>
+void GetGeneralizedArg(span<T> result, const std::string name, int sample_idx, const OpSpec& spec,
+                       const ArgumentWorkspace& ws) {
+  int argument_length = result.size();
+  if (spec.HasTensorArgument(name)) {
+    const auto& tv = ws.ArgumentInput(name);
+    const auto& tensor = tv[sample_idx];
+    DALI_ENFORCE(tensor.shape().sample_dim() == 1,
+                 make_string("Argument ", name, " for sample ", sample_idx,
+                             " is expected to be 1D, got: ", tensor.shape().sample_dim(), "."));
+    DALI_ENFORCE(tensor.shape()[0] == 1 || tensor.shape()[0] == argument_length,
+                 make_string("Argument ", name, " for sample ", sample_idx,
+                             " is expected to have shape equal {1} or {", argument_length,
+                             "}, got: ", tensor.shape(), "."));
+    if (tensor.shape()[0] == 1) {
+      for (int i = 0; i < argument_length; i++) {
+        result[i] = tensor.data<T>()[0];
+      }
+    } else {
+      memcpy(result.data(), tensor.data<T>(), sizeof(T) * argument_length);
+    }
+    return;
   }
-  // auto spec.GetRepeatedArgument<float>(kSigmaArgName);
-  if (spec.ArgumentDefined(kSigmaPerAxisArgNames[dim])) {
-    return spec.GetArgument<float>(kSigmaPerAxisArgNames[dim], &ws, sample);
-  } else {
-    return spec.GetArgument<float>(kSigmaArgName, &ws, sample);
-  }
-}
-
-int GetWindowSize(int dim, int dims, int sample, const OpSpec& spec, const ArgumentWorkspace& ws) {
-  if (spec.ArgumentDefined(kWindowSizePerAxisArgNames[dim])) {
-    return spec.GetArgument<int>(kWindowSizePerAxisArgNames[dim], &ws, sample);
-  } else {
-    return spec.GetArgument<int>(kWindowSizeArgName, &ws, sample);
-  }
+  std::vector<T> tmp;
+  // we already handled the argument input, this handles spec-related arguments only
+  GetSingleOrRepeatedArg(spec, tmp, name, argument_length);
+  memcpy(result.data(), tmp.data(), sizeof(T) * argument_length);
 }
 
 template <int axes>
 GaussianSampleParams<axes> GetSampleParams(int sample, const OpSpec& spec,
                                            const ArgumentWorkspace& ws) {
   GaussianSampleParams<axes> params;
+  GetGeneralizedArg<float>(make_span(params.sigmas), kSigmaArgName, sample, spec, ws);
+  GetGeneralizedArg<int>(make_span(params.window_sizes), kWindowSizeArgName, sample, spec, ws);
   for (int i = 0; i < axes; i++) {
-    params.sigmas[i] = GetSigma(i, axes, sample, spec, ws);
-    params.window_sizes[i] = GetWindowSize(i, axes, sample, spec, ws);
     DALI_ENFORCE(
         !(params.sigmas[i] == 0 && params.window_sizes[i] == 0),
-        make_string("`sigma` and `window_size` shouldn't be 0 at the same time for sample ", sample,
-                    "."));
+        make_string("`sigma` and `window_size` shouldn't be 0 at the same time for sample: ",
+                    sample, ", axis: ", i, "."));
     DALI_ENFORCE(params.sigmas[i] >= 0,
                  make_string("`sigma` must have non-negative values, got ", params.sigmas[i],
                              " for sample: ", sample, ", axis: ", i, "."));
@@ -244,11 +251,9 @@ bool GaussianBlur<CPUBackend>::SetupImpl(std::vector<OutputDesc>& output_desc,
         constexpr bool has_channels = HAS_CHANNELS;
         constexpr int ndim = AXES + HAS_CHANNELS;
         impl_ = std::make_unique<GaussianBlurOpCpu<T, ndim, has_channels>>(spec_, dim_desc);
-      ), (DALI_FAIL("Got value different than {0, 1} when converting bool to int.")));
-    ), DALI_FAIL(""));
-  ),
-    DALI_FAIL(make_string("Unsupported data type: ", input.type().id()))
-  );
+      ), (DALI_FAIL("Got value different than {0, 1} when converting bool to int."))); // NOLINT
+    ), DALI_FAIL(""));  // NOLINT
+  ), DALI_FAIL(make_string("Unsupported data type: ", input.type().id())));  // NOLINT
   // clang-format on
 
   return impl_->SetupImpl(output_desc, ws);

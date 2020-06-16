@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include <cmath>
 #include <opencv2/imgproc.hpp>
+
+#include <cmath>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "dali/kernels/common/utils.h"
@@ -28,7 +30,8 @@
 namespace dali {
 namespace kernels {
 
-// TODO, OpenCV have special cases of precomputed values for for kernels of sizes 1-7 and sigma = 0
+// TODO(klecki): OpenCV have special cases of precomputed values for for kernels of sizes 1-7 and
+// sigma = 0
 TEST(GaussianBlurTest, FillGaussian) {
   std::vector<std::pair<int, float>> size_sigma_pairs = {
       {1, 0},     {3, 0},    {5, 0},      {7, 0},     {9, 0},    {11, 0},    {13, 0},

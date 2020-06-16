@@ -15,6 +15,8 @@
 #ifndef DALI_OPERATORS_IMAGE_CONVOLUTION_GAUSSIAN_BLUR_H_
 #define DALI_OPERATORS_IMAGE_CONVOLUTION_GAUSSIAN_BLUR_H_
 
+#include <memory>
+#include <vector>
 
 #include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/util/operator_impl_utils.h"
@@ -44,7 +46,6 @@ class GaussianBlur : public Operator<Backend> {
  private:
   USE_OPERATOR_MEMBERS();
   std::unique_ptr<OpImplBase<Backend>> impl_;
-
 };
 
 }  // namespace dali
