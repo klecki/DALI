@@ -214,9 +214,10 @@ class GaussianBlurOpCpu : public OpImplBase<CPUBackend> {
           seq_elements = input[i].shape()[0];
           stride = volume(elem_shape);
         }
-
+        // I need a context for that particular run (or rather matching the thread & scratchpad)
+        auto ctx = ctx_;
         for (int elem_idx = 0; elem_idx < seq_elements; elem_idx++) {
-          kmgr_.Run<Kernel>(thread_id, i, ctx_, out_view, in_view, gaussian_windows);
+          kmgr_.Run<Kernel>(thread_id, i, ctx, out_view, in_view, gaussian_windows);
           in_view.data += stride;
           out_view.data += stride;
         }

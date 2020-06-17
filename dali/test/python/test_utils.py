@@ -76,7 +76,11 @@ def get_gpu_num():
     out_list = [elm for elm in out_list if len(elm) > 0]
     return len(out_list)
 
+global error_number
+error_number = 0
+
 def check_batch(batch1, batch2, batch_size, eps = 1e-07):
+    global error_number
     import_numpy()
     if isinstance(batch1, dali.backend_impl.TensorListGPU):
         batch1 = batch1.as_cpu()
@@ -84,33 +88,42 @@ def check_batch(batch1, batch2, batch_size, eps = 1e-07):
         batch2 = batch2.as_cpu()
 
     for i in range(batch_size):
+        # This allows to handle list of Tensors, list of np arrays and TensorLists
+        left = np.array(batch1[i])
+        right = np.array(batch2[i])
         is_failed = False
-        assert(batch1.at(i).shape == batch2.at(i).shape), \
-            "Shape mismatch {} != {}".format(batch1.at(i).shape, batch2.at(i).shape)
-        assert(batch1.at(i).size == batch2.at(i).size), \
-            "Size mismatch {} != {}".format(batch1.at(i).size, batch2.at(i).size)
-        if batch1.at(i).size != 0:
+        assert(left.shape == right.shape), \
+            "Shape mismatch {} != {}".format(left.shape, right.shape)
+        assert(left.size == right.size), \
+            "Size mismatch {} != {}".format(left.size, right.size)
+        if left.size != 0:
             try:
                 # abs doesn't handle overflow for uint8, so get minimal value of a-b and b-a
-                diff1 = np.abs(batch1.at(i) - batch2.at(i))
-                diff2 = np.abs(batch2.at(i) - batch1.at(i))
-                err = np.mean( np.minimum(diff2, diff1) )
-                max_err = np.max( np.minimum(diff2, diff1))
-                min_err = np.min( np.minimum(diff2, diff1))
+                diff1 = np.abs(left - right)
+                diff2 = np.abs(right - left)
+                absdiff = np.minimum(diff2, diff1)
+                err = np.mean(absdiff)
+                max_err = np.max(absdiff)
+                min_err = np.min(absdiff)
+                total_errors = np.sum(absdiff != 0)
             except:
                 is_failed = True
             if is_failed or err > eps:
                 try:
-
-                    print("failed[{}] mean_err[{}] min_err[{}] max_err[{}]".format(
-                        is_failed, err, min_err, max_err))
-                    save_image(batch1.at(i), "err_1.png")
-                    save_image(batch2.at(i), "err_2.png")
+                    print(error_number)
+                    print("failed[{}] mean_err[{}] min_err[{}] max_err[{}] total_err[{}], size[{}]".format(
+                        is_failed, err, min_err, max_err, total_errors, absdiff.size))
+                    save_image(left, "err_{}_1.png".format(error_number))
+                    save_image(right, "err_{}_2.png".format(error_number))
+                    diffs = (absdiff > 0) * np.uint8(255)
+                    save_image(absdiff, "err_{}_diff.png".format(error_number))
+                    save_image(diffs, "err_{}_diff_places.png".format(error_number))
+                    error_number += 1
                 except:
                     print("Batch at {} can't be saved as an image".format(i))
-                    print(batch1.at(i))
-                    print(batch2.at(i))
-                assert(False)
+                    print(left)
+                    print(right)
+                # assert(False)
 
 def compare_pipelines(pipe1, pipe2, batch_size, N_iterations, eps = 1e-07):
     pipe1.build()

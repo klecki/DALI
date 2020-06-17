@@ -64,21 +64,21 @@ struct GaussianSampleParams {
 
 void FillGaussian(const TensorView<StorageCPU, float, 1> &window, float sigma) {
   int r = (window.num_elements() - 1) / 2;
+  // 1 / sqrt(2 * pi * sigma^2) * exp(-(x^2) / (2 * sigma^2))
+  // the 1 / sqrt(2 * pi * sigma^2) coefficient disappears as we normalize the sum to 1.
   double exp_scale = 0.5 / (sigma * sigma);
-  // TODO(klecki) mul_scale actually disappears, can be removed
-  double mul_scale = 1.0 / sqrt(2 * M_PI * sigma * sigma);
   double sum = 0.;
   // Calculate first half
   for (int x = -r; x < 0; x++) {
-    *window(x + r) = mul_scale * exp(-(x * x * exp_scale));
+    *window(x + r) = exp(-(x * x * exp_scale));
     sum += *window(x + r);
   }
-  // Total sum, it's symmetric with `mul_scale * 1` in the center.
+  // Total sum, it's symmetric with `1` in the center.
   sum *= 2.;
-  sum += mul_scale;
+  sum += 1.0;
   double scale = 1. / sum;
   // place center, scaled element
-  *window(r) = mul_scale * scale;
+  *window(r) = scale;
   // scale all elements so they sum up to 1, duplicate the second half
   for (int x = 0; x < r; x++) {
     *window(x) *= scale;
