@@ -36,7 +36,8 @@ def to_cv_win_size(window_size):
         return (0, 0)
     elif isinstance(window_size, int):
         return (window_size, window_size)
-    return window_size[0], window_size[1]
+    # OpenCV shape is the other way round: (width, height)
+    return window_size[1], window_size[0]
 
 def to_cv_sigma(sigma):
     if sigma is None:
@@ -95,12 +96,12 @@ def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
     #     print("Max diff", np.max(cv2.absdiff(baseline_cv[i], np.array(result[i]))))
     #     print("Total diff", np.sum(cv2.absdiff(baseline_cv[i], np.array(result[i])) != 0))
     # check_batch(result, baseline_cv, batch_size)
-    print("PIL")
-    check_batch(result, baseline_scipy, batch_size)
+    # print("PIL")
+    # check_batch(result, baseline_scipy, batch_size)
     print("CV")
     check_batch(result, baseline_cv, batch_size)
-    print("SCIPY")
-    check_batch(result, baseline_pil, batch_size)
+    # print("SCIPY")
+    # check_batch(result, baseline_pil, batch_size)
     # for i in range(batch_size):
     #     diff = np.array(result[i]) - baseline[i]
     #     np.testing.assert_array_equal(result[i], baseline[i])
@@ -108,9 +109,9 @@ def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
 
 def test_sequence_rearrange():
     for dev in ["cpu"]:
-        for sigma, window_size in [(1.0, 7)]: #, (0.6, 5), (0.7, 5), (1.0, 7), (2.0, 0), (5.0, 31), ]:
-        # for sigma in [1.0, [1.0, 2.0], None]:
-        #     for window_size in [3, 5, [7, 5], [5, 9], None]:
+        # for sigma, window_size in [(0.3, 3), (0.5, 5), (0.7, 5), (1.0, 7), (2.0, 0), (5.0, 31)]:
+        for sigma in [1.0, [1.0, 2.0], None]:
+            for window_size in [3, 5, [7, 5], [5, 9], None]:
                 if sigma is None and window_size is None:
                     continue
                 yield check_gaussian_blur, 10, sigma, window_size, dev

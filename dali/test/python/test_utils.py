@@ -76,11 +76,17 @@ def get_gpu_num():
     out_list = [elm for elm in out_list if len(elm) > 0]
     return len(out_list)
 
-global error_number
-error_number = 0
+def check_batch(batch1, batch2, batch_size, eps=1e-07, max_allowed_error=None):
 
-def check_batch(batch1, batch2, batch_size, eps = 1e-07):
-    global error_number
+    def is_error(mean_err, max_err, eps, max_allowed_error):
+        if max_allowed_error is not None:
+            if max_error > max_allowed_error:
+                return True
+        else:
+            if mean_err > eps:
+                return True
+        return False
+
     import_numpy()
     if isinstance(batch1, dali.backend_impl.TensorListGPU):
         batch1 = batch1.as_cpu()
@@ -108,17 +114,15 @@ def check_batch(batch1, batch2, batch_size, eps = 1e-07):
                 total_errors = np.sum(absdiff != 0)
             except:
                 is_failed = True
-            if is_failed or err > eps:
+            if is_failed or is_error(err, max_err, eps, max_allowed_error):
                 try:
-                    print(error_number)
                     print("failed[{}] mean_err[{}] min_err[{}] max_err[{}] total_err[{}], size[{}]".format(
                         is_failed, err, min_err, max_err, total_errors, absdiff.size))
                     save_image(left, "err_{}_1.png".format(error_number))
                     save_image(right, "err_{}_2.png".format(error_number))
-                    diffs = (absdiff > 0) * np.uint8(255)
-                    save_image(absdiff, "err_{}_diff.png".format(error_number))
-                    save_image(diffs, "err_{}_diff_places.png".format(error_number))
-                    error_number += 1
+                    # diffs = (absdiff > 0) * np.uint8(255)
+                    # save_image(absdiff, "err_{}_diff.png".format(error_number))
+                    # save_image(diffs, "err_{}_diff_places.png".format(error_number))
                 except:
                     print("Batch at {} can't be saved as an image".format(i))
                     print(left)
