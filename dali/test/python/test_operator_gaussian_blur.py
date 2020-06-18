@@ -55,7 +55,7 @@ def gaussian_scipy(image, sigma):
     flat_planes = [plane.squeeze() for plane in planes]
     blurred = [gaussian_filter(np.float32(plane), sigma) for plane in flat_planes]
     x = [np.expand_dims(plane, dim - 1) for plane in blurred]
-    return np.uint8(np.concatenate(x, axis=dim-1))
+    return np.uint8(np.concatenate(x, axis=dim-1) + 0.5)
 
 
 def gaussian_cv(image, sigma, window_size):
@@ -64,6 +64,8 @@ def gaussian_cv(image, sigma, window_size):
     # compute on floats and round like a sane person (in mathematically complicit way)
     blurred = cv2.GaussianBlur(np.float32(image), window_size_cv, sigmaX=sigma_x, sigmaY=sigma_y)
     return np.uint8(blurred + 0.5)
+
+# def gaussian_cv_axis(image, sigma, window, axis):
 
 
 
@@ -77,7 +79,6 @@ def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
         decoded = fn.image_decoder(input, device=decoder_device, output_type=types.RGB)
         blurred = fn.gaussian_blur(decoded, sigma=sigma, window_size=window_size)
         pipe.set_outputs(blurred, decoded)
-        # pipe.set_outputs(decoded)
     pipe.build()
 
     result, input = pipe.run()
@@ -87,29 +88,16 @@ def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
     input = to_batch(input, batch_size)
     baseline_cv = [gaussian_cv(img, sigma, window_size) for img in input]
     # PIL accuracy is absolutely abysmal, it is iterative BoxFilter not Gaussian blur
-    input_pil = [Image.fromarray(img) for img in input]
-    baseline_pil = [np.array(img.filter(ImageFilter.GaussianBlur(sigma))) for img in input_pil]
-    baseline_scipy = [gaussian_scipy(img, sigma) for img in input]
+    # input_pil = [Image.fromarray(img) for img in input]
+    # baseline_pil = [np.array(img.filter(ImageFilter.GaussianBlur(sigma))) for img in input_pil]
+    # baseline_scipy = [gaussian_scipy(img, sigma) for img in input]
     # check_batch(result, baseline_cv, batch_size)
     # check_batch(result, baseline_pil, batch_size)
-    # for i in range(batch_size):
-    #     print("Max diff", np.max(cv2.absdiff(baseline_cv[i], np.array(result[i]))))
-    #     print("Total diff", np.sum(cv2.absdiff(baseline_cv[i], np.array(result[i])) != 0))
-    # check_batch(result, baseline_cv, batch_size)
-    # print("PIL")
-    # check_batch(result, baseline_scipy, batch_size)
-    print("CV")
-    check_batch(result, baseline_cv, batch_size)
-    # print("SCIPY")
-    # check_batch(result, baseline_pil, batch_size)
-    # for i in range(batch_size):
-    #     diff = np.array(result[i]) - baseline[i]
-    #     np.testing.assert_array_equal(result[i], baseline[i])
+    check_batch(result, baseline_cv, batch_size, max_allowed_error=1)
 
 
 def test_sequence_rearrange():
     for dev in ["cpu"]:
-        # for sigma, window_size in [(0.3, 3), (0.5, 5), (0.7, 5), (1.0, 7), (2.0, 0), (5.0, 31)]:
         for sigma in [1.0, [1.0, 2.0], None]:
             for window_size in [3, 5, [7, 5], [5, 9], None]:
                 if sigma is None and window_size is None:

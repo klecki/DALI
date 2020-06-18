@@ -80,7 +80,7 @@ def check_batch(batch1, batch2, batch_size, eps=1e-07, max_allowed_error=None):
 
     def is_error(mean_err, max_err, eps, max_allowed_error):
         if max_allowed_error is not None:
-            if max_error > max_allowed_error:
+            if max_err > max_allowed_error:
                 return True
         else:
             if mean_err > eps:
@@ -127,7 +127,7 @@ def check_batch(batch1, batch2, batch_size, eps=1e-07, max_allowed_error=None):
                     print("Batch at {} can't be saved as an image".format(i))
                     print(left)
                     print(right)
-                # assert(False)
+                assert(False)
 
 def compare_pipelines(pipe1, pipe2, batch_size, N_iterations, eps = 1e-07):
     pipe1.build()
