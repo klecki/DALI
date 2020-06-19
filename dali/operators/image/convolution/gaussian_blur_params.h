@@ -33,8 +33,8 @@ float GaussianDiameterToSigma(int diameter) {
 }
 
 struct GaussianDimDesc {
-  int usable_dim_start;
-  int usable_dim_count;
+  int usable_axes_start;
+  int usable_axes_count;
   bool has_channels;
   bool is_sequence;
 };

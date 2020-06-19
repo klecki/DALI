@@ -157,13 +157,13 @@ GaussianDimDesc ParseAndValidateDim(int ndim, TensorLayout layout) {
   return {dim_start, dim_count, has_channels, is_sequence};
 }
 
-// ndim here is dimension of element processed by kernel - in case of sequence it's 1 less than the
+// axes here is dimension of element processed by kernel - in case of sequence it's 1 less than the
 // actual dim
-template <typename T, int ndim, bool has_channels>
+template <typename T, int axes, bool has_channels>
 class GaussianBlurOpCpu : public OpImplBase<CPUBackend> {
  public:
-  using Kernel = kernels::SeparableConvolutionCpu<T, T, float, ndim, has_channels>;
-  static constexpr int axes = ndim - has_channels;
+  using Kernel = kernels::SeparableConvolutionCpu<T, T, float, axes, has_channels>;
+  static constexpr int ndim = Kernel::ndim;
 
   explicit GaussianBlurOpCpu(const OpSpec& spec, const GaussianDimDesc& dim_desc)
       : spec_(spec), batch_size_(spec.GetArgument<int>("batch_size")), dim_desc_(dim_desc) {}
@@ -247,11 +247,10 @@ bool GaussianBlur<CPUBackend>::SetupImpl(std::vector<OutputDesc>& output_desc,
 
   // clang-format off
   TYPE_SWITCH(input.type().id(), type2id, T, GAUSSIAN_BLUR_SUPPORTED_TYPES, (
-    VALUE_SWITCH(dim_desc.usable_dim_count, AXES, GAUSSIAN_BLUR_SUPPORTED_AXES, (
+    VALUE_SWITCH(dim_desc.usable_axes_count, AXES, GAUSSIAN_BLUR_SUPPORTED_AXES, (
       VALUE_SWITCH(static_cast<int>(dim_desc.has_channels), HAS_CHANNELS, (0, 1), (
         constexpr bool has_channels = HAS_CHANNELS;
-        constexpr int ndim = AXES + HAS_CHANNELS;
-        impl_ = std::make_unique<GaussianBlurOpCpu<T, ndim, has_channels>>(spec_, dim_desc);
+        impl_ = std::make_unique<GaussianBlurOpCpu<T, AXES, has_channels>>(spec_, dim_desc);
       ), (DALI_FAIL("Got value different than {0, 1} when converting bool to int."))); // NOLINT
     ), DALI_FAIL(""));  // NOLINT
   ), DALI_FAIL(make_string("Unsupported data type: ", input.type().id())));  // NOLINT
