@@ -38,6 +38,8 @@ def to_cv_sigma(sigma, axes=2):
         return (0,) * axes
     elif isinstance(sigma, float):
         return (sigma,) * axes
+    elif len(sigma) == 1:
+        return (sigma[0],) * axes
     return tuple(reversed(sigma))
 
 
@@ -50,6 +52,8 @@ def to_cv_win_size(window_size, axes=2, sigma=None):
         return (0,) * axes
     elif isinstance(window_size, int):
         return (window_size,) * axes
+    elif len(window_size) == 1:
+        return (window_size[0],) * axes
     # OpenCV shape is the other way round: (width, height)
     return tuple(reversed(window_size))
 
@@ -62,13 +66,13 @@ def gaussian_cv(image, sigma, window_size):
     return np.uint8(blurred + 0.5)
 
 
-def gaussian_baseline(image, sigma, window_size, dim=2, is_sequence=False):
-    sigma_xyz = to_cv_sigma(sigma, dim)
-    win_xyz = to_cv_win_size(window_size, dim, sigma)
-    filters = [cv2.getGaussianKernel(win_xyz[i], sigma_xyz[i]) for i in range(dim)]
+def gaussian_baseline(image, sigma, window_size, axes=2, is_sequence=False):
+    sigma_xyz = to_cv_sigma(sigma, axes)
+    win_xyz = to_cv_win_size(window_size, axes, sigma)
+    filters = [cv2.getGaussianKernel(win_xyz[i], sigma_xyz[i]) for i in range(axes)]
     filters = [np.float32(f).squeeze() for f in filters]
     filters.reverse()
-    for i in reversed(range(dim)):
+    for i in reversed(range(axes)):
         axis = i if not is_sequence else i + 1
         image = convolve1d(np.float32(image), filters[i], axis, mode="mirror")
     return np.uint8(image + 0.5)
@@ -92,6 +96,19 @@ def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
     baseline_cv = [gaussian_cv(img, sigma, window_size) for img in input]
     check_batch(result, baseline_cv, batch_size, max_allowed_error=1)
 
+
+def test_image_gaussian_blur():
+    for dev in ["cpu"]:
+        for sigma in [1.0, [1.0, 2.0]]:
+            for window_size in [3, 5, [7, 5], [5, 9], None]:
+                if sigma is None and window_size is None:
+                    continue
+                yield check_gaussian_blur, 10, sigma, window_size, dev
+        # OpenCv uses fixed values for small windows that are different that Gaussian funcion
+        for window_size in [11, 15]:
+            yield check_gaussian_blur, 10, None, window_size, dev
+
+
 def check_generic_gaussian_blur(batch_size, sigma, window_size, shape, layout, axes, op_type="cpu"):
     decoder_device = "cpu" if op_type == "cpu" else "mixed"
     pipe = Pipeline(batch_size=batch_size, num_threads=4, device_id=0)
@@ -111,17 +128,6 @@ def check_generic_gaussian_blur(batch_size, sigma, window_size, shape, layout, a
     check_batch(result, baseline, batch_size, max_allowed_error=1)
 
 
-def test_image_gaussian_blur():
-    for dev in ["cpu"]:
-        for sigma in [1.0, [1.0, 2.0]]:
-            for window_size in [3, 5, [7, 5], [5, 9], None]:
-                if sigma is None and window_size is None:
-                    continue
-                yield check_gaussian_blur, 10, sigma, window_size, dev
-        # OpenCv uses fixed values for small windows that are different that Gaussian funcion
-        for window_size in [11, 15]:
-            yield check_gaussian_blur, 10, None, window_size, dev
-
 def test_generic_gaussian_blur():
     for dev in ["cpu"]:
         for shape, layout, axes in [((20, 20, 30, 3), "DHWC", 3), ((20, 20, 30), "", 3),
@@ -136,3 +142,56 @@ def test_generic_gaussian_blur():
                     yield check_generic_gaussian_blur, 10, sigma, window_size, shape, layout, axes, dev
             for window_size in [11, 15]:
                 yield check_generic_gaussian_blur, 10, None, window_size, shape, layout, axes, dev
+
+
+def check_per_sample_gaussian_blur(batch_size, sigma_dim, window_size_dim, shape, layout, axes, op_type="cpu"):
+    decoder_device = "cpu" if op_type == "cpu" else "mixed"
+    pipe = Pipeline(batch_size=batch_size, num_threads=4, device_id=0)
+    data = RandomlyShapedDataIterator(batch_size, max_shape=shape)
+    with pipe:
+        if sigma_dim is not None:
+            sigma = fn.uniform(range=[0.5, 3], shape=[sigma_dim])
+            sigma_arg = sigma
+        else:
+            # placeholder
+            sigma = fn.coin_flip(probability=0)
+            sigma_arg = None
+
+        if window_size_dim is not None:
+            window_radius = fn.uniform(range=[5, 10], shape=[window_size_dim])
+            window_size = fn.cast(window_radius, dtype=types.INT32) * 2 + 1
+            window_arg = window_size
+        else:
+            window_size = fn.coin_flip(probability=0)
+            window_arg = None
+
+        input = fn.external_source(data, layout=layout)
+        blurred = fn.gaussian_blur(input, sigma=sigma_arg, window_size=window_arg)
+        pipe.set_outputs(blurred, input, sigma, window_size)
+    pipe.build()
+
+    result, input, sigma, window_size = pipe.run()
+    if op_type == "gpu":
+        result = result.as_cpu()
+        input = input.as_cpu()
+    input = to_batch(input, batch_size)
+    sigma = to_batch(sigma, batch_size)
+    window_size = to_batch(window_size, batch_size)
+    baseline = []
+    for i in range(batch_size):
+        sigma_arg = sigma[i] if sigma is not None else None
+        window_arg = window_size[i] if window_size_dim is not None else None
+        baseline.append(gaussian_baseline(input[i], sigma_arg, window_arg, axes, "F" in layout))
+    check_batch(result, baseline, batch_size, max_allowed_error=1)
+
+
+def test_per_sample_gaussian_blur():
+    for dev in ["cpu"]:
+        for shape, layout, axes in [((20, 20, 30, 3), "DHWC", 3), ((20, 20, 30), "", 3),
+            ((20, 30, 3), "HWC", 2), ((20, 30), "HW", 2), ((5, 20, 30, 3), "FHWC", 2),
+            ((5, 10, 10, 7, 3), "FDHWC", 3)]:
+            for sigma_dim in [None, 1, axes]:
+                for window_size_dim in [None, 1, axes]:
+                    if sigma_dim is None and window_size_dim is None:
+                        continue
+                    yield check_per_sample_gaussian_blur, 10, sigma_dim, window_size_dim, shape, layout, axes, dev
