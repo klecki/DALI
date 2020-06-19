@@ -94,49 +94,42 @@ class GaussianWindows {
     previous.window_sizes = uniform_array<axes>(0);
   }
 
-  std::array<TensorView<StorageCPU, const float, 1>, axes> GetWindows(
-      const GaussianSampleParams<axes> &params) {
-    bool is_uniform = params.IsUniform();
+  void PrepareWindows(const GaussianSampleParams<axes> &params) {
     bool changed = previous != params;
+    if (!changed)
+      return;
 
     // Reallocate if necessary and fill the windows
-    if (changed) {
-      if (is_uniform) {
-        int required_elements = params.window_sizes[0];
-        memory.resize(required_elements);
-        TensorView<StorageCPU, float, 1> tmp_view = {memory.data(), {required_elements}};
-        FillGaussian(tmp_view, params.sigmas[0]);
-      } else {
-        int required_elements = 0;
-        for (int i = 0; i < axes; i++) {
-          required_elements += params.window_sizes[i];
-        }
-        memory.resize(required_elements);
-        int offset = 0;
-        for (int i = 0; i < axes; i++) {
-          TensorView<StorageCPU, float, 1> tmp_view = {&memory[offset], {params.window_sizes[i]}};
-          offset += params.window_sizes[i];
-          FillGaussian(tmp_view, params.sigmas[i]);
-        }
-      }
-    }
-
-    // Return the already filled windows
+    bool is_uniform = params.IsUniform();
     if (is_uniform) {
-      return uniform_array<axes>(
-          TensorView<StorageCPU, const float, 1>{memory.data(), {params.window_sizes[0]}});
+      int required_elements = params.window_sizes[0];
+      memory.resize(required_elements);
+      TensorView<StorageCPU, float, 1> tmp_view = {memory.data(), {required_elements}};
+      FillGaussian(tmp_view, params.sigmas[0]);
+      precomputed_window = uniform_array<axes>(TensorView<StorageCPU, const float, 1>{memory.data(), {params.window_sizes[0]}});
     } else {
-      std::array<TensorView<StorageCPU, const float, 1>, axes> result;
+      int required_elements = 0;
+      for (int i = 0; i < axes; i++) {
+        required_elements += params.window_sizes[i];
+      }
+      memory.resize(required_elements);
       int offset = 0;
       for (int i = 0; i < axes; i++) {
-        result[i] = {&memory[offset], {params.window_sizes[i]}};
+        TensorView<StorageCPU, float, 1> tmp_view = {&memory[offset], {params.window_sizes[i]}};
         offset += params.window_sizes[i];
+        FillGaussian(tmp_view, params.sigmas[i]);
+        precomputed_window[i] = tmp_view;
       }
-      return result;
     }
   }
 
+  // Return the already filled windows
+  std::array<TensorView<StorageCPU, const float, 1>, axes> GetWindows() {
+    return precomputed_window;
+  }
+
  private:
+  std::array<TensorView<StorageCPU, const float, 1>, axes> precomputed_window;
   GaussianSampleParams<axes> previous;
   std::vector<float> memory;
 };

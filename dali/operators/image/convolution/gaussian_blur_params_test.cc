@@ -88,7 +88,8 @@ TEST(GaussianWindowsTest, InitUniform) {
   constexpr int axes = 2;
   GaussianWindows<axes> windows;
   GaussianSampleParams<axes> params_uniform = {{7, 7}, {1.0f, 1.0f}};
-  auto views = windows.GetWindows(params_uniform);
+  windows.PrepareWindows(params_uniform);
+  auto views = windows.GetWindows();
   CheckUniformWindows(views);
   CheckMatchingShapes(views, params_uniform);
 }
@@ -97,7 +98,8 @@ TEST(GaussianWindowsTest, InitNonUniformSigma) {
   constexpr int axes = 2;
   GaussianWindows<axes> windows;
   GaussianSampleParams<axes> params = {{7, 7}, {1.0f, 2.0f}};
-  auto views = windows.GetWindows(params);
+  windows.PrepareWindows(params);
+  auto views = windows.GetWindows();
   CheckNonUniformWindows(views);
   CheckMatchingShapes(views, params);
 }
@@ -106,7 +108,8 @@ TEST(GaussianWindowsTest, InitNonUniformShape) {
   constexpr int axes = 2;
   GaussianWindows<axes> windows;
   GaussianSampleParams<axes> params = {{7, 9}, {1.0f, 1.0f}};
-  auto views = windows.GetWindows(params);
+  windows.PrepareWindows(params);
+  auto views = windows.GetWindows();
   CheckNonUniformWindows(views);
   CheckMatchingShapes(views, params);
 }
@@ -117,11 +120,13 @@ TEST(GaussianWindowsTest, Uniform2NonUniform) {
   GaussianSampleParams<axes> params_uniform = {{7, 7}, {1.0f, 1.0f}};
   GaussianSampleParams<axes> params_non_uniform = {{7, 14}, {2.0f, 1.0f}};
 
-  auto views_uniform = windows.GetWindows(params_uniform);
+  windows.PrepareWindows(params_uniform);
+  auto views_uniform = windows.GetWindows();
   CheckUniformWindows(views_uniform);
   CheckMatchingShapes(views_uniform, params_uniform);
 
-  auto views_non_uniform = windows.GetWindows(params_non_uniform);
+  windows.PrepareWindows(params_non_uniform);
+  auto views_non_uniform = windows.GetWindows();
   CheckNonUniformWindows(views_non_uniform);
   CheckMatchingShapes(views_non_uniform, params_non_uniform);
 }
@@ -132,11 +137,13 @@ TEST(GaussianWindowsTest, NonUniform2Uniform) {
   GaussianSampleParams<axes> params_uniform = {{7, 7}, {1.0f, 1.0f}};
   GaussianSampleParams<axes> params_non_uniform = {{7, 14}, {2.0f, 1.0f}};
 
-  auto views_non_uniform = windows.GetWindows(params_non_uniform);
+  windows.PrepareWindows(params_non_uniform);
+  auto views_non_uniform = windows.GetWindows();
   CheckNonUniformWindows(views_non_uniform);
   CheckMatchingShapes(views_non_uniform, params_non_uniform);
 
-  auto views_uniform = windows.GetWindows(params_uniform);
+  windows.PrepareWindows(params_uniform);
+  auto views_uniform = windows.GetWindows();
   CheckUniformWindows(views_uniform);
   CheckMatchingShapes(views_uniform, params_uniform);
 }
@@ -146,8 +153,10 @@ TEST(GaussianWindowsTest, NoChangeUniform) {
   GaussianWindows<axes> windows;
   GaussianSampleParams<axes> params_uniform = {{7, 7}, {1.0f, 1.0f}};
 
-  auto views_uniform_0 = windows.GetWindows(params_uniform);
-  auto views_uniform_1 = windows.GetWindows(params_uniform);
+  windows.PrepareWindows(params_uniform);
+  auto views_uniform_0 = windows.GetWindows();
+  windows.PrepareWindows(params_uniform);
+  auto views_uniform_1 = windows.GetWindows();
   for (int i = 0; i < axes; i++) {
     EXPECT_EQ(views_uniform_0[i].data, views_uniform_1[i].data);
     EXPECT_EQ(views_uniform_0[i].shape, views_uniform_1[i].shape);
@@ -159,8 +168,10 @@ TEST(GaussianWindowsTest, NoChangeNonUniform) {
   GaussianWindows<axes> windows;
   GaussianSampleParams<axes> params_non_uniform = {{7, 14}, {2.0f, 1.0f}};
 
-  auto views_non_uniform_0 = windows.GetWindows(params_non_uniform);
-  auto views_non_uniform_1 = windows.GetWindows(params_non_uniform);
+  windows.PrepareWindows(params_non_uniform);
+  auto views_non_uniform_0 = windows.GetWindows();
+  windows.PrepareWindows(params_non_uniform);
+  auto views_non_uniform_1 = windows.GetWindows();
   for (int i = 0; i < axes; i++) {
     EXPECT_EQ(views_non_uniform_0[i].data, views_non_uniform_1[i].data);
     EXPECT_EQ(views_non_uniform_0[i].shape, views_non_uniform_1[i].shape);

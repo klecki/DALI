@@ -45,7 +45,8 @@ If only the kernel window size is provided, the sigma is calculated using the fo
 Both sigma and kernel window size can be specified as single value for all data axes
 or per data axis.
 
-When specifying the sigma or window size per axis, index 0 represents the outermost data axis.
+When specifying the sigma or window size per axis, they are provided same as layouts: from outermost
+to innermost.
 The channel ``C`` and frame ``F`` dimensions are not considered data axes.
 
 For example, with ``HWC`` input, user can provide ``sigma=1.0`` or ``sigma=(1.0, 2.0)`` as there
@@ -153,7 +154,9 @@ GaussianDimDesc ParseAndValidateDim(int ndim, TensorLayout layout) {
         make_string("For sequence inputs frames 'F' should be the first dimension, got layout: \"",
                     layout.str(), "\"."));
   }
-  DALI_ENFORCE(axes_count <= kMaxDim, "Too many dimensions");
+  DALI_ENFORCE(axes_count <= kMaxDim,
+               make_string("Too many dimensions, found: ", axes_count,
+                           " data axes, maximum supported is: ", kMaxDim, "."));
   return {axes_start, axes_count, has_channels, is_sequence};
 }
 
@@ -185,6 +188,7 @@ class GaussianBlurOpCpu : public OpImplBase<CPUBackend> {
 
     for (int i = 0; i < nsamples; i++) {
       params_[i] = GetSampleParams<axes>(i, spec_, ws);
+      windows_[i].PrepareWindows(params_[i]);
       // We take only last `ndim` siginificant dimensions to handle sequences as well
       auto elem_shape = input[i].shape().template last<ndim>();
       auto& req = kmgr_.Setup<Kernel>(i, ctx_, elem_shape, params_[i].window_sizes);
@@ -201,27 +205,26 @@ class GaussianBlurOpCpu : public OpImplBase<CPUBackend> {
     auto& thread_pool = ws.GetThreadPool();
 
     for (int i = 0; i < input.shape().num_samples(); i++) {
-      thread_pool.DoWorkWithID([this, &input, &output, i](int thread_id) {
-        auto gaussian_windows = windows_[i].GetWindows(params_[i]);
-        auto elem_shape = input[i].shape().template last<ndim>();
-        auto in_view =
-            TensorView<StorageCPU, const T, ndim>{input[i].template data<T>(), elem_shape};
-        auto out_view =
-            TensorView<StorageCPU, T, ndim>{output[i].template mutable_data<T>(), elem_shape};
-        int64_t stride = 0;
-        int seq_elements = 1;
-        if (dim_desc_.is_sequence) {
-          seq_elements = input[i].shape()[0];
-          stride = volume(elem_shape);
-        }
-        // I need a context for that particular run (or rather matching the thread & scratchpad)
-        auto ctx = ctx_;
-        for (int elem_idx = 0; elem_idx < seq_elements; elem_idx++) {
+      int seq_elements = 1;
+      int64_t stride = 0;
+      if (dim_desc_.is_sequence) {
+        auto shape = input[i].shape();
+        seq_elements = shape[0];
+        stride = volume(shape.begin() + 1, shape.end());
+      }
+      for (int elem_idx = 0; elem_idx < seq_elements; elem_idx++) {
+        thread_pool.DoWorkWithID([this, &input, &output, &windows = windows_, i, elem_idx, stride](int thread_id) {
+          auto gaussian_windows = windows[i].GetWindows();
+          auto elem_shape = input[i].shape().template last<ndim>();
+          auto in_view = TensorView<StorageCPU, const T, ndim>{
+              input[i].template data<T>() + stride * elem_idx, elem_shape};
+          auto out_view = TensorView<StorageCPU, T, ndim>{
+              output[i].template mutable_data<T>() + stride * elem_idx, elem_shape};
+          // I need a context for that particular run (or rather matching the thread & scratchpad)
+          auto ctx = ctx_;
           kmgr_.Run<Kernel>(thread_id, i, ctx, out_view, in_view, gaussian_windows);
-          in_view.data += stride;
-          out_view.data += stride;
-        }
-      });
+        });
+      }
     }
     thread_pool.WaitForWork();
   }

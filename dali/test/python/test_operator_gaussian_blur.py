@@ -19,43 +19,39 @@ import nvidia.dali.fn as fn
 import numpy as np
 import cv2
 from PIL import Image, ImageFilter
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, convolve1d
 import os
 from nose.tools import raises
 
-from test_utils import get_dali_extra_path, check_batch
+from test_utils import get_dali_extra_path, check_batch, RandomlyShapedDataIterator
 
 data_root = get_dali_extra_path()
 images_dir = os.path.join(data_root, 'db', 'single', 'jpeg')
 
+
 def to_batch(tl, batch_size):
     return [np.array(tl[i]) for i in range(batch_size)]
 
-def to_cv_win_size(window_size):
-    if window_size is None:
-        return (0, 0)
-    elif isinstance(window_size, int):
-        return (window_size, window_size)
-    # OpenCV shape is the other way round: (width, height)
-    return window_size[1], window_size[0]
 
-def to_cv_sigma(sigma):
+def to_cv_sigma(sigma, axes=2):
     if sigma is None:
-        return (0, 0)
+        return (0,) * axes
     elif isinstance(sigma, float):
-        return (sigma, sigma)
-    return sigma[1], sigma[0]
+        return (sigma,) * axes
+    return tuple(reversed(sigma))
 
 
-def gaussian_scipy(image, sigma):
-    dim = len(image.shape)
-    channels = image.shape[dim - 1]
-    # TODO generic split
-    planes = np.split(image, channels, axis=dim-1)
-    flat_planes = [plane.squeeze() for plane in planes]
-    blurred = [gaussian_filter(np.float32(plane), sigma) for plane in flat_planes]
-    x = [np.expand_dims(plane, dim - 1) for plane in blurred]
-    return np.uint8(np.concatenate(x, axis=dim-1) + 0.5)
+def to_cv_win_size(window_size, axes=2, sigma=None):
+    if window_size is None:
+        # when using cv2.getGaussianKernel we need to always provide window size
+        if sigma is not None:
+            sigma = to_cv_sigma(sigma, axes)
+            return tuple([int(3 * s + 0.5) * 2 + 1 for s in sigma])
+        return (0,) * axes
+    elif isinstance(window_size, int):
+        return (window_size,) * axes
+    # OpenCV shape is the other way round: (width, height)
+    return tuple(reversed(window_size))
 
 
 def gaussian_cv(image, sigma, window_size):
@@ -65,15 +61,22 @@ def gaussian_cv(image, sigma, window_size):
     blurred = cv2.GaussianBlur(np.float32(image), window_size_cv, sigmaX=sigma_x, sigmaY=sigma_y)
     return np.uint8(blurred + 0.5)
 
-# def gaussian_cv_axis(image, sigma, window, axis):
+
+def gaussian_baseline(image, sigma, window_size, dim=2, is_sequence=False):
+    sigma_xyz = to_cv_sigma(sigma, dim)
+    win_xyz = to_cv_win_size(window_size, dim, sigma)
+    filters = [cv2.getGaussianKernel(win_xyz[i], sigma_xyz[i]) for i in range(dim)]
+    filters = [np.float32(f).squeeze() for f in filters]
+    filters.reverse()
+    for i in reversed(range(dim)):
+        axis = i if not is_sequence else i + 1
+        image = convolve1d(np.float32(image), filters[i], axis, mode="mirror")
+    return np.uint8(image + 0.5)
 
 
-
-# TODO need to add a generic data thingy (3D, 3D with channel, 2D without channel, Sequence of all)
-# it would be easier with random data + external source
 def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
     decoder_device = "cpu" if op_type == "cpu" else "mixed"
-    pipe = Pipeline(batch_size = batch_size, num_threads=4, device_id=0)
+    pipe = Pipeline(batch_size=batch_size, num_threads=4, device_id=0)
     with pipe:
         input, _ = fn.file_reader(file_root=images_dir, shard_id=0, num_shards=1)
         decoded = fn.image_decoder(input, device=decoder_device, output_type=types.RGB)
@@ -87,19 +90,49 @@ def check_gaussian_blur(batch_size, sigma, window_size, op_type="cpu"):
         input = input.as_cpu()
     input = to_batch(input, batch_size)
     baseline_cv = [gaussian_cv(img, sigma, window_size) for img in input]
-    # PIL accuracy is absolutely abysmal, it is iterative BoxFilter not Gaussian blur
-    # input_pil = [Image.fromarray(img) for img in input]
-    # baseline_pil = [np.array(img.filter(ImageFilter.GaussianBlur(sigma))) for img in input_pil]
-    # baseline_scipy = [gaussian_scipy(img, sigma) for img in input]
-    # check_batch(result, baseline_cv, batch_size)
-    # check_batch(result, baseline_pil, batch_size)
     check_batch(result, baseline_cv, batch_size, max_allowed_error=1)
 
+def check_generic_gaussian_blur(batch_size, sigma, window_size, shape, layout, axes, op_type="cpu"):
+    decoder_device = "cpu" if op_type == "cpu" else "mixed"
+    pipe = Pipeline(batch_size=batch_size, num_threads=4, device_id=0)
+    data = RandomlyShapedDataIterator(batch_size, max_shape=shape)
+    with pipe:
+        input = fn.external_source(data, layout=layout)
+        blurred = fn.gaussian_blur(input, sigma=sigma, window_size=window_size)
+        pipe.set_outputs(blurred, input)
+    pipe.build()
 
-def test_sequence_rearrange():
+    result, input = pipe.run()
+    if op_type == "gpu":
+        result = result.as_cpu()
+        input = input.as_cpu()
+    input = to_batch(input, batch_size)
+    baseline = [gaussian_baseline(img, sigma, window_size, axes, "F" in layout) for img in input]
+    check_batch(result, baseline, batch_size, max_allowed_error=1)
+
+
+def test_image_gaussian_blur():
     for dev in ["cpu"]:
-        for sigma in [1.0, [1.0, 2.0], None]:
+        for sigma in [1.0, [1.0, 2.0]]:
             for window_size in [3, 5, [7, 5], [5, 9], None]:
                 if sigma is None and window_size is None:
                     continue
                 yield check_gaussian_blur, 10, sigma, window_size, dev
+        # OpenCv uses fixed values for small windows that are different that Gaussian funcion
+        for window_size in [11, 15]:
+            yield check_gaussian_blur, 10, None, window_size, dev
+
+def test_generic_gaussian_blur():
+    for dev in ["cpu"]:
+        for shape, layout, axes in [((20, 20, 30, 3), "DHWC", 3), ((20, 20, 30), "", 3),
+            ((20, 30, 3), "HWC", 2), ((20, 30), "HW", 2), ((5, 20, 30, 3), "FHWC", 2),
+            ((5, 10, 10, 7, 3), "FDHWC", 3)]:
+            for sigma in [1.0, [1.0, 2.0, 3.0]]:
+                for window_size in [3, 5, [7, 5, 9], [3, 5, 9], None]:
+                    if isinstance(sigma, list):
+                        sigma = sigma[0:axes]
+                    if isinstance(window_size, list):
+                        window_size = window_size[0:axes]
+                    yield check_generic_gaussian_blur, 10, sigma, window_size, shape, layout, axes, dev
+            for window_size in [11, 15]:
+                yield check_generic_gaussian_blur, 10, None, window_size, shape, layout, axes, dev

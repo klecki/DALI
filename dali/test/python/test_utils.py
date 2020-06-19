@@ -124,8 +124,8 @@ def check_batch(batch1, batch2, batch_size, eps=1e-07, max_allowed_error=None):
                     save_image(right, "err_2.png")
                 except:
                     print("Batch at {} can't be saved as an image".format(i))
-                    print(left)
-                    print(right)
+                    # print(left)
+                    # print(right)
                 assert False, error_msg
 
 def compare_pipelines(pipe1, pipe2, batch_size, N_iterations, eps = 1e-07):
