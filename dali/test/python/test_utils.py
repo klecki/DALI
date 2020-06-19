@@ -76,6 +76,7 @@ def get_gpu_num():
     out_list = [elm for elm in out_list if len(elm) > 0]
     return len(out_list)
 
+
 def check_batch(batch1, batch2, batch_size, eps=1e-07, max_allowed_error=None):
 
     def is_error(mean_err, max_err, eps, max_allowed_error):
@@ -115,19 +116,17 @@ def check_batch(batch1, batch2, batch_size, eps=1e-07, max_allowed_error=None):
             except:
                 is_failed = True
             if is_failed or is_error(err, max_err, eps, max_allowed_error):
+                error_msg = ("Mean error: [{}], Min error: [{}], Max error: [{}]" +
+                                "\n Total error count: [{}], Tensor size: [{}], Error calculation failed: [{}]").format(
+                    err, min_err, max_err, total_errors, absdiff.size, is_failed)
                 try:
-                    print("failed[{}] mean_err[{}] min_err[{}] max_err[{}] total_err[{}], size[{}]".format(
-                        is_failed, err, min_err, max_err, total_errors, absdiff.size))
-                    save_image(left, "err_{}_1.png".format(error_number))
-                    save_image(right, "err_{}_2.png".format(error_number))
-                    # diffs = (absdiff > 0) * np.uint8(255)
-                    # save_image(absdiff, "err_{}_diff.png".format(error_number))
-                    # save_image(diffs, "err_{}_diff_places.png".format(error_number))
+                    save_image(left, "err_1.png")
+                    save_image(right, "err_2.png")
                 except:
                     print("Batch at {} can't be saved as an image".format(i))
                     print(left)
                     print(right)
-                assert(False)
+                assert False, error_msg
 
 def compare_pipelines(pipe1, pipe2, batch_size, N_iterations, eps = 1e-07):
     pipe1.build()
