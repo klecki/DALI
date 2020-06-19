@@ -136,25 +136,25 @@ GaussianDimDesc ParseAndValidateDim(int ndim, TensorLayout layout) {
     return {0, ndim, false, false};
   }
   // not-empty layout
-  int dim_start = 0;
-  int dim_count = ndim;
+  int axes_start = 0;
+  int axes_count = ndim;
   bool has_channels = ImageLayoutInfo::HasChannel(layout);
   if (has_channels) {
-    dim_count--;
+    axes_count--;
     DALI_ENFORCE(ImageLayoutInfo::IsChannelLast(layout),
                  "Only input data with no channels or channel-last is supported.");
   }
   bool is_sequence = layout.find('F') >= 0;
   if (is_sequence) {
-    dim_start++;
-    dim_count--;
+    axes_start++;
+    axes_count--;
     DALI_ENFORCE(
         layout.find('F') == 0,
         make_string("For sequence inputs frames 'F' should be the first dimension, got layout: \"",
                     layout.str(), "\"."));
   }
-  DALI_ENFORCE(dim_count <= kMaxDim, "Too many dimensions");
-  return {dim_start, dim_count, has_channels, is_sequence};
+  DALI_ENFORCE(axes_count <= kMaxDim, "Too many dimensions");
+  return {axes_start, axes_count, has_channels, is_sequence};
 }
 
 // axes here is dimension of element processed by kernel - in case of sequence it's 1 less than the
