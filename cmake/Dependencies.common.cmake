@@ -180,3 +180,13 @@ if (BUILD_FFTS)
   list(APPEND DALI_LIBS ffts)
   list(APPEND DALI_EXCLUDES libffts.a)
 endif()
+
+##################################################################
+# CUTLASS
+##################################################################
+# include_directories(${PROJECT_SOURCE_DIR}/third_party/cutlass/include)
+
+set(CUTLASS_ENABLE_HEADERS_ONLY ON CACHE BOOL "Enable only the header library")
+set(CUTLASS_ENABLE_HEADERS_ONLY ON)
+check_and_add_cmake_submodule(${PROJECT_SOURCE_DIR}/third_party/cutlass)
+list(APPEND DALI_LIBS CUTLASS)
