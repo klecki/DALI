@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CONVOLUTION_CPU_H_
-#define DALI_KERNELS_IMGPROC_CONVOLUTION_CONVOLUTION_CPU_H_
+#ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CONVOLUTION_GPU_H_
+#define DALI_KERNELS_IMGPROC_CONVOLUTION_CONVOLUTION_GPU_H_
 
 #include "dali/core/boundary.h"
 #include "dali/core/convert.h"
@@ -93,11 +93,11 @@ struct ConvolutionGpu {
     cudaMemcpyAsync(window_tmp_buffer_gpu, window_tmp_buffer_host, sizeof(W) *  num_samples * kWindowCopyBufferSize, cudaMemcpyHostToDevice, ctx.gpu.stream);
 
 
+    Arguments args;
     if (kInnerConv) {
       // Inner
        // Repack arguments
-      Arguments args;
-      args.resize(num_samples);
+      // args.resize(num_samples, {});
       for (int i = 0; i < num_samples; i++) {
         cutlass::Array<int, 2> size;
         auto sample_shape = in.tensor_shape(i);
@@ -108,7 +108,7 @@ struct ConvolutionGpu {
         size[1] = sample_shape[ndim - has_channels - 1];
         int row_stride = sample_shape[ndim - has_channels - 1] * num_channels;
         auto* window_gpu = window_tmp_buffer_gpu + i * kWindowCopyBufferSize;
-        args[i] = SampleArguments{
+        args.push_back(SampleArguments{
           size,  // Input matrix dimensions
           window.tensor_shape_span(i)[0], // Window sizes
           num_channels, // channels count (innermost)
@@ -117,40 +117,40 @@ struct ConvolutionGpu {
           {out.tensor_data(i), row_stride},    // Tensor-ref for source matrix C
           {out.tensor_data(i), row_stride},    // Tensor-ref for destination matrix D (may be different memory than source C matrix)
           {scale, 0} // Scalars used in the Epilogue
-        };
+        });
       }
-      // Construct and invoke the CUTLASS kernel
-      CutlassConv gemm_operator;
-      gemm_operator(args);
     } else {
       // Outer
        // Repack arguments
       // Arguments args;
       // args.resize(num_samples);
-      // for (int i = 0; i < num_samples; i++) {
-      //   cutlass::Array<int, 2> size;
-      //   auto sample_shape = in.tensor_shape(i);
-      //   //height
-      //   size[0] = sample_shape[axis];
-      //   // width
-      //   size[1] = sample_shape[ndim - has_channels - 1];
-      //   int row_stride = sample_shape[ndim - has_channels - 1] * num_channels;
-      //   auto* window_gpu = window_tmp_buffer_gpu + i * kWindowCopyBufferSize;
-      //   args[i] = SampleArguments{
-      //     size,  // Input matrix dimensions
-      //     window.tensor_shape_span(i)[0], // Window sizes
-      //     num_channels, // channels count (innermost)
-      //     {in.tensor_data(i), row_stride},    // Tensor-ref for source matrix A
-      //     window_gpu,    // Pointers to windows
-      //     {out.tensor_data(i), row_stride},    // Tensor-ref for source matrix C
-      //     {out.tensor_data(i), row_stride},    // Tensor-ref for destination matrix D (may be different memory than source C matrix)
-      //     {scale, 0} // Scalars used in the Epilogue
-      //   };
-      // }
-      // // Construct and invoke the CUTLASS kernel
-      // CutlassConv gemm_operator;
-      // gemm_operator(args);
+      for (int i = 0; i < num_samples; i++) {
+        cutlass::Array<int, 2> size;
+        auto sample_shape = in.tensor_shape(i);
+
+        // DALI_ENFORCE(axis == ndim - 2 - channels, "Outer only in second to last axis for now");
+        //height
+        size[0] = sample_shape[axis];
+        // width
+        size[1] = volume(sample_shape.begin(), sample_shape.begin() + axis) * volume(sample_shape.begin() + axis + 1, sample_shape.end());
+        auto strides = GetStrides(sample_shape);
+        int row_stride = strides[axis];
+        auto* window_gpu = window_tmp_buffer_gpu + i * kWindowCopyBufferSize;
+        args.push_back(SampleArguments{
+          size,  // Input matrix dimensions
+          window.tensor_shape_span(i)[0], // Window sizes
+          1, // channels count (innermost)
+          {in.tensor_data(i), row_stride},    // Tensor-ref for source matrix A
+          window_gpu,    // Pointers to windows
+          {out.tensor_data(i), row_stride},    // Tensor-ref for source matrix C
+          {out.tensor_data(i), row_stride},    // Tensor-ref for destination matrix D (may be different memory than source C matrix)
+          {scale, 0} // Scalars used in the Epilogue
+        });
+      }
     }
+    // Construct and invoke the CUTLASS kernel
+    CutlassConv gemm_operator;
+    gemm_operator(args, nullptr, ctx.gpu.stream);
   }
 
  private:
@@ -184,4 +184,4 @@ struct ConvolutionGpu {
 }  // namespace kernels
 }  // namespace dali
 
-#endif  // DALI_KERNELS_IMGPROC_CONVOLUTION_CONVOLUTION_CPU_H_
+#endif  // DALI_KERNELS_IMGPROC_CONVOLUTION_CONVOLUTION_GPU_H_

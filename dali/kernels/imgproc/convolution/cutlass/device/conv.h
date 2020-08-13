@@ -428,7 +428,7 @@ public:
     ThreadblockSwizzle threadblock_swizzle;
 
     // The basic threadblock swizzle takes only M and N dims into account here
-    int dummy_k = 1;
+    // int dummy_k = 1;
     // GemmCoord problem_size(args.matrix_size[0], args.matrix_size[1] * args.channels, dummy_k);
     GemmCoord max_problem_size(0, 0, 1);
     for (auto &arg : args) {
@@ -558,7 +558,7 @@ public:
 
     cutlass::Kernel<ConvKernel><<<grid, block, smem_size, stream>>>(params_);
 
-    #if 1
+    #if 0
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
