@@ -21,6 +21,7 @@
 #include "dali/core/boundary.h"
 #include "dali/core/convert.h"
 #include "dali/kernels/common/utils.h"
+#include "dali/kernels/imgproc/convolution/convolution_cpu.h"
 #include "dali/kernels/imgproc/convolution/convolution_gpu.h"
 #include "dali/kernels/scratch.h"
 #include "dali/test/tensor_test_utils.h"
@@ -36,17 +37,13 @@ TEST(CONV, CONV) {
 
 }
 
-template <int ndim_, bool has_channels_, int axis_, int window_size_, typename InType_,
-          bool in_place_>
+template <int ndim_, bool has_channels_, int axis_, int window_size_, typename InType_>
 struct convolution_params {
   static constexpr int ndim = ndim_;
   static constexpr bool has_channels = has_channels_;
   static constexpr int axis = axis_;
   static constexpr int window_size = window_size_;
-  static constexpr bool in_place = in_place_;
   using InType = InType_;
-  static_assert(!in_place_ || std::is_same<InType, float>::value,
-                "Input type must be float if you want to test in place transformation.");
 };
 
 template <typename T>
@@ -56,7 +53,7 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
   using KernelGpu =
       ConvolutionGpu<float, typename T::InType, float, T::ndim, T::axis, T::has_channels>;
 
-  TensorShape<T::ndim> GetShape() {
+  TensorListShape<T::ndim> GetShape() {
     if (T::has_channels) {
       return shape_ch_.template last<T::ndim>();
     } else {
@@ -65,119 +62,126 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
   }
 
   void SetUp() override {
-    constexpr int window_size = T::window_size;
-    kernel_window_.reshape(uniform_list_shape<1>(1, {window_size}));
-    k_win_ = kernel_window_.cpu()[0];
+    kernel_window_.reshape(shape_window);
+    k_win_ = kernel_window_.cpu();
 
     // almost box filter, with raised center
-    for (int i = 0; i < window_size; i++) {
-      if (i < window_size / 2) {
-        k_win_.data[i] = 1;
-      } else if (i == window_size / 2) {
-        k_win_.data[i] = 2;
-      } else {
-        k_win_.data[i] = 1;
+    for (int sample = 0; sample < shape_window.num_samples(); sample++) {
+      int window_size = shape_window[sample][0];
+      for (int i = 0; i < window_size; i++) {
+        if (i < window_size / 2) {
+          k_win_[sample].data[i] = 1;
+        } else if (i == window_size / 2) {
+          k_win_[sample].data[i] = 2;
+        } else {
+          k_win_[sample].data[i] = 1;
+        }
       }
     }
 
-    input_.reshape(uniform_list_shape<T::ndim>(1, GetShape()));
-    in_ = input_.cpu()[0];
+    input_.reshape(GetShape());
+    baseline_in_ = input_.cpu();
 
-    ConstantFill(in_, 0);
+    // ConstantFill(in_, 0);
 
     std::mt19937 rng;
-    UniformRandomFill(in_, rng, 0, 255);
+    UniformRandomFill(baseline_in_, rng, 0, 255);
+    in_ = input_.gpu();
 
-    output_.reshape(uniform_list_shape<T::ndim>(1, GetShape()));
-    if (T::in_place) {
-      out_ = {reinterpret_cast<float *>(in_.data), in_.shape};  // so the compiler doesn't complain
-    } else {
-      out_ = output_.cpu()[0];
-      ConstantFill(out_, -1);
-    }
-    baseline_input_.reshape(uniform_list_shape<T::baseline_ndim>(1, GetBaselineShape()));
-    baseline_output_.reshape(uniform_list_shape<T::baseline_ndim>(1, GetBaselineShape()));
-    baseline_in_ = baseline_input_.cpu()[0];
-    baseline_out_ = baseline_output_.cpu()[0];
-    memcpy(baseline_in_.data, in_.data, volume(in_.shape) * sizeof(typename T::InType));
-
-    ConstantFill(baseline_out_, -1);
+    output_.reshape(GetShape());
+    out_ = output_.gpu();
+    baseline_output_.reshape(GetShape());
+    baseline_out_ = baseline_output_.cpu();
   }
 
   void RunTest() {
-    KernelContext ctx;
-    Kernel kernel;
+    KernelContext ctx_cpu, ctx_gpu;
+    KernelCpu kernel_cpu;
+    KernelGpu kernel_gpu;
 
-    auto req = kernel.Setup(ctx, in_.shape, k_win_.num_elements());
-    // this is painful
+    auto data_shape = GetShape();
+    int num_samples = data_shape.size();
+
+    for (int sample = 0; sample < num_samples; sample++) {
+      int window_size = shape_window[sample][0];
+      auto req = kernel_cpu.Setup(ctx_cpu, data_shape[sample], window_size);
+
+      ScratchpadAllocator scratch_alloc;
+      scratch_alloc.Reserve(req.scratch_sizes);
+      auto scratchpad = scratch_alloc.GetScratchpad();
+      ctx_cpu.scratchpad = &scratchpad;
+
+      kernel_cpu.Run(ctx_cpu, baseline_out_[sample], baseline_in_[sample], k_win_[sample]);
+    }
+
+    auto req = kernel_gpu.Setup(ctx_gpu, in_.shape, shape_window);
+
     ScratchpadAllocator scratch_alloc;
     scratch_alloc.Reserve(req.scratch_sizes);
     auto scratchpad = scratch_alloc.GetScratchpad();
-    ctx.scratchpad = &scratchpad;
+    ctx_gpu.scratchpad = &scratchpad;
+    kernel_gpu.Run(ctx_gpu, out_, in_, k_win_);
 
-    testing::BaselineConvolve(baseline_out_, baseline_in_, k_win_, T::axis, T::window_size / 2);
-    kernel.Run(ctx, out_, in_, k_win_);
-
-    // for validation we need the same shape
-    TensorView<StorageCPU, float, T::ndim> baseline_out_reshaped = {baseline_out_.data, out_.shape};
-    Check(out_, baseline_out_reshaped);
+    auto out_cpu_ = output_.cpu();
+    Check(out_cpu_, baseline_out_);
   }
 
   TestTensorList<float, 1> kernel_window_;
   TestTensorList<typename T::InType, T::ndim> input_;
-  TestTensorList<typename T::InType, T::baseline_ndim> baseline_input_;
   TestTensorList<float, T::ndim> output_;
-  TestTensorList<float, T::baseline_ndim> baseline_output_;
+  TestTensorList<float, T::ndim> baseline_output_;
 
-  TensorView<StorageCPU, float, 1> k_win_;
-  TensorView<StorageCPU, typename T::InType, T::ndim> in_;
-  TensorView<StorageCPU, typename T::InType, T::baseline_ndim> baseline_in_;
-  TensorView<StorageCPU, float, T::ndim> out_;
-  TensorView<StorageCPU, float, T::baseline_ndim> baseline_out_;
+  TensorListView<StorageCPU, float, 1> k_win_;
+  TensorListView<StorageGPU, typename T::InType, T::ndim> in_;
+  TensorListView<StorageGPU, float, T::ndim> out_;
+  TensorListView<StorageCPU, typename T::InType, T::ndim> baseline_in_;
+  TensorListView<StorageCPU, float, T::ndim> baseline_out_;
 
-  const TensorShape<> shape_ch_ = {13, 11, 21, 3};
-  const TensorShape<> shape_noch_ = {13, 11, 21};
-  const TensorShape<> shape_noch1_ = {13, 11, 21, 1};
+  const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}};
+  const TensorListShape<> shape_noch_ = {{64, 64, 64}};
+  const TensorListShape<1> shape_window = uniform_list_shape(shape_ch_.num_samples(), TensorShape<1>{T::window_size});
 };
 
 TYPED_TEST_SUITE_P(ConvolutionGpuKernelTest);
 
-using ConvolutionTestValues = ::testing::Types<convolution_params<1, false, 0, 1, uint8_t, false>,
-                                               convolution_params<1, false, 0, 3, uint8_t, false>,
-                                               convolution_params<1, false, 0, 21, uint8_t, false>,
-                                               convolution_params<1, false, 0, 51, uint8_t, false>,
-                                               convolution_params<2, true, 0, 1, uint8_t, false>,
-                                               convolution_params<2, true, 0, 3, uint8_t, false>,
-                                               convolution_params<2, true, 0, 21, uint8_t, false>,
-                                               convolution_params<2, true, 0, 51, uint8_t, false>,
+// template <int ndim_, bool has_channels_, int axis_, int window_size_, typename InType_>
+using ConvolutionTestValues = ::testing::Types<convolution_params<2, false, 0, 3, float>>; //,
+// convolution_params<1, false, 0, 1, uint8_t>,
+                                              //  convolution_params<1, false, 0, 3, uint8_t>,
+                                              //  convolution_params<1, false, 0, 21, uint8_t>,
+                                              //  convolution_params<1, false, 0, 51, uint8_t>,
+                                              //  convolution_params<2, true, 0, 1, uint8_t>,
+                                              //  convolution_params<2, true, 0, 3, uint8_t>,
+                                              //  convolution_params<2, true, 0, 21, uint8_t>,
+                                              //  convolution_params<2, true, 0, 51, uint8_t>,
 
-                                               convolution_params<1, false, 0, 1, float, true>,
-                                               convolution_params<1, false, 0, 3, float, true>,
-                                               convolution_params<1, false, 0, 21, float, true>,
-                                               convolution_params<1, false, 0, 51, float, true>,
-                                               convolution_params<2, true, 0, 1, float, true>,
-                                               convolution_params<2, true, 0, 3, float, true>,
-                                               convolution_params<2, true, 0, 21, float, true>,
-                                               convolution_params<2, true, 0, 51, float, true>,
+                                              //  convolution_params<1, false, 0, 1, float>,
+                                              //  convolution_params<1, false, 0, 3, float>,
+                                              //  convolution_params<1, false, 0, 21, float>,
+                                              //  convolution_params<1, false, 0, 51, float>,
+                                              //  convolution_params<2, true, 0, 1, float>,
+                                              //  convolution_params<2, true, 0, 3, float>,
+                                              //  convolution_params<2, true, 0, 21, float>,
+                                              //  convolution_params<2, true, 0, 51, float>,
 
-                                               convolution_params<2, false, 0, 1, uint8_t, false>,
-                                               convolution_params<2, false, 0, 3, uint8_t, false>,
-                                               convolution_params<2, false, 1, 1, uint8_t, false>,
-                                               convolution_params<2, false, 1, 3, uint8_t, false>,
-                                               convolution_params<3, true, 0, 3, uint8_t, false>,
-                                               convolution_params<3, true, 1, 3, uint8_t, false>,
+                                              //  convolution_params<2, false, 0, 1, uint8_t>,
+                                              //  convolution_params<2, false, 0, 3, uint8_t>,
+                                              //  convolution_params<2, false, 1, 1, uint8_t>,
+                                              //  convolution_params<2, false, 1, 3, uint8_t>,
+                                              //  convolution_params<3, true, 0, 3, uint8_t>,
+                                              //  convolution_params<3, true, 1, 3, uint8_t>,
 
-                                               convolution_params<3, false, 1, 1, uint8_t, false>,
-                                               convolution_params<3, false, 1, 3, uint8_t, false>,
-                                               convolution_params<3, false, 1, 7, uint8_t, false>,
-                                               convolution_params<3, false, 1, 11, uint8_t, false>,
-                                               convolution_params<3, false, 1, 21, uint8_t, false>,
-                                               convolution_params<3, false, 1, 101, uint8_t, false>,
+                                              //  convolution_params<3, false, 1, 1, uint8_t>,
+                                              //  convolution_params<3, false, 1, 3, uint8_t>,
+                                              //  convolution_params<3, false, 1, 7, uint8_t>,
+                                              //  convolution_params<3, false, 1, 11, uint8_t>,
+                                              //  convolution_params<3, false, 1, 21, uint8_t>,
+                                              //  convolution_params<3, false, 1, 101, uint8_t>,
 
-                                               convolution_params<3, false, 1, 1, float, true>,
-                                               convolution_params<3, false, 1, 3, float, true>,
-                                               convolution_params<3, false, 1, 21, float, true>,
-                                               convolution_params<3, false, 1, 101, float, true>>;
+                                              //  convolution_params<3, false, 1, 1, float>,
+                                              //  convolution_params<3, false, 1, 3, float>,
+                                              //  convolution_params<3, false, 1, 21, float>,
+                                              //  convolution_params<3, false, 1, 101, float>>;
 
 TYPED_TEST_P(ConvolutionGpuKernelTest, DoConvolution) {
   this->RunTest();
