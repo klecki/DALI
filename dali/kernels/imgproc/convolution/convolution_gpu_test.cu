@@ -123,7 +123,10 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
     kernel_gpu.Run(ctx_gpu, out_, in_, k_win_);
 
     auto out_cpu_ = output_.cpu();
-    Check(out_cpu_, baseline_out_);
+    // Check(out_cpu_, baseline_out_);
+
+    double eps = 1e-2;
+    Check(out_cpu_, baseline_out_, EqualEps(eps));
   }
 
   TestTensorList<float, 1> kernel_window_;
@@ -137,15 +140,26 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
   TensorListView<StorageCPU, typename T::InType, T::ndim> baseline_in_;
   TensorListView<StorageCPU, float, T::ndim> baseline_out_;
 
-  const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}};
-  const TensorListShape<> shape_noch_ = {{64, 64, 64}};
+  // const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}};
+  // const TensorListShape<> shape_noch_ = {{64, 64, 64}};
+  const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}, {164, 164, 164, 3}, {512, 512, 512, 3}, {64, 128, 512, 3}, {64, 512, 128, 3}};
+  const TensorListShape<> shape_noch_ = {{64, 64, 64}, {164, 164, 164}, {512, 512, 512}, {64, 128, 512}, {64, 512, 128}};
   const TensorListShape<1> shape_window = uniform_list_shape(shape_ch_.num_samples(), TensorShape<1>{T::window_size});
 };
 
 TYPED_TEST_SUITE_P(ConvolutionGpuKernelTest);
 
 // template <int ndim_, bool has_channels_, int axis_, int window_size_, typename InType_>
-using ConvolutionTestValues = ::testing::Types<convolution_params<2, false, 0, 3, float>>; //,
+using ConvolutionTestValues = ::testing::Types<
+    convolution_params<2, false, 0, 3, float>,
+    convolution_params<2, false, 1, 3, float>,
+    // convolution_params<3, true, 0, 3, float>,
+    // convolution_params<3, true, 1, 3, float>,
+    convolution_params<2, false, 0, 15, float>,
+    convolution_params<2, false, 1, 15, float>
+    // convolution_params<3, true, 0, 15, float>,
+    // convolution_params<3, true, 1, 15, float>
+                                                    >;
 // convolution_params<1, false, 0, 1, uint8_t>,
                                               //  convolution_params<1, false, 0, 3, uint8_t>,
                                               //  convolution_params<1, false, 0, 21, uint8_t>,
