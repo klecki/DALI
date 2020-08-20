@@ -606,9 +606,11 @@ public:
   GemmCoord GetProblemSize(const Array<int, kAxes> &matrix_size, int channels, bool inner) {
     if (inner) {
       // (m, n, n) where n = width * channels
+      printf("%d channels %d matrix_size[1]\n", channels, matrix_size[1]);
       return {matrix_size[0], matrix_size[1] * channels, matrix_size[1] * channels};
     } else {
       // m, n, m where n = width * channels
+      // TODO(klecki): for outer DALI_ENFORCE(channels == 1)
       return {matrix_size[0], matrix_size[1] * channels, matrix_size[0]};
     }
   }

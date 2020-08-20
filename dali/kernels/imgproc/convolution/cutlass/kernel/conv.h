@@ -321,7 +321,11 @@ struct Conv {
 
     // We need to start at aligned tile, otherwise tensor ops aren't happy.
     // Take this into account when calculating the non-zero region
-    int k_skipped_offset = max(0, threadblock_tile_offset.n() * Mma::Shape::kN - radius_span);
+    // For right side conv-matrix the non-zero regions starts at (n() - window_span, n()),
+    // for the left side it's (m(), m() - window_span)
+    int conv_diag_position = kInnerConv ? threadblock_tile_offset.n() * Mma::Shape::kN : threadblock_tile_offset.m() * Mma::Shape::kM;
+
+    int k_skipped_offset = max(0, conv_diag_position - radius_span);
     k_skipped_offset = (k_skipped_offset & ~(Mma::Shape::kK - 1));
     // k_skipped_offset = 0;
 
@@ -347,7 +351,7 @@ struct Conv {
       (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
     // Compute threadblock-scoped matrix multiply-add
     // this is how many iterations we need if we start at the offset
-    int gemm_k_iterations = (problem_size_k - tb_offset_A.column() + Mma::Shape::kK - 1) / Mma::Shape::kK;
+    int gemm_k_iterations = (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
     // this is how many iterations (from the starting offset) is expected to be non-zero
     int nonzero_k_iterations = min((Mma::Shape::kN + window_span + 2 * Mma::Shape::kK - 1) / Mma::Shape::kK, gemm_k_iterations);
     int end_iteration =  gemm_k_iterations - nonzero_k_iterations;
@@ -367,7 +371,9 @@ struct Conv {
     // Transfer window from gmem to smem <- this is cheap (klecki)
     transfer_conv_window(params, window_smem);
 
-
+  // if (threadIdx.x == 0) {
+  //   printf("kSplitKSerial %d params.sample_grid_tiled_shape.k() %d\n", kSplitKSerial, params.sample_grid_tiled_shape.k());
+  // }
 
     // TODO(klecki):
     // either compute the window directly in SMEM or get it from GMEM

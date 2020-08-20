@@ -24,6 +24,8 @@
 #include "dali/pipeline/util/operator_impl_utils.h"
 #include "dali/kernels/imgproc/convolution/cutlass/device/conv.h"
 
+#include "dbg.h"
+
 namespace dali {
 namespace kernels {
 
@@ -85,6 +87,7 @@ struct ConvolutionGpu {
     int num_samples = in.size();
     auto* window_tmp_buffer_host =
         ctx.scratchpad->Allocate<W>(AllocType::Host, num_samples * kWindowCopyBufferSize);
+    memset(window_tmp_buffer_host, 0, sizeof(W) * num_samples * kWindowCopyBufferSize);
     auto* window_tmp_buffer_gpu =
         ctx.scratchpad->Allocate<W>(AllocType::GPU, num_samples * kWindowCopyBufferSize);
 
@@ -110,7 +113,7 @@ struct ConvolutionGpu {
         auto* window_gpu = window_tmp_buffer_gpu + i * kWindowCopyBufferSize;
         args.push_back(SampleArguments{
           size,  // Input matrix dimensions
-          window.tensor_shape_span(i)[0], // Window sizes
+          static_cast<int>(window.tensor_shape_span(i)[0]), // Window sizes
           num_channels, // channels count (innermost)
           {in.tensor_data(i), row_stride},    // Tensor-ref for source matrix A
           window_gpu,    // Pointers to windows
@@ -135,11 +138,12 @@ struct ConvolutionGpu {
         size[1] = volume(sample_shape.begin(), sample_shape.begin() + axis) * volume(sample_shape.begin() + axis + 1, sample_shape.end());
         auto strides = GetStrides(sample_shape);
         int row_stride = strides[axis];
+        printf("Outer: %d x %d, row stride: %d \n", size[0], size[1], row_stride);
         auto* window_gpu = window_tmp_buffer_gpu + i * kWindowCopyBufferSize;
         args.push_back(SampleArguments{
           size,  // Input matrix dimensions
-          window.tensor_shape_span(i)[0], // Window sizes
-          1, // channels count (innermost)
+          static_cast<int>(window.tensor_shape_span(i)[0]), // Window sizes
+          1, // channels don't matter for outer dimensions
           {in.tensor_data(i), row_stride},    // Tensor-ref for source matrix A
           window_gpu,    // Pointers to windows
           {out.tensor_data(i), row_stride},    // Tensor-ref for source matrix C

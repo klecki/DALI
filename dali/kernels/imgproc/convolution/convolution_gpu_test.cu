@@ -33,7 +33,7 @@ namespace kernels {
 
 TEST(CONV, CONV) {
   ConvolutionGpu<float, float, float, 3, 1> kernel;
-
+  (void)kernel;
 
 }
 
@@ -45,6 +45,23 @@ struct convolution_params {
   static constexpr int window_size = window_size_;
   using InType = InType_;
 };
+
+template <typename T>
+void print_mat(int rows, int cols, const T *mat, int max_rows = -1, int max_cols = -1) {
+  if (max_rows == -1)
+    max_rows = rows;
+  if (max_cols == -1)
+    max_cols = cols;
+  for (int r = 0; r < max_rows; r++) {
+    std::cout << "{";
+    for (int c = 0; c < max_cols; c++) {
+      std::cout << std::setw(3) << (float)mat[r * cols + c] << ", ";
+    }
+    std::cout << "}\n";
+  }
+  std::cout << std::endl;
+}
+
 
 template <typename T>
 struct ConvolutionGpuKernelTest : public ::testing::Test {
@@ -86,6 +103,7 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
 
     std::mt19937 rng;
     UniformRandomFill(baseline_in_, rng, 0, 255);
+    // SequentialFill(baseline_in_);
     in_ = input_.gpu();
 
     output_.reshape(GetShape());
@@ -127,6 +145,10 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
 
     double eps = 1e-2;
     Check(out_cpu_, baseline_out_, EqualEps(eps));
+    // printf("CUTLASS\n\n");
+    // print_mat(out_cpu_[0].shape[0], out_cpu_[0].shape[1] * out_cpu_[0].shape[2], out_cpu_[0].data);
+    // printf("CPU baseline\n\n");
+    // print_mat(baseline_out_[0].shape[0], baseline_out_[0].shape[1] * baseline_out_[0].shape[2], baseline_out_[0].data);
   }
 
   TestTensorList<float, 1> kernel_window_;
@@ -142,8 +164,10 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
 
   // const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}};
   // const TensorListShape<> shape_noch_ = {{64, 64, 64}};
-  const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}, {164, 164, 164, 3}, {512, 512, 512, 3}, {64, 128, 512, 3}, {64, 512, 128, 3}};
-  const TensorListShape<> shape_noch_ = {{64, 64, 64}, {164, 164, 164}, {512, 512, 512}, {64, 128, 512}, {64, 512, 128}};
+  // const TensorListShape<> shape_ch_ = {{64, 8, 48, 3}};
+  // const TensorListShape<> shape_noch_ = {{32, 32, 48}};
+  const TensorListShape<> shape_ch_ = {{64, 64, 64, 3}, {164, 164, 164, 3}, {512, 512, 512, 3}, {64, 128, 512, 3}, {64, 512, 128, 3}, {512, 512, 512, 5}};
+  const TensorListShape<> shape_noch_ = {{64, 64, 64}, {164, 164, 164}, {512, 512, 512}, {64, 128, 512}, {64, 512, 128}, {123, 123, 123}};
   const TensorListShape<1> shape_window = uniform_list_shape(shape_ch_.num_samples(), TensorShape<1>{T::window_size});
 };
 
@@ -153,12 +177,12 @@ TYPED_TEST_SUITE_P(ConvolutionGpuKernelTest);
 using ConvolutionTestValues = ::testing::Types<
     convolution_params<2, false, 0, 3, float>,
     convolution_params<2, false, 1, 3, float>,
-    // convolution_params<3, true, 0, 3, float>,
-    // convolution_params<3, true, 1, 3, float>,
+    convolution_params<3, true, 0, 3, float>,
+    convolution_params<3, true, 1, 3, float>,
     convolution_params<2, false, 0, 15, float>,
-    convolution_params<2, false, 1, 15, float>
-    // convolution_params<3, true, 0, 15, float>,
-    // convolution_params<3, true, 1, 15, float>
+    convolution_params<2, false, 1, 15, float>,
+    convolution_params<3, true, 0, 15, float>,
+    convolution_params<3, true, 1, 15, float>
                                                     >;
 // convolution_params<1, false, 0, 1, uint8_t>,
                                               //  convolution_params<1, false, 0, 3, uint8_t>,
