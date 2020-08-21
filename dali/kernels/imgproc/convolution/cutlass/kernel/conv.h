@@ -100,6 +100,8 @@ struct Conv {
     int *semaphore; // TODO(klecki): add some handling for generating per sample semaphore?
     int gemm_k_iterations; // TODO(klecki): LOL, this is not set
     int gemm_k_size;
+    int planes = 1;
+    int plane_stride = 0;
 
     //
     // Methods
@@ -118,7 +120,9 @@ struct Conv {
       typename Epilogue::OutputTileIterator::TensorRef ref_C,
       typename Epilogue::OutputTileIterator::TensorRef ref_D,
       typename OutputOp::Params output_op = typename OutputOp::Params(),
-      int *workspace = nullptr
+      int *workspace = nullptr,
+      int planes = 1,
+      int plane_stride = 0
     ):
       channels(channels),
       window_size(ref_conv_Window.stride(0)),
@@ -132,7 +136,9 @@ struct Conv {
       ref_C(ref_C),
       params_D(ref_D.layout()),
       ref_D(ref_D),
-      output_op(output_op) {
+      output_op(output_op),
+      planes(planes),
+      plane_stride(plane_stride) {
       gemm_k_size = calc_gemm_k_size(problem_size, sample_grid_tiled_shape);
       // if (threadIdx.x == 0){
         printf("gemm_k_size: %d \n", gemm_k_size);
@@ -289,241 +295,246 @@ struct Conv {
 
     int sample_idx = threadblock_tile_offset.k();
 
-    SampleParams const &params = params_vec.params[sample_idx];
+    SampleParams params = params_vec.params[sample_idx];
+    for (int plane_batch = 0; plane_batch < params.planes; plane_batch++) {
 
-    // todo(klecki): here we know the actual tile!!! (global tile)
-    // PRINT_IF
-    //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), threadblock_tile_offset mnk:(%d, %d, %d), params.sample_grid_tiled_shape: (%d, %d, %d), params_vec.grid_tiled_shape: (%d, %d, %d) \n",
-    //   threadIdx.x, threadIdx.y, threadIdx.z, threadblock_tile_offset.m(), threadblock_tile_offset.n(), threadblock_tile_offset.k(),
-    //   params.sample_grid_tiled_shape.m(), params.sample_grid_tiled_shape.n(), params.sample_grid_tiled_shape.k(),
-    //   params_vec.grid_tiled_shape.m(), params_vec.grid_tiled_shape.n(), params_vec.grid_tiled_shape.k());
+      // todo(klecki): here we know the actual tile!!! (global tile)
+      // PRINT_IF
+      //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), threadblock_tile_offset mnk:(%d, %d, %d), params.sample_grid_tiled_shape: (%d, %d, %d), params_vec.grid_tiled_shape: (%d, %d, %d) \n",
+      //   threadIdx.x, threadIdx.y, threadIdx.z, threadblock_tile_offset.m(), threadblock_tile_offset.n(), threadblock_tile_offset.k(),
+      //   params.sample_grid_tiled_shape.m(), params.sample_grid_tiled_shape.n(), params.sample_grid_tiled_shape.k(),
+      //   params_vec.grid_tiled_shape.m(), params_vec.grid_tiled_shape.n(), params_vec.grid_tiled_shape.k());
 
-    // Early exit if CTA is out of range
-    if (params.sample_grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
-      params.sample_grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
+      // Early exit if CTA is out of range
+      if (params.sample_grid_tiled_shape.m() <= threadblock_tile_offset.m() ||
+        params.sample_grid_tiled_shape.n() <= threadblock_tile_offset.n()) {
 
-      return;
-    }
+        return;
+      }
 
-    // Compute initial location in logical coordinates // KL: all threads have the same value here
-    // we need to make this "more virtual"
+      // Compute initial location in logical coordinates // KL: all threads have the same value here
+      // we need to make this "more virtual"
 
-    // the offset to the resulting matrix
-    cutlass::MatrixCoord tb_offset_C{
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      threadblock_tile_offset.n() * Mma::Shape::kN
-    };
+      // the offset to the resulting matrix
+      cutlass::MatrixCoord tb_offset_C{
+        threadblock_tile_offset.m() * Mma::Shape::kM,
+        threadblock_tile_offset.n() * Mma::Shape::kN
+      };
 
-    // effective span of the window in the generated matrix
-    int radius_span = (params.window_size / 2) * params.channels;
-    int window_span = params.window_size * params.channels;
-
-
-    // We need to start at aligned tile, otherwise tensor ops aren't happy.
-    // Take this into account when calculating the non-zero region
-    // For right side conv-matrix the non-zero regions starts at (n() - window_span, n()),
-    // for the left side it's (m(), m() - window_span)
-    int conv_diag_position = kInnerConv ? threadblock_tile_offset.n() * Mma::Shape::kN : threadblock_tile_offset.m() * Mma::Shape::kM;
-
-    int k_skipped_offset = max(0, conv_diag_position - radius_span);
-    k_skipped_offset = (k_skipped_offset & ~(Mma::Shape::kK - 1));
-    // k_skipped_offset = 0;
-
-    cutlass::MatrixCoord tb_offset_A{
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      k_skipped_offset // 0 * K_SIZE
-    };
-
-    cutlass::MatrixCoord tb_offset_B{
-      k_skipped_offset,
-      threadblock_tile_offset.n() * Mma::Shape::kN
-    };
-
-    // todo(klecki): and here are the tile coordinates, woohoo
-    // PRINT_IF
-    // if (threadIdx.x == 0)
-    //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), A  row, col:(%d, %d), B row, col: (%d, %d) \n",
-    //   threadIdx.x, threadIdx.y, threadIdx.z, tb_offset_A.row(), tb_offset_A.column(), tb_offset_B.row(), tb_offset_B.column());
-
-    // Problem size is a function of threadblock index in the K dimension
-    int problem_size_k = min(
-      params.problem_size.k(),
-      (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
-    // Compute threadblock-scoped matrix multiply-add
-    // this is how many iterations we need if we start at the offset
-    int gemm_k_iterations = (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
-    // this is how many iterations (from the starting offset) is expected to be non-zero
-    int nonzero_k_iterations = min((Mma::Shape::kN + window_span + 2 * Mma::Shape::kK - 1) / Mma::Shape::kK, gemm_k_iterations);
-    int end_iteration =  gemm_k_iterations - nonzero_k_iterations;
-    // end_iteration = 0;
-    // int gemm_k_iterations = (iteration_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
-    // if (!threadIdx.x)
-    //   printf("problem_size_k %d tb_offset_A.column() %d Mma::Shape::kK %d\n", problem_size_k, tb_offset_A.column(), Mma::Shape::kK);
-
-    // PRINT_IF
-    //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), problem_size_k: %d, gemm_k_iterations: %d \n",
-    //     threadIdx.x, threadIdx.y, threadIdx.z, problem_size_k, gemm_k_iterations);
-
-    // Compute position within threadblock
-    int thread_idx = threadIdx.x;
-
-    auto window_smem = shared_storage.main_loop.operand_Window_ref(params.window_size);
-    // Transfer window from gmem to smem <- this is cheap (klecki)
-    transfer_conv_window(params, window_smem);
-
-  // if (threadIdx.x == 0) {
-  //   printf("kSplitKSerial %d params.sample_grid_tiled_shape.k() %d\n", kSplitKSerial, params.sample_grid_tiled_shape.k());
-  // }
-
-    // TODO(klecki):
-    // either compute the window directly in SMEM or get it from GMEM
-
-    // for (int i = thread_idx; i < params.window_sizes[1]; i += kThreadCount) {
-    //   window.data()[i] = params.windows[1][i];
-    // }
-    // __syncthreads();
-
-    void *in_data = params.ref_In.data();
-    void *window_data = window_smem.data();
-
-    // Construct iterators to A and B operands
-    // Global mem iterators
-    typename Mma::IteratorA iterator_A(
-      select_A<kInnerConv>(params.params_In, params.params_Window),
-      select_A<kInnerConv>(params.ref_In.data(), window_smem.data()),
-      {params.problem_size.m(), problem_size_k},
-      thread_idx,
-      tb_offset_A);
+      // effective span of the window in the generated matrix
+      int radius_span = (params.window_size / 2) * params.channels;
+      int window_span = params.window_size * params.channels;
 
 
-    typename Mma::IteratorB iterator_B(
-      // Fake stride
-      select_B<kInnerConv>(params.params_In, params.params_Window),
-      // Pointer to the smem that would be sampled
-      select_B<kInnerConv>(params.ref_In.data(), window_smem.data()),
-      {problem_size_k, params.problem_size.n()},
-      thread_idx,
-      tb_offset_B);
+      // We need to start at aligned tile, otherwise tensor ops aren't happy.
+      // Take this into account when calculating the non-zero region
+      // For right side conv-matrix the non-zero regions starts at (n() - window_span, n()),
+      // for the left side it's (m(), m() - window_span)
+      int conv_diag_position = kInnerConv ? threadblock_tile_offset.n() * Mma::Shape::kN : threadblock_tile_offset.m() * Mma::Shape::kM;
 
-    // Broadcast the warp_id computed by lane 0 to ensure dependent code
-    // is compiled as warp-uniform.
-    int warp_idx = __shfl_sync(0x1f, threadIdx.x / 32, 0);
-    int lane_idx = threadIdx.x % 32;
+      int k_skipped_offset = max(0, conv_diag_position - radius_span);
+      k_skipped_offset = (k_skipped_offset & ~(Mma::Shape::kK - 1));
+      // k_skipped_offset = 0;
 
-    //
-    // Main loop
-    //
+      cutlass::MatrixCoord tb_offset_A{
+        threadblock_tile_offset.m() * Mma::Shape::kM,
+        k_skipped_offset // 0 * K_SIZE
+      };
 
-    // Construct thread-scoped matrix multiply
-    Mma mma(shared_storage.main_loop, thread_idx, warp_idx, lane_idx);
+      cutlass::MatrixCoord tb_offset_B{
+        k_skipped_offset,
+        threadblock_tile_offset.n() * Mma::Shape::kN
+      };
 
+      // todo(klecki): and here are the tile coordinates, woohoo
+      // PRINT_IF
+      // if (threadIdx.x == 0)
+      //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), A  row, col:(%d, %d), B row, col: (%d, %d) \n",
+      //   threadIdx.x, threadIdx.y, threadIdx.z, tb_offset_A.row(), tb_offset_A.column(), tb_offset_B.row(), tb_offset_B.column());
 
-
-    typename Mma::FragmentC accumulators;
-
-    accumulators.clear();
-
-    if (!kSplitKSerial || gemm_k_iterations > 0) {
+      // Problem size is a function of threadblock index in the K dimension
+      int problem_size_k = min(
+        params.problem_size.k(),
+        (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
       // Compute threadblock-scoped matrix multiply-add
-      mma(gemm_k_iterations, end_iteration, accumulators, iterator_A, iterator_B, accumulators, tb_offset_C);
+      // this is how many iterations we need if we start at the offset
+      int gemm_k_iterations = (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
+      // this is how many iterations (from the starting offset) is expected to be non-zero
+      int nonzero_k_iterations = min((Mma::Shape::kN + window_span + 2 * Mma::Shape::kK - 1) / Mma::Shape::kK, gemm_k_iterations);
+      int end_iteration =  gemm_k_iterations - nonzero_k_iterations;
+      // end_iteration = 0;
+      // int gemm_k_iterations = (iteration_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
+      // if (!threadIdx.x)
+      //   printf("problem_size_k %d tb_offset_A.column() %d Mma::Shape::kK %d\n", problem_size_k, tb_offset_A.column(), Mma::Shape::kK);
+
+      // PRINT_IF
+      //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), problem_size_k: %d, gemm_k_iterations: %d \n",
+      //     threadIdx.x, threadIdx.y, threadIdx.z, problem_size_k, gemm_k_iterations);
+
+      // Compute position within threadblock
+      int thread_idx = threadIdx.x;
+
+      auto window_smem = shared_storage.main_loop.operand_Window_ref(params.window_size);
+      // Transfer window from gmem to smem <- this is cheap (klecki)
+      transfer_conv_window(params, window_smem);
+
+    // if (threadIdx.x == 0) {
+    //   printf("kSplitKSerial %d params.sample_grid_tiled_shape.k() %d\n", kSplitKSerial, params.sample_grid_tiled_shape.k());
+    // }
+
+      // TODO(klecki):
+      // either compute the window directly in SMEM or get it from GMEM
+
+      // for (int i = thread_idx; i < params.window_sizes[1]; i += kThreadCount) {
+      //   window.data()[i] = params.windows[1][i];
+      // }
+      // __syncthreads();
+
+      void *in_data = params.ref_In.data();
+      void *window_data = window_smem.data();
+
+      // Construct iterators to A and B operands
+      // Global mem iterators
+      typename Mma::IteratorA iterator_A(
+        select_A<kInnerConv>(params.params_In, params.params_Window),
+        select_A<kInnerConv>(params.ref_In.data(), window_smem.data()),
+        {params.problem_size.m(), problem_size_k},
+        thread_idx,
+        tb_offset_A);
+
+
+      typename Mma::IteratorB iterator_B(
+        // Fake stride
+        select_B<kInnerConv>(params.params_In, params.params_Window),
+        // Pointer to the smem that would be sampled
+        select_B<kInnerConv>(params.ref_In.data(), window_smem.data()),
+        {problem_size_k, params.problem_size.n()},
+        thread_idx,
+        tb_offset_B);
+
+      // Broadcast the warp_id computed by lane 0 to ensure dependent code
+      // is compiled as warp-uniform.
+      int warp_idx = __shfl_sync(0x1f, threadIdx.x / 32, 0);
+      int lane_idx = threadIdx.x % 32;
+
+      //
+      // Main loop
+      //
+
+      // Construct thread-scoped matrix multiply
+      Mma mma(shared_storage.main_loop, thread_idx, warp_idx, lane_idx);
+
+
+
+      typename Mma::FragmentC accumulators;
+
+      accumulators.clear();
+
+      if (!kSplitKSerial || gemm_k_iterations > 0) {
+        // Compute threadblock-scoped matrix multiply-add
+        mma(gemm_k_iterations, end_iteration, accumulators, iterator_A, iterator_B, accumulators, tb_offset_C);
+      }
+
+      //
+      // Epilogue
+      //
+
+      OutputOp output_op(params.output_op);
+
+      //
+      // Masked tile iterators constructed from members
+      //
+
+      threadblock_tile_offset = threadblock_swizzle.get_tile_offset();
+
+      //assume identity swizzle
+      MatrixCoord threadblock_offset(
+        threadblock_tile_offset.m() * Mma::Shape::kM,
+        threadblock_tile_offset.n() * Mma::Shape::kN
+      );
+
+      int block_idx = threadblock_tile_offset.m() + threadblock_tile_offset.n() * params.sample_grid_tiled_shape.m();
+
+      // Construct the semaphore.
+      Semaphore semaphore(params.semaphore + block_idx, thread_idx);
+
+      // If performing a reduction via split-K, fetch the initial synchronization
+      // TODO(klecki): assume k == 1
+      // if (kSplitKSerial && params.sample_grid_tiled_shape.k() > 1) {
+
+      //   // Fetch the synchronization lock initially but do not block.
+      //   semaphore.fetch();
+
+      //   // Indicate which position in a serial reduction the output operator is currently updating
+      //   output_op.set_k_partition(threadblock_tile_offset.k());
+      // }
+
+      // Tile iterator loading from source tensor.
+      typename Epilogue::OutputTileIterator iterator_C(
+        params.params_C,
+        params.ref_C.data(),
+        params.problem_size.mn(),
+        thread_idx,
+        threadblock_offset
+      );
+
+      // Tile iterator writing to destination tensor.
+      typename Epilogue::OutputTileIterator iterator_D(
+        params.params_D,
+        params.ref_D.data(),
+        params.problem_size.mn(),
+        thread_idx,
+        threadblock_offset
+      );
+
+      Epilogue epilogue(
+        shared_storage.epilogue,
+        thread_idx,
+        warp_idx,
+        lane_idx);
+
+      // Wait on the semaphore - this latency may have been covered by iterator construction
+      // TODO(klecki): assume k == 1
+      // if (kSplitKSerial && params.sample_grid_tiled_shape.k() > 1) {
+
+      //   // For subsequent threadblocks, the source matrix is held in the 'D' tensor.
+      //   if (threadblock_tile_offset.k()) {
+      //     iterator_C = iterator_D;
+      //   }
+
+      //   semaphore.wait(threadblock_tile_offset.k());
+
+      //   __threadfence();
+      // }
+
+      // Execute the epilogue operator to update the destination tensor.
+      epilogue(output_op, iterator_D, accumulators, iterator_C);
+
+      //
+      // Release the semaphore
+      //
+
+      // TODO(klecki): assume k == 1
+      // if (kSplitKSerial && params.sample_grid_tiled_shape.k() > 1) {
+
+      //   int lock = 0;
+      //   if (params.sample_grid_tiled_shape.k() == threadblock_tile_offset.k() + 1) {
+
+      //     // The final threadblock resets the semaphore for subsequent grids.
+      //     lock = 0;
+      //   }
+      //   else {
+      //     // Otherwise, the semaphore is incremented
+      //     lock = threadblock_tile_offset.k() + 1;
+      //   }
+
+      //   __threadfence();
+      //   semaphore.release(lock);
+      // }
+      params.ref_In.add_pointer_offset(params.plane_stride);
+      params.ref_C.add_pointer_offset(params.plane_stride);
+      params.ref_D.add_pointer_offset(params.plane_stride);
     }
-
-    //
-    // Epilogue
-    //
-
-    OutputOp output_op(params.output_op);
-
-    //
-    // Masked tile iterators constructed from members
-    //
-
-    threadblock_tile_offset = threadblock_swizzle.get_tile_offset();
-
-    //assume identity swizzle
-    MatrixCoord threadblock_offset(
-      threadblock_tile_offset.m() * Mma::Shape::kM,
-      threadblock_tile_offset.n() * Mma::Shape::kN
-    );
-
-    int block_idx = threadblock_tile_offset.m() + threadblock_tile_offset.n() * params.sample_grid_tiled_shape.m();
-
-    // Construct the semaphore.
-    Semaphore semaphore(params.semaphore + block_idx, thread_idx);
-
-    // If performing a reduction via split-K, fetch the initial synchronization
-    // TODO(klecki): assume k == 1
-    // if (kSplitKSerial && params.sample_grid_tiled_shape.k() > 1) {
-
-    //   // Fetch the synchronization lock initially but do not block.
-    //   semaphore.fetch();
-
-    //   // Indicate which position in a serial reduction the output operator is currently updating
-    //   output_op.set_k_partition(threadblock_tile_offset.k());
-    // }
-
-    // Tile iterator loading from source tensor.
-    typename Epilogue::OutputTileIterator iterator_C(
-      params.params_C,
-      params.ref_C.data(),
-      params.problem_size.mn(),
-      thread_idx,
-      threadblock_offset
-    );
-
-    // Tile iterator writing to destination tensor.
-    typename Epilogue::OutputTileIterator iterator_D(
-      params.params_D,
-      params.ref_D.data(),
-      params.problem_size.mn(),
-      thread_idx,
-      threadblock_offset
-    );
-
-    Epilogue epilogue(
-      shared_storage.epilogue,
-      thread_idx,
-      warp_idx,
-      lane_idx);
-
-    // Wait on the semaphore - this latency may have been covered by iterator construction
-    // TODO(klecki): assume k == 1
-    // if (kSplitKSerial && params.sample_grid_tiled_shape.k() > 1) {
-
-    //   // For subsequent threadblocks, the source matrix is held in the 'D' tensor.
-    //   if (threadblock_tile_offset.k()) {
-    //     iterator_C = iterator_D;
-    //   }
-
-    //   semaphore.wait(threadblock_tile_offset.k());
-
-    //   __threadfence();
-    // }
-
-    // Execute the epilogue operator to update the destination tensor.
-    epilogue(output_op, iterator_D, accumulators, iterator_C);
-
-    //
-    // Release the semaphore
-    //
-
-    // TODO(klecki): assume k == 1
-    // if (kSplitKSerial && params.sample_grid_tiled_shape.k() > 1) {
-
-    //   int lock = 0;
-    //   if (params.sample_grid_tiled_shape.k() == threadblock_tile_offset.k() + 1) {
-
-    //     // The final threadblock resets the semaphore for subsequent grids.
-    //     lock = 0;
-    //   }
-    //   else {
-    //     // Otherwise, the semaphore is incremented
-    //     lock = threadblock_tile_offset.k() + 1;
-    //   }
-
-    //   __threadfence();
-    //   semaphore.release(lock);
-    // }
   }
 };
 

@@ -315,6 +315,8 @@ class Conv {
     TensorRef<ElementOut const, LayoutOut> ref_C;
     TensorRef<ElementOut, LayoutOut> ref_D;
     typename EpilogueOutputOp::Params epilogue;
+    int planes = 1;
+    int plane_stride = 0;
 
     //
     // Methods
@@ -337,7 +339,9 @@ class Conv {
       TensorRef<ElementOut const, LayoutOut> ref_C_,
       TensorRef<ElementOut, LayoutOut> ref_D_,
       typename EpilogueOutputOp::Params epilogue_ =
-        typename EpilogueOutputOp::Params()
+        typename EpilogueOutputOp::Params(),
+      int planes_ = 1,
+      int plane_stride_ = 0
     ):
       matrix_size(matrix_size_),
       window_size(window_size_),
@@ -346,6 +350,8 @@ class Conv {
       ref_Window(ref_Window_),
       ref_C(ref_C_),
       ref_D(ref_D_),
+      planes(planes_),
+      plane_stride(plane_stride_),
       epilogue(epilogue_){
 
     }
@@ -492,7 +498,9 @@ public:
         arg.ref_C.non_const_ref(),
         arg.ref_D,
         arg.epilogue,
-        static_cast<int *>(workspace)
+        static_cast<int *>(workspace),
+        arg.planes,
+        arg.plane_stride
       });
     }
     params_.grid_tiled_shape = grid_shape;

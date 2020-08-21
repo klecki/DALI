@@ -135,9 +135,11 @@ struct ConvolutionGpu {
         //height
         size[0] = sample_shape[axis];
         // width
-        size[1] = volume(sample_shape.begin(), sample_shape.begin() + axis) * volume(sample_shape.begin() + axis + 1, sample_shape.end());
+        size[1] = volume(sample_shape.begin() + axis + 1, sample_shape.end());
         auto strides = GetStrides(sample_shape);
         int row_stride = strides[axis];
+        int planes = volume(sample_shape.begin(), sample_shape.begin() + axis);
+        int plane_stride = axis > 0 ? strides[axis - 1] : 0;
         printf("Outer: %d x %d, row stride: %d \n", size[0], size[1], row_stride);
         auto* window_gpu = window_tmp_buffer_gpu + i * kWindowCopyBufferSize;
         args.push_back(SampleArguments{
@@ -148,7 +150,9 @@ struct ConvolutionGpu {
           window_gpu,    // Pointers to windows
           {out.tensor_data(i), row_stride},    // Tensor-ref for source matrix C
           {out.tensor_data(i), row_stride},    // Tensor-ref for destination matrix D (may be different memory than source C matrix)
-          {scale, 0} // Scalars used in the Epilogue
+          {scale, 0}, // Scalars used in the Epilogue
+          planes,
+          plane_stride
         });
       }
     }
