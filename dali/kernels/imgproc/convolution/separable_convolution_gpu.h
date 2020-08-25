@@ -105,7 +105,11 @@ struct SeparableConvolutionGpu<Out, In, W, 2, has_channels> {
     auto intermediate = TensorListView<StorageGPU, Intermediate, ndim>(tmp, in.shape);
 
     conv_innermost_.Run(ctx, intermediate, in, windows[1]);
+    cudaDeviceSynchronize();
+    CUDA_CALL(cudaGetLastError());
     conv_outermost_.Run(ctx, out, intermediate, windows[0], scale);
+    cudaDeviceSynchronize();
+    CUDA_CALL(cudaGetLastError());
   }
 
   ConvolutionGpu<Intermediate, In, W, ndim, 1, has_channels> conv_innermost_;
