@@ -29,6 +29,45 @@
 namespace dali {
 namespace kernels {
 
+
+
+template <typename T>
+void print_mat(int rows, int cols, const T *mat, int max_rows = -1, int max_cols = -1) {
+  if (max_rows == -1)
+    max_rows = rows;
+  if (max_cols == -1)
+    max_cols = cols;
+  for (int r = 0; r < max_rows; r++) {
+    std::cout << "{";
+    for (int c = 0; c < max_cols; c++) {
+      std::cout << std::setw(3) << (float)mat[r * cols + c] << ", ";
+      if (c % 16 == 0 && c) {
+        std::cout << std::endl;
+      }
+    }
+    std::cout << "}\n";
+  }
+  std::cout << std::endl;
+}
+
+
+
+template <typename T>
+void InitNoOpWindow(const TensorListView<StorageCPU, T, 1> &windows) {
+  for (int sample = 0; sample < windows.num_samples(); sample++) {
+    auto window = windows[sample];
+    int radius = window.num_elements() / 2;
+    // for (int i = 0; i < radius; i++) {
+    //   *window(i) = i + 1;
+    //   *window(window.num_elements() - i - 1) = i + 1;
+    // }
+    for (int i = 0; i < window.num_elements(); i++) {
+      *window(i) = 0;
+    }
+    *window(radius) = 1;
+  }
+}
+
 template <typename T>
 void InitTriangleWindow(const TensorListView<StorageCPU, T, 1> &windows) {
   for (int sample = 0; sample < windows.num_samples(); sample++) {
@@ -196,8 +235,11 @@ TEST(SeparableConvolutionGpuTest, Axes2NoChannels) {
   auto out_cpu_baseline_v = output_baseline.cpu();
 
   std::mt19937 rng;
-  UniformRandomFill(in_cpu_v, rng, 0, 255);
+  // UniformRandomFill(in_cpu_v, rng, 0, 255);
+  // SequentialFill(in_cpu_v);
+  ConstantFill(in_cpu_v, 42.f);
   InitTriangleWindow(kernel_window_0_v);
+  // InitNoOpWindow(kernel_window_0_v);
   InitTriangleWindow(kernel_window_1_v);
 
   auto in_gpu_v = input.gpu();
@@ -242,6 +284,10 @@ TEST(SeparableConvolutionGpuTest, Axes2NoChannels) {
 
   double eps = 1e-2;
   Check(out_cpu_v, out_cpu_baseline_v, EqualEps(eps));
+    printf("CUTLASS\n\n");
+    print_mat(out_cpu_v[0].shape[0], out_cpu_v[0].shape[1], out_cpu_v[0].data);
+    printf("CPU baseline\n\n");
+    print_mat(out_cpu_baseline_v[0].shape[0], out_cpu_baseline_v[0].shape[1], out_cpu_baseline_v[0].data);
 }
 
 // TEST(SeparableConvolutionTest, Axes3WithChannels) {

@@ -331,10 +331,15 @@ struct Conv {
       // For right side conv-matrix the non-zero regions starts at (n() - window_span, n()),
       // for the left side it's (m(), m() - window_span)
       int conv_diag_position = kInnerConv ? threadblock_tile_offset.n() * Mma::Shape::kN : threadblock_tile_offset.m() * Mma::Shape::kM;
+      constexpr int tile_extent = kInnerConv ? Mma::Shape::kN : Mma::Shape::kM;
 
+      // in this row/column we cover a rectangle starting at diag - radius, to diag + tile_extent + radius
+
+      // this handles the border, we always stay inside the defined shapes
       int k_skipped_offset = max(0, conv_diag_position - radius_span);
-      k_skipped_offset = (k_skipped_offset & ~(Mma::Shape::kK - 1));
+      k_skipped_offset = (k_skipped_offset / Mma::Shape::kK) * Mma::Shape::kK;
       // k_skipped_offset = 0;
+
 
       cutlass::MatrixCoord tb_offset_A{
         threadblock_tile_offset.m() * Mma::Shape::kM,
@@ -356,16 +361,36 @@ struct Conv {
       int problem_size_k = min(
         params.problem_size.k(),
         (threadblock_tile_offset.k() + 1) * params.gemm_k_size);
+
+
+      int k_end_offset = min(problem_size_k - 1, conv_diag_position + tile_extent + radius_span);
+      int k_last_iter = ((k_end_offset + Mma::Shape::kK - 1) / Mma::Shape::kK);
+      int total_gemm_k_iterations = (problem_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
+      int start_iteration = (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
+      int end_iteration = max(total_gemm_k_iterations - k_last_iter - 1, 0); // TODO(klecki): Why additional iter?
+      // start_iteration = total_gemm_k_iterations;
+      // end_iteration = 0;
+
       // Compute threadblock-scoped matrix multiply-add
       // this is how many iterations we need if we start at the offset
-      int gemm_k_iterations = (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
-      // this is how many iterations (from the starting offset) is expected to be non-zero
-      int nonzero_k_iterations = min((Mma::Shape::kN + window_span + 2 * Mma::Shape::kK - 1) / Mma::Shape::kK, gemm_k_iterations);
-      int end_iteration =  gemm_k_iterations - nonzero_k_iterations;
-      // end_iteration = 0;
-      // int gemm_k_iterations = (iteration_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
-      // if (!threadIdx.x)
-      //   printf("problem_size_k %d tb_offset_A.column() %d Mma::Shape::kK %d\n", problem_size_k, tb_offset_A.column(), Mma::Shape::kK);
+      // int gemm_k_iterations = (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
+      // // this is how many iterations (from the starting offset) is expected to be non-zero
+      // // TODO(klecki): the bug is most probably here
+      // int nonzero_k_iterations = min((Mma::Shape::kN + window_span + 2 * Mma::Shape::kK - 1) / Mma::Shape::kK, gemm_k_iterations);
+      // int end_iteration =  gemm_k_iterations - nonzero_k_iterations;
+      // // end_iteration = 0;
+      // // int gemm_k_iterations = (iteration_size_k + Mma::Shape::kK - 1) / Mma::Shape::kK;
+      // // if (!threadIdx.x)
+      // //   printf("problem_size_k %d tb_offset_A.column() %d Mma::Shape::kK %d\n", problem_size_k, tb_offset_A.column(), Mma::Shape::kK);
+
+
+      // if (threadIdx.x == 0) {
+      //   printf("problem_size_k: %d, params.problem_size.k(): %d, threadblock_tile_offset.k(): %d, params.gemm_k_size: %d\n",
+      //     problem_size_k, params.problem_size.k(), threadblock_tile_offset.k(), params.gemm_k_size);
+      //   printf("Mma::Shape M, N, K: %d, %d, %d\n", Mma::Shape::kM, Mma::Shape::kN, Mma::Shape::kK);
+      //   printf("conv_diag_position: %d, radius_span: %d, k_skipped_offset: %d, gemm_k_iterations: %d, nonzero_k_iterations: %d, end_iteration %d, k_end_offset: %d\n",
+      //     conv_diag_position, radius_span, k_skipped_offset, gemm_k_iterations, nonzero_k_iterations, end_iteration, k_end_offset);
+      // }
 
       // PRINT_IF
       //   printf("kernel::Conv::operator() threadIdx: (%d, %d, %d), problem_size_k: %d, gemm_k_iterations: %d \n",
@@ -430,9 +455,9 @@ struct Conv {
 
       accumulators.clear();
 
-      if (!kSplitKSerial || gemm_k_iterations > 0) {
+      if (!kSplitKSerial || start_iteration > 0) {
         // Compute threadblock-scoped matrix multiply-add
-        mma(gemm_k_iterations, end_iteration, accumulators, iterator_A, iterator_B, accumulators, tb_offset_C);
+        mma(start_iteration, end_iteration, accumulators, iterator_A, iterator_B, accumulators, tb_offset_C);
       }
 
       //

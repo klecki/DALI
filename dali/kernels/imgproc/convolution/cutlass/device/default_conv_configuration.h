@@ -59,65 +59,65 @@ struct DefaultConvConfiguration;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-template <
-  typename OperatorClass,
-  typename ArchTag,
-  typename ElementA,
-  typename ElementB,
-  typename ElementC,
-  typename ElementAccumulator>
-struct DefaultConvConfiguration {
-  using UnderlyingConv = DefaultGemmConfiguration<OperatorClass, ArchTag, ElementA, ElementB,
-                                                  ElementC, ElementAccumulator>;
-
-  static int const kAlignmentA = UnderlyingConv::kAlignmentA;
-  static int const kAlignmentB = UnderlyingConv::kAlignmentB;
-
-  using ThreadblockShape = typename UnderlyingConv::ThreadblockShape;
-  using WarpShape = typename UnderlyingConv::WarpShape;
-  using InstructionShape = typename UnderlyingConv::InstructionShape;
-  static int const kStages = UnderlyingConv::kStages;
-
-  using EpilogueOutputOp = typename UnderlyingConv::EpilogueOutputOp;
-
-  using Operator = typename UnderlyingConv::Operator;
-};
-
 // template <
+//   typename OperatorClass,
 //   typename ArchTag,
 //   typename ElementA,
 //   typename ElementB,
 //   typename ElementC,
 //   typename ElementAccumulator>
-// struct DefaultConvConfiguration<
-//   arch::OpClassSimt,
-//   ArchTag,
-//   ElementA,
-//   ElementB,
-//   ElementC,
-//   ElementAccumulator> {
+// struct DefaultConvConfiguration {
+//   using UnderlyingConv = DefaultGemmConfiguration<OperatorClass, ArchTag, ElementA, ElementB,
+//                                                   ElementC, ElementAccumulator>;
 
-//   static int const kAlignmentA = 1;
-//   static int const kAlignmentB = 1;
-//   // using ThreadblockShape = GemmShape<128, 128, 8>;
-//   // using WarpShape = GemmShape<32, 64, 8>;
-//   // (klecki): more iterating so it's easier to debug, todo: revert
-//   // using ThreadblockShape = GemmShape<32, 32, 8>;
-//   // using WarpShape = GemmShape<16, 16, 8>;
-//   using ThreadblockShape = GemmShape<32, 32, 8>;
-//   using WarpShape = GemmShape<16, 16, 8>;
-//   using InstructionShape = GemmShape<1, 1, 1>;
-//   static int const kStages = 2;
+//   static int const kAlignmentA = UnderlyingConv::kAlignmentA;
+//   static int const kAlignmentB = UnderlyingConv::kAlignmentB;
 
-//   using EpilogueOutputOp = epilogue::thread::LinearCombination<
-//     ElementC,
-//     1,
-//     ElementAccumulator,
-//     ElementAccumulator
-//   >;
+//   using ThreadblockShape = typename UnderlyingConv::ThreadblockShape;
+//   using WarpShape = typename UnderlyingConv::WarpShape;
+//   using InstructionShape = typename UnderlyingConv::InstructionShape;
+//   static int const kStages = UnderlyingConv::kStages;
 
-//   using Operator = arch::OpMultiplyAdd;
+//   using EpilogueOutputOp = typename UnderlyingConv::EpilogueOutputOp;
+
+//   using Operator = typename UnderlyingConv::Operator;
 // };
+
+template <
+  typename ArchTag,
+  typename ElementA,
+  typename ElementB,
+  typename ElementC,
+  typename ElementAccumulator>
+struct DefaultConvConfiguration<
+  arch::OpClassSimt,
+  ArchTag,
+  ElementA,
+  ElementB,
+  ElementC,
+  ElementAccumulator> {
+
+  static int const kAlignmentA = 1;
+  static int const kAlignmentB = 1;
+  // using ThreadblockShape = GemmShape<128, 128, 8>;
+  // using WarpShape = GemmShape<32, 64, 8>;
+  // (klecki): more iterating so it's easier to debug, todo: revert
+  // using ThreadblockShape = GemmShape<32, 32, 8>;
+  // using WarpShape = GemmShape<16, 16, 8>;
+  using ThreadblockShape = GemmShape<32, 32, 8>;
+  using WarpShape = GemmShape<16, 16, 8>;
+  using InstructionShape = GemmShape<1, 1, 1>;
+  static int const kStages = 2;
+
+  using EpilogueOutputOp = epilogue::thread::LinearCombination<
+    ElementC,
+    1,
+    ElementAccumulator,
+    ElementAccumulator
+  >;
+
+  using Operator = arch::OpMultiplyAdd;
+};
 
 // template <
 //   typename ElementA,
