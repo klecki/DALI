@@ -29,6 +29,8 @@
 #ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_GEMM_H_
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_GEMM_H_
 
+#include <vector>
+
 #include "cutlass/arch/arch.h"
 #include "cutlass/cutlass.h"
 #include "cutlass/device_kernel.h"
@@ -402,8 +404,8 @@ class Conv {
     // Determine grid shape
     ThreadblockSwizzle threadblock_swizzle;
 
-   // Find the biggest grid necessary among the samples,
-   // smaller samples skip unused blocks on entrence
+    // Find the biggest grid necessary among the samples,
+    // smaller samples skip unused blocks on entrence
     GemmCoord max_problem_size(0, 0, 1);
     for (auto &arg : args) {
       // The basic threadblock swizzle takes only M and N dims into account here
