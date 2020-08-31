@@ -26,22 +26,26 @@
     \brief Template for a pipelined GEMM kernel. Does not compute batching or support split-K.
 */
 
-#ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_GEMM_H_
-#define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_GEMM_H_
+#pragma once
 
-#include "cutlass/arch/arch.h"
 #include "cutlass/cutlass.h"
-#include "cutlass/device_kernel.h"
 #include "cutlass/numeric_types.h"
+#include "cutlass/arch/arch.h"
+#include "cutlass/device_kernel.h"
 
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
+// #include "cutlass/gemm/kernel/gemm.h"
 #include "dali/kernels/imgproc/convolution/cutlass/kernel/conv.h"
 
 // #include "cutlass/gemm/kernel/default_gemm.h"
-#include "dali/kernels/imgproc/convolution/cutlass/device/default_conv_configuration.h"
 #include "dali/kernels/imgproc/convolution/cutlass/kernel/default_conv.h"
+#include "dali/kernels/imgproc/convolution/cutlass/device/default_conv_configuration.h"
 
-#include "dali/kernels/imgproc/convolution/cutlass/dali/utility.h"  // TODO(klecki): use dali utilities
+#include "dali/kernels/imgproc/convolution/cutlass/dali/utility.h" // TODO(klecki): use dali utilities
+
+// TODO(klecki):
+// #define PRINT_IF if(false)
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -176,7 +180,8 @@ template <
     /// Layout type for C and D matrix operands
     typename LayoutOut_,
     // Number of input data axes to process
-    int Axes = 2, bool InnerConv = true,
+    int Axes = 2,
+    bool InnerConv = true,
     /// Element type for internal accumulation
     typename ElementAccumulator_ = ElementOut_,
     /// Operator class tag
@@ -184,62 +189,64 @@ template <
     /// Tag indicating architecture to tune for
     typename ArchTag_ = arch::Sm70,
     /// Threadblock-level tile size (concept: GemmShape)
-    typename ThreadblockShape_ =
-        typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
-                                          // TODO(klecki): ElementIn_ or ElementCastIn_?
-                                          select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-                                          select_B_t<InnerConv, ElementIn_, ElementWindow_>,
-                                          ElementOut_, ElementAccumulator_>::ThreadblockShape,
+    typename ThreadblockShape_ = typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
+        // TODO(klecki): ElementIn_ or ElementCastIn_?
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::ThreadblockShape,
     /// Warp-level tile size (concept: GemmShape)
-    typename WarpShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::WarpShape,
+    typename WarpShape_ = typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::WarpShape,
     /// Instruction-level tile size (concept: GemmShape)
-    typename InstructionShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::InstructionShape,
+    typename InstructionShape_ = typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::InstructionShape,
     /// Epilogue output operator
-    typename EpilogueOutputOp_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::EpilogueOutputOp,
+    typename EpilogueOutputOp_ = typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::EpilogueOutputOp,
     /// Threadblock-level swizzling operator
-    typename ThreadblockSwizzle_ = typename threadblock::GemmIdentityThreadblockSwizzle<>,
+    typename ThreadblockSwizzle_ =
+        typename threadblock::GemmIdentityThreadblockSwizzle<>,
     /// Number of stages used in the pipelined mainloop
     int Stages = DefaultConvConfiguration<OperatorClass_, ArchTag_,
-                                          select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-                                          select_B_t<InnerConv, ElementIn_, ElementWindow_>,
-                                          ElementOut_, ElementAccumulator_>::kStages,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::kStages,
     /// Access granularity of A matrix in units of elements
     int AlignmentA = DefaultConvConfiguration<OperatorClass_, ArchTag_,
-                                              select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-                                              select_B_t<InnerConv, ElementIn_, ElementWindow_>,
-                                              ElementOut_, ElementAccumulator_>::kAlignmentA,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::kAlignmentA,
     /// Access granularity of B matrix in units of elements
     int AlignmentB = DefaultConvConfiguration<OperatorClass_, ArchTag_,
-                                              select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-                                              select_B_t<InnerConv, ElementIn_, ElementWindow_>,
-                                              ElementOut_, ElementAccumulator_>::kAlignmentB,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::kAlignmentB,
     /// If true, kernel supports split-K with serial reduction
     bool SplitKSerial = false,
     /// Operation performed by GEMM
-    typename Operator_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::Operator,
+    typename Operator_ = typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::Operator,
     /// Whether Beta is zero or not
     bool IsBetaZero = false>
 class Conv {
  public:
+
   using ElementIn = ElementIn_;
   using ElementCastIn = ElementCastIn_;
   using LayoutIn = LayoutIn_;
   // using TensorRefA = TensorRef<ElementIn const, LayoutIn>;
   using ElementWindow = ElementWindow_;
   using ElementCastWindow = ElementCastWindow_;
-  using LayoutWindow = layout::RowMajor;  // placeholder
+  using LayoutWindow = layout::RowMajor; // placeholder
+  // using TensorRefB = TensorRef<ElementWindow const, LayoutWindow>;
   using ElementOut = ElementOut_;
   using LayoutOut = LayoutOut_;
   using TensorRefC = TensorRef<ElementOut const, LayoutOut>;
@@ -262,13 +269,11 @@ class Conv {
   static ComplexTransform const kTransformA = ComplexTransform::kNone;
   static ComplexTransform const kTransformB = ComplexTransform::kNone;
   static_assert(kSplitKSerial == false, "Only basic options are supported");
-  // TODO(klecki): investigate how this can be used, now assume 1
-  static int const split_k_slices = 1;
-  // TODO(klecki): Axes do not mean anything, remove it
+  static int const split_k_slices = 1; // TODO(klecki): investigate how this can be used, now assume 1
   static int const kAxes = Axes;
   static bool const kInnerConv = InnerConv;
 
-    /// Define the kernel
+  /// Define the kernel, SIMT
   using ConvKernel = typename kernel::DefaultConv<
     select_A_t<InnerConv, ElementIn_, ElementWindow_>,
     select_A_t<InnerConv, ElementCastIn_, ElementCastWindow_>,
@@ -297,6 +302,7 @@ class Conv {
 
   /// Argument structure
   struct SampleArguments {
+
     //
     // Data members
     //
@@ -305,7 +311,7 @@ class Conv {
     int window_size;
     int channels;
     TensorRef<ElementIn const, LayoutIn> ref_In;
-    ElementWindow *ref_Window;
+    ElementWindow* ref_Window;
     TensorRef<ElementOut const, LayoutOut> ref_C;
     TensorRef<ElementOut, LayoutOut> ref_D;
     typename EpilogueOutputOp::Params epilogue;
@@ -325,36 +331,53 @@ class Conv {
     /// Constructs an Arguments structure
     CUTLASS_HOST_DEVICE
     SampleArguments(
-        Array<int, kAxes> matrix_size_, int window_size_, int channels_,
-        TensorRef<ElementIn const, LayoutIn> ref_In_, ElementWindow *ref_Window_,
-        TensorRef<ElementOut const, LayoutOut> ref_C_, TensorRef<ElementOut, LayoutOut> ref_D_,
-        typename EpilogueOutputOp::Params epilogue_ = typename EpilogueOutputOp::Params(),
-        int planes_ = 1, int plane_stride_ = 0)
-        : matrix_size(matrix_size_),
-          window_size(window_size_),
-          channels(channels_),
-          ref_In(ref_In_),
-          ref_Window(ref_Window_),
-          ref_C(ref_C_),
-          ref_D(ref_D_),
-          planes(planes_),
-          plane_stride(plane_stride_),
-          epilogue(epilogue_) {}
+      Array<int, kAxes> matrix_size_,
+      int window_size_,
+      int channels_,
+      TensorRef<ElementIn const, LayoutIn> ref_In_,
+      ElementWindow* ref_Window_,
+      TensorRef<ElementOut const, LayoutOut> ref_C_,
+      TensorRef<ElementOut, LayoutOut> ref_D_,
+      typename EpilogueOutputOp::Params epilogue_ =
+        typename EpilogueOutputOp::Params(),
+      int planes_ = 1,
+      int plane_stride_ = 0
+    ):
+      matrix_size(matrix_size_),
+      window_size(window_size_),
+      channels(channels_),
+      ref_In(ref_In_),
+      ref_Window(ref_Window_),
+      ref_C(ref_C_),
+      ref_D(ref_D_),
+      planes(planes_),
+      plane_stride(plane_stride_),
+      epilogue(epilogue_){
+
+    }
   };
 
   using Arguments = std::vector<SampleArguments>;
+  // struct Arguments {
+  //   int sample_count;
+  //   SampleArguments *host_samples;
+  //   SampleArguments *dev_samples;
+  // };
 
- private:
+private:
+
   /// Kernel parameters object
   typename ConvKernel::Params params_;
   typename ConvKernel::HostParams host_params_;
 
- public:
+public:
+
   /// Constructs the GEMM.
-  Conv() {}
+  Conv() { }
 
   /// Determines whether the GEMM can execute the given problem.
   static Status can_implement(Arguments const &args) {
+
     // we assume kSplitKSerial == false, so this will prevent split_k_slices != 1
     if (!kSplitKSerial && split_k_slices > 1) {
       return Status::kErrorInvalidProblem;
@@ -377,19 +400,27 @@ class Conv {
     return Status::kSuccess;
   }
 
-  // TODO(klecki): not used, remove
   // /// Gets the workspace size
   // static size_t get_workspace_size(Arguments const &args) {
+
   //   size_t bytes = 0;
 
   //   // Determine grid shape
   //   ThreadblockSwizzle threadblock_swizzle;
 
   //   cutlass::gemm::GemmCoord tiled_shape = threadblock_swizzle.get_tiled_shape(
-  //       args.problem_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
-  //       args.split_k_slices);
+  //     args.problem_size,
+  //     {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
+  //     split_k_slices);
 
-  //   if (kSplitKSerial && args.split_k_slices > 1) {
+  //   printf(">> get_workspace_size:\nProblem Size: (%d, %d, %d), block (%d, %d, %d), k_slices: %d -> shape (%d, %d, %d)\n",
+  //      args.problem_size.m(), args.problem_size.n(), args.problem_size.k(),
+  //      ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK,
+  //      split_k_slices,
+  //      tiled_shape.m(), tiled_shape.n(), tiled_shape.k());
+
+  //   if (kSplitKSerial && split_k_slices > 1) {
+
   //     bytes += sizeof(int) * size_t(tiled_shape.m()) * size_t(tiled_shape.n());
   //   }
 
@@ -397,93 +428,163 @@ class Conv {
   // }
 
   /// Initializes GEMM state from arguments.
-  Status initialize(Arguments const &args, void *workspace = nullptr,
-                    cudaStream_t stream = nullptr) {
+  Status initialize(Arguments const &args, void *workspace = nullptr, cudaStream_t stream = nullptr) {
+
     // Determine grid shape
     ThreadblockSwizzle threadblock_swizzle;
 
-    cutlass::gemm::GemmCoord grid_shape = threadblock_swizzle.get_tiled_shape(
-        args.problem_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
-        args.split_k_slices);
-
-    if (kSplitKSerial) {
-      if (args.split_k_slices > 1) {
-        if (!workspace) {
-          return Status::kErrorWorkspaceNull;
-        }
-
-        size_t bytes = get_workspace_size(args);
-
-        cudaError_t result = cudaMemsetAsync(workspace, 0, bytes, stream);
-
-        if (result != cudaSuccess) {
-          return Status::kErrorInternal;
-        }
-      }
-    } else {
-      if (args.split_k_slices > 1) {
-        return Status::kErrorInvalidProblem;
-      }
+    // The basic threadblock swizzle takes only M and N dims into account here
+    // int dummy_k = 1;
+    // GemmCoord problem_size(args.matrix_size[0], args.matrix_size[1] * args.channels, dummy_k);
+    GemmCoord max_problem_size(0, 0, 1);
+    for (auto &arg : args) {
+      GemmCoord sample_size(arg.matrix_size[0], arg.matrix_size[1] * arg.channels, 1);
+      GemmCoord tmp(std::max(max_problem_size.m(), sample_size.m()),
+          std::max(max_problem_size.n(), sample_size.n()),
+          std::max(max_problem_size.k(), sample_size.k()));
+      max_problem_size = tmp;
     }
+    cutlass::gemm::GemmCoord grid_shape = threadblock_swizzle.get_tiled_shape(
+      max_problem_size,
+      {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
+      split_k_slices);
+
+    assert(grid_shape.k() == 1);
+    // Assign the number of samples to gridDim.z
+    grid_shape[2] = args.size();
+
+    printf(">> initialize:\nProblem Size: (%d, %d, %d), block (%d, %d, %d), k_slices: %d -> grid_shape (%d, %d, %d)\n",
+       max_problem_size.m(), max_problem_size.n(), max_problem_size.k(),
+       ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK,
+       split_k_slices,
+       grid_shape.m(), grid_shape.n(), grid_shape.k());
+
+    // if (kSplitKSerial) {
+    //   if (split_k_slices > 1) {
+    //     if (!workspace) {
+    //       return Status::kErrorWorkspaceNull;
+    //     }
+
+    //     size_t bytes = get_workspace_size(args);
+
+    //     cudaError_t result = cudaMemsetAsync(workspace, 0, bytes, stream);
+
+    //     if (result != cudaSuccess) {
+    //       return Status::kErrorInternal;
+    //     }
+    //   }
+    // }
+    // else {
+
+    //   if (split_k_slices > 1) {
+    //     return Status::kErrorInvalidProblem;
+    //   }
+    // }
 
     // Initialize the Params structure
-    params_ = typename GemmKernel::Params{args.problem_size,
-                                          grid_shape,
-                                          args.ref_A.non_const_ref(),
-                                          args.ref_B.non_const_ref(),
-                                          args.ref_C.non_const_ref(),
-                                          args.ref_D,
-                                          args.epilogue,
-                                          static_cast<int *>(workspace)};
+    for (auto &arg : args) {
+      GemmCoord sample_size = GetProblemSize(arg.matrix_size, arg.channels, kInnerConv);
+      cutlass::gemm::GemmCoord sample_grid_shape = threadblock_swizzle.get_tiled_shape(
+        sample_size,
+        {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
+        split_k_slices);
 
-    return Status::kSuccess;
-  }
-
-  /// Lightweight update given a subset of arguments
-  Status update(Arguments const &args, void *workspace = nullptr) {
-    if (kSplitKSerial && args.split_k_slices > 1) {
-      if (!workspace) {
-        return Status::kErrorWorkspaceNull;
-      }
+      host_params_.push_back(typename ConvKernel::SampleParams{
+        arg.channels,
+        sample_size,
+        sample_grid_shape,
+        arg.ref_In.non_const_ref(),
+        {arg.ref_Window, {arg.window_size}}, // build window ref on the fly
+        arg.ref_C.non_const_ref(),
+        arg.ref_D,
+        arg.epilogue,
+        static_cast<int *>(workspace),
+        arg.planes,
+        arg.plane_stride
+      });
     }
-
-    params_.ref_A.reset(args.ref_A.non_const_ref().data());
-    params_.ref_B.reset(args.ref_B.non_const_ref().data());
-    params_.ref_C.reset(args.ref_C.non_const_ref().data());
-    params_.ref_D.reset(args.ref_D.data());
-    params_.output_op = args.epilogue;
-    params_.semaphore = static_cast<int *>(workspace);
+    params_.grid_tiled_shape = grid_shape;
 
     return Status::kSuccess;
   }
+
+    // TODO(klecki): this just swaps the pointers, but we actually need to swap the sizes as weel,
+    // need to use initialize
+  // /// Lightweight update given a subset of arguments
+  // Status update(Arguments const &args, void *workspace = nullptr) {
+
+  //   if (kSplitKSerial && args.split_k_slices > 1) {
+  //     if (!workspace) {
+  //       return Status::kErrorWorkspaceNull;
+  //     }
+  //   }
+
+  //   params_.ref_In.reset(args.ref_In.non_const_ref().data());
+  //   params_.ref_Windows.reset(args.ref_Windows.non_const_ref().data());
+  //   params_.ref_C.reset(args.ref_C.non_const_ref().data());
+  //   params_.ref_D.reset(args.ref_D.data());
+  //   params_.output_op = args.epilogue;
+  //   params_.semaphore = static_cast<int *>(workspace);
+
+  //   return Status::kSuccess;
+  // }
 
   /// Runs the kernel using initialized state.
   Status run(cudaStream_t stream = nullptr) {
+
     ThreadblockSwizzle threadblock_swizzle;
 
+    // TODO(klecki): it's all the same, but maybe it's worth to keep it as value in the params_
     dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
-    dim3 block(GemmKernel::kThreadCount, 1, 1);
+    printf("Running on grid (%d %d %d)\n", grid.x, grid.y, grid.z);
+    dim3 block(ConvKernel::kThreadCount, 1, 1);
 
     cudaError_t result;
 
-    int smem_size = static_cast<int>(sizeof(typename GemmKernel::SharedStorage));
+    int smem_size = int(sizeof(typename ConvKernel::SharedStorage));
     if (smem_size >= (48 << 10)) {
-      result = cudaFuncSetAttribute(Kernel<GemmKernel>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+      result = cudaFuncSetAttribute(Kernel<ConvKernel>,
+                                    cudaFuncAttributeMaxDynamicSharedMemorySize,
                                     smem_size);
 
       if (result != cudaSuccess) {
         return Status::kErrorInternal;
       }
 
-      result = cudaFuncSetAttribute(Kernel<GemmKernel>,
-                                    cudaFuncAttributePreferredSharedMemoryCarveout, 100);
+      result = cudaFuncSetAttribute(
+          Kernel<ConvKernel>,
+          cudaFuncAttributePreferredSharedMemoryCarveout, 100);
 
       if (result != cudaSuccess) {
         return Status::kErrorInternal;
       }
     }
 
-    cutlass::Kernel<GemmKernel><<<grid, block, smem_size, stream>>>(params_);
+    size_t params_sizeof = host_params_.size() * sizeof(typename ConvKernel::SampleParams);
+    cudaMalloc(&params_.params, params_sizeof);
+    cudaMemcpyAsync(params_.params, host_params_.data(), params_sizeof, cudaMemcpyHostToDevice, stream);
+
+    cutlass::Kernel<ConvKernel><<<grid, block, smem_size, stream>>>(params_);
+
+    #if 0
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+
+
+    for (int i = 0; i < 100; i++) {
+      cutlass::Kernel<ConvKernel><<<grid, block, smem_size, stream>>>(params_);
+    }
+
+    cudaEventRecord(stop);
+    cudaDeviceSynchronize();
+    float totalTime;
+    cudaEventElapsedTime(&totalTime, start, stop);
+    std::cout << "total time " << totalTime / 100.0 << " ms\n";
+
+    #endif
 
     result = cudaGetLastError();
 
@@ -496,8 +597,11 @@ class Conv {
   }
 
   /// Runs the kernel using initialized state.
-  Status operator()(Arguments const &args, void *workspace = nullptr,
-                    cudaStream_t stream = nullptr) {
+  Status operator()(
+    Arguments const &args,
+    void *workspace = nullptr,
+    cudaStream_t stream = nullptr) {
+
     Status status = initialize(args, workspace);
 
     if (status == Status::kSuccess) {
@@ -506,15 +610,23 @@ class Conv {
 
     return status;
   }
+
+  GemmCoord GetProblemSize(const Array<int, kAxes> &matrix_size, int channels, bool inner) {
+    if (inner) {
+      // (m, n, n) where n = width * channels
+      printf("%d channels %d matrix_size[1]\n", channels, matrix_size[1]);
+      return {matrix_size[0], matrix_size[1] * channels, matrix_size[1] * channels};
+    } else {
+      // m, n, m where n = width * channels
+      // TODO(klecki): for outer DALI_ENFORCE(channels == 1)
+      return {matrix_size[0], matrix_size[1] * channels, matrix_size[0]};
+    }
+  }
 };
 
-////////////////////////////////////////////////////////////////////////////////
 
-
-}  // namespace device
-}  // namespace gemm
-}  // namespace cutlass
+} // namespace device
+} // namespace gemm
+} // namespace cutlass
 
 ////////////////////////////////////////////////////////////////////////////////
-
-#endif  // DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_GEMM_H_
