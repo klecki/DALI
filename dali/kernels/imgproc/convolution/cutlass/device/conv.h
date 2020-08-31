@@ -474,7 +474,7 @@ class Conv {
     return Status::kSuccess;
   }
 
-  // TODO(klecki): this just swaps the pointers, but we actually need to swap the sizes as weel,
+  // TODO(klecki): this just swaps the pointers, but we actually need to swap the sizes as well,
   // need to use initialize
   // /// Lightweight update given a subset of arguments
   // Status update(Arguments const &args, void *workspace = nullptr) {

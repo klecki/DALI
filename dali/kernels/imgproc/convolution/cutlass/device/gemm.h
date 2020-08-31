@@ -402,80 +402,115 @@ class Conv {
     // Determine grid shape
     ThreadblockSwizzle threadblock_swizzle;
 
+   // Find the biggest grid necessary among the samples,
+   // smaller samples skip unused blocks on entrence
+    GemmCoord max_problem_size(0, 0, 1);
+    for (auto &arg : args) {
+      // The basic threadblock swizzle takes only M and N dims into account here
+      GemmCoord sample_size(arg.matrix_size[0], arg.matrix_size[1] * arg.channels, 1);
+      GemmCoord tmp(std::max(max_problem_size.m(), sample_size.m()),
+                    std::max(max_problem_size.n(), sample_size.n()),
+                    std::max(max_problem_size.k(), sample_size.k()));
+      max_problem_size = tmp;
+    }
+
     cutlass::gemm::GemmCoord grid_shape = threadblock_swizzle.get_tiled_shape(
-        args.problem_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
-        args.split_k_slices);
+        max_problem_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
+        split_k_slices);
 
-    if (kSplitKSerial) {
-      if (args.split_k_slices > 1) {
-        if (!workspace) {
-          return Status::kErrorWorkspaceNull;
-        }
+    assert(grid_shape.k() == 1);
+    // Assign the number of samples to gridDim.z to iterate over them
+    grid_shape[2] = args.size();
 
-        size_t bytes = get_workspace_size(args);
+    // Assume kSplitKSerial == false (already asserted) and split_k_slices == 1
+    // if (kSplitKSerial) {
+    //   if (args.split_k_slices > 1) {
+    //     if (!workspace) {
+    //       return Status::kErrorWorkspaceNull;
+    //     }
 
-        cudaError_t result = cudaMemsetAsync(workspace, 0, bytes, stream);
+    //     size_t bytes = get_workspace_size(args);
 
-        if (result != cudaSuccess) {
-          return Status::kErrorInternal;
-        }
-      }
-    } else {
-      if (args.split_k_slices > 1) {
-        return Status::kErrorInvalidProblem;
-      }
+    //     cudaError_t result = cudaMemsetAsync(workspace, 0, bytes, stream);
+
+    //     if (result != cudaSuccess) {
+    //       return Status::kErrorInternal;
+    //     }
+    //   }
+    // } else {
+    //   if (args.split_k_slices > 1) {
+    //     return Status::kErrorInvalidProblem;
+    //   }
+    // }
+
+     // Initialize the Params structure
+    for (auto &arg : args) {
+      GemmCoord sample_size = GetProblemSize(arg.matrix_size, arg.channels, kInnerConv);
+      cutlass::gemm::GemmCoord sample_grid_shape = threadblock_swizzle.get_tiled_shape(
+          sample_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
+          split_k_slices);
+
+      // TODO(klecki): Something other than vector?
+      host_params_.push_back(typename ConvKernel::SampleParams{
+          arg.channels,
+          sample_size,
+          sample_grid_shape,
+          arg.ref_In.non_const_ref(),
+          {arg.ref_Window, {arg.window_size}},  // build window ref on the fly
+          arg.ref_C.non_const_ref(),
+          arg.ref_D,
+          arg.epilogue,
+          static_cast<int *>(workspace),
+          arg.planes,
+          arg.plane_stride});
     }
-
-    // Initialize the Params structure
-    params_ = typename GemmKernel::Params{args.problem_size,
-                                          grid_shape,
-                                          args.ref_A.non_const_ref(),
-                                          args.ref_B.non_const_ref(),
-                                          args.ref_C.non_const_ref(),
-                                          args.ref_D,
-                                          args.epilogue,
-                                          static_cast<int *>(workspace)};
+    params_.grid_tiled_shape = grid_shape;
 
     return Status::kSuccess;
   }
 
-  /// Lightweight update given a subset of arguments
-  Status update(Arguments const &args, void *workspace = nullptr) {
-    if (kSplitKSerial && args.split_k_slices > 1) {
-      if (!workspace) {
-        return Status::kErrorWorkspaceNull;
-      }
-    }
+  // TODO(klecki): this just swaps the pointers, but we actually need to swap the sizes as well,
+  // need to use initialize
+  // /// Lightweight update given a subset of arguments
+  // Status update(Arguments const &args, void *workspace = nullptr) {
 
-    params_.ref_A.reset(args.ref_A.non_const_ref().data());
-    params_.ref_B.reset(args.ref_B.non_const_ref().data());
-    params_.ref_C.reset(args.ref_C.non_const_ref().data());
-    params_.ref_D.reset(args.ref_D.data());
-    params_.output_op = args.epilogue;
-    params_.semaphore = static_cast<int *>(workspace);
+  //   if (kSplitKSerial && args.split_k_slices > 1) {
+  //     if (!workspace) {
+  //       return Status::kErrorWorkspaceNull;
+  //     }
+  //   }
 
-    return Status::kSuccess;
-  }
+  //   params_.ref_In.reset(args.ref_In.non_const_ref().data());
+  //   params_.ref_Windows.reset(args.ref_Windows.non_const_ref().data());
+  //   params_.ref_C.reset(args.ref_C.non_const_ref().data());
+  //   params_.ref_D.reset(args.ref_D.data());
+  //   params_.output_op = args.epilogue;
+  //   params_.semaphore = static_cast<int *>(workspace);
+
+  //   return Status::kSuccess;
+  // }
 
   /// Runs the kernel using initialized state.
   Status run(cudaStream_t stream = nullptr) {
     ThreadblockSwizzle threadblock_swizzle;
 
+    // TODO(klecki): it's all the same, but maybe it's worth to keep it as value in the params_
     dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
-    dim3 block(GemmKernel::kThreadCount, 1, 1);
+    printf("Running on grid (%d %d %d)\n", grid.x, grid.y, grid.z);
+    dim3 block(ConvKernel::kThreadCount, 1, 1);
 
     cudaError_t result;
 
-    int smem_size = static_cast<int>(sizeof(typename GemmKernel::SharedStorage));
+    int smem_size = static_cast<int>(sizeof(typename ConvKernel::SharedStorage));
     if (smem_size >= (48 << 10)) {
-      result = cudaFuncSetAttribute(Kernel<GemmKernel>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+      result = cudaFuncSetAttribute(Kernel<ConvKernel>, cudaFuncAttributeMaxDynamicSharedMemorySize,
                                     smem_size);
 
       if (result != cudaSuccess) {
         return Status::kErrorInternal;
       }
 
-      result = cudaFuncSetAttribute(Kernel<GemmKernel>,
+      result = cudaFuncSetAttribute(Kernel<ConvKernel>,
                                     cudaFuncAttributePreferredSharedMemoryCarveout, 100);
 
       if (result != cudaSuccess) {
@@ -483,7 +518,32 @@ class Conv {
       }
     }
 
-    cutlass::Kernel<GemmKernel><<<grid, block, smem_size, stream>>>(params_);
+    size_t params_sizeof = host_params_.size() * sizeof(typename ConvKernel::SampleParams);
+    cudaMalloc(&params_.params, params_sizeof);
+    cudaMemcpyAsync(params_.params, host_params_.data(), params_sizeof, cudaMemcpyHostToDevice,
+                    stream);
+
+    cutlass::Kernel<ConvKernel><<<grid, block, smem_size, stream>>>(params_);
+
+#if 0
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start);
+
+
+    for (int i = 0; i < 100; i++) {
+      cutlass::Kernel<ConvKernel><<<grid, block, smem_size, stream>>>(params_);
+    }
+
+    cudaEventRecord(stop);
+    cudaDeviceSynchronize();
+    float totalTime;
+    cudaEventElapsedTime(&totalTime, start, stop);
+    std::cout << "total time " << totalTime / 100.0 << " ms\n";
+
+#endif
 
     result = cudaGetLastError();
 
@@ -505,6 +565,18 @@ class Conv {
     }
 
     return status;
+  }
+
+  GemmCoord GetProblemSize(const Array<int, kAxes> &matrix_size, int channels, bool inner) {
+    if (inner) {
+      // (m, n, n) where n = width * channels
+      printf("%d channels %d matrix_size[1]\n", channels, matrix_size[1]);
+      return {matrix_size[0], matrix_size[1] * channels, matrix_size[1] * channels};
+    } else {
+      // m, n, m where n = width * channels
+      // TODO(klecki): for outer DALI_ENFORCE(channels == 1)
+      return {matrix_size[0], matrix_size[1] * channels, matrix_size[0]};
+    }
   }
 };
 
