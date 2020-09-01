@@ -37,7 +37,7 @@
 #include "cutlass/numeric_types.h"
 
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
-#include "dali/kernels/imgproc/convolution/cutlass/kernel/conv.h"
+#include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
 
 // #include "cutlass/gemm/kernel/default_gemm.h"
 #include "dali/kernels/imgproc/convolution/cutlass/device/default_conv_configuration.h"
@@ -498,7 +498,6 @@ class Conv {
 
     // TODO(klecki): it's all the same, but maybe it's worth to keep it as value in the params_
     dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
-    printf("Running on grid (%d %d %d)\n", grid.x, grid.y, grid.z);
     dim3 block(ConvKernel::kThreadCount, 1, 1);
 
     cudaError_t result;
@@ -572,7 +571,6 @@ class Conv {
   GemmCoord GetProblemSize(const Array<int, kAxes> &matrix_size, int channels, bool inner) {
     if (inner) {
       // (m, n, n) where n = width * channels
-      printf("%d channels %d matrix_size[1]\n", channels, matrix_size[1]);
       return {matrix_size[0], matrix_size[1] * channels, matrix_size[1] * channels};
     } else {
       // m, n, m where n = width * channels

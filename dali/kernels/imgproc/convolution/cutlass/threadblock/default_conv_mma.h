@@ -36,9 +36,9 @@
 
 #include "cutlass/layout/matrix.h"
 #include "cutlass/transform/threadblock/predicated_tile_iterator.h"
-#include "dali/kernels/imgproc/convolution/cutlass/threadblock/position_predicated_tile_iterator.h"
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_iterator.h"
 #include "cutlass/transform/threadblock/predicated_tile_iterator_2dthreadtile.h"
-#include "dali/kernels/imgproc/convolution/cutlass/threadblock/conv_mma_pipelined.h"
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/mma_pipelined.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm80.h"

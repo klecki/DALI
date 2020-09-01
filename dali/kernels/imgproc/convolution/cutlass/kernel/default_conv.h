@@ -47,7 +47,7 @@
 
 #include "cutlass/gemm/gemm.h"
 #include "cutlass/gemm/kernel/gemm_pipelined.h"  // todo do a conv_pipelined.h
-#include "dali/kernels/imgproc/convolution/cutlass/kernel/conv.h"
+#include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
 #include "cutlass/gemm/threadblock/default_mma_core_simt.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
@@ -59,7 +59,7 @@
 #include "cutlass/epilogue/threadblock/default_epilogue_tensor_op.h"
 #include "cutlass/epilogue/threadblock/default_epilogue_volta_tensor_op.h"
 #include "cutlass/transform/threadblock/predicated_tile_iterator.h"
-#include "dali/kernels/imgproc/convolution/cutlass/threadblock/position_predicated_tile_iterator.h"
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_iterator.h"
 
 // point to original impl
 #include "cutlass/gemm/kernel/default_gemm.h"

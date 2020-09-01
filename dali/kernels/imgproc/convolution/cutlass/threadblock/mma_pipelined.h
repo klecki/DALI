@@ -38,7 +38,7 @@
 #include "cutlass/numeric_types.h"
 
 #include "cutlass/gemm/gemm.h"
-#include "cutlass/gemm/threadblock/mma_base.h"
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/mma_base.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -68,8 +68,8 @@ template <
     typename ElementC_,
     /// Data type of accumulator matrix
     typename LayoutC_,
-    /// Policy describing tuning details (concept: MmaPolicy)
-    typename Policy_,
+    /// Policy describing tuning details (concept: ConvMmaPolicy)
+    typename Policy_, bool InnerConv = true,
     /// Transformation applied to A operand
     typename TransformA_ =
         NumericArrayConverter<typename SmemIteratorA_::Element, typename IteratorA_::Element,
@@ -81,23 +81,43 @@ template <
                               IteratorB_::Fragment::kElements>,
     /// Used for partial specialization
     typename Enable = bool>
-class MmaPipelined : public MmaBase<Shape_, Policy_, 2> {
+class ConvMmaPipelined
+    : public ConvMmaBase<
+        Shape_, Policy_, 2,
+        std::conditional_t<InnerConv, typename IteratorB_::Element,
+                                      typename IteratorA_::Element>> {
  public:
   ///< Base class
-  using Base = MmaBase<Shape_, Policy_, 2>;
+  using Base = ConvMmaBase<
+      Shape_, Policy_, 2,
+      std::conditional_t<InnerConv, typename IteratorB_::Element, typename IteratorA_::Element>>;
+
+  static int const kInnerConv = InnerConv;
 
   using Shape = Shape_;          ///< Size of the Gemm problem - concept: gemm::GemmShape<>
-  using IteratorA = IteratorA_;  ///< Iterates over tiles of A operand in global memory
-  using IteratorB = IteratorB_;  ///< Iterates over tiles of B operand in global memory
-  using ElementC = ElementC_;    ///< Data type of accumulator matrix
-  using LayoutC = LayoutC_;      ///< Layout of accumulator matrix
-  using Policy = Policy_;        ///< Policy describing tuning details
+  using IteratorA = IteratorA_;  ///< Iterates over tiles of A operand
+  using IteratorB = IteratorB_;  ///< Iterates over tiles of B operand
+
+  using IteratorIn =
+      std::conditional_t<kInnerConv, IteratorA, IteratorB>;  ///< Input operand in global memory
+  using IteratorWindow =
+      std::conditional_t<kInnerConv, IteratorB, IteratorA>;  ///< Window Matrix generated on the fly
+
+  using ElementC = ElementC_;  ///< Data type of accumulator matrix
+  using LayoutC = LayoutC_;    ///< Layout of accumulator matrix
+  using Policy = Policy_;      ///< Policy describing tuning details
 
   using SmemIteratorA = SmemIteratorA_;
   using SmemIteratorB = SmemIteratorB_;
 
+  using SmemIteratorIn = std::conditional_t<kInnerConv, SmemIteratorA, SmemIteratorB>;
+  using SmemIteratorWindow = std::conditional_t<kInnerConv, SmemIteratorB, SmemIteratorA>;
+
   using TransformA = TransformA_;
   using TransformB = TransformB_;
+
+  using TransformIn = std::conditional_t<kInnerConv, TransformA, TransformB>;
+  using TransformWindow = std::conditional_t<kInnerConv, TransformB, TransformA>;
 
   //
   // Dependent types
@@ -125,7 +145,7 @@ class MmaPipelined : public MmaBase<Shape_, Policy_, 2> {
   static ComplexTransform const kTransformB = Operator::kTransformB;
 
   // staticaly assert kStages for MmaPipelined is two (Double-buffered pipeline)
-  static_assert((Base::kStages == 2), "MmaPipelined requires kStages set to value 2");
+  static_assert((Base::kStages == 2), "ConvMmaPipelined requires kStages set to value 2");
 
  private:
   using WarpFragmentA = typename Operator::FragmentA;
@@ -141,7 +161,7 @@ class MmaPipelined : public MmaBase<Shape_, Policy_, 2> {
  public:
   /// Construct from tensor references
   CUTLASS_DEVICE
-  MmaPipelined(
+  ConvMmaPipelined(
       typename Base::SharedStorage
           &shared_storage,  ///< Shared storage needed for internal use by threadblock-scoped GEMM
       int thread_idx,       ///< ID within the threadblock
@@ -170,16 +190,18 @@ class MmaPipelined : public MmaBase<Shape_, Policy_, 2> {
         {Base::kWarpGemmIterations * warp_idx_k, warp_idx_n});
   }
 
-  /// Perform a threadblock-scoped matrix multiply-accumulate
+    /// Perform a threadblock-scoped matrix multiply-accumulate
   CUTLASS_DEVICE
   void operator()(
-      int gemm_k_iterations,                    ///< number of iterations of the mainloop
-      FragmentC &accum,                         ///< destination accumulator tile
-      IteratorA iterator_A,                     ///< iterator over A operand in global memory
-      IteratorB iterator_B,                     ///< iterator over B operand in global memory
-      FragmentC const &src_accum,               ///< source accumulator tile
-      TransformA transform_A = TransformA(),    ///< transformation applied to A fragment
-      TransformB transform_B = TransformB()) {  ///< transformation applied to B fragment
+      int gemm_k_iterations,                      ///< number of starting iteration of the mainloop
+      int end_iteration,                          ///< number of ending iteration of the mainloop
+      FragmentC &accum,                           ///< destination accumulator tile
+      IteratorA iterator_A,                       ///< iterator over A operand in global memory
+      IteratorB iterator_B,                       ///< iterator over B operand in global memory
+      FragmentC const &src_accum,                 ///< source accumulator tile
+      cutlass::MatrixCoord const &logical_coord,  ///< position in the matrix TODO(klecki): remove
+      TransformA transform_A = TransformA(),      ///< transformation applied to A fragment
+      TransformB transform_B = TransformB()) {    ///< transformation applied to B fragment
     //
     // Prologue
     //
@@ -240,7 +262,7 @@ class MmaPipelined : public MmaBase<Shape_, Policy_, 2> {
 
     // Note: The main loop does not support Base::kWarpGemmIterations == 2.
     CUTLASS_GEMM_LOOP
-    for (; gemm_k_iterations > 0; --gemm_k_iterations) {
+    for (; gemm_k_iterations > end_iteration; --gemm_k_iterations) {
       //
       // Loop over GEMM K dimension
       //
