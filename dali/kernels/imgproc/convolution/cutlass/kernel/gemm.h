@@ -39,7 +39,6 @@
 #include "cutlass/layout/pitch_linear.h"
 #include "cutlass/matrix_coord.h"
 #include "cutlass/numeric_conversion.h"
-#include "cutlass/semaphore.h"
 #include "cutlass/transform/pitch_linear_thread_map.h"
 #include "cutlass/transform/threadblock/predicated_tile_iterator.h"
 #include "cutlass/transform/threadblock/regular_tile_iterator.h"
@@ -91,7 +90,6 @@ struct Conv {
     typename Epilogue::OutputTileIterator::Params params_D;
     typename Epilogue::OutputTileIterator::TensorRef ref_D;
     typename OutputOp::Params output_op;
-    int *semaphore;         // TODO(klecki): add some handling for generating per sample semaphore?
     int gemm_k_size;
     int planes = 1;
     int plane_stride = 0;
@@ -100,7 +98,7 @@ struct Conv {
     // Methods
     //
     CUTLASS_HOST_DEVICE
-    SampleParams() : semaphore(0), gemm_k_size(0) {}
+    SampleParams() : gemm_k_size(0) {}
 
     CUTLASS_HOST_DEVICE
     SampleParams(int channels, cutlass::gemm::GemmCoord const &problem_size,
@@ -109,7 +107,7 @@ struct Conv {
                  typename Epilogue::OutputTileIterator::TensorRef ref_C,
                  typename Epilogue::OutputTileIterator::TensorRef ref_D,
                  typename OutputOp::Params output_op = typename OutputOp::Params(),
-                 int *workspace = nullptr, int planes = 1, int plane_stride = 0)
+                 int planes = 1, int plane_stride = 0)
         : channels(channels),
           window_size(ref_conv_Window.stride(0)),
           problem_size(problem_size),  // actual problem size
@@ -129,7 +127,6 @@ struct Conv {
           planes(planes),
           plane_stride(plane_stride) {
       gemm_k_size = calc_gemm_k_size(problem_size, sample_grid_tiled_shape);
-      semaphore = workspace;
     }
     CUTLASS_HOST_DEVICE
     static int calc_gemm_k_size(gemm::GemmCoord const &problem_size,
@@ -192,17 +189,13 @@ struct Conv {
     return Status::kSuccess;
   }
 
+  ////////////
+  /// Copy the window from global mem to smem for matrix bulding lookups
+  /// Load from params.ref_conv_Window to shared_storage.main_loop.operand_Window
   CUTLASS_DEVICE
   void transfer_conv_window(SampleParams const &params,
                             typename Mma::TensorRefWindow &window_smem) {
-    ////////////
-    //  Copy the window from global mem to smem for matrix bulding lookups
-    // Load from params.ref_conv_Window to shared_storage.main_loop.operand_Window
 
-    // int const kWindowLength = Mma::SharedStorage::ShapeWindow;
-    // The PredicateTileIterator expects PitchLinearShape and PitchLinear layout.
-    // The target shape is RowMajor<1, ConvMmaBase::kWindowLength>, we map it to PitchLinear
-    // using WindowShape = typename Mma::SharedStorage::ShapeWindow;
     using WindowShape = layout::PitchLinearShape<kThreadCount, 1>;
 
     // ThreadMaps define how threads are mapped to a given tile. The PitchLinearStripminedThreadMap
@@ -219,12 +212,6 @@ struct Conv {
         transform::threadblock::PredicatedTileIterator<WindowShape, WindowElement, WindowLayout, 0,
                                                        WindowThreadMap>;
 
-    // cutlass::Coord<2> window_extent = cutlass::make_Coord(params.window_size, 1);
-
-    // int iterations = (params.window_size + WindowShape::kContiguous - 1) /
-    // WindowShape::kContiguous;
-
-    // TODO(klecki): faked window that is already preprocessed
     cutlass::Coord<2> window_extent = cutlass::make_Coord(1024, 1);
     int iterations = (1024 + WindowShape::kContiguous - 1) / WindowShape::kContiguous;
 
@@ -312,8 +299,6 @@ struct Conv {
       int start_iteration =
           (problem_size_k - k_skipped_offset + Mma::Shape::kK - 1) / Mma::Shape::kK;
       int end_iteration = max(total_gemm_k_iterations - k_last_iter - 1, 0);
-      // TODO(klecki): Why additional iter?
-      // end_iteration = 0;
 
       // Compute position within threadblock
       int thread_idx = threadIdx.x;

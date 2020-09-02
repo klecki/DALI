@@ -24,8 +24,12 @@
 #include "dali/pipeline/util/operator_impl_utils.h"
 #include "dali/kernels/imgproc/convolution/cutlass/device/gemm.h"
 
-#include "dbg.h"
 
+// TODO(klecki): remove
+// #include "cutlass/epilogue/threadblock/epilogue.h"
+// #include "cutlass/epilogue/threadblock/interleaved_epilogue.h"
+// #include "cutlass/numeric_types.h"
+// #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
 namespace dali {
 namespace kernels {
 
@@ -66,6 +70,10 @@ struct ConvolutionGpu {
   // // // This code section describes the size of MMA op
   // // !!!! WE NEED THIS SO IT CAN ACTUALLY RUN ON Tensor Cores, the default is different
   // using ShapeMMAOp = cutlass::gemm::GemmShape<8, 8, 4>;  // <- MMA Op tile M = 8, N = 8, K = 4
+  // using EpilogueOp = cutlass::epilogue::thread::LinearCombination<Out,
+  //                                           1,
+  //                                         // 128 / cutlass::sizeof_bits<Out>::value,
+  //                                         W, W>;
 
   //  using CutlassConv = typename cutlass::gemm::device::Conv<In, cutlass::half_t,        // Data-type of A matrix
   //                                                 RowMajor,  // Layout of A matrix
@@ -78,7 +86,14 @@ struct ConvolutionGpu {
   //                                                 SmArch, // arch 70
   //                                                 ShapeMMAThreadBlock, // we can probably leave default shapes, but we need gemm 8x8x4
   //                                                 ShapeMMAWarp,
-  //                                                 ShapeMMAOp
+  //                                                 ShapeMMAOp,
+  //                                                 EpilogueOp,
+  //                                                 typename cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<>,
+  //                                                 2,
+  //                                                 1,
+  //                                                 1
+  //                                                 // kInnerConv ? 128 / cutlass::sizeof_bits<In>::value : 1,
+  //                                                 // kInnerConv ? 1 : 128 / cutlass::sizeof_bits<In>::value
   //                                                 >;
 
   using CutlassConv = typename cutlass::gemm::device::Conv<In, In, // Data-type of Input
@@ -190,7 +205,10 @@ struct ConvolutionGpu {
     }
     // Construct and invoke the CUTLASS kernel
     CutlassConv gemm_operator;
-    gemm_operator(args, nullptr, ctx.gpu.stream);
+    auto status = gemm_operator.can_implement(args);
+    DALI_ENFORCE(status == cutlass::Status::kSuccess,
+                 make_string("Operation not possible: ", cutlass::cutlassGetStatusString(status)));
+    gemm_operator(args, ctx.gpu.stream);
   }
 
  private:

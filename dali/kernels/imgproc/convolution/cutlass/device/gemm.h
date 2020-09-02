@@ -184,27 +184,29 @@ template <
     /// Tag indicating architecture to tune for
     typename ArchTag_ = arch::Sm70,
     /// Threadblock-level tile size (concept: GemmShape)
-    typename ThreadblockShape_ =
-        typename DefaultConvConfiguration<OperatorClass_, ArchTag_,
-                                          // TODO(klecki): ElementIn_ or ElementCastIn_?
-                                          select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-                                          select_B_t<InnerConv, ElementIn_, ElementWindow_>,
-                                          ElementOut_, ElementAccumulator_>::ThreadblockShape,
+    typename ThreadblockShape_ = typename DefaultConvConfiguration<
+        OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::ThreadblockShape,
     /// Warp-level tile size (concept: GemmShape)
     typename WarpShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::WarpShape,
+        OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::WarpShape,
     /// Instruction-level tile size (concept: GemmShape)
     typename InstructionShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::InstructionShape,
+        OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::InstructionShape,
     /// Epilogue output operator
     typename EpilogueOutputOp_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::EpilogueOutputOp,
+        OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::EpilogueOutputOp,
     /// Threadblock-level swizzling operator
     typename ThreadblockSwizzle_ = typename threadblock::GemmIdentityThreadblockSwizzle<>,
     /// Number of stages used in the pipelined mainloop
@@ -226,9 +228,10 @@ template <
     bool SplitKSerial = false,
     /// Operation performed by GEMM
     typename Operator_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_, select_A_t<InnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<InnerConv, ElementIn_, ElementWindow_>, ElementOut_,
-        ElementAccumulator_>::Operator,
+        OperatorClass_, ArchTag_,
+        select_A_t<InnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<InnerConv, ElementIn_, ElementWindow_>,
+        ElementOut_, ElementAccumulator_>::Operator,
     /// Whether Beta is zero or not
     bool IsBetaZero = false>
 class Conv {
@@ -372,8 +375,7 @@ class Conv {
   }
 
   /// Initializes GEMM state from arguments.
-  Status initialize(Arguments const &args, void *workspace = nullptr,
-                    cudaStream_t stream = nullptr) {
+  Status initialize(Arguments const &args, cudaStream_t stream = nullptr) {
     // Determine grid shape
     ThreadblockSwizzle threadblock_swizzle;
 
@@ -405,7 +407,9 @@ class Conv {
           sample_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
           split_k_slices);
 
-      // TODO(klecki): Something other than vector?
+      // TODO(klecki): the kernel part uses Params that we create based on Arguments
+      // we need to provide them for all samples, for now we just fill a temporary vector
+      // and copy it to device, we might try to persist the memory
       host_params_.push_back(typename ConvKernel::SampleParams{
           arg.channels,
           sample_size,
@@ -415,7 +419,6 @@ class Conv {
           arg.ref_C.non_const_ref(),
           arg.ref_D,
           arg.epilogue,
-          static_cast<int *>(workspace),
           arg.planes,
           arg.plane_stride});
     }
@@ -428,7 +431,6 @@ class Conv {
   Status run(cudaStream_t stream = nullptr) {
     ThreadblockSwizzle threadblock_swizzle;
 
-    // TODO(klecki): it's all the same, but maybe it's worth to keep it as value in the params_
     dim3 grid = threadblock_swizzle.get_grid_shape(params_.grid_tiled_shape);
     dim3 block(ConvKernel::kThreadCount, 1, 1);
 
@@ -489,9 +491,8 @@ class Conv {
   }
 
   /// Runs the kernel using initialized state.
-  Status operator()(Arguments const &args, void *workspace = nullptr,
-                    cudaStream_t stream = nullptr) {
-    Status status = initialize(args, workspace);
+  Status operator()(Arguments const &args, cudaStream_t stream = nullptr) {
+    Status status = initialize(args);
 
     if (status == Status::kSuccess) {
       status = run(stream);

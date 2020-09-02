@@ -56,6 +56,9 @@ struct DefaultConvConfiguration;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief Propagate the default configurations
+ */
 template <typename OperatorClass, typename ArchTag, typename ElementA, typename ElementB,
           typename ElementC, typename ElementAccumulator>
 struct DefaultConvConfiguration {
@@ -95,8 +98,7 @@ struct DefaultConvConfiguration<arch::OpClassSimt, ArchTag, ElementA, ElementB, 
 template <typename ElementA, typename ElementB, typename ElementC, typename ElementAccumulator>
 struct DefaultConvConfiguration<arch::OpClassTensorOp, arch::Sm70, ElementA, ElementB, ElementC,
                                 ElementAccumulator> {
-  // This requires alignment of inputs and outputs
-  // TODO(klecki): Maybe we can limit alignment to the conv matrix and see how it works
+  // TODO(klecki): Check limiting only the alignment of the input and 1 for convolution matrix
   static int const kAlignmentA = 128 / sizeof_bits<ElementA>::value;
   static int const kAlignmentB = 128 / sizeof_bits<ElementB>::value;
 
