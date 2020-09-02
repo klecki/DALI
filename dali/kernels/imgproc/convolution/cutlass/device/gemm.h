@@ -406,6 +406,9 @@ class Conv {
       cutlass::gemm::GemmCoord sample_grid_shape = threadblock_swizzle.get_tiled_shape(
           sample_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
           split_k_slices);
+      if (!kInnerConv) {
+        DALI_ENFORCE(arg.channels == 1, "For outer convolution channels should be set to 1.");
+      }
 
       // TODO(klecki): the kernel part uses Params that we create based on Arguments
       // we need to provide them for all samples, for now we just fill a temporary vector
@@ -507,7 +510,6 @@ class Conv {
       return {matrix_size[0], matrix_size[1] * channels, matrix_size[1] * channels};
     } else {
       // m, n, m where n = width * channels
-      // TODO(klecki): for outer DALI_ENFORCE(channels == 1)
       return {matrix_size[0], matrix_size[1] * channels, matrix_size[0]};
     }
   }
