@@ -30,10 +30,11 @@
 #ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_DEFAULT_CONV_CONFIGURATION_H_
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_DEFAULT_CONV_CONFIGURATION_H_
 
+#include "cutlass/cutlass.h"
+
 #include "cutlass/arch/arch.h"
 #include "cutlass/arch/mma.h"
 #include "cutlass/arch/wmma.h"
-#include "cutlass/cutlass.h"
 #include "cutlass/numeric_types.h"
 
 #include "cutlass/epilogue/thread/linear_combination.h"

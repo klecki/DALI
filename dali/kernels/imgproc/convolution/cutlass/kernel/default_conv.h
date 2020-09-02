@@ -39,27 +39,25 @@
 #include "cutlass/cutlass.h"
 
 #include "cutlass/arch/wmma.h"
-#include "cutlass/layout/matrix.h"
-#include "cutlass/numeric_types.h"
-
 #include "cutlass/epilogue/thread/linear_combination.h"
+#include "cutlass/epilogue/threadblock/default_epilogue_simt.h"
+#include "cutlass/epilogue/threadblock/default_epilogue_tensor_op.h"
+#include "cutlass/epilogue/threadblock/default_epilogue_volta_tensor_op.h"
 #include "cutlass/epilogue/threadblock/epilogue.h"
-
 #include "cutlass/gemm/gemm.h"
-#include "cutlass/gemm/kernel/gemm_pipelined.h"  // todo do a conv_pipelined.h
-#include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
+#include "cutlass/gemm/kernel/gemm_pipelined.h"
 #include "cutlass/gemm/threadblock/default_mma_core_simt.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm80.h"
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
-#include "dali/kernels/imgproc/convolution/cutlass/threadblock/default_conv_mma.h"
-
-#include "cutlass/epilogue/threadblock/default_epilogue_simt.h"
-#include "cutlass/epilogue/threadblock/default_epilogue_tensor_op.h"
-#include "cutlass/epilogue/threadblock/default_epilogue_volta_tensor_op.h"
+#include "cutlass/layout/matrix.h"
+#include "cutlass/numeric_types.h"
 #include "cutlass/transform/threadblock/predicated_tile_iterator.h"
+
 #include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_iterator.h"
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/default_conv_mma.h"
+#include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
 
 // point to original impl
 #include "cutlass/gemm/kernel/default_gemm.h"

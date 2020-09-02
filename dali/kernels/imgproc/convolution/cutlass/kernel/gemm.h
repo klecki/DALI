@@ -44,9 +44,7 @@
 #include "cutlass/transform/threadblock/predicated_tile_iterator.h"
 #include "cutlass/transform/threadblock/regular_tile_iterator.h"
 
-// TODO(klecki): use actual DALI utilities
-#include "dali/kernels/imgproc/convolution/cutlass/dali/utility.h"
-
+#include "dali/kernels/imgproc/convolution/cutlass/utility.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -139,11 +137,8 @@ struct Conv {
                                 GemmCoord const &grid_tiled_shape) {
       // total tiles that cover the k-dim
       int total_gemm_k_iterations = (problem_size.k() + Mma::Shape::kK - 1) / Mma::Shape::kK;
-      // how many iterations per block in the grid (grid_tiled_shape.k() is assumed to be 1)
-      // TODO(klecki): Normally we could split the k across grids, but we're using it to iterate
-      // over samples
-      int gemm_k_iterations = total_gemm_k_iterations;
-      return gemm_k_iterations * Mma::Shape::kK;
+      // We could split the k across grids, but we're using it to iterate over samples
+      return total_gemm_k_iterations * Mma::Shape::kK;
     }
   };
 
@@ -299,12 +294,11 @@ struct Conv {
 
       // effective span of the window in the generated matrix
       int radius_span = (params.window_size / 2) * params.channels;
-      int window_span = params.window_size * params.channels;
 
       // We need to start at aligned tile, otherwise tensor ops aren't happy.
       // Take this into account when calculating the non-zero region
-      // For right side conv-matrix the non-zero regions starts at (n() - window_span, n()),
-      // for the left side it's (m(), m() - window_span)
+      // For right side conv-matrix the non-zero regions starts at (n() - radius_span, n()),
+      // for the left side it's (m(), m() - radius_span)
       int conv_diag_position = kInnerConv ? threadblock_tile_offset.n() * Mma::Shape::kN
                                           : threadblock_tile_offset.m() * Mma::Shape::kM;
       constexpr int tile_extent = kInnerConv ? Mma::Shape::kN : Mma::Shape::kM;
@@ -380,8 +374,7 @@ struct Conv {
 
       if (!kSplitKSerial || start_iteration > 0) {
           // Compute threadblock-scoped matrix multiply-add
-          mma(start_iteration, end_iteration, accumulators, iterator_A, iterator_B, accumulators,
-              tb_offset_C);
+          mma(start_iteration, end_iteration, accumulators, iterator_A, iterator_B, accumulators);
         }
 
       //

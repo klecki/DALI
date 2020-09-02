@@ -42,9 +42,10 @@
 #ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_THREADBLOCK_PREDICATED_TILE_ACCESS_ITERATOR_H_
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_THREADBLOCK_PREDICATED_TILE_ACCESS_ITERATOR_H_
 
+#include "cutlass/cutlass.h"
+
 #include "cutlass/array.h"
 #include "cutlass/coord.h"
-#include "cutlass/cutlass.h"
 #include "cutlass/layout/matrix.h"
 #include "cutlass/layout/pitch_linear.h"
 #include "cutlass/matrix_shape.h"

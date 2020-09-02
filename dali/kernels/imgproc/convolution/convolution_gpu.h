@@ -72,8 +72,8 @@ struct ConvolutionGpu {
   //                                                 W, cutlass::half_t,        // Data-type of B matrix
   //                                                 Out,        // Data-type of C matrix
   //                                                 RowMajor,    // Layout of C matrix
-  //                                                 2, kInnerConv, // axes, InnerConv
-  //                                                 W,  // element acumulator
+  //                                                 kInnerConv, // InnerConv
+  //                                                 W,  // element accumulator
   //                                                 MMAOp, // tensor op
   //                                                 SmArch, // arch 70
   //                                                 ShapeMMAThreadBlock, // we can probably leave default shapes, but we need gemm 8x8x4
@@ -85,7 +85,7 @@ struct ConvolutionGpu {
                                                   RowMajor,  // Layout of A matrix
                                                   W, W,  // Data-type of B matrix
                                                   Out,  // Data-type of C matrix
-                                                  RowMajor, 2, kInnerConv>;
+                                                  RowMajor, kInnerConv>;
 
   using Arguments = typename CutlassConv::Arguments;
 

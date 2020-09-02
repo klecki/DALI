@@ -30,21 +30,20 @@
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_THREADBLOCK_DEFAULT_CONV_MMA_H_
 
 #include "cutlass/cutlass.h"
-#include "cutlass/numeric_types.h"
+
 #include "cutlass/arch/arch.h"
 #include "cutlass/arch/wmma.h"
-
-#include "cutlass/layout/matrix.h"
-#include "cutlass/transform/threadblock/predicated_tile_iterator.h"
-#include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_iterator.h"
-#include "cutlass/transform/threadblock/predicated_tile_iterator_2dthreadtile.h"
-#include "dali/kernels/imgproc/convolution/cutlass/threadblock/mma_pipelined.h"
+#include "cutlass/gemm/threadblock/default_mma.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm70.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm75.h"
 #include "cutlass/gemm/threadblock/default_mma_core_sm80.h"
+#include "cutlass/layout/matrix.h"
+#include "cutlass/numeric_types.h"
+#include "cutlass/transform/threadblock/predicated_tile_iterator.h"
+#include "cutlass/transform/threadblock/predicated_tile_iterator_2dthreadtile.h"
 
-#include "cutlass/gemm/threadblock/default_mma.h"
-
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/mma_pipelined.h"
+#include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_iterator.h"
 
 #if defined(CUTLASS_ARCH_WMMA_ENABLED)
 #include "cutlass/gemm/threadblock/default_mma_core_wmma.h"

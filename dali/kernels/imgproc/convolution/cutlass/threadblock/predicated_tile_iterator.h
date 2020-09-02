@@ -36,6 +36,7 @@
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_THREADBLOCK_PREDICATED_TILE_ITERATOR_H_
 
 #include "cutlass/arch/memory.h"
+
 #include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_access_iterator.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,8 +52,7 @@ namespace threadblock {
 /// implementation, the innermost convolution will be right-hand operand (AdvanceRank = 1),
 /// (we iterate over strided-rows), and for outer-convolution the AdvanceRank = 0 (we iterate over
 /// contiguous column dim).
-
-
+///
 /// PositionPredicatedTileIterator
 ///
 /// Satisfies: ForwardTileIteratorConcept |

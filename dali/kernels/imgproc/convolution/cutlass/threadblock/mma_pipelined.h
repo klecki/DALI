@@ -29,15 +29,15 @@
 #ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_THREADBLOCK_MMA_PIPELINED_H_
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_THREADBLOCK_MMA_PIPELINED_H_
 
+#include "cutlass/cutlass.h"
+
 #include "cutlass/aligned_buffer.h"
 #include "cutlass/array.h"
-#include "cutlass/cutlass.h"
-#include "cutlass/numeric_conversion.h"
-
+#include "cutlass/gemm/gemm.h"
 #include "cutlass/matrix_shape.h"
+#include "cutlass/numeric_conversion.h"
 #include "cutlass/numeric_types.h"
 
-#include "cutlass/gemm/gemm.h"
 #include "dali/kernels/imgproc/convolution/cutlass/threadblock/mma_base.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////////////
@@ -199,7 +199,6 @@ class ConvMmaPipelined
       IteratorA iterator_A,                       ///< iterator over A operand in global memory
       IteratorB iterator_B,                       ///< iterator over B operand in global memory
       FragmentC const &src_accum,                 ///< source accumulator tile
-      cutlass::MatrixCoord const &logical_coord,  ///< position in the matrix TODO(klecki): remove
       TransformA transform_A = TransformA(),      ///< transformation applied to A fragment
       TransformB transform_B = TransformB()) {    ///< transformation applied to B fragment
     //

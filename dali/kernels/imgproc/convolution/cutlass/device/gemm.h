@@ -31,19 +31,17 @@
 
 #include <vector>
 
-#include "cutlass/arch/arch.h"
 #include "cutlass/cutlass.h"
+
+#include "cutlass/arch/arch.h"
 #include "cutlass/device_kernel.h"
+#include "cutlass/gemm/threadblock/threadblock_swizzle.h"
 #include "cutlass/numeric_types.h"
 
-#include "cutlass/gemm/threadblock/threadblock_swizzle.h"
-#include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
-
-// #include "cutlass/gemm/kernel/default_gemm.h"
+#include "dali/kernels/imgproc/convolution/cutlass/utility.h"
 #include "dali/kernels/imgproc/convolution/cutlass/device/default_conv_configuration.h"
 #include "dali/kernels/imgproc/convolution/cutlass/kernel/default_conv.h"
-
-#include "dali/kernels/imgproc/convolution/cutlass/dali/utility.h"  // TODO(klecki): use dali utilities
+#include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -177,8 +175,8 @@ template <
     typename ElementOut_,
     /// Layout type for C and D matrix operands
     typename LayoutOut_,
-    // Number of input data axes to process
-    int Axes = 2, bool InnerConv = true,
+    /// Type of convolution
+    bool InnerConv = true,
     /// Element type for internal accumulation
     typename ElementAccumulator_ = ElementOut_,
     /// Operator class tag
@@ -266,8 +264,7 @@ class Conv {
   static_assert(kSplitKSerial == false, "Only basic options are supported");
   // TODO(klecki): investigate how this can be used, now assume 1
   static int const split_k_slices = 1;
-  // TODO(klecki): Axes do not mean anything, remove it
-  static int const kAxes = Axes;
+  static int const kAxes = 2;
   static bool const kInnerConv = InnerConv;
 
     /// Define the kernel
