@@ -262,10 +262,11 @@ class Conv {
   static ComplexTransform const kTransformA = ComplexTransform::kNone;
   static ComplexTransform const kTransformB = ComplexTransform::kNone;
   static_assert(kSplitKSerial == false, "Only basic options are supported");
-  // TODO(klecki): investigate how this can be used, now assume 1
+  // Set this to 1, we don't split k, instead we iterate over samples
   static int const split_k_slices = 1;
   static int const kAxes = 2;
   static bool const kInnerConv = InnerConv;
+  static int const kMaxWindowSize = 512;
 
     /// Define the kernel
   using ConvKernel = typename kernel::DefaultConv<
@@ -299,7 +300,6 @@ class Conv {
     //
     // Data members
     //
-    // GemmCoord problem_size;
     Array<int, kAxes> matrix_size;
     int window_size;
     int channels;
@@ -354,46 +354,22 @@ class Conv {
 
   /// Determines whether the GEMM can execute the given problem.
   static Status can_implement(Arguments const &args) {
-    // we assume kSplitKSerial == false, so this will prevent split_k_slices != 1
     if (!kSplitKSerial && split_k_slices > 1) {
       return Status::kErrorInvalidProblem;
     }
-    // for (int i = 0; i < args.sample_count; i++) {
-    //   //TODO(klecki): fixup for args.host_samples[i]
-    //   // Status status = GemmKernel::can_implement(
-    //   //   args.problem_size,
-    //   //   args.ref_In.non_const_ref(),
-    //   //   args.ref_Windows.non_const_ref(),
-    //   //   args.ref_C.non_const_ref(),
-    //   //   args.ref_D
-    //   // );
-    // }
-
-    // if (status != Status::kSuccess) {
-    //   return status;
-    // }
+    for (const auto &arg : args) {
+      if (arg.window_size > kMaxWindowSize) {
+        return Status::kErrorInvalidProblem;
+      }
+      Status status = ConvKernel::can_implement(arg.matrix_size, arg.ref_In.non_const_ref(),
+                                                arg.ref_C.non_const_ref(), arg.ref_D);
+      if (status != Status::kSuccess) {
+        return status;
+      }
+    }
 
     return Status::kSuccess;
   }
-
-  // TODO(klecki): not used, remove
-  // /// Gets the workspace size
-  // static size_t get_workspace_size(Arguments const &args) {
-  //   size_t bytes = 0;
-
-  //   // Determine grid shape
-  //   ThreadblockSwizzle threadblock_swizzle;
-
-  //   cutlass::gemm::GemmCoord tiled_shape = threadblock_swizzle.get_tiled_shape(
-  //       args.problem_size, {ThreadblockShape::kM, ThreadblockShape::kN, ThreadblockShape::kK},
-  //       args.split_k_slices);
-
-  //   if (kSplitKSerial && args.split_k_slices > 1) {
-  //     bytes += sizeof(int) * size_t(tiled_shape.m()) * size_t(tiled_shape.n());
-  //   }
-
-  //   return bytes;
-  // }
 
   /// Initializes GEMM state from arguments.
   Status initialize(Arguments const &args, void *workspace = nullptr,
@@ -418,31 +394,11 @@ class Conv {
         split_k_slices);
 
     assert(grid_shape.k() == 1);
+
     // Assign the number of samples to gridDim.z to iterate over them
     grid_shape[2] = args.size();
 
-    // Assume kSplitKSerial == false (already asserted) and split_k_slices == 1
-    // if (kSplitKSerial) {
-    //   if (args.split_k_slices > 1) {
-    //     if (!workspace) {
-    //       return Status::kErrorWorkspaceNull;
-    //     }
-
-    //     size_t bytes = get_workspace_size(args);
-
-    //     cudaError_t result = cudaMemsetAsync(workspace, 0, bytes, stream);
-
-    //     if (result != cudaSuccess) {
-    //       return Status::kErrorInternal;
-    //     }
-    //   }
-    // } else {
-    //   if (args.split_k_slices > 1) {
-    //     return Status::kErrorInvalidProblem;
-    //   }
-    // }
-
-     // Initialize the Params structure
+    // Initialize the Params structure
     for (auto &arg : args) {
       GemmCoord sample_size = GetProblemSize(arg.matrix_size, arg.channels, kInnerConv);
       cutlass::gemm::GemmCoord sample_grid_shape = threadblock_swizzle.get_tiled_shape(
@@ -467,27 +423,6 @@ class Conv {
 
     return Status::kSuccess;
   }
-
-  // TODO(klecki): this just swaps the pointers, but we actually need to swap the sizes as well,
-  // need to use initialize
-  // /// Lightweight update given a subset of arguments
-  // Status update(Arguments const &args, void *workspace = nullptr) {
-
-  //   if (kSplitKSerial && args.split_k_slices > 1) {
-  //     if (!workspace) {
-  //       return Status::kErrorWorkspaceNull;
-  //     }
-  //   }
-
-  //   params_.ref_In.reset(args.ref_In.non_const_ref().data());
-  //   params_.ref_Windows.reset(args.ref_Windows.non_const_ref().data());
-  //   params_.ref_C.reset(args.ref_C.non_const_ref().data());
-  //   params_.ref_D.reset(args.ref_D.data());
-  //   params_.output_op = args.epilogue;
-  //   params_.semaphore = static_cast<int *>(workspace);
-
-  //   return Status::kSuccess;
-  // }
 
   /// Runs the kernel using initialized state.
   Status run(cudaStream_t stream = nullptr) {

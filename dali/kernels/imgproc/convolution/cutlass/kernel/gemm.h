@@ -92,7 +92,6 @@ struct Conv {
     typename Epilogue::OutputTileIterator::TensorRef ref_D;
     typename OutputOp::Params output_op;
     int *semaphore;         // TODO(klecki): add some handling for generating per sample semaphore?
-    int gemm_k_iterations;  // TODO(klecki): LOL, this is not set
     int gemm_k_size;
     int planes = 1;
     int plane_stride = 0;
@@ -101,7 +100,7 @@ struct Conv {
     // Methods
     //
     CUTLASS_HOST_DEVICE
-    SampleParams() : semaphore(0), gemm_k_iterations(0), gemm_k_size(0) {}
+    SampleParams() : semaphore(0), gemm_k_size(0) {}
 
     CUTLASS_HOST_DEVICE
     SampleParams(int channels, cutlass::gemm::GemmCoord const &problem_size,
@@ -166,25 +165,16 @@ struct Conv {
   Conv() {}
 
   /// Determines whether kernel satisfies alignment
-  static Status can_implement(cutlass::gemm::GemmCoord const &problem_size,
-                              typename Mma::IteratorA::TensorRef ref_In,
-                              // typename Mma::IteratorB::TensorRef ref_B,
+  static Status can_implement(Array<int, 2> const &matrix_size,
+                              typename Mma::IteratorIn::TensorRef ref_In,
                               typename Epilogue::OutputTileIterator::TensorRef ref_C,
                               typename Epilogue::OutputTileIterator::TensorRef ref_D) {
-    static int const kAlignmentA = Mma::IteratorA::AccessType::kElements;
-    static int const kAlignmentB = Mma::IteratorB::AccessType::kElements;
+    static int const kAlignmentIn = Mma::IteratorIn::AccessType::kElements;
     static int const kAlignmentC = Epilogue::OutputTileIterator::kElementsPerAccess;
 
-    // TODO(klecki): use this, for real!!
-
-    if (!TensorRef_aligned(ref_In, kAlignmentA)) {
+    if (!TensorRef_aligned(ref_In, kAlignmentIn)) {
       return Status::kErrorMisalignedOperand;
     }
-
-
-    // if (!TensorRef_aligned(ref_B, kAlignmentB)) {
-    //   return Status::kErrorMisalignedOperand;
-    // }
 
     if (!TensorRef_aligned(ref_C, kAlignmentC)) {
       return Status::kErrorMisalignedOperand;
@@ -194,9 +184,8 @@ struct Conv {
       return Status::kErrorMisalignedOperand;
     }
 
-    if ((problem_size.m() % kAlignmentA) || (problem_size.k() % kAlignmentA) ||
-        // (problem_size.n() % kAlignmentB) || (problem_size.k() % kAlignmentB) ||
-        (problem_size.m() % kAlignmentC) || (problem_size.n() % kAlignmentC)) {
+    if ((matrix_size[0] % kAlignmentIn) || (matrix_size[1] % kAlignmentIn) ||
+        (matrix_size[0] % kAlignmentC) || (matrix_size[1] % kAlignmentC)) {
       return Status::kErrorMisalignedOperand;
     }
 
@@ -245,13 +234,6 @@ struct Conv {
                                     threadIdx.x);
 
     typename WindowIteratorGmem::Fragment fragment;
-    // using Transform = NumericArrayConverter<
-    //   WindowElement,
-    //   WindowElement,
-    //   WindowIteratorGmem::Fragment::kElements>;
-
-    // Transform transform_window = Transform();
-
     fragment.clear();
 
     src_iterator.load(fragment);
@@ -396,18 +378,6 @@ struct Conv {
       int block_idx = threadblock_tile_offset.m() +
                         threadblock_tile_offset.n() * params.sample_grid_tiled_shape.m();
 
-      // Construct the semaphore.
-      // Semaphore semaphore(params.semaphore + block_idx, thread_idx);
-
-      // // If performing a reduction via split-K, fetch the initial synchronization
-      // if (kSplitKSerial && params.grid_tiled_shape.k() > 1) {
-      //   // Fetch the synchronization lock initially but do not block.
-      //   semaphore.fetch();
-
-      //  // Indicate which position in a serial reduction the output operator is currently updating
-      //  output_op.set_k_partition(threadblock_tile_offset.k());
-      // }
-
       // Tile iterator loading from source tensor.
       typename Epilogue::OutputTileIterator iterator_C(params.params_C, params.ref_C.data(),
                                                       params.problem_size.mn(), thread_idx,
@@ -420,38 +390,8 @@ struct Conv {
 
       Epilogue epilogue(shared_storage.epilogue, thread_idx, warp_idx, lane_idx);
 
-      // // Wait on the semaphore - this latency may have been covered by iterator construction
-      // if (kSplitKSerial && params.grid_tiled_shape.k() > 1) {
-      //   // For subsequent threadblocks, the source matrix is held in the 'D' tensor.
-      //   if (threadblock_tile_offset.k()) {
-      //     iterator_C = iterator_D;
-      //   }
-
-      //   semaphore.wait(threadblock_tile_offset.k());
-
-      //   __threadfence();
-      // }
-
       // Execute the epilogue operator to update the destination tensor.
       epilogue(output_op, iterator_D, accumulators, iterator_C);
-
-      //
-      // Release the semaphore
-      //
-
-      // if (kSplitKSerial && params.grid_tiled_shape.k() > 1) {
-      //   int lock = 0;
-      //   if (params.grid_tiled_shape.k() == threadblock_tile_offset.k() + 1) {
-      //     // The final threadblock resets the semaphore for subsequent grids.
-      //     lock = 0;
-      //   } else {
-      //     // Otherwise, the semaphore is incremented
-      //     lock = threadblock_tile_offset.k() + 1;
-      //   }
-
-      //   __threadfence();
-      //   semaphore.release(lock);
-      // }
 
       params.ref_In.add_pointer_offset(params.plane_stride);
       params.ref_C.add_pointer_offset(params.plane_stride);
