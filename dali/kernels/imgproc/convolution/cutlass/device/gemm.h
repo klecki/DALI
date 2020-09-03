@@ -378,7 +378,10 @@ class Conv {
   }
 
   /// Prepare convolution layout (in host memory) to use required layout
-  void prepare_window()
+  template <typename T>
+  void prepare_window(dali::span<T, kTotalAlignedSize> dst, dali::span<T> src, int num_channels = 1) {
+
+  }
 
   /// Initializes GEMM state from arguments.
   Status initialize(Arguments const &args, cudaStream_t stream = nullptr) {
