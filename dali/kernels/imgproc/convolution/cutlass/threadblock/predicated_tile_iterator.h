@@ -251,7 +251,7 @@ namespace threadblock {
 ///
 ///
 template <typename Shape, typename Element, typename Layout, int AdvanceRank, typename ThreadMap,
-          int AccessSize = ThreadMap::kElementsPerAccess>
+          typename ConvWindowConfiguration, int AccessSize = ThreadMap::kElementsPerAccess>
 class PositionPredicatedTileIterator;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -263,10 +263,10 @@ class PositionPredicatedTileIterator;
 ///            WriteableContiguousTileIteratorConcept |
 ///            MaskedTileIteratorConcept
 ///
-template <typename Shape_, typename Element_, int AdvanceRank,
-          typename ThreadMap_, int AccessSize>
-class PositionPredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank,
-                             ThreadMap_, AccessSize> {
+template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_,
+          typename ConvWindowConfiguration, int AccessSize>
+class PositionPredicatedTileIterator<Shape_, Element_, layout::PitchLinear, AdvanceRank, ThreadMap_,
+                                     ConvWindowConfiguration, AccessSize> {
  public:
   static_assert(AdvanceRank == 0 || AdvanceRank == 1,
                 "Specialization for pitch-linear iterator may along advance along the "
@@ -438,7 +438,7 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::PitchLinear, Adva
     load_with_byte_offset(frag, pointer_offset * sizeof_bits<Element>::value / 8);
   }
 
-CUTLASS_DEVICE
+  CUTLASS_DEVICE
   void load_access_elements(AccessType *frag_ptr, int idx) {
     // This calculates the logical coordinate of the beggining of access
     TensorCoord current_coord = address_iterator_.get_current_coord();
@@ -638,7 +638,7 @@ CUTLASS_DEVICE
   template <bool mirrored = true>
   CUTLASS_DEVICE void load_vec(AccessType &dst, int window_element) {
     auto aligned_offset = get_aligned_offset<mirrored>(window_element);
-    constexpr int window_center = kInnerConv || !mirrored ? 256 : 512;
+    constexpr int window_center = ConvWindowConfiguration::template getWindowCenter<mirrored>();
     const auto *access_ptr = reinterpret_cast<AccessType const *>(pointer_ + window_center +
                                                                   aligned_offset.aligned_element);
     mux(dst, access_ptr[0], access_ptr[1], aligned_offset.offset);
@@ -658,7 +658,7 @@ CUTLASS_DEVICE
       return;
     }
     auto aligned_offset = get_aligned_offset<mirrored>(window_element);
-    constexpr int window_center = kInnerConv || !mirrored ? 256 : 512;
+    constexpr int window_center = ConvWindowConfiguration::template getWindowCenter<mirrored>();
     const auto *access_ptr = reinterpret_cast<AccessType const *>(pointer_ + window_center +
                                                                   aligned_offset.aligned_element);
     mux_add(dst, access_ptr[0], access_ptr[1], aligned_offset.offset);
@@ -678,7 +678,7 @@ CUTLASS_DEVICE
     // In outer conv we skip columns
     int lo_offset = get_lo_offset<mirrored>(window_element);
     int offset = get_offset<mirrored>(window_element, lo_offset);
-    constexpr int window_center = kInnerConv || !mirrored ? 256 : 512;
+    constexpr int window_center = ConvWindowConfiguration::template getWindowCenter<mirrored>();
     const auto *access_ptr =
         reinterpret_cast<AccessType const *>(pointer_ + window_center + lo_offset);
     Element tmp = static_cast<Element>(0);
@@ -856,9 +856,10 @@ CUTLASS_DEVICE
 ///            WriteableContiguousTileIteratorConcept |
 ///            MaskedTileIteratorConcept
 ///
-template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_, int AccessSize>
+template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_,
+          typename ConvWindowConfiguration, int AccessSize>
 class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajor, AdvanceRank, ThreadMap_,
-                             AccessSize> {
+                                     ConvWindowConfiguration, AccessSize> {
  public:
   static_assert(AdvanceRank == 0 || AdvanceRank == 1,
                 "Specialization for pitch-linear iterator may along advance along the "
@@ -880,14 +881,10 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajor, Adva
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
 
-  using UnderlyingIterator = PositionPredicatedTileIterator<
-    layout::PitchLinearShape<Shape::kRow, Shape::kColumn>,
-    Element,
-    layout::PitchLinear,
-    (kAdvanceRank == 0 ? 0 : 1),
-    ThreadMap,
-    AccessSize
-  >;
+  using UnderlyingIterator =
+      PositionPredicatedTileIterator<layout::PitchLinearShape<Shape::kRow, Shape::kColumn>, Element,
+                                     layout::PitchLinear, (kAdvanceRank == 0 ? 0 : 1), ThreadMap,
+                                     ConvWindowConfiguration, AccessSize>;
 
   using AccessType = typename UnderlyingIterator::AccessType;
 
@@ -1045,9 +1042,10 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajor, Adva
 ///            WriteableContiguousTileIteratorConcept |
 ///            MaskedTileIteratorConcept
 ///
-template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_, int AccessSize>
+template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_,
+          typename ConvWindowConfiguration, int AccessSize>
 class PositionPredicatedTileIterator<Shape_, Element_, layout::RowMajor, AdvanceRank, ThreadMap_,
-                             AccessSize> {
+                                     ConvWindowConfiguration, AccessSize> {
  public:
   static_assert(AdvanceRank == 0 || AdvanceRank == 1,
                 "Specialization for pitch-linear iterator may along advance along the "
@@ -1071,8 +1069,8 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::RowMajor, Advance
 
   using UnderlyingIterator =
       PositionPredicatedTileIterator<layout::PitchLinearShape<Shape::kColumn, Shape::kRow>, Element,
-                             layout::PitchLinear, (kAdvanceRank == 0 ? 1 : 0), ThreadMap,
-                             AccessSize>;
+                                     layout::PitchLinear, (kAdvanceRank == 0 ? 1 : 0), ThreadMap,
+                                     ConvWindowConfiguration, AccessSize>;
 
   using AccessType = typename UnderlyingIterator::AccessType;
 
@@ -1236,10 +1234,10 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::RowMajor, Advance
 ///            MaskedTileIteratorConcept
 ///
 
-template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_, int AccessSize,
-          int InterleavedK>
+template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_,
+          typename ConvWindowConfiguration, int AccessSize, int InterleavedK>
 class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajorInterleaved<InterleavedK>,
-                             AdvanceRank, ThreadMap_, AccessSize> {
+                                     AdvanceRank, ThreadMap_, ConvWindowConfiguration, AccessSize> {
  public:
   static_assert(AdvanceRank == 0 || AdvanceRank == 1,
                 "Specialization for pitch-linear iterator may along advance along the "
@@ -1264,7 +1262,8 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajorInterl
 
   using UnderlyingIterator = PositionPredicatedTileIterator<
       layout::PitchLinearShape<Shape::kRow * kInterleavedK, Shape::kColumn / kInterleavedK>,
-      Element, layout::PitchLinear, (kAdvanceRank == 0 ? 0 : 1), ThreadMap, AccessSize>;
+      Element, layout::PitchLinear, (kAdvanceRank == 0 ? 0 : 1), ThreadMap, ConvWindowConfiguration,
+      AccessSize>;
 
   using AccessType = typename UnderlyingIterator::AccessType;
 
@@ -1421,10 +1420,10 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajorInterl
 ///            WriteableContiguousTileIteratorConcept |
 ///            MaskedTileIteratorConcept
 ///
-template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_, int AccessSize,
-          int InterleavedK>
+template <typename Shape_, typename Element_, int AdvanceRank, typename ThreadMap_,
+          typename ConvWindowConfiguration, int AccessSize, int InterleavedK>
 class PositionPredicatedTileIterator<Shape_, Element_, layout::RowMajorInterleaved<InterleavedK>,
-                             AdvanceRank, ThreadMap_, AccessSize> {
+                                     AdvanceRank, ThreadMap_, ConvWindowConfiguration, AccessSize> {
  public:
   static_assert(AdvanceRank == 0 || AdvanceRank == 1,
                 "Specialization for pitch-linear iterator may along advance along the "
@@ -1449,7 +1448,8 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::RowMajorInterleav
 
   using UnderlyingIterator = PositionPredicatedTileIterator<
       layout::PitchLinearShape<Shape::kColumn * kInterleavedK, Shape::kRow / kInterleavedK>,
-      Element, layout::PitchLinear, (kAdvanceRank == 0 ? 1 : 0), ThreadMap, AccessSize>;
+      Element, layout::PitchLinear, (kAdvanceRank == 0 ? 1 : 0), ThreadMap, ConvWindowConfiguration,
+      AccessSize>;
 
   using AccessType = typename UnderlyingIterator::AccessType;
 

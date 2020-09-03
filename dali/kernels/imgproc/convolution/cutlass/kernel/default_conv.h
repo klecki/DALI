@@ -91,6 +91,8 @@ template <
     typename LayoutB,
     /// Access granularity of B matrix in units of elements
     int kAlignmentB,
+    /// Convolution window storage configuration
+    typename ConvWindowConfiguration,
     /// Element type for C and D matrix operands
     typename ElementC,
     /// Layout type for C and D matrix operands
@@ -144,9 +146,9 @@ struct DefaultConv {
 
   using Mma = typename cutlass::gemm::threadblock::SpecializedConvMma<
       ElementA, ElementCastA, LayoutA, kAlignmentA, ElementB, ElementCastB, LayoutB, kAlignmentB,
-      ElementAccumulator, LayoutC, OperatorClass, ArchTag,
-      ThreadblockShape, WarpShape, InstructionShape, Stages,
-      Operator, IsBetaZero, InnerConv>::ThreadblockMma;
+      ConvWindowConfiguration, ElementAccumulator, LayoutC, OperatorClass, ArchTag,
+      ThreadblockShape, WarpShape, InstructionShape, Stages, Operator, IsBetaZero,
+      InnerConv>::ThreadblockMma;
 
   /// Define the epilogue
   using Epilogue = typename UnderlyingConv::Epilogue;

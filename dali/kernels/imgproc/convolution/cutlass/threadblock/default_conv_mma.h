@@ -76,6 +76,8 @@ template <
     typename LayoutB,
     /// Access granularity of B matrix in units of elements
     int kAlignmentB,
+    /// Convolution window storage configuration
+    typename ConvWindowConfiguration,
     /// Element type for internal accumulation
     typename ElementAccumulator,
     /// Layout type for C and D matrix operands
@@ -117,7 +119,7 @@ struct SpecializedConvMma {
   using IteratorA_outer_conv_smem_ =
       cutlass::transform::threadblock::PositionPredicatedTileIterator<
           cutlass::MatrixShape<MmaCore::Shape::kM, MmaCore::Shape::kK>, ElementA, LayoutA, 1,
-          typename MmaCore::IteratorThreadMapA, kAlignmentA>;
+          typename MmaCore::IteratorThreadMapA, ConvWindowConfiguration, kAlignmentA>;
 
   using IteratorA_regular = cutlass::transform::threadblock::PredicatedTileIterator<
       cutlass::MatrixShape<MmaCore::Shape::kM, MmaCore::Shape::kK>, ElementA, LayoutA, 1,
@@ -126,7 +128,7 @@ struct SpecializedConvMma {
   using IteratorB_inner_conv_smem_ =
       cutlass::transform::threadblock::PositionPredicatedTileIterator<
           cutlass::MatrixShape<MmaCore::Shape::kK, MmaCore::Shape::kN>, ElementB, LayoutB, 0,
-          typename MmaCore::IteratorThreadMapB, kAlignmentB>;
+          typename MmaCore::IteratorThreadMapB, ConvWindowConfiguration, kAlignmentB>;
 
   using IteratorB_regular = cutlass::transform::threadblock::PredicatedTileIterator<
       cutlass::MatrixShape<MmaCore::Shape::kK, MmaCore::Shape::kN>, ElementB, LayoutB, 0,

@@ -325,7 +325,8 @@ class PositionPredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear
       TensorCoord extent,
       ///< ID of each participating thread
       int thread_id)
-      : PositionPredicatedTileAccessIterator(params, pointer, extent, thread_id, make_Coord(0, 0)) {}
+      : PositionPredicatedTileAccessIterator(params, pointer, extent, thread_id, make_Coord(0, 0)) {
+  }
 
   /// Overrides the internal iteration index
   CUTLASS_HOST_DEVICE

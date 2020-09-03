@@ -38,10 +38,11 @@
 #include "cutlass/gemm/threadblock/threadblock_swizzle.h"
 #include "cutlass/numeric_types.h"
 
-#include "dali/kernels/imgproc/convolution/cutlass/utility.h"
+#include "dali/kernels/imgproc/convolution/cutlass/conv_window_configuration.h"
 #include "dali/kernels/imgproc/convolution/cutlass/device/default_conv_configuration.h"
 #include "dali/kernels/imgproc/convolution/cutlass/kernel/default_conv.h"
 #include "dali/kernels/imgproc/convolution/cutlass/kernel/gemm.h"
+#include "dali/kernels/imgproc/convolution/cutlass/utility.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -177,6 +178,8 @@ template <
     typename LayoutOut_,
     /// Type of convolution
     bool InnerConv = true,
+    /// Convolution window storage configuration
+    typename ConvWindowConfiguration_ = ConvWindowConfiguration<1024, InnerConv>,
     /// Element type for internal accumulation
     typename ElementAccumulator_ = ElementOut_,
     /// Operator class tag
@@ -239,10 +242,10 @@ class Conv {
   using ElementIn = ElementIn_;
   using ElementCastIn = ElementCastIn_;
   using LayoutIn = LayoutIn_;
-  // using TensorRefA = TensorRef<ElementIn const, LayoutIn>;
   using ElementWindow = ElementWindow_;
   using ElementCastWindow = ElementCastWindow_;
   using LayoutWindow = layout::RowMajor;  // placeholder
+  using ConvWindowConfiguration = ConvWindowConfiguration_;
   using ElementOut = ElementOut_;
   using LayoutOut = LayoutOut_;
   using TensorRefC = TensorRef<ElementOut const, LayoutOut>;
@@ -269,18 +272,18 @@ class Conv {
   static int const split_k_slices = 1;
   static int const kAxes = 2;
   static bool const kInnerConv = InnerConv;
-  static int const kMaxWindowSize = 512;
 
     /// Define the kernel
   using ConvKernel = typename kernel::DefaultConv<
     select_A_t<InnerConv, ElementIn_, ElementWindow_>,
     select_A_t<InnerConv, ElementCastIn_, ElementCastWindow_>,
-    LayoutIn,
+    select_A_t<InnerConv, LayoutIn, LayoutWindow>,
     kAlignmentA,
     select_B_t<InnerConv, ElementIn_, ElementWindow_>,
     select_B_t<InnerConv, ElementCastIn_, ElementCastWindow_>,
-    LayoutWindow,
+    select_B_t<InnerConv, LayoutIn, LayoutWindow>,
     kAlignmentB,
+    ConvWindowConfiguration,
     ElementOut,
     LayoutOut,
     ElementAccumulator,
@@ -361,7 +364,7 @@ class Conv {
       return Status::kErrorInvalidProblem;
     }
     for (const auto &arg : args) {
-      if (arg.window_size > kMaxWindowSize) {
+      if ((arg.window_size / 2) * arg.channels > ConvWindowConfiguration::kMaximumWindowRadiusSpan) {
         return Status::kErrorInvalidProblem;
       }
       Status status = ConvKernel::can_implement(arg.matrix_size, arg.ref_In.non_const_ref(),
@@ -373,6 +376,9 @@ class Conv {
 
     return Status::kSuccess;
   }
+
+  /// Prepare convolution layout (in host memory) to use required layout
+  void prepare_window()
 
   /// Initializes GEMM state from arguments.
   Status initialize(Arguments const &args, cudaStream_t stream = nullptr) {
