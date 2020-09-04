@@ -50,9 +50,9 @@ struct ConvolutionGpu {
     KernelRequirements req;
     ScratchpadEstimator se;
     DALI_ENFORCE(
-        in_shape.size() == window_size.size(),
+        in_shape.num_samples() == window_size.num_samples(),
         make_string("Provided input shape and window sizes do not mach in number of samples: ",
-                    in_shape.size(), " vs ", window_size.size(), "."));
+                    in_shape.num_samples(), " vs ", window_size.num_samples(), "."));
     int num_samples = in_shape.size();
     for (int i = 0; i < num_samples; i++) {
       int num_channels = has_channels ? in_shape[i][ndim - 1] : 1;
@@ -152,7 +152,11 @@ struct ConvolutionGpu {
   // Non-innermost convolutions are channel agnostic (assume channels = 1) and place the
   // generated matrix on the left hand side of GEMM.
   static constexpr bool kIsInnerConv = axis == ndim - has_channels - 1;
+
+  using CutlassWindowConfig = cutlass::gemm::ConvWindowConfiguration<1024, kIsInnerConv>;
+
   using RowMajor = cutlass::layout::RowMajor;
+
   // Basic SIMT kernel with no additional conversions
   // 2nd and 5th template parameter (In and W now) allow for additional conversion when loadind
   // data inside the cutlass kernel. For now it's no-op (hence the same types twice).
@@ -161,7 +165,9 @@ struct ConvolutionGpu {
                                                            W, W,      // Data-type of Conv window
                                                            Out,       // Data-type of Output matrix
                                                            RowMajor,  // Layout of Output matrix
-                                                           kIsInnerConv>;
+                                                           kIsInnerConv,
+                                                           CutlassWindowConfig,
+                                                           W>;
 
   static constexpr int kMaxRadiusSpan = CutlassConv::ConvWindowConfiguration::kMaxWindowRadiusSpan;
   static constexpr int kWindowCopyBufferSize =
