@@ -26,6 +26,11 @@ Prerequisites
   - |tf link|_ or later.
 
 
+.. raw:: html
+   :file: html/install-selector.html
+
+
+
 DALI in NGC Containers
 ----------------------
 
