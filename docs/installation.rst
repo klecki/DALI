@@ -38,6 +38,10 @@ Prerequisites
 Installation
 ^^^^^^^^^^^^
 
+.. raw:: html
+   :file: html/install-selector.html
+
+
 Execute the following command to install latest DALI for specified CUDA version:
 
 * for CUDA 10:

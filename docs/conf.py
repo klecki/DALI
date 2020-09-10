@@ -154,13 +154,22 @@ html_theme_options = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 # We remove the `_static` as we do not use it
-html_static_path = []
+html_static_path = ['_static']
 
 # Download favicon and set it (the variable `html_favicon`) for this project.
 # It must be relative path.
 favicon_rel_path = "nvidia.ico"
 subprocess.call(["wget", "-O", favicon_rel_path, "https://docs.nvidia.com/images/nvidia.ico"])
 html_favicon = favicon_rel_path
+
+# html_js_files = [
+#     'js/quick-start-module.js',
+# ]
+
+html_css_files = [
+    'css/quick-start.css',
+]
+
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
