@@ -213,7 +213,7 @@ bool GaussianBlur<CPUBackend>::SetupImpl(std::vector<OutputDesc>& output_desc,
                "Output data type must be same as input, FLOAT or skipped (defaults to input type)");
 
   // clang-format off
-  TYPE_SWITCH(input.type().id(), type2id, In, GAUSSIAN_BLUR_SUPPORTED_TYPES, (
+  TYPE_SWITCH(input.type().id(), type2id, In, GAUSSIAN_BLUR_CPU_SUPPORTED_TYPES, (
     VALUE_SWITCH(dim_desc.usable_axes_count, AXES, GAUSSIAN_BLUR_SUPPORTED_AXES, (
       VALUE_SWITCH(static_cast<int>(dim_desc.has_channels), HAS_CHANNELS, (0, 1), (
         constexpr bool has_ch = HAS_CHANNELS;

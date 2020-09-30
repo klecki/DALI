@@ -143,7 +143,8 @@ class GaussianWindows {
 // it will probably impact allocation patterns in different ways and need
 // to be evaluated if it is fine or not
 template <int axes>
-void RepackAsTL(std::array<TensorListShape<1>, axes> &out, const std::vector<GaussianBlurParams<axes>> &params) {
+void RepackAsTL(std::array<TensorListShape<1>, axes> &out,
+                const std::vector<GaussianBlurParams<axes>> &params) {
   for (int axis = 0; axis < axes; axis++) {
     out[axis].resize(params.size());
     for (int i = 0; i < params.size(); i++) {
@@ -153,7 +154,8 @@ void RepackAsTL(std::array<TensorListShape<1>, axes> &out, const std::vector<Gau
 }
 
 template <int axes>
-void RepackAsTL(std::array<TensorListView<StorageCPU, const float, 1>, axes> &out, const std::vector<GaussianWindows<axes>> &windows) {
+void RepackAsTL(std::array<TensorListView<StorageCPU, const float, 1>, axes> &out,
+                const std::vector<GaussianWindows<axes>> &windows) {
   for (int axis = 0; axis < axes; axis++) {
     int nsamples = windows.size();
     out[axis].data.resize(nsamples);

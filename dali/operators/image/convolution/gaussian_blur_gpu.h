@@ -121,9 +121,9 @@ class GaussianBlurOpGpu : public OpImplBase<GPUBackend> {
   std::array<TensorListView<StorageCPU, const float, 1>, axes> windows_tl_;
 };
 
-
 template <typename Out, typename In>
-std::unique_ptr<OpImplBase<GPUBackend>> GetGaussianBlurGpuImpl(const OpSpec& spec, DimDesc dim_desc) {
+std::unique_ptr<OpImplBase<GPUBackend>> GetGaussianBlurGpuImpl(const OpSpec& spec,
+                                                               DimDesc dim_desc) {
   std::unique_ptr<OpImplBase<GPUBackend>> result;
   VALUE_SWITCH(dim_desc.usable_axes_count, AXES, GAUSSIAN_BLUR_SUPPORTED_AXES, (
     VALUE_SWITCH(static_cast<int>(dim_desc.has_channels), HAS_CHANNELS, (0, 1), (
