@@ -168,13 +168,18 @@ __device__ void ExecuteTernaryOp(Result *result,
   while (result < tile_end) {
     // if (cache_idx >= num_cached) {
     //   cache_idx = 0;
-      num_cached = cache_arg(arg_cache[0], kMaxTmp, first,  tid1, offset, stride, extent);
-      (void)       cache_arg(arg_cache[1], kMaxTmp, second, tid2, offset, stride, extent);
-      (void)       cache_arg(arg_cache[2], kMaxTmp, third,  tid3, offset, stride, extent);
+      if (IsFirstTensor)
+        num_cached = cache_arg(arg_cache[0], kMaxTmp, first,  tid1, offset, stride, extent);
+      if (IsSecondTensor)
+        num_cached = cache_arg(arg_cache[1], kMaxTmp, second, tid2, offset, stride, extent);
+      if (IsThirdTensor)
+        num_cached = cache_arg(arg_cache[2], kMaxTmp, third,  tid3, offset, stride, extent);
       offset += num_cached * stride;
     // }
     for (int i = 0; i < num_cached; i++, result += stride)
-      *result = meta::impl(arg_cache[0][i], arg_cache[1][i], arg_cache[2][i]);
+      *result = meta::impl(IsFirstTensor ? arg_cache[0][i] : expression_detail::access<Result>(first, offset, tid1),
+        IsSecondTensor ? arg_cache[1][i] : expression_detail::access<Result>(second, offset, tid2),
+        IsThirdTensor ? arg_cache[2][i] : expression_detail::access<Result>(third, offset, tid3));
     // *result = meta::impl(expression_detail::access<Result>(first, offset, tid1),
     //                      expression_detail::access<Result>(second, offset, tid2),
     //                      expression_detail::access<Result>(third, offset, tid3));
