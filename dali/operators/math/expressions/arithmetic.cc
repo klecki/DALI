@@ -43,7 +43,7 @@ void ArithmeticGenericOp<CPUBackend>::RunImpl(HostWorkspace &ws) {
       }
       auto end = std::chrono::steady_clock::now();
 
-    std::cout << "Elapsed time : "
+    std::cerr << "Elapsed time : "
       << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
       << " us" << std::endl;
     }, -task_idx);  // FIFO order, since the work is already divided to similarly sized chunks
@@ -52,7 +52,7 @@ void ArithmeticGenericOp<CPUBackend>::RunImpl(HostWorkspace &ws) {
   auto start = std::chrono::steady_clock::now();
   pool.RunAll();
   auto end = std::chrono::steady_clock::now();
-  std::cout << "Pool elapsed time : "
+  std::cerr << "Pool elapsed time : "
     << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count()
     << " us" << std::endl;
 }

@@ -25,6 +25,7 @@
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/workspace.h"
 
+ #include "dali/core/dev_array.h"
 
  #include "dali/core/cuda_event.h"
 
@@ -104,6 +105,44 @@ __device__ void ExecuteBinOp(Result *result, const Left *l, Right r, int64_t ext
   }
 }
 
+
+template <typename T>
+__device__ int cache_arg(T *out, int max_count, T in, DALIDataType type,
+              int64_t offset, int64_t stride, int64_t extent) {
+  int i = 0;
+  for (; i < max_count && offset < extent; i++, offset += stride) {
+    out[i] = in;
+  }
+  return i;
+}
+
+template <typename T>
+__device__ int cache_arg(T *out, int max_count, const void *in, DALIDataType type,
+              int64_t offset, int64_t stride, int64_t extent) {
+  int i = 0;
+  TYPE_SWITCH(type, type2id, AccessType, ARITHMETIC_ALLOWED_TYPES, (
+    for (; i < max_count && offset < extent; i++, offset += stride) {
+      const AccessType *access = reinterpret_cast<const AccessType*>(in);
+      out[i] = static_cast<T>(access[offset]);
+    }
+  ), ()); // NOLINT
+  return i;
+}
+
+template <typename T, int N>
+__device__ int cache_arg2(DeviceArray<T, N> &out, const void *in, DALIDataType type,
+              int64_t offset, int64_t stride, int64_t extent) {
+  int i = 0;
+  TYPE_SWITCH(type, type2id, AccessType, ARITHMETIC_ALLOWED_TYPES, (
+    for (; i < N && offset < extent; i++, offset += stride) {
+      const AccessType *access = reinterpret_cast<const AccessType*>(in);
+      out[i] = static_cast<T>(access[offset]);
+    }
+  ), ()); // NOLINT
+  return i;
+}
+
+
 /**
  * @brief Loop over tile of `extent` length and apply the ternary op
  */
@@ -120,12 +159,27 @@ __device__ void ExecuteTernaryOp(Result *result,
   int64_t stride = static_cast<int64_t>(blockDim.x) * gridDim.x;
   auto *tile_end = result + extent;
   result += offset;
+
+  constexpr int kMaxTmp = 128;  // this can be tuned
+  Result arg_cache[3][kMaxTmp];
+  int num_cached = 0;
+  int cache_idx = 0;
+
   while (result < tile_end) {
-    *result = meta::impl(expression_detail::access<Result>(first, offset, tid1),
-                         expression_detail::access<Result>(second, offset, tid2),
-                         expression_detail::access<Result>(third, offset, tid3));
-    result += stride;
-    offset += stride;
+    // if (cache_idx >= num_cached) {
+    //   cache_idx = 0;
+      num_cached = cache_arg(arg_cache[0], kMaxTmp, first,  tid1, offset, stride, extent);
+      (void)       cache_arg(arg_cache[1], kMaxTmp, second, tid2, offset, stride, extent);
+      (void)       cache_arg(arg_cache[2], kMaxTmp, third,  tid3, offset, stride, extent);
+      offset += num_cached * stride;
+    // }
+    for (int i = 0; i < num_cached; i++, result += stride)
+      *result = meta::impl(arg_cache[0][i], arg_cache[1][i], arg_cache[2][i]);
+    // *result = meta::impl(expression_detail::access<Result>(first, offset, tid1),
+    //                      expression_detail::access<Result>(second, offset, tid2),
+    //                      expression_detail::access<Result>(third, offset, tid3));
+    // result += stride;
+    // offset += stride;
   }
 }
 
