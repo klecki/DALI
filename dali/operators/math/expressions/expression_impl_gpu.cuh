@@ -130,7 +130,7 @@ __device__ int cache_arg(T *out, int max_count, const void *in, DALIDataType typ
 }
 
 template <typename T, int N>
-__device__ int cache_arg2(DeviceArray<T, N> &out, const void *in, DALIDataType type,
+__device__ int cache_arg2(DeviceArray<T, N> &out, int, const void *in, DALIDataType type,
               int64_t offset, int64_t stride, int64_t extent) {
   int i = 0;
   TYPE_SWITCH(type, type2id, AccessType, ARITHMETIC_ALLOWED_TYPES, (
@@ -139,6 +139,16 @@ __device__ int cache_arg2(DeviceArray<T, N> &out, const void *in, DALIDataType t
       out[i] = static_cast<T>(access[offset]);
     }
   ), ()); // NOLINT
+  return i;
+}
+
+template <typename T, int N>
+__device__ int cache_arg2(DeviceArray<T, N> &out, int, T in, DALIDataType type,
+              int64_t offset, int64_t stride, int64_t extent) {
+  int i = 0;
+  for (; i < N && offset < extent; i++, offset += stride) {
+    out[i] = in;
+  }
   return i;
 }
 
@@ -160,20 +170,21 @@ __device__ void ExecuteTernaryOp(Result *result,
   auto *tile_end = result + extent;
   result += offset;
 
-  constexpr int kMaxTmp = 128;  // this can be tuned
-  Result arg_cache[3][kMaxTmp];
+  // constexpr int kMaxTmp = 128;  // this can be tuned
+  // Result arg_cache[3][kMaxTmp];
+  constexpr int kMaxTmp = 16;
+  DeviceArray<Result, kMaxTmp> arg_cache[3];
   int num_cached = 0;
-  int cache_idx = 0;
 
   while (result < tile_end) {
     // if (cache_idx >= num_cached) {
     //   cache_idx = 0;
       if (IsFirstTensor)
-        num_cached = cache_arg(arg_cache[0], kMaxTmp, first,  tid1, offset, stride, extent);
+        num_cached = cache_arg2<Result, kMaxTmp>(arg_cache[0], kMaxTmp, first,  tid1, offset, stride, extent);
       if (IsSecondTensor)
-        num_cached = cache_arg(arg_cache[1], kMaxTmp, second, tid2, offset, stride, extent);
+        num_cached = cache_arg2<Result, kMaxTmp>(arg_cache[1], kMaxTmp, second, tid2, offset, stride, extent);
       if (IsThirdTensor)
-        num_cached = cache_arg(arg_cache[2], kMaxTmp, third,  tid3, offset, stride, extent);
+        num_cached = cache_arg2<Result, kMaxTmp>(arg_cache[2], kMaxTmp, third,  tid3, offset, stride, extent);
       offset += num_cached * stride;
     // }
     for (int i = 0; i < num_cached; i++, result += stride)
