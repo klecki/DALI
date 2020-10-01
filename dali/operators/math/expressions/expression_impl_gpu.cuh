@@ -172,7 +172,7 @@ __device__ void ExecuteTernaryOp(Result *result,
 
   // constexpr int kMaxTmp = 128;  // this can be tuned
   // Result arg_cache[3][kMaxTmp];
-  constexpr int kMaxTmp = 16;
+  constexpr int kMaxTmp = 8;
   DeviceArray<Result, kMaxTmp> arg_cache[3];
   int num_cached = 0;
 
@@ -187,7 +187,7 @@ __device__ void ExecuteTernaryOp(Result *result,
         num_cached = cache_arg2<Result, kMaxTmp>(arg_cache[2], kMaxTmp, third,  tid3, offset, stride, extent);
       offset += num_cached * stride;
     // }
-    for (int i = 0; i < num_cached; i++, result += stride)
+    for (int i = 0; i < num_cached && i < kMaxTmp; i++, result += stride)
       *result = meta::impl(IsFirstTensor ? arg_cache[0][i] : expression_detail::access<Result>(first, offset, tid1),
         IsSecondTensor ? arg_cache[1][i] : expression_detail::access<Result>(second, offset, tid2),
         IsThirdTensor ? arg_cache[2][i] : expression_detail::access<Result>(third, offset, tid3));
