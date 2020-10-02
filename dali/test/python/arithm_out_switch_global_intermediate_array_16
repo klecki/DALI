@@ -1,0 +1,347 @@
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'cpu', 'cpu'), (<class 'numpy.int32'>, <class 'numpy.int32'>, <class 'numpy.int32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : 3790 us
+Elapsed time : 3789 us
+Elapsed time : 3758 us
+Elapsed time : 4053 us
+Elapsed time : 3775 us
+Elapsed time : 4169 us
+Elapsed time : 3568 us
+Elapsed time : 3318 us
+Elapsed time : 2436 us
+Elapsed time : 2624 us
+Elapsed time : 2410 us
+Elapsed time : 2596 us
+Elapsed time : 2567 us
+Elapsed time : 2557 us
+Elapsed time : 2355 us
+Elapsed time : 2130 us
+Pool elapsed time : 25665 us
+Elapsed time : 1157 us
+Elapsed time : 1164 us
+Elapsed time : 1155 us
+Elapsed time : 1218 us
+Elapsed time : 1144 us
+Elapsed time : 1243 us
+Elapsed time : 1564 us
+Elapsed time : 1571 us
+Elapsed time : 1556 us
+Elapsed time : 1556 us
+Elapsed time : 1570 us
+Elapsed time : 1620 us
+Elapsed time : 1556 us
+Elapsed time : 1626 us
+Elapsed time : 1556 us
+Elapsed time : 1559 us
+Pool elapsed time : 11825 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'cpu', 'cpu'), (<class 'numpy.int32'>, <class 'numpy.int8'>, <class 'numpy.int16'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : Elapsed time : 3791 us
+3807 us
+Elapsed time : 3764 us
+Elapsed time : 4026 us
+Elapsed time : 3766 us
+Elapsed time : 4139 us
+Elapsed time : 3903 us
+Elapsed time : 3742 us
+Elapsed time : 2567 us
+Elapsed time : 2582 us
+Elapsed time : 2427 us
+Elapsed time : 2575 us
+Elapsed time : 2423 us
+Elapsed time : 2433 us
+Elapsed time : 2411 us
+Elapsed time : 2469 us
+Pool elapsed time : 26142 us
+Elapsed time : Elapsed time : 863 us
+865 us
+Elapsed time : 864 us
+Elapsed time : 901 us
+Elapsed time : 871 us
+Elapsed time : 919 us
+Elapsed time : 857 us
+Elapsed time : 867 us
+Elapsed time : 856 us
+Elapsed time : 900 us
+Elapsed time : 857 us
+Elapsed time : 914 us
+Elapsed time : 856 us
+Elapsed time : 894 us
+Elapsed time : 869 us
+Elapsed time : 860 us
+Pool elapsed time : 7307 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'cpu', 'cpu'), (<class 'numpy.int32'>, <class 'numpy.uint8'>, <class 'numpy.float32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : Elapsed time : 3807 us
+3805 us
+Elapsed time : 3779 us
+Elapsed time : 4139 us
+Elapsed time : 3796 us
+Elapsed time : 3925 us
+Elapsed time : 3783 us
+Elapsed time : 3711 us
+Elapsed time : 2583 us
+Elapsed time : 2673 us
+Elapsed time : 2489 us
+Elapsed time : 2761 us
+Elapsed time : 2437 us
+Elapsed time : 2512 us
+Elapsed time : 2437 us
+Elapsed time : 2317 us
+Pool elapsed time : 26210 us
+Elapsed time : 981 us
+Elapsed time : 1062 us
+Elapsed time : 1009 us
+Elapsed time : 1162 us
+Elapsed time : 1270 us
+Elapsed time : 1324 us
+Elapsed time : 1283 us
+Elapsed time : 1285 us
+Elapsed time : 1268 us
+Elapsed time : 1390 us
+Elapsed time : 1268 us
+Elapsed time : 1324 us
+Elapsed time : 1277 us
+Elapsed time : 1280 us
+Elapsed time : 1270 us
+Elapsed time : 1409 us
+Pool elapsed time : 10463 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'gpu', 'gpu'), (<class 'numpy.int32'>, <class 'numpy.int32'>, <class 'numpy.int32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 264.223 us
+Elapsed Time: 265.277 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'gpu', 'gpu'), (<class 'numpy.int32'>, <class 'numpy.int8'>, <class 'numpy.int16'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 238.725 us
+Elapsed Time: 239.155 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'gpu', 'gpu'), (<class 'numpy.int32'>, <class 'numpy.uint8'>, <class 'numpy.float32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 248.586 us
+Elapsed Time: 248.064 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'const', 'const'), (<class 'numpy.int32'>, <class 'numpy.int32'>, <class 'numpy.int32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : Elapsed time : 4990 us
+5018 us
+Elapsed time : 5194 us
+Elapsed time : 5254 us
+Elapsed time : 3602 us
+Elapsed time : 3651 us
+Elapsed time : 3394 us
+Elapsed time : 3511 us
+Elapsed time : 3392 us
+Elapsed time : 3513 us
+Elapsed time : 2385 us
+Elapsed time : 2321 us
+Elapsed time : 2295 us
+Elapsed time : 2409 us
+Elapsed time : 2289 us
+Elapsed time : 2367 us
+Pool elapsed time : 28424 us
+Elapsed time : Elapsed time : 1233 us
+1239 us
+Elapsed time : 1300 us
+Elapsed time : 1339 us
+Elapsed time : 1249 us
+Elapsed time : 1232 us
+Elapsed time : 1325 us
+Elapsed time : 1308 us
+Elapsed time : 1231Elapsed time : 1222 us
+ us
+Elapsed time : 1305 us
+Elapsed time : 1334 us
+Elapsed time : 1237 us
+Elapsed time : 1219 us
+Elapsed time : 1253 us
+Elapsed time : 1278 us
+Pool elapsed time : 10376 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'const', 'const'), (<class 'numpy.int32'>, <class 'numpy.int8'>, <class 'numpy.int16'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : Elapsed time : 4070 us
+4074 us
+Elapsed time : 4256 us
+Elapsed time : 4256 us
+Elapsed time : 3876 us
+Elapsed time : 3982 us
+Elapsed time : 2588 us
+Elapsed time : 2720 us
+Elapsed time : 2660 us
+Elapsed time : 2850 us
+Elapsed time : 2606 us
+Elapsed time : 2701 us
+Elapsed time : 2296 us
+Elapsed time : 2275 us
+Elapsed time : 1728 us
+Elapsed time : 1807 us
+Pool elapsed time : 25090 us
+Elapsed time : Elapsed time : 1667 us
+1667 us
+Elapsed time : 1664 us
+Elapsed time : 1662 us
+Elapsed time : Elapsed time : 1652 us
+1655 us
+Elapsed time : Elapsed time : 1667 us
+1671 us
+Elapsed time : 1653 us
+Elapsed time : 1657 us
+Elapsed time : 1671 us
+Elapsed time : 1669 us
+Elapsed time : Elapsed time : 1672 us
+1669 us
+Elapsed time : 1660 us
+Elapsed time : 1663 us
+Pool elapsed time : 13628 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'const', 'const'), (<class 'numpy.int32'>, <class 'numpy.uint8'>, <class 'numpy.float32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : Elapsed time : 1757 us
+1756 us
+Elapsed time : 1755 us
+Elapsed time : 2074 us
+Elapsed time : 1775 us
+Elapsed time : 1754 us
+Elapsed time : 1753 us
+Elapsed time : 1754 us
+Elapsed time : 1776 us
+Elapsed time : 1770 us
+Elapsed time : 1725 us
+Elapsed time : 1634 us
+Elapsed time : 1185 us
+Elapsed time : 1183 us
+Elapsed time : 1170 us
+Elapsed time : 1170 us
+Pool elapsed time : 13475 us
+Elapsed time : 1442 us
+Elapsed time : 1783 us
+Elapsed time : 1404 us
+Elapsed time : 2079 us
+Elapsed time : 1456 us
+Elapsed time : 1772 us
+Elapsed time : 1403 us
+Elapsed time : 1402 us
+Elapsed time : 1753 us
+Elapsed time : 1422 us
+Elapsed time : 1913 us
+Elapsed time : 1223 us
+Elapsed time : 1655 us
+Elapsed time : 1178 us
+Elapsed time : 1194 us
+Elapsed time : 1530 us
+Pool elapsed time : 12774 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'const', 'const'), (<class 'numpy.int32'>, <class 'numpy.int32'>, <class 'numpy.int32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 104.468 us
+Elapsed Time: 104.438 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'const', 'const'), (<class 'numpy.int32'>, <class 'numpy.int8'>, <class 'numpy.int16'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 104.612 us
+Elapsed Time: 104.294 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'const', 'const'), (<class 'numpy.int32'>, <class 'numpy.uint8'>, <class 'numpy.float32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 104.55 us
+Elapsed Time: 104.468 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'cpu', 'const'), (<class 'numpy.int32'>, <class 'numpy.int32'>, <class 'numpy.int32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : Elapsed time : 4190 us
+4177 us
+Elapsed time : 4160 us
+Elapsed time : 4254 us
+Elapsed time : 4144 us
+Elapsed time : 4173 us
+Elapsed time : 4187 us
+Elapsed time : 4180 us
+Elapsed time : 2626 us
+Elapsed time : 2719 us
+Elapsed time : 2631 us
+Elapsed time : 2621 us
+Elapsed time : 2637 us
+Elapsed time : 2637 us
+Elapsed time : 2458 us
+Elapsed time : 2449 us
+Pool elapsed time : 27482 us
+Elapsed time : Elapsed time : 3621 us
+3615 us
+Elapsed time : 3586 us
+Elapsed time : 3592 us
+Elapsed time : 3378 usElapsed time : 3429 us
+
+Elapsed time : 2818 us
+Elapsed time : 2897 us
+Elapsed time : 2805 us
+Elapsed time : 3291 us
+Elapsed time : 2785 us
+Elapsed time : 3638 us
+Elapsed time : 2088 us
+Elapsed time : 2520 us
+Elapsed time : 1877 us
+Elapsed time : 2577 us
+Pool elapsed time : 25901 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'cpu', 'const'), (<class 'numpy.int32'>, <class 'numpy.int8'>, <class 'numpy.int16'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : 2286 us
+Elapsed time : 2176 us
+Elapsed time : 6341 us
+Elapsed time : 2294 us
+Elapsed time : 2300 us
+Elapsed time : 2190 us
+Elapsed time : 6363 us
+Elapsed time : 2295 us
+Elapsed time : 2242 us
+Elapsed time : 4510 us
+Elapsed time : 2271 us
+Elapsed time : 2275 us
+Elapsed time : 4502 us
+Elapsed time : 2212 us
+Elapsed time : 2791 us
+Elapsed time : 2280 us
+Pool elapsed time : 25077 us
+Elapsed time : 2034 us
+Elapsed time : 2103 us
+Elapsed time : 2154 us
+Elapsed time : 3728 us
+Elapsed time : 2167 us
+Elapsed time : 2167 us
+Elapsed time : 3992 us
+Elapsed time : 2091 us
+Elapsed time : 2214 us
+Elapsed time : 3662 us
+Elapsed time : 2127 us
+Elapsed time : 2529 us
+Elapsed time : 2018 us
+Elapsed time : 2598 us
+Elapsed time : 2000 us
+Elapsed time : 2511 us
+Pool elapsed time : 21367 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('cpu', 'cpu', 'const'), (<class 'numpy.int32'>, <class 'numpy.uint8'>, <class 'numpy.float32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed time : 2002 us
+Elapsed time : 2017 us
+Elapsed time : 1986 us
+Elapsed time : 1987 us
+Elapsed time : 1991 us
+Elapsed time : 2003 us
+Elapsed time : 2027Elapsed time : 1980 us
+ us
+Elapsed time : 2214Elapsed time : 2206 us
+ us
+Elapsed time : 1829 us
+Elapsed time : 1824 us
+Elapsed time : 1250 us
+Elapsed time : 1250 us
+Elapsed time : 1258 us
+Elapsed time : 1274 us
+Pool elapsed time : 15001 us
+Elapsed time : 1150 us
+Elapsed time : 1368 us
+Elapsed time : 1229 us
+Elapsed time : 1320 us
+Elapsed time : 1246 us
+Elapsed time : 1320 us
+Elapsed time : 1129 us
+Elapsed time : 1339 us
+Elapsed time : 1144 us
+Elapsed time : 1320 us
+Elapsed time : 1129 us
+Elapsed time : 1319 us
+Elapsed time : 1130 us
+Elapsed time : 1338 us
+Elapsed time : 1281 us
+Elapsed time : 1047 us
+Pool elapsed time : 10660 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'gpu', 'const'), (<class 'numpy.int32'>, <class 'numpy.int32'>, <class 'numpy.int32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 182.764 us
+Elapsed Time: 182.825 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'gpu', 'const'), (<class 'numpy.int32'>, <class 'numpy.int8'>, <class 'numpy.int16'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 163.318 us
+Elapsed Time: 163.635 us
+ok
+test_operator_arithmetic_ops.test_ternary_ops_big(('gpu', 'gpu', 'const'), (<class 'numpy.int32'>, <class 'numpy.uint8'>, <class 'numpy.float32'>), (<function <lambda> at 0x7f05f606f9d8>, <function <lambda> at 0x7f05f606fa60>), [(1024, 1024), (1024, 1024), (1024, 1024), (1024, 1024)], 'clamp') ... Elapsed Time: 163.41 us
+Elapsed Time: 163.686 us
+ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 4.794s
+
+OK
