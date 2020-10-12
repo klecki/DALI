@@ -117,6 +117,7 @@ enum DALIDataType : int {
   DALI_INTERP_TYPE     = 22,
   DALI_TENSOR_LAYOUT   = 23,
   DALI_PYTHON_OBJECT   = 24,
+  DALI_OP_SPEC         = 25,  // XD
   DALI_DATATYPE_END    = 1000
 };
 
@@ -201,6 +202,9 @@ inline std::ostream &operator<<(std::ostream &os, DALIDataType t) {
       break;
     case DALI_PYTHON_OBJECT:
       os << "Python object";
+      break;
+    case DALI_OP_SPEC:
+      os << "DALI_OP_SPEC";
       break;
     case DALI_DATATYPE_END:  // fall through
     default:
@@ -322,7 +326,7 @@ class DLL_PUBLIC TypeInfo {
    * @param src source pointer
    * @param n number of elements to copy
    * @param stream CUDA stream used to perform copy. Only relevant when copying from/to GPUBackend
-   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable 
+   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable
    *        (only relevant for device and host pinned memory)
    */
   template <typename DstBackend, typename SrcBackend>
@@ -336,7 +340,7 @@ class DLL_PUBLIC TypeInfo {
    * @param sizes number of elements for each of the pointers specified in srcs
    * @param n number of copies to process
    * @param stream CUDA stream used to perform copy. Only relevant when copying from/to GPUBackend
-   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable 
+   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable
    *        (only relevant for device and host pinned memory)
    */
   template <typename DstBackend, typename SrcBackend>
@@ -350,7 +354,7 @@ class DLL_PUBLIC TypeInfo {
    * @param sizes number of elements for each of the pointers specified in srcs
    * @param n number of copies to process
    * @param stream CUDA stream used to perform copy. Only relevant when copying from/to GPUBackend
-   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable 
+   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable
    *        (only relevant for device and host pinned memory)
    */
   template <typename DstBackend, typename SrcBackend>

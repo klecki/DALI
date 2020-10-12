@@ -54,7 +54,8 @@ _known_types = {
         DALIDataType.DATA_TYPE : ("nvidia.dali.types.DALIDataType", lambda x: DALIDataType(int(x))),
         DALIDataType.INTERP_TYPE : ("nvidia.dali.types.DALIInterpType", lambda x: DALIInterpType(int(x))),
         DALIDataType.TENSOR_LAYOUT : (":ref:`layout str<layout_str_doc>`", lambda x: str(x)),
-        DALIDataType.PYTHON_OBJECT : ("object", lambda x: x)
+        DALIDataType.PYTHON_OBJECT : ("object", lambda x: x),
+        DALIDataType.DALI_OP_SPEC : ("DALI Operator", lambda x: x._spec)
         }
 
 _vector_types = {

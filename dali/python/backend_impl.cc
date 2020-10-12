@@ -1122,6 +1122,7 @@ PYBIND11_MODULE(backend_impl, m) {
     .value("INTERP_TYPE",   DALI_INTERP_TYPE)
     .value("TENSOR_LAYOUT", DALI_TENSOR_LAYOUT)
     .value("PYTHON_OBJECT", DALI_PYTHON_OBJECT)
+    .value("DALI_OP_SPEC",   DALI_OP_SPEC)
     .export_values();
 
   // DALIImageType
@@ -1391,6 +1392,11 @@ PYBIND11_MODULE(backend_impl, m) {
 #ifdef DALI_BUILD_PROTO3
     DALI_OPSPEC_ADDARG(TFFeature)
 #endif
+    .def("AddArg",
+        [](OpSpec *spec, const string &name, OpSpec v) -> OpSpec& {
+          spec->AddArg(name, v);
+          return *spec;
+        }, py::return_value_policy::reference_internal)
     .def("AddArg",
         [](OpSpec *spec, const string &name, py::object obj) -> OpSpec& {
           DALI_FAIL("Unsupported argument type with name " + name);

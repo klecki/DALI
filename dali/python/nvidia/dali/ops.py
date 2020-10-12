@@ -421,6 +421,7 @@ def python_op_factory(name, schema_name = None, op_device = "cpu"):
                         self._spec.AddArgEmptyList(key, _vector_element_type(dtype))
                         continue
                 converted_value = _type_convert_value(dtype, value)
+                print(converted_value, type(converted_value))
                 self._spec.AddArg(key, converted_value)
 
         @property
