@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,13 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-file(GLOB SRCS *.cc *.cu)
 
-set(lib_name "customdummyplugin")
-adjust_source_file_language_property("${SRCS}")
-add_library(${lib_name} SHARED ${SRCS})
-target_link_libraries(${lib_name} PRIVATE ${CUDART_LIB})
-target_link_libraries(${lib_name} PUBLIC dali)
-
-set_target_properties(${lib_name} PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY ${TEST_BINARY_DIR})
+# Get all the source files and dump test files
+collect_headers(DALI_INST_HDRS PARENT_SCOPE)
+collect_sources(DALI_KERNEL_SRCS PARENT_SCOPE)
+collect_test_sources(DALI_KERNEL_TEST_SRCS PARENT_SCOPE)

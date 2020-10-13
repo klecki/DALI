@@ -24,10 +24,10 @@ class MeanGPU<Out, In>::Impl : public reduce_impl::MeanImplGPU<Out, In> {
 };
 
 template <typename Out, typename In>
-MeanGPU<Out, In>::MeanGPU() = default;
+DALI_HOST MeanGPU<Out, In>::MeanGPU() = default;
 
 template <typename Out, typename In>
-MeanGPU<Out, In>::~MeanGPU() = default;
+DALI_HOST MeanGPU<Out, In>::~MeanGPU() = default;
 
 template <typename Out, typename In>
 KernelRequirements MeanGPU<Out, In>::Setup(
@@ -67,10 +67,10 @@ class RootMeanSquareGPU<Out, In>::Impl : public reduce_impl::RootMeanSquareImplG
 };
 
 template <typename Out, typename In>
-RootMeanSquareGPU<Out, In>::RootMeanSquareGPU() = default;
+DALI_HOST RootMeanSquareGPU<Out, In>::RootMeanSquareGPU() = default;
 
 template <typename Out, typename In>
-RootMeanSquareGPU<Out, In>::~RootMeanSquareGPU() = default;
+DALI_HOST RootMeanSquareGPU<Out, In>::~RootMeanSquareGPU() = default;
 
 template <typename Out, typename In>
 KernelRequirements RootMeanSquareGPU<Out, In>::Setup(

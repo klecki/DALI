@@ -15,8 +15,10 @@
 project(dali_kernels CUDA CXX C)
 
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+set(CMAKE_CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
 add_subdirectory(audio)
+add_subdirectory(cuda_dummy)
 add_subdirectory(common)
 add_subdirectory(erase)
 add_subdirectory(imgproc)
@@ -34,9 +36,13 @@ collect_sources(DALI_KERNEL_SRCS)
 collect_test_sources(DALI_KERNEL_TEST_SRCS)
 
 # cuFFT library
+adjust_source_file_language_property("${DALI_KERNEL_SRCS}")
 add_library(dali_kernels ${LIBTYPE} ${DALI_KERNEL_SRCS})
+# set_target_properties(dali_kernels PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -fcuda-rdc")
 target_link_libraries(dali_kernels PUBLIC dali_core)
 target_link_libraries(dali_kernels PRIVATE ${CUDA_cufft_static_LIBRARY})
+target_link_libraries(dali_kernels PRIVATE ${CUDA_cudadevrt_LIBRARY})
+target_link_libraries(dali_kernels PRIVATE ${CUDART_LIB} ${CMAKE_DL_LIBS})
 target_link_libraries(dali_kernels PRIVATE ${DALI_LIBS})
 target_link_libraries(dali_kernels PRIVATE "-Wl,--exclude-libs,${exclude_libs}")
 set_target_properties(dali_kernels PROPERTIES
@@ -48,6 +54,7 @@ target_link_libraries(dali_kernels PRIVATE  -Wl,--version-script=${CMAKE_BINARY_
 
 if (BUILD_TEST)
   # TODO(janton): create a test_utils_lib with dali_test_config.cc and other common utilities
+  adjust_source_file_language_property("${DALI_KERNEL_TEST_SRCS}")
   add_executable(dali_kernel_test
     ${DALI_KERNEL_TEST_SRCS}
     ${DALI_ROOT}/dali/test/dali_test_config.cc)

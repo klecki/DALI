@@ -45,6 +45,7 @@ if (BUILD_PROTO3)
   list(APPEND DALI_OPERATOR_PROTO_OBJ $<TARGET_OBJECTS:TF_PROTO>)
 endif()
 
+adjust_source_file_language_property("${DALI_OPERATOR_SRCS}")
 add_library(dali_operators ${LIBTYPE} ${DALI_OPERATOR_SRCS} ${DALI_OPERATOR_PROTO_OBJ})
 set_target_properties(dali_operators PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${DALI_LIBRARY_OUTPUT_DIR}")
@@ -62,6 +63,7 @@ target_link_libraries(dali_operators PRIVATE -Wl,--version-script=${CMAKE_BINARY
 
 if (BUILD_TEST)
   # TODO(janton): create a test_utils_lib with dali_test_config.cc and other common utilities
+  adjust_source_file_language_property("${DALI_OPERATOR_TEST_SRCS}")
   add_executable(dali_operator_test
     ${DALI_OPERATOR_TEST_SRCS}
     ${DALI_ROOT}/dali/test/dali_test_config.cc
