@@ -13,12 +13,13 @@
 #include <mutex>
 #include <thread>
 
+
 #ifndef __cuda_drvapi_dynlink_cuda_h__
 #define __cuda_drvapi_dynlink_cuda_h__
 
 #include <stdlib.h>
 
-
+#ifndef __cuda_cuda_h__
 #define __cuda_cuda_h__ 1
 
 /**
@@ -2013,3 +2014,4 @@ bool cuInitChecked();
 //#undef __CUDA_API_VERSION
 
 #endif //__cuda_drvapi_dynlink_cuda_h__
+#endif // __cuda_cuda_h__

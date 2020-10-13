@@ -206,11 +206,13 @@ endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-register -Wsign-compare")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --cuda-path=/usr/local/cuda-10.0 --cuda-gpu-arch=sm_70")
 
   # CUDA does not support current clang as host compiler, we need use gcc
   # CMAKE_CUDA_HOST_COMPILER variable operates on paths
   set(CUDA_UNSUPPORTED_COMPILER 0)
   if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang")
+  # if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang" AND NOT "${CMAKE_CUDA_COMPILER}" MATCHES "clang")
       set(CUDA_UNSUPPORTED_COMPILER 1)
   elseif (CMAKE_CUDA_HOST_COMPILER STREQUAL "")
       set(CUDA_UNSUPPORTED_COMPILER 1)
@@ -229,7 +231,7 @@ endif()
 
 # OpenMP SIMD support
 if(CXX_HAVE_OMP_SIMD)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp-simd")
+  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp-simd")
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-pragmas")
 endif()
@@ -241,6 +243,7 @@ message(STATUS "CUDA supported archs: ${CUDA_supported_archs}")
 set(CUDA_TARGET_ARCHS_SORTED ${CUDA_TARGET_ARCHS})
 list(SORT CUDA_TARGET_ARCHS_SORTED)
 CUDA_find_supported_arch_values(CUDA_targeted_archs ${CUDA_TARGET_ARCHS_SORTED})
+set(CMAKE_CUDA_ARCHITECTURES ${CUDA_targeted_archs})
 message(STATUS "CUDA targeted archs: ${CUDA_targeted_archs}")
 if (NOT CUDA_targeted_archs)
   message(FATAL_ERROR "None of the provided CUDA architectures ({${CUDA_TARGET_ARCHS}}) is supported by nvcc, use one or more of: ${CUDA_supported_archs}")
