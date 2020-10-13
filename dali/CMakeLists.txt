@@ -56,6 +56,7 @@ collect_headers(DALI_INST_HDRS PARENT_SCOPE)
 collect_sources(DALI_SRCS PARENT_SCOPE)
 if (BUILD_PROTOBUF)
   set(DALI_PROTO_OBJ $<TARGET_OBJECTS:DALI_PROTO>)
+  correct_source_file_language_property("${DALI_SRCS}")
   add_library(dali ${LIBTYPE} ${DALI_SRCS} ${DALI_PROTO_OBJ} ${CUDART_LIB})
   set_target_properties(dali PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY "${DALI_LIBRARY_OUTPUT_DIR}")
