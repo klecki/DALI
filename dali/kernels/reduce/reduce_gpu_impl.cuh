@@ -471,6 +471,11 @@ class ReduceImplGPU {
   }
 
  public:
+  // TODO(klecki): solve the problem of:
+  // ```
+  // dali/kernels/reduce/reduce_gpu_impl.cuh:475:68: error: member access into incomplete type 'dali::kernels::reduce_impl::ReduceImplGPU<float, unsigned char, float, dali::kernels::reduce_impl::StdDevImplGPU<float, unsigned char, float, float> >'
+  // using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
+  // ```
   template <int non_reduced_dim, typename Derived = Actual>
   using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
     template GetPreprocessorBanks<true, non_reduced_dim, Derived>(std::declval<WorkArea&>(), 0));

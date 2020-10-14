@@ -59,8 +59,8 @@ namespace kernels {
 template <typename Out, typename In>
 class DLL_PUBLIC SumGPU {
  public:
-  SumGPU();
-  ~SumGPU();
+  __host__ SumGPU();
+  __host__ ~SumGPU();
 
   /**
    * @brief Sets up the reduction
@@ -134,8 +134,8 @@ extern template class SumGPU<float, float>;
 template <typename Out, typename In>
 class DLL_PUBLIC MeanGPU {
  public:
-  MeanGPU();
-  ~MeanGPU();
+  __host__ MeanGPU();
+  __host__ ~MeanGPU();
 
   /**
    * @brief Sets up the reduction
@@ -261,8 +261,8 @@ extern template class RootMeanSquareGPU<float, float>;
 template <typename Out, typename In, typename Mean = Out>
 class DLL_PUBLIC StdDevGPU {
  public:
-  StdDevGPU();
-  ~StdDevGPU();
+  __host__ StdDevGPU();
+  __host__ ~StdDevGPU();
 
   /**
    * @brief Sets up the reduction

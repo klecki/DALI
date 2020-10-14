@@ -69,8 +69,8 @@ namespace kernels {
 template <typename Out, typename In>
 class DLL_PUBLIC NormalizeGPU {
  public:
-  NormalizeGPU();
-  ~NormalizeGPU();
+  __host__ NormalizeGPU();
+  __host__ ~NormalizeGPU();
 
   using Base = float;
   using Scale = float;

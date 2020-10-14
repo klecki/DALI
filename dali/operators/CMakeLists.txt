@@ -63,6 +63,7 @@ target_link_libraries(dali_operators PRIVATE -Wl,--version-script=${CMAKE_BINARY
 
 if (BUILD_TEST)
   # TODO(janton): create a test_utils_lib with dali_test_config.cc and other common utilities
+  correct_source_file_language_property("${DALI_OPERATOR_TEST_SRCS}")
   add_executable(dali_operator_test
     ${DALI_OPERATOR_TEST_SRCS}
     ${DALI_ROOT}/dali/test/dali_test_config.cc

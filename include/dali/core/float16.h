@@ -24,7 +24,8 @@
 namespace dali {
 
 // For the GPU
-#ifdef __CUDA_ARCH__
+// #if defined(__CUDA_ARCH__)
+#if defined(__CUDA_ARCH__) || (defined(__clang__) && defined(__CUDA__))
 using float16 = __half;
 #else
 using float16 = half_float::half;

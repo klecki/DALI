@@ -68,6 +68,20 @@ struct norm2 {
     return (*this)(float2{c.real(), c.imag()});
   }
 };
+#if defined(__clang__) && defined(__CUDA__)
+template <typename T>
+__host__ const T& clangmax(const T& l, const  T& r) {
+  return std::max(l, r);
+}
+
+
+template <typename T>
+__device__ const T clangmax(const T& l, const  T& r) {
+  return ::max(l, r);
+}
+#else
+
+#endif
 
 struct power_dB {
   power_dB() = default;
@@ -80,10 +94,10 @@ struct power_dB {
 
   DALI_HOST_DEV DALI_FORCEINLINE
   auto operator()(float2 c) const {
-    return mul * log2f(::max(c.x * c.x + c.y * c.y, cutoff));
+    return mul * log2f(clangmax(c.x * c.x + c.y * c.y, cutoff));
   }
 
-  DALI_FORCEINLINE
+  DALI_HOST_DEV DALI_FORCEINLINE
   auto operator()(complexf c) const {
     return (*this)(float2{c.real(), c.imag()});
   }

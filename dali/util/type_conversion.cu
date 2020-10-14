@@ -23,7 +23,7 @@ template <typename IN, typename OUT>
 __global__ void ConvertKernel(const IN *data, int n, OUT *out) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid < n) {
-    out[tid] = (OUT)data[tid];
+    out[tid] =  (OUT)data[tid];
   }
 }
 
@@ -42,7 +42,7 @@ template DLL_PUBLIC void Convert<uint8, double>(const uint8*, int, double*);
 template DLL_PUBLIC void Convert<int16, double>(const int16*, int, double*);
 template DLL_PUBLIC void Convert<int, double>(const int*, int, double*);
 template DLL_PUBLIC void Convert<int64, double>(const int64*, int, double*);
-template DLL_PUBLIC void Convert<float16, double>(const float16*, int, double*);
+// template DLL_PUBLIC void Convert<float16, double>(const float16*, int, double*);
 template DLL_PUBLIC void Convert<float, double>(const float*, int, double*);
 template DLL_PUBLIC void Convert<double, double>(const double*, int, double*);
 

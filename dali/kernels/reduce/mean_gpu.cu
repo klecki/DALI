@@ -24,10 +24,10 @@ class MeanGPU<Out, In>::Impl : public reduce_impl::MeanImplGPU<Out, In> {
 };
 
 template <typename Out, typename In>
-MeanGPU<Out, In>::MeanGPU() = default;
+__host__ MeanGPU<Out, In>::MeanGPU() = default;
 
 template <typename Out, typename In>
-MeanGPU<Out, In>::~MeanGPU() = default;
+__host__ MeanGPU<Out, In>::~MeanGPU() = default;
 
 template <typename Out, typename In>
 KernelRequirements MeanGPU<Out, In>::Setup(

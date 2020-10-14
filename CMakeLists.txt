@@ -206,17 +206,19 @@ endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-register -Wsign-compare")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --cuda-path=/usr/local/cuda-10.0 --cuda-gpu-arch=sm_70")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --cuda-path=/usr/local/cuda-10.0 --cuda-gpu-arch=sm_70") #  -fcuda-rdc
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-switch-bool -Wno-sign-compare -Wno-missing-braces -Wno-format -Wno-inconsistent-missing-override -Wno-implicit-int-float-conversion -Wno-mismatched-tags -Wno-reorder-ctor -Wno-unused-command-line-argument")
+
 
   # CUDA does not support current clang as host compiler, we need use gcc
   # CMAKE_CUDA_HOST_COMPILER variable operates on paths
   set(CUDA_UNSUPPORTED_COMPILER 0)
-  if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang")
-  # if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang" AND NOT "${CMAKE_CUDA_COMPILER}" MATCHES "clang")
-      set(CUDA_UNSUPPORTED_COMPILER 1)
-  elseif (CMAKE_CUDA_HOST_COMPILER STREQUAL "")
-      set(CUDA_UNSUPPORTED_COMPILER 1)
-  endif()
+  # if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang")
+  # # if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang" AND NOT "${CMAKE_CUDA_COMPILER}" MATCHES "clang")
+  #     set(CUDA_UNSUPPORTED_COMPILER 1)
+  # elseif (CMAKE_CUDA_HOST_COMPILER STREQUAL "")
+  #     set(CUDA_UNSUPPORTED_COMPILER 1)
+  # endif()
 
   if(${CUDA_UNSUPPORTED_COMPILER})
     message(STATUS "CMAKE_CUDA_HOST_COMPILER is set to ${CMAKE_C_COMPILER} - setting CMAKE_CUDA_HOST_COMPILER to gcc")
@@ -228,6 +230,9 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     endif()
   endif()
 endif()
+
+
+message(STATUS "CUDA Compiler: ${CMAKE_CUDA_COMPILER}")
 
 # OpenMP SIMD support
 if(CXX_HAVE_OMP_SIMD)

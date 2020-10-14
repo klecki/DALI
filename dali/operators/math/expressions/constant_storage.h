@@ -36,7 +36,7 @@ namespace dali {
   (bool,                                 \
   uint8_t, uint16_t, uint32_t, uint64_t, \
   int8_t, int16_t, int32_t, int64_t,     \
-  float16, float, double)
+  float, double)//float16 - not like it's supported in arithm ops
 
 /**
  * @brief Provide integral and floating point constants under `Backend` memory accessible by
@@ -88,6 +88,7 @@ class ConstantStorage {
     result.Copy(result_cpu, stream);
   }
 
+  //TODO(klecki): overload for float and int with split ALLOWED_TYPES
   template <typename T>
   void Rewrite(Tensor<CPUBackend> &result, const std::vector<T> constants,
                const std::vector<ExprConstant *> &constant_nodes, cudaStream_t = NULL) {

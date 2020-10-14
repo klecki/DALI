@@ -24,10 +24,10 @@ class StdDevGPU<Out, In, Mean>::Impl : public reduce_impl::StdDevImplGPU<Out, In
 };
 
 template <typename Out, typename In, typename Mean>
-StdDevGPU<Out, In, Mean>::StdDevGPU() = default;
+__host__ StdDevGPU<Out, In, Mean>::StdDevGPU() = default;
 
 template <typename Out, typename In, typename Mean>
-StdDevGPU<Out, In, Mean>::~StdDevGPU() = default;
+__host__ StdDevGPU<Out, In, Mean>::~StdDevGPU() = default;
 
 template <typename Out, typename In, typename Mean>
 KernelRequirements StdDevGPU<Out, In, Mean>::Setup(

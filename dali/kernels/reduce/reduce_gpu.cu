@@ -24,10 +24,10 @@ class SumGPU<Out, In>::Impl : public reduce_impl::SumImplGPU<Out, In> {
 };
 
 template <typename Out, typename In>
-SumGPU<Out, In>::SumGPU() = default;
+__host__ SumGPU<Out, In>::SumGPU() = default;
 
 template <typename Out, typename In>
-SumGPU<Out, In>::~SumGPU() = default;
+__host__ SumGPU<Out, In>::~SumGPU() = default;
 
 template <typename Out, typename In>
 KernelRequirements SumGPU<Out, In>::Setup(

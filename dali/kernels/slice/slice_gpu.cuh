@@ -64,7 +64,8 @@ template <int Dims, typename OutputType, typename InputType>
 __device__ void SliceFuncNoPad(OutputType *__restrict__ out, const InputType *__restrict__ in,
                                const fast_div<uint64_t> *out_strides, const int64_t *in_strides,
                                uint64_t offset, uint64_t block_end) {
-  if (Dims > 1 && out_strides[Dims - 1] == in_strides[Dims - 1]) {
+                                 //todo(klecki): fix this cast
+  if (Dims > 1 && out_strides[Dims - 1] == (uint32_t)in_strides[Dims - 1]) {
     const int NextDims = Dims > 1 ? Dims - 1 : 1;
     SliceFuncNoPad<NextDims, OutputType, InputType>(out, in, out_strides, in_strides, offset,
                                                     block_end);
@@ -151,7 +152,9 @@ __device__ void SliceFunc(OutputType *__restrict__ out, const InputType *__restr
       in_idx += i_d;  // in_strides[d] is 1
 
     // Fill values are reused a lot, so let's make sure they are cached (by using __ldg())
-    out[out_idx] = out_of_bounds ? __ldg(&fill_values[i_c]) : clamp<OutputType>(in[in_idx]);
+    //TODO(klecki):fixme
+    out[out_idx] = out_of_bounds ? fill_values[i_c] : clamp<OutputType>(in[in_idx]);
+    // out[out_idx] = out_of_bounds ? __ldg(&fill_values[i_c]) : clamp<OutputType>(in[in_idx]);
   }
 }
 
@@ -200,7 +203,7 @@ class SliceGPU {
       if (nfill_values_ == 0) {
         nfill_values_ = args.fill_values.size();
       } else {
-        if (nfill_values_ != args.fill_values.size())
+        if (nfill_values_ != static_cast<int>(args.fill_values.size()))
           throw std::invalid_argument(
               "The number of fill values should be the same for all the samples");
       }
@@ -256,7 +259,7 @@ class SliceGPU {
     for (int i = 0; i < in.size(); i++) {
       if (default_fill_values_) {
         assert(nfill_values_ == 1);
-        fill_values_cpu[i] = OutputType(0);
+        fill_values_cpu[i] = static_cast<OutputType>(0.f); // half__?
       } else {
         auto *fill_values = fill_values_cpu + i * nfill_values_;
         for (int d = 0; d < nfill_values_; d++)

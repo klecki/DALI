@@ -31,8 +31,8 @@ class DLL_PUBLIC MelFilterBankGpu {
   static_assert(std::is_floating_point<T>::value, "Only floating point types are supported");
   static_assert(Dims >= 2, "At least 2 dimensions are expected");
 
-  DLL_PUBLIC MelFilterBankGpu();
-  DLL_PUBLIC ~MelFilterBankGpu();
+  DLL_PUBLIC __host__ MelFilterBankGpu();
+  DLL_PUBLIC __host__ ~MelFilterBankGpu();
 
   DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
                                       const InListGPU<T, Dims> &in,
