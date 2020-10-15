@@ -28,6 +28,7 @@ const auto &_type_info_##Id = TypeTable::GetTypeID<Type>()
 
 #include "dali/pipeline/data/types.h"
 #include "dali/util/half.hpp"
+#include <cuda_fp16.h>  // for __half & related methods
 
 #include "dali/pipeline/data/backend.h"
 #include "dali/core/per_stream_pool.h"

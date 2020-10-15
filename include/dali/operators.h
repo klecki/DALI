@@ -27,8 +27,10 @@ namespace dali {
  * (no Executor or Pipeline), you may pass on @see daliInitialize().
  */
 void InitOperatorsLib();
+void cuInitOperatorsLib();
 }  // namespace dali
 extern "C" void daliInitOperators();
+extern "C" void cuDaliInitOperators();
 ///@}
 #else
 /**
@@ -40,6 +42,7 @@ extern "C" void daliInitOperators();
  * (no Executor or Pipeline), you may pass on @see daliInitialize().
  */
 void daliInitOperators();
+void cuDaliInitOperators();
 #endif
 
 

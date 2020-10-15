@@ -14,14 +14,14 @@
 
 project(dali_operator CUDA CXX C)
 
-add_subdirectory(audio)
+# add_subdirectory(audio)
 add_subdirectory(bbox)
 add_subdirectory(geometry)
 add_subdirectory(debug)
 add_subdirectory(decoder)
 add_subdirectory(generic)
-add_subdirectory(image)
-add_subdirectory(math)
+# add_subdirectory(image)
+# add_subdirectory(math)
 add_subdirectory(random)
 add_subdirectory(reader)
 add_subdirectory(sequence)
@@ -46,6 +46,10 @@ if (BUILD_PROTO3)
 endif()
 
 correct_source_file_language_property("${DALI_OPERATOR_SRCS}")
+# message(ERROR "${CMAKE_CURRENT_SOURCE_DIR}/operators.cu")
+# dali/operators/operators.cu
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/operators.cu" PROPERTIES LANGUAGE CUDA)
+# set(DALI_OPERATOR_SRCS "${DALI_OPERATOR_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/operators.cu")
 add_library(dali_operators ${LIBTYPE} ${DALI_OPERATOR_SRCS} ${DALI_OPERATOR_PROTO_OBJ})
 set_target_properties(dali_operators PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${DALI_LIBRARY_OUTPUT_DIR}")

@@ -12,7 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+
+
+// #define DALI_TYPENAME_REGISTERER(Type, dtype)                                    \
+// {                                                                                \
+//   return to_string(dtype);                                                       \
+// }
+
+// #define DALI_TYPEID_REGISTERER(Type, dtype)                                      \
+// {                                                                                \
+//   static DALIDataType type_id = TypeTable::instance().RegisterType<Type>(dtype); \
+//   return type_id;                                                                \
+// }
+
+// #define DALI_REGISTER_TYPE_IMPL(Type, Id) \
+// const auto &_type_info_##Id = TypeTable::GetTypeID<Type>()
+
 #include "dali/pipeline/data/types.h"
+// #include "dali/core/float16.h"
+#include <cuda_fp16.h>  // for __half & related methods
 
 namespace dali {
 namespace detail {
@@ -30,6 +48,10 @@ void LaunchCopyKernel(void *dst, const void *src, int64_t nbytes, cudaStream_t s
                                          reinterpret_cast<const uint8_t*>(src),
                                          nbytes);
   CUDA_CALL(cudaGetLastError());
+}
+
+__host__ __half __int2half_rn(int i) {
+  return {};
 }
 
 }  // namespace detail

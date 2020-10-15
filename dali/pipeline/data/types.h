@@ -31,6 +31,10 @@
 #include "dali/core/cuda_utils.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/tensor_layout.h"
+#include <cuda_fp16.h>  // for __half & related methods
+#ifndef __CUDA_ARCH__
+#include "dali/util/half.hpp"
+#endif
 
 #ifdef DALI_BUILD_PROTO3
 #include "dali/operators/reader/parser/tf_feature.h"
@@ -117,6 +121,7 @@ enum DALIDataType : int {
   DALI_INTERP_TYPE     = 22,
   DALI_TENSOR_LAYOUT   = 23,
   DALI_PYTHON_OBJECT   = 24,
+  DALI_FLOAT16_GPU     =  42,
   DALI_DATATYPE_END    = 1000
 };
 
@@ -322,7 +327,7 @@ class DLL_PUBLIC TypeInfo {
    * @param src source pointer
    * @param n number of elements to copy
    * @param stream CUDA stream used to perform copy. Only relevant when copying from/to GPUBackend
-   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable 
+   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable
    *        (only relevant for device and host pinned memory)
    */
   template <typename DstBackend, typename SrcBackend>
@@ -336,7 +341,7 @@ class DLL_PUBLIC TypeInfo {
    * @param sizes number of elements for each of the pointers specified in srcs
    * @param n number of copies to process
    * @param stream CUDA stream used to perform copy. Only relevant when copying from/to GPUBackend
-   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable 
+   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable
    *        (only relevant for device and host pinned memory)
    */
   template <typename DstBackend, typename SrcBackend>
@@ -350,7 +355,7 @@ class DLL_PUBLIC TypeInfo {
    * @param sizes number of elements for each of the pointers specified in srcs
    * @param n number of copies to process
    * @param stream CUDA stream used to perform copy. Only relevant when copying from/to GPUBackend
-   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable 
+   * @param use_copy_kernel If true, a copy kernel will be used instead of cudaMemcpyAsync when applicable
    *        (only relevant for device and host pinned memory)
    */
   template <typename DstBackend, typename SrcBackend>
@@ -532,7 +537,6 @@ DALI_REGISTER_TYPE(int8_t,         DALI_INT8);
 DALI_REGISTER_TYPE(int16_t,        DALI_INT16);
 DALI_REGISTER_TYPE(int32_t,        DALI_INT32);
 DALI_REGISTER_TYPE(int64_t,        DALI_INT64);
-DALI_REGISTER_TYPE(float16,        DALI_FLOAT16);
 DALI_REGISTER_TYPE(float,          DALI_FLOAT);
 DALI_REGISTER_TYPE(double,         DALI_FLOAT64);
 DALI_REGISTER_TYPE(bool,           DALI_BOOL);
@@ -551,6 +555,25 @@ DALI_REGISTER_TYPE(std::vector<bool>, DALI_BOOL_VEC);
 DALI_REGISTER_TYPE(std::vector<int>, DALI_INT_VEC);
 DALI_REGISTER_TYPE(std::vector<std::string>, DALI_STRING_VEC);
 DALI_REGISTER_TYPE(std::vector<float>, DALI_FLOAT_VEC);
+
+
+// #if defined(__CUDA__)
+
+#ifndef __CUDA_ARCH__
+
+DALI_REGISTER_TYPE(__half,        DALI_FLOAT16_GPU);
+DALI_REGISTER_TYPE(half_float::half,        DALI_FLOAT16);
+
+#else
+
+DALI_REGISTER_TYPE(float16,        DALI_FLOAT16);
+
+
+
+#endif
+
+
+DLL_PUBLIC __host__ __half __int2half_rn(int i);
 
 /**
  * @brief Easily instantiate templates for all types
