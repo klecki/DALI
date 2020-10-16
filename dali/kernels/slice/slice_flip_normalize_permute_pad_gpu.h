@@ -244,7 +244,7 @@ class SliceFlipNormalizePermutePadGpu {
         VALUE_SWITCH(need_normalize_ ? 1 : 0, NeedNormalize, (false, true), (
           auto grid = block_count_;
           detail::SliceFlipNormalizePermutePadKernel
-            <NeedPad, NeedFlip, NeedNormalize, OutputType, InputType, Dims>
+            <NeedPad, NeedFlip, NeedNormalize, to_gpu_t<OutputType>, to_gpu_t<InputType>, Dims>
             <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs_gpu, block_descs_gpu);
         ), ());  // NOLINT
       ), ());  // NOLINT
