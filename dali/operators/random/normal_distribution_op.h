@@ -23,7 +23,7 @@
 #include "dali/core/static_switch.h"
 
 #define DALI_NORMDIST_TYPES (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, \
-                             int64_t, float16, float, double)
+                             int64_t, float16, float, double) //TODO(klecki) fp16
 
 namespace dali {
 namespace detail {

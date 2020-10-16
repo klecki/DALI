@@ -28,6 +28,10 @@ if (POLICY CMP0075)
 endif()
 
 project(DALI CUDA CXX C)
+
+
+# link_libraries(nvidia::cudart)
+
 set(DALI_ROOT ${PROJECT_SOURCE_DIR})
 set(CUDA_VERSION "${CMAKE_CUDA_COMPILER_VERSION}")
 
