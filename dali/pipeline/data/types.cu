@@ -50,9 +50,9 @@ void LaunchCopyKernel(void *dst, const void *src, int64_t nbytes, cudaStream_t s
   CUDA_CALL(cudaGetLastError());
 }
 
-__host__ __half __int2half_rn(int i) {
-  return {};
-}
+// __host__ __half __int2half_rn(int i) {
+//   return {};
+// }
 
 }  // namespace detail
 }  // namespace dali

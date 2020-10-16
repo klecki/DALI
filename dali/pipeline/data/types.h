@@ -573,7 +573,7 @@ DALI_REGISTER_TYPE(float16,        DALI_FLOAT16);
 #endif
 
 
-DLL_PUBLIC __host__ __half __int2half_rn(int i);
+// DLL_PUBLIC __host__ __half __int2half_rn(int i);
 
 /**
  * @brief Easily instantiate templates for all types

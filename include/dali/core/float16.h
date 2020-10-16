@@ -15,10 +15,10 @@
 #ifndef DALI_CORE_FLOAT16_H_
 #define DALI_CORE_FLOAT16_H_
 #if defined(__CUDA__)
-#include <cuda_fp16.h>  // for __half & related methods
+#include "cuda_modified/cuda_fp16.h"  // for __half & related methods
 #endif
 #include <type_traits>
-#if !defined(__CUDA_ARCH__) && !(defined(__clang__) && defined(__CUDA__))
+#if !defined(__CUDA_ARCH__) //&& !(defined(__clang__) && defined(__CUDA__))
 #include "dali/util/half.hpp"
 #endif
 
@@ -26,7 +26,7 @@ namespace dali {
 
 // For the GPU
 // #if defined(__CUDA_ARCH__)
-#if defined(__CUDA_ARCH__) || (defined(__clang__) && defined(__CUDA__))
+#if defined(__CUDA_ARCH__) // || (defined(__clang__) && defined(__CUDA__))
 using float16 = __half;
 #else
 using float16 = half_float::half;

@@ -14,7 +14,7 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-add_compile_definitions(__CUDA_NO_HALF_CONVERSIONS__)
+# add_compile_definitions(__CUDA_NO_HALF_CONVERSIONS__)
 # allow usage of check_symbol_exists() macro
 include(CheckCXXSymbolExists)
 include(CheckCXXCompilerFlag)
