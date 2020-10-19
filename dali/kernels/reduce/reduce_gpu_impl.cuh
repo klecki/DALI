@@ -249,7 +249,7 @@ using int_const = std::integral_constant<int, value>;
 template <typename ReduceImpl>
 auto GetPreprocessorHelper(
       std::true_type, const ReduceImpl *impl, int sample_idx, bool reduce_batch)
-      ->decltype(impl->GetPreprocessorImpl(sample_idx, reduce_batch)) {
+      -> decltype(impl->GetPreprocessorImpl(sample_idx, reduce_batch)) {
   return impl->GetPreprocessorImpl(sample_idx, reduce_batch);
 }
 
@@ -267,11 +267,13 @@ auto GetPostprocessorHelper(
   return impl->GetPostprocessorImpl(sample_idx, reduce_batch);
 }
 
-template <bool do_preprocess>
+template <typename ReduceImpl, bool do_preprocess>
 inline identity GetPreprocessorHelper(bool_const<do_preprocess>, ...) { return {}; }
-template <bool do_postprocess>
+
+template <typename ReduceImpl, bool do_postprocess>
 inline identity GetPostprocessorHelper(bool_const<do_postprocess>, ...) { return {}; }
-template <int non_reduced_dims, bool do_preprocess>
+
+template <int non_reduced_dims, typename ReduceImpl, bool do_preprocess>
 inline IdentityPreprocessor<non_reduced_dims> *
 GetPreprocessorBanksHelper(bool_const<do_preprocess>, ...) {
   return nullptr;
@@ -416,6 +418,8 @@ class ReduceImplGPU {
     return !std::is_empty<Postprocessor<>>::value;
   }
 
+
+ public:
   /*
    * The functions below get the preprocessors and postprocessors.
    * The function uses a helper class and have a default template arugment Derived = Actual
@@ -426,19 +430,19 @@ class ReduceImplGPU {
 
   template <bool do_preprocess, int non_reduced_dim, typename Derived = Actual>
   auto *GetPreprocessorBanks(WorkArea &wa, int reduced_axis) const {
-    return GetPreprocessorBanksHelper<non_reduced_dim>(bool_const<do_preprocess>(),
+    return GetPreprocessorBanksHelper<non_reduced_dim, Derived>(bool_const<do_preprocess>(),
       static_cast<const Derived *>(this), &wa, reduced_axis);
   }
 
   template <bool do_preprocess, typename Derived = Actual>
   auto GetPreprocessor(int sample_index, bool reduce_batch) const {
-    return GetPreprocessorHelper(
+    return GetPreprocessorHelper<Derived>(
       bool_const<do_preprocess>(), static_cast<const Derived *>(this), sample_index, reduce_batch);
   }
 
   template <bool do_postprocess, typename Derived = Actual>
   auto GetPostprocessor(int sample_index, bool reduce_batch) const {
-    return GetPostprocessorHelper(
+    return GetPostprocessorHelper<Derived>(
       bool_const<do_postprocess>(), static_cast<const Derived *>(this), sample_index, reduce_batch);
   }
 
@@ -476,17 +480,32 @@ class ReduceImplGPU {
   // dali/kernels/reduce/reduce_gpu_impl.cuh:475:68: error: member access into incomplete type 'dali::kernels::reduce_impl::ReduceImplGPU<float, unsigned char, float, dali::kernels::reduce_impl::StdDevImplGPU<float, unsigned char, float, float> >'
   // using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
   // ```
+  // template <int non_reduced_dim, typename Derived = Actual>
+  // using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
+  //   template GetPreprocessorBanks<true, non_reduced_dim, Derived>(std::declval<WorkArea&>(), 0));
+
+  // template <typename Derived = Actual>
+  // using Preprocessor =
+  //   decltype(std::declval<ReduceImplGPU&>().template GetPreprocessor<true, Derived>(0, true));
+
+  // template <typename Derived = Actual>
+  // using Postprocessor =
+  //   decltype(std::declval<ReduceImplGPU&>().template GetPostprocessor<true, Derived>(0, true));
+
+
+
   template <int non_reduced_dim, typename Derived = Actual>
-  using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
-    template GetPreprocessorBanks<true, non_reduced_dim, Derived>(std::declval<WorkArea&>(), 0));
+  using PreprocessorBank = decltype(GetPreprocessorBanksHelper<non_reduced_dim, Derived>(
+    std::true_type(), std::declval<Derived*>(), nullptr, 0));
 
   template <typename Derived = Actual>
-  using Preprocessor =
-    decltype(std::declval<ReduceImplGPU&>().template GetPreprocessor<true, Derived>(0, true));
+  using Preprocessor = decltype(GetPreprocessorHelper<Derived>(std::true_type(), std::declval<Derived*>(), 0, true));
+    // decltype(std::declval<ReduceImplGPU&>().template GetPreprocessor<true, Derived>(0, true));
 
   template <typename Derived = Actual>
-  using Postprocessor =
-    decltype(std::declval<ReduceImplGPU&>().template GetPostprocessor<true, Derived>(0, true));
+  using Postprocessor = decltype(GetPostprocessorHelper<Derived>(std::true_type(), std::declval<Derived*>(), 0, true));
+    // decltype(std::declval<ReduceImplGPU&>().template GetPostprocessor<true, Derived>(0, true));
+
 
  private:
   /**

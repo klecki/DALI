@@ -71,10 +71,10 @@ class InvStdDevGPU<Out, In, Mean>::Impl : public reduce_impl::InvStdDevImplGPU<O
 };
 
 template <typename Out, typename In, typename Mean>
-InvStdDevGPU<Out, In, Mean>::InvStdDevGPU() = default;
+__host__ InvStdDevGPU<Out, In, Mean>::InvStdDevGPU() = default;
 
 template <typename Out, typename In, typename Mean>
-InvStdDevGPU<Out, In, Mean>::~InvStdDevGPU() = default;
+__host__ InvStdDevGPU<Out, In, Mean>::~InvStdDevGPU() = default;
 
 template <typename Out, typename In, typename Mean>
 KernelRequirements InvStdDevGPU<Out, In, Mean>::Setup(

@@ -195,8 +195,8 @@ extern template class MeanGPU<float, float>;
 template <typename Out, typename In>
 class DLL_PUBLIC RootMeanSquareGPU {
  public:
-  RootMeanSquareGPU();
-  ~RootMeanSquareGPU();
+  __host__ RootMeanSquareGPU();
+  __host__ ~RootMeanSquareGPU();
 
   /**
    * @brief Sets up the reduction
@@ -335,8 +335,8 @@ extern template class StdDevGPU<float, float>;
 template <typename Out, typename In, typename Mean = Out>
 class DLL_PUBLIC InvStdDevGPU {
  public:
-  InvStdDevGPU();
-  ~InvStdDevGPU();
+  __host__ InvStdDevGPU();
+  __host__ ~InvStdDevGPU();
 
   /**
    * @brief Sets up the reduction

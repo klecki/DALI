@@ -67,10 +67,10 @@ class RootMeanSquareGPU<Out, In>::Impl : public reduce_impl::RootMeanSquareImplG
 };
 
 template <typename Out, typename In>
-RootMeanSquareGPU<Out, In>::RootMeanSquareGPU() = default;
+__host__ RootMeanSquareGPU<Out, In>::RootMeanSquareGPU() = default;
 
 template <typename Out, typename In>
-RootMeanSquareGPU<Out, In>::~RootMeanSquareGPU() = default;
+__host__ RootMeanSquareGPU<Out, In>::~RootMeanSquareGPU() = default;
 
 template <typename Out, typename In>
 KernelRequirements RootMeanSquareGPU<Out, In>::Setup(
