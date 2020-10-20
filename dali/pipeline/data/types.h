@@ -121,7 +121,7 @@ enum DALIDataType : int {
   DALI_INTERP_TYPE     = 22,
   DALI_TENSOR_LAYOUT   = 23,
   DALI_PYTHON_OBJECT   = 24,
-  DALI_FLOAT16_GPU     =  42,
+  DALI_FLOAT16_GPU     = 42,
   DALI_DATATYPE_END    = 1000
 };
 

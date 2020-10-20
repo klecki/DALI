@@ -249,7 +249,7 @@ using int_const = std::integral_constant<int, value>;
 template <typename ReduceImpl>
 auto GetPreprocessorHelper(
       std::true_type, const ReduceImpl *impl, int sample_idx, bool reduce_batch)
-      -> decltype(impl->GetPreprocessorImpl(sample_idx, reduce_batch)) {
+      ->decltype(impl->GetPreprocessorImpl(sample_idx, reduce_batch)) {
   return impl->GetPreprocessorImpl(sample_idx, reduce_batch);
 }
 
@@ -267,17 +267,46 @@ auto GetPostprocessorHelper(
   return impl->GetPostprocessorImpl(sample_idx, reduce_batch);
 }
 
-template <typename ReduceImpl, bool do_preprocess>
+template <bool do_preprocess>
 inline identity GetPreprocessorHelper(bool_const<do_preprocess>, ...) { return {}; }
-
-template <typename ReduceImpl, bool do_postprocess>
+template <bool do_postprocess>
 inline identity GetPostprocessorHelper(bool_const<do_postprocess>, ...) { return {}; }
-
-template <int non_reduced_dims, typename ReduceImpl, bool do_preprocess>
+template <int non_reduced_dims, bool do_preprocess>
 inline IdentityPreprocessor<non_reduced_dims> *
 GetPreprocessorBanksHelper(bool_const<do_preprocess>, ...) {
   return nullptr;
 }
+
+template <typename ReduceImplBaseType, int non_reduced_dims>
+struct PreprocessorBankType {
+  using type = decltype(*std::declval<ReduceImplBaseType&>().
+    template GetPreprocessorBanks<true, non_reduced_dims>(
+      std::declval<WorkArea&>(), 0));
+};
+
+template <typename ReduceImplBaseType>
+struct PreprocessorType {
+  using type =
+    decltype(std::declval<ReduceImplBaseType&>().template GetPreprocessor<true>(0, true));
+};
+
+template <typename ReduceImplBaseType>
+struct PostprocessorType {
+  using type =
+    decltype(std::declval<ReduceImplBaseType&>().template GetPostprocessor<true>(0, true));
+};
+
+template <typename ReduceImplBaseType, int non_reduced_dims>
+using preprocessor_bank_t =
+    typename PreprocessorBankType<ReduceImplBaseType, non_reduced_dims>::type;
+
+template <typename ReduceImplBaseType>
+using preprocessor_t = typename PreprocessorType<ReduceImplBaseType>::type;
+
+template <typename ReduceImplBaseType>
+using postprocessor_t = typename PostprocessorType<ReduceImplBaseType>::type;
+
+
 
 /**
  * @brief This is the base class for implementing reductions
@@ -411,15 +440,20 @@ class ReduceImplGPU {
   }
 
   bool HasPreprocessingParams() const {
-    return !std::is_empty<PreprocessorBank<2>>::value;
+    return !std::is_empty<preprocessor_bank_t<ReduceImplGPU, 2>>::value;
   }
 
   bool HasPostprocessingParams() const {
-    return !std::is_empty<Postprocessor<>>::value;
+    return !std::is_empty<postprocessor_t<ReduceImplGPU>>::value;
   }
 
+  template <typename ReduceImplBaseType, int non_reduced_dims>
+  friend struct PreprocessorBankType;
+  template <typename ReduceImplBaseType>
+  friend struct PreprocessorType;
+  template <typename ReduceImplBaseType>
+  friend struct PostprocessorType;
 
- public:
   /*
    * The functions below get the preprocessors and postprocessors.
    * The function uses a helper class and have a default template arugment Derived = Actual
@@ -430,19 +464,19 @@ class ReduceImplGPU {
 
   template <bool do_preprocess, int non_reduced_dim, typename Derived = Actual>
   auto *GetPreprocessorBanks(WorkArea &wa, int reduced_axis) const {
-    return GetPreprocessorBanksHelper<non_reduced_dim, Derived>(bool_const<do_preprocess>(),
+    return GetPreprocessorBanksHelper<non_reduced_dim>(bool_const<do_preprocess>(),
       static_cast<const Derived *>(this), &wa, reduced_axis);
   }
 
   template <bool do_preprocess, typename Derived = Actual>
   auto GetPreprocessor(int sample_index, bool reduce_batch) const {
-    return GetPreprocessorHelper<Derived>(
+    return GetPreprocessorHelper(
       bool_const<do_preprocess>(), static_cast<const Derived *>(this), sample_index, reduce_batch);
   }
 
   template <bool do_postprocess, typename Derived = Actual>
   auto GetPostprocessor(int sample_index, bool reduce_batch) const {
-    return GetPostprocessorHelper<Derived>(
+    return GetPostprocessorHelper(
       bool_const<do_postprocess>(), static_cast<const Derived *>(this), sample_index, reduce_batch);
   }
 
@@ -473,39 +507,6 @@ class ReduceImplGPU {
     }
     return pp;
   }
-
- public:
-  // TODO(klecki): solve the problem of:
-  // ```
-  // dali/kernels/reduce/reduce_gpu_impl.cuh:475:68: error: member access into incomplete type 'dali::kernels::reduce_impl::ReduceImplGPU<float, unsigned char, float, dali::kernels::reduce_impl::StdDevImplGPU<float, unsigned char, float, float> >'
-  // using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
-  // ```
-  // template <int non_reduced_dim, typename Derived = Actual>
-  // using PreprocessorBank = decltype(*std::declval<ReduceImplGPU&>().
-  //   template GetPreprocessorBanks<true, non_reduced_dim, Derived>(std::declval<WorkArea&>(), 0));
-
-  // template <typename Derived = Actual>
-  // using Preprocessor =
-  //   decltype(std::declval<ReduceImplGPU&>().template GetPreprocessor<true, Derived>(0, true));
-
-  // template <typename Derived = Actual>
-  // using Postprocessor =
-  //   decltype(std::declval<ReduceImplGPU&>().template GetPostprocessor<true, Derived>(0, true));
-
-
-
-  template <int non_reduced_dim, typename Derived = Actual>
-  using PreprocessorBank = decltype(GetPreprocessorBanksHelper<non_reduced_dim, Derived>(
-    std::true_type(), std::declval<Derived*>(), nullptr, 0));
-
-  template <typename Derived = Actual>
-  using Preprocessor = decltype(GetPreprocessorHelper<Derived>(std::true_type(), std::declval<Derived*>(), 0, true));
-    // decltype(std::declval<ReduceImplGPU&>().template GetPreprocessor<true, Derived>(0, true));
-
-  template <typename Derived = Actual>
-  using Postprocessor = decltype(GetPostprocessorHelper<Derived>(std::true_type(), std::declval<Derived*>(), 0, true));
-    // decltype(std::declval<ReduceImplGPU&>().template GetPostprocessor<true, Derived>(0, true));
-
 
  private:
   /**
@@ -581,16 +582,16 @@ class ReduceImplGPU {
         // per-sample preprocessor may need some parameter space
         switch (stage.kind) {
           case ReductionKind::Middle:  // the preprocessor bank is 2D (outer, inner)
-            buf_sizes.AddParam<PreprocessorBank<2>>(N);
+            buf_sizes.AddParam<preprocessor_bank_t<ReduceImplGPU, 2>>(N);
             break;
           case ReductionKind::Inner:  // the preprocessor bank is 1D (outer)
           case ReductionKind::None:   // the preprocessor bank is 1D (pointwise)
           case ReductionKind::Fold:   // the preprocessor bank is 1D (pointwise)
-            buf_sizes.AddParam<PreprocessorBank<1>>(N);
+            buf_sizes.AddParam<preprocessor_bank_t<ReduceImplGPU, 1>>(N);
             break;
           case ReductionKind::Sample:
             // per sample scalar preprocessor is possible
-            buf_sizes.AddParam<Preprocessor<>>(N);
+            buf_sizes.AddParam<preprocessor_t<ReduceImplGPU>>(N);
             break;
           default:
             // no buffer for preprocessor - it's passed by value
@@ -610,7 +611,7 @@ class ReduceImplGPU {
           case ReductionKind::Inner:
           case ReductionKind::None:
           case ReductionKind::Sample:
-            buf_sizes.AddParam<Postprocessor<>>(N);
+            buf_sizes.AddParam<postprocessor_t<ReduceImplGPU>>(N);
             break;
           default:
             // no buffer required - passed by value

@@ -13,9 +13,8 @@
 # limitations under the License.
 
 
-# Quite an obvious location...
-# add_subdirectory(resampling_test)
-# add_subdirectory(warp_test)
+add_subdirectory(resampling_test)
+add_subdirectory(warp_test)
 
 # Get all the source files and dump test files, but not the headers
 collect_sources(DALI_KERNEL_SRCS PARENT_SCOPE)
