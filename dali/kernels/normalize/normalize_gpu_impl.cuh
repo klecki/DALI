@@ -45,6 +45,7 @@ struct NormalizeNonScalar {
   void apply(int64_t offset, float global_scale, float global_shift) {
     int64_t param_offset = dd.reindex(offset);
   #ifdef __CUDA_ARCH__
+    printf("TEST");
     float sub = __ldg(base + param_offset);
     float mul = __ldg(scale + param_offset) * global_scale;
   #else

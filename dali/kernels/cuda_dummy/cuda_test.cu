@@ -5,9 +5,20 @@
 #include <cstdio>
 #include <cmath>
 
+
+void __host__ __device__ test_arch(int id) {
+  #ifdef __CUDA_ARCH__
+  if (threadIdx.x == 0 && blockIdx.x == 0)
+    printf ("GPU %d\n", id);
+  #else
+  printf("CPU %d\n", id);
+  #endif
+}
+
 __global__
 void saxpy(int n, float a, float *x, float *y)
 {
+  test_arch(0);
   int i = blockIdx.x*blockDim.x + threadIdx.x;
   if (i < n) y[i] = a*x[i] + y[i];
 }
@@ -32,6 +43,7 @@ void run_test(void)
 
   // Perform SAXPY on 1M elements
   saxpy<<<(N+255)/256, 256>>>(N, 2.0f, d_x, d_y);
+  test_arch(1);
 
   cudaMemcpy(y, d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
 

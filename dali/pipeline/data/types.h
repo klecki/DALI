@@ -559,18 +559,19 @@ DALI_REGISTER_TYPE(std::vector<float>, DALI_FLOAT_VEC);
 
 // #if defined(__CUDA__)
 
-#ifndef __CUDA_ARCH__
-
-DALI_REGISTER_TYPE(__half,        DALI_FLOAT16_GPU);
-DALI_REGISTER_TYPE(half_float::half,        DALI_FLOAT16);
-
-#else
-
 DALI_REGISTER_TYPE(float16,        DALI_FLOAT16);
+// #ifndef __CUDA_ARCH__
+
+// DALI_REGISTER_TYPE(__half,        DALI_FLOAT16_GPU);
+// DALI_REGISTER_TYPE(half_float::half,        DALI_FLOAT16);
+
+// #else
+
+// DALI_REGISTER_TYPE(float16,        DALI_FLOAT16);
 
 
 
-#endif
+// #endif
 
 
 // DLL_PUBLIC __host__ __half __int2half_rn(int i);
