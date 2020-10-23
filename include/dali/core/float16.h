@@ -66,9 +66,17 @@ struct is_fp_or_half {
     std::is_floating_point<T>::value || is_half<T>::value;
 };
 
+// If not clang, just let everyone deal with the alias
+#if defined(__clang__) && defined(__CUDA__)
 template <typename T>
 using to_gpu_t = std::conditional_t<is_half<T>::value, __half, T>;
 
+#else
+
+template <typename T>
+using to_gpu_t = T;
+
+#endif
 
 
 

@@ -26,7 +26,7 @@
 #include "dali/pipeline/operator/operator.h"
 
 #define PAD_SUPPORTED_TYPES (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, \
-                             uint64_t, int64_t, float, float16) //TODO(klecki) fp16
+                             uint64_t, int64_t, float, float16)
 #define PAD_SUPPORTED_NDIMS (1, 2, 3, 4, 5)
 
 namespace dali {

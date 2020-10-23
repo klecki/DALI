@@ -152,9 +152,7 @@ __device__ void SliceFunc(OutputType *__restrict__ out, const InputType *__restr
       in_idx += i_d;  // in_strides[d] is 1
 
     // Fill values are reused a lot, so let's make sure they are cached (by using __ldg())
-    //TODO(klecki):fixme
-    out[out_idx] = out_of_bounds ? fill_values[i_c] : clamp<OutputType>(in[in_idx]);
-    // out[out_idx] = out_of_bounds ? __ldg(&fill_values[i_c]) : clamp<OutputType>(in[in_idx]);
+    out[out_idx] = out_of_bounds ? __ldg(&fill_values[i_c]) : clamp<OutputType>(in[in_idx]);
   }
 }
 
@@ -327,10 +325,10 @@ class SliceGPU {
 
     const auto grid = block_count_;
     if (any_padded_sample)
-      detail::SliceKernel<OutputType, InputType, Dims, true>
+      detail::SliceKernel<to_gpu_t<OutputType>, to_gpu_t<InputType>, Dims, true>
         <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs, block_descs);
     else
-      detail::SliceKernel<OutputType, InputType, Dims, false>
+      detail::SliceKernel<to_gpu_t<OutputType>, to_gpu_t<InputType>, Dims, false>
         <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs, block_descs);
     CUDA_CALL(cudaGetLastError());
   }

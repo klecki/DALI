@@ -22,7 +22,7 @@ namespace dali {
 
 #define NUMPY_ALLOWED_TYPES \
   (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, float16, \
-  double) //TODO(klecki) fp16
+  double)
 
 void NumpyReader::TransposeHelper(Tensor<CPUBackend>& output, const Tensor<CPUBackend>& input) {
   auto& in_shape = input.shape();
