@@ -108,13 +108,10 @@ __global__ void process_frame_kernel(
 
   // https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#tex2d-object
   YCbCr<float> ycbcr;
-  //todo(klecki): those functions don't compile in clang, maybe some WAR?
-  #if !defined(__clang__)
   ycbcr.y = tex2D<float>(luma, src_x, src_y);
   auto cbcr = tex2D<float2>(chroma, src_x * 0.5f, src_y * 0.5f);
   ycbcr.cb = cbcr.x;
   ycbcr.cr = cbcr.y;
-  #endif
 
   auto* out = &dst[(dst_x + dst_y * dst_width) * c];
 

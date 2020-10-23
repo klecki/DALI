@@ -36,7 +36,7 @@ collect_sources(DALI_KERNEL_SRCS)
 collect_test_sources(DALI_KERNEL_TEST_SRCS)
 
 # cuFFT library
-correct_source_file_language_property("${DALI_KERNEL_SRCS}")
+adjust_source_file_language_property("${DALI_KERNEL_SRCS}")
 add_library(dali_kernels ${LIBTYPE} ${DALI_KERNEL_SRCS})
 # set_target_properties(dali_kernels PROPERTIES COMPILE_FLAGS "${CMAKE_CXX_FLAGS} -fcuda-rdc")
 target_link_libraries(dali_kernels PUBLIC dali_core)
@@ -54,14 +54,13 @@ target_link_libraries(dali_kernels PRIVATE  -Wl,--version-script=${CMAKE_BINARY_
 
 if (BUILD_TEST)
   # TODO(janton): create a test_utils_lib with dali_test_config.cc and other common utilities
-  correct_source_file_language_property("${DALI_KERNEL_TEST_SRCS}")
+  adjust_source_file_language_property("${DALI_KERNEL_TEST_SRCS}")
   add_executable(dali_kernel_test
     ${DALI_KERNEL_TEST_SRCS}
     ${DALI_ROOT}/dali/test/dali_test_config.cc)
 
   # TODO(janton): Remove dependency with target `dali`
   target_link_libraries(dali_kernel_test PUBLIC dali_kernels dali)
-  target_link_libraries(dali_kernel_test PUBLIC dl rt pthread)
   target_link_libraries(dali_kernel_test PRIVATE gtest dynlink_cuda ${DALI_LIBS})
   target_link_libraries(dali_kernel_test PRIVATE "-Wl,--exclude-libs,${exclude_libs}")
   target_link_libraries(dali_kernel_test PRIVATE "-pie")

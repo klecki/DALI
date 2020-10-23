@@ -12,15 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function(CUDA_)
-if(NOT CUDA_TOOLKIT_ROOT_DIR)
-  get_filename_component(CUDA_TOOLKIT_ROOT_DIR "${CMAKE_CUDA_COMPILER}/../.." ABSOLUTE)
-endif()
+
+# Use CMAKE_CUDA_COMPILER to obtain the path to CUDA toolkint.
+# Needed when compiling with Clang only
+function(CUDA_get_toolkit_from_compiler TOOLKIT_PATH)
+  get_filename_component(TOOLKIT_PATH_TMP_VAR "${CMAKE_CUDA_COMPILER}/../.." ABSOLUTE)
+  set(${TOOLKIT_PATH} ${TOOLKIT_PATH_TMP_VAR} PARENT_SCOPE)
 endfunction()
 
-
-# ...
-function(correct_source_file_language_property SOURCES)
+# When compiling CUDA with Clang only (DALI_CLANG_ONLY=ON), we need to change the
+# language properties of .cu files to allow them to use the CXX compiler (which will be Clang).
+# Setting that property has narrow scope of current CMakeLists.txt, so we do this at the point
+# just before creating a target.
+# Clang will compile files as CUDA based on their extension.
+function(adjust_source_file_language_property SOURCES)
   if (DALI_CLANG_ONLY)
     foreach(File IN LISTS SOURCES)
       if(File MATCHES ".*\.cu$")
@@ -113,7 +118,7 @@ endfunction()
 #
 # If nvcc is used, the last arch value will be repeated as -gencode arch=compute_XX,code=compute_XX
 # to ensure the generation of PTX for most recent virtual architecture
-# and maintain forward compatibility
+# and maintain forward compatibility.
 #
 # @param out_args_string  output string containing appropriate CMAKE_CUDA_FLAGS/CMAKE_CXX_FLAGS
 # @param compiler         What compiler to generate flags for
@@ -139,6 +144,27 @@ function(CUDA_get_gencode_args out_args_string compiler arch_values)
   endif()
 
   set(${out_args_string} ${out} PARENT_SCOPE)
+endfunction()
+
+# Generate list of xx-real for every specified supported architecture.
+# List should be sorted in increasing order.
+#
+# The last one will also be repeated as xx-virtual to ensure the generation of PTX for most recent
+# virtual architecture and maintain forward compatibility.
+function(CUDA_get_cmake_cuda_archs out_args_list arch_values)
+  # allow the user to pass the list like a normal variable
+  set(arch_list ${arch_values} ${ARGN})
+  set(out "")
+  foreach(arch IN LISTS arch_list)
+    set(out "${out};${arch}-real")
+  endforeach(arch)
+
+  # Repeat the last one as to ensure the generation of PTX for most
+  # recent virtual architecture for forward compatibility
+  list(GET arch_list -1 last_arch)
+  set(out "${out};${last_arch}-virtual")
+
+  set(${out_args_list} ${out} PARENT_SCOPE)
 endfunction()
 
 

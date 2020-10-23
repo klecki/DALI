@@ -14,7 +14,6 @@
 
 cmake_minimum_required(VERSION 3.13)
 
-# add_compile_definitions(__CUDA_NO_HALF_CONVERSIONS__)
 # allow usage of check_symbol_exists() macro
 include(CheckCXXSymbolExists)
 include(CheckCXXCompilerFlag)
@@ -28,19 +27,6 @@ if (POLICY CMP0075)
 endif()
 
 project(DALI CUDA CXX C)
-message(STATUS "CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES}")
-message(STATUS "CUDA_TOOLKIT_ROOT_DIR ${CUDA_TOOLKIT_ROOT_DIR}")
-message(STATUS "CMAKE_CUDA_COMPILER ${CMAKE_CUDA_COMPILER}")
-message(STATUS "CUDAToolkit_ROOT ${CUDAToolkit_ROOT}")
-
-function(SIMPLE REQUIRED_ARG)
-    message(STATUS "Simple arguments: ${REQUIRED_ARG}, followed by ${ARGV}")
-    set(${REQUIRED_ARG} "From SIMPLE" PARENT_SCOPE)
-endfunction()
-
-simple(This)
-message("Output: ${This}")
-
 
 set(DALI_ROOT ${PROJECT_SOURCE_DIR})
 set(CUDA_VERSION "${CMAKE_CUDA_COMPILER_VERSION}")
@@ -133,11 +119,16 @@ option(WERROR "Treat all warnings as errors" OFF)
 cmake_dependent_option(DALI_CLANG_ONLY "Compile DALI using only Clang. Suitable only for developement."
     OFF "CMAKE_CXX_COMPILER_ID STREQUAL Clang" OFF)
 
+if (DALI_CLANG_ONLY AND BUILD_NVDEC)
+  message(STATUS "NVDEC is not supportet when compiling only with Clang. Setting BUILD_NVDEC to OFF.")
+  set(BUILD_NVDEC OFF)
+endif()
+
 message(STATUS "DALI_CLANG_ONLY -- ${DALI_CLANG_ONLY}")
 
 if (NOT CMAKE_CUDA_COMPILER_ID STREQUAL "NVIDIA")
   message(FATAL_ERROR "Expected CUDA compiler to be set to nvcc. Clang-only build is supported via DALI_CLANG_ONLY
-      which requires setting clang as C and CXX compilers and leaving nvcc as CUDA compiler.")
+      which requires setting Clang as C and CXX compilers and leaving nvcc as CUDA compiler.")
 endif()
 
 # ; creates a list here
@@ -237,23 +228,19 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-switch-bool -Wno-sign-compare -Wno-missing-braces -Wno-format -Wno-inconsistent-missing-override -Wno-implicit-int-float-conversion -Wno-mismatched-tags -Wno-reorder-ctor -Wno-unused-command-line-argument")
 
 
-  # CUDA does not support current clang as host compiler, we need use gcc
+  # CUDA does not support current Clang as host compiler, we need use gcc
   # CMAKE_CUDA_HOST_COMPILER variable operates on paths
   set(CUDA_UNSUPPORTED_COMPILER 0)
-  if (DALI_CLANG_ONLY)
-    if (NOT "${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang")
-      message(STATUS "CMAKE_CUDA_HOST_COMPILER is set to \"${CMAKE_CUDA_HOST_COMPILER}\""
-          " - expected Clang set via CMAKE_C_COMPILER, which is ${CMAKE_C_COMPILER}")
-    endif()
-  else()
+  if (NOT DALI_CLANG_ONLY)
     if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang")
         set(CUDA_UNSUPPORTED_COMPILER 1)
     elseif (CMAKE_CUDA_HOST_COMPILER STREQUAL "")
         set(CUDA_UNSUPPORTED_COMPILER 1)
     endif()
-  endif()
 
-  set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_C_COMPILER})
+    set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_C_COMPILER})
+
+  endif()
 
   if(${CUDA_UNSUPPORTED_COMPILER})
     message(STATUS "CMAKE_CUDA_HOST_COMPILER is set to ${CMAKE_C_COMPILER} - setting CMAKE_CUDA_HOST_COMPILER to gcc")
@@ -298,20 +285,26 @@ if (NOT CUDA_targeted_archs)
       " is supported by ${USED_CUDA_COMPILER}, use one or more of: ${CUDA_supported_archs}")
 endif()
 
-
+# Add gpu-arch and toolkit flags for clang when compiling cuda (if used)
 if (DALI_CLANG_ONLY)
-  CUDA_get_gencode_args(CUDA_gencode_flags ${USED_CUDA_COMPILER} ${CUDA_targeted_archs})
-  message(STATUS "Generated gencode flags: ${CUDA_gencode_flags}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CUDA_gencode_flags}")
-  set(CMAKE_CUDA_ARCHITECTURES ${CUDA_targeted_archs})
-else()
-  set(CMAKE_CUDA_ARCHITECTURES ${CUDA_targeted_archs})
+  CUDA_get_gencode_args(CUDA_gencode_flags_clang ${USED_CUDA_COMPILER} ${CUDA_targeted_archs})
+  message(STATUS "Generated gencode flags for clang: ${CUDA_gencode_flags_clang}")
+  CUDA_get_toolkit_from_compiler(CUDA_TOOLKIT_PATH_VAR)
+  message(STATUS "Used CUDA toolkit: ${CUDA_TOOLKIT_PATH_VAR}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --cuda-path=${CUDA_TOOLKIT_PATH_VAR} ${CUDA_gencode_flags_clang}")
 endif()
 
+# Add ptx & bin flags for cuda compiler (nvcc)
+if(USE_CMAKE_CUDA_ARCHITECTURES)
+  CUDA_get_cmake_cuda_archs(CMAKE_CUDA_ARCHITECTURES ${CUDA_targeted_archs})
+  message(STATUS "Generated CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
+else()
+  CUDA_get_gencode_args(CUDA_gencode_flags_nvcc ${CMAKE_CUDA_COMPILER} ${CUDA_targeted_archs})
+  message(STATUS "Generated gencode flags: ${CUDA_gencode_flags_nvcc}")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${CUDA_gencode_flags_nvcc}")
+endif()
 
-# Add ptx & bin flags for cuda
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -fvisibility=hidden --Wno-deprecated-gpu-targets")
-
 
 # Include directories
 include_directories(

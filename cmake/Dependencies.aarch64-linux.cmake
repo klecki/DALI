@@ -25,8 +25,8 @@ set(CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES "${CUDA_TARGET}/include")
 
 list(APPEND DALI_LIBS ${CUDA_LIBRARIES})
 
-CUDA_find_library(CUDART_LIB cudart)
-list(APPEND DALI_EXCLUDES libcudart)
+CUDA_find_library(CUDART_LIB cudart_static)
+list(APPEND DALI_EXCLUDES libcudart_static.a)
 
 # NVIDIA NPPC library
 CUDA_find_library(CUDA_nppicc_static_LIBRARY nppicc_static)

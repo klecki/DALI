@@ -23,6 +23,7 @@
 
 #include <memory>
 #include "dali/kernels/kernel.h"
+#include "dali/core/host_dev.h"
 #include "dali/core/tensor_view.h"
 
 namespace dali {
@@ -59,8 +60,8 @@ namespace kernels {
 template <typename Out, typename In>
 class DLL_PUBLIC SumGPU {
  public:
-  __host__ SumGPU();
-  __host__ ~SumGPU();
+  DALI_HOST SumGPU();
+  DALI_HOST ~SumGPU();
 
   /**
    * @brief Sets up the reduction
@@ -134,8 +135,8 @@ extern template class SumGPU<float, float>;
 template <typename Out, typename In>
 class DLL_PUBLIC MeanGPU {
  public:
-  __host__ MeanGPU();
-  __host__ ~MeanGPU();
+  DALI_HOST MeanGPU();
+  DALI_HOST ~MeanGPU();
 
   /**
    * @brief Sets up the reduction
@@ -195,8 +196,8 @@ extern template class MeanGPU<float, float>;
 template <typename Out, typename In>
 class DLL_PUBLIC RootMeanSquareGPU {
  public:
-  __host__ RootMeanSquareGPU();
-  __host__ ~RootMeanSquareGPU();
+  DALI_HOST RootMeanSquareGPU();
+  DALI_HOST ~RootMeanSquareGPU();
 
   /**
    * @brief Sets up the reduction
@@ -261,8 +262,8 @@ extern template class RootMeanSquareGPU<float, float>;
 template <typename Out, typename In, typename Mean = Out>
 class DLL_PUBLIC StdDevGPU {
  public:
-  __host__ StdDevGPU();
-  __host__ ~StdDevGPU();
+  DALI_HOST StdDevGPU();
+  DALI_HOST ~StdDevGPU();
 
   /**
    * @brief Sets up the reduction
@@ -335,8 +336,8 @@ extern template class StdDevGPU<float, float>;
 template <typename Out, typename In, typename Mean = Out>
 class DLL_PUBLIC InvStdDevGPU {
  public:
-  __host__ InvStdDevGPU();
-  __host__ ~InvStdDevGPU();
+  DALI_HOST InvStdDevGPU();
+  DALI_HOST ~InvStdDevGPU();
 
   /**
    * @brief Sets up the reduction

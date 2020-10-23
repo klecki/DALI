@@ -23,7 +23,7 @@ list(REMOVE_ITEM DALI_CORE_SRCS dynlink_cuda.cc)
 add_library(dynlink_cuda STATIC dynlink_cuda.cc)
 
 
-correct_source_file_language_property("${DALI_CORE_SRCS}")
+adjust_source_file_language_property("${DALI_CORE_SRCS}")
 add_library(dali_core ${LIBTYPE} ${DALI_CORE_SRCS})
 target_include_directories(dali_core PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 target_link_libraries(dali_core PRIVATE ${CUDART_LIB})
@@ -37,7 +37,7 @@ configure_file("${DALI_ROOT}/cmake/${lib_exports}.in" "${CMAKE_BINARY_DIR}/${lib
 target_link_libraries(dali_core PRIVATE -Wl,--version-script=${CMAKE_BINARY_DIR}/${lib_exports})
 
 if (BUILD_TEST)
-  correct_source_file_language_property("${DALI_CORE_TEST_SRCS}")
+  adjust_source_file_language_property("${DALI_CORE_TEST_SRCS}")
   add_executable(dali_core_test "${DALI_CORE_TEST_SRCS}")
   target_link_libraries(dali_core_test PUBLIC dali_core)
   target_link_libraries(dali_core_test PRIVATE gtest dynlink_cuda ${DALI_LIBS})
