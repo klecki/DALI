@@ -224,7 +224,6 @@ endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-register -Wsign-compare")
-  # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --cuda-path=/usr/local/cuda-10.0 --cuda-gpu-arch=sm_70") #  -fcuda-rdc
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-switch-bool -Wno-sign-compare -Wno-missing-braces -Wno-format -Wno-inconsistent-missing-override -Wno-implicit-int-float-conversion -Wno-mismatched-tags -Wno-reorder-ctor -Wno-unused-command-line-argument")
 
 

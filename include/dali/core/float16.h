@@ -14,19 +14,17 @@
 
 #ifndef DALI_CORE_FLOAT16_H_
 #define DALI_CORE_FLOAT16_H_
-// #if defined(__CUDA__)
+
 #include <cuda_fp16.h>  // for __half & related methods
-// #endif
 #include <type_traits>
-#if !defined(__CUDA_ARCH__) //&& !(defined(__clang__) && defined(__CUDA__))
+#if !defined(__CUDA_ARCH__)
 #include "dali/util/half.hpp"
 #endif
 
 namespace dali {
 
 // For the GPU
-// #if defined(__CUDA_ARCH__)
-#if defined(__CUDA_ARCH__) // || (defined(__clang__) && defined(__CUDA__))
+#if defined(__CUDA_ARCH__)
 using float16 = __half;
 #else
 using float16 = half_float::half;
@@ -36,9 +34,6 @@ namespace detail {
 
 template <typename T>
 struct is_half : std::false_type {};
-
-// template <>
-// struct is_half<float16> : std::true_type {};
 
 //TODO(klecki): this should be defined per internal type, not for the magic typedef
 template <>

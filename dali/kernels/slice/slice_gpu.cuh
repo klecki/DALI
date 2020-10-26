@@ -64,8 +64,7 @@ template <int Dims, typename OutputType, typename InputType>
 __device__ void SliceFuncNoPad(OutputType *__restrict__ out, const InputType *__restrict__ in,
                                const fast_div<uint64_t> *out_strides, const int64_t *in_strides,
                                uint64_t offset, uint64_t block_end) {
-                                 //todo(klecki): fix this cast
-  if (Dims > 1 && out_strides[Dims - 1] == (uint32_t)in_strides[Dims - 1]) {
+  if (Dims > 1 && out_strides[Dims - 1] == static_cast<uint32_t>(in_strides[Dims - 1])) {
     const int NextDims = Dims > 1 ? Dims - 1 : 1;
     SliceFuncNoPad<NextDims, OutputType, InputType>(out, in, out_strides, in_strides, offset,
                                                     block_end);
@@ -257,7 +256,7 @@ class SliceGPU {
     for (int i = 0; i < in.size(); i++) {
       if (default_fill_values_) {
         assert(nfill_values_ == 1);
-        fill_values_cpu[i] = static_cast<OutputType>(0.f); // half__?
+        fill_values_cpu[i] = static_cast<OutputType>(0.f);
       } else {
         auto *fill_values = fill_values_cpu + i * nfill_values_;
         for (int d = 0; d < nfill_values_; d++)
