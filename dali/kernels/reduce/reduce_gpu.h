@@ -151,8 +151,8 @@ extern template class SumGPU<float, float>;
 template <typename Out, typename In>
 class DLL_PUBLIC MinGPU {
  public:
-  MinGPU();
-  ~MinGPU();
+  DALI_HOST MinGPU();
+  DALI_HOST ~MinGPU();
 
   /**
    * @brief Sets up the reduction
@@ -225,8 +225,8 @@ extern template class MinGPU<float, float>;
 template <typename Out, typename In>
 class DLL_PUBLIC MaxGPU {
  public:
-  MaxGPU();
-  ~MaxGPU();
+  DALI_HOST MaxGPU();
+  DALI_HOST ~MaxGPU();
 
   /**
    * @brief Sets up the reduction
