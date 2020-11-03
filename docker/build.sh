@@ -157,6 +157,7 @@ if [ "$BUILD_INHOST" == "YES" ]; then
                                         BUILD_WITH_ASAN=${BUILD_WITH_ASAN}        \
                                         NVIDIA_BUILD_ID=${NVIDIA_BUILD_ID}        \
                                         GIT_SHA=${GIT_SHA}                        \
+                                        EXTRA_CMAKE_OPTIONS=${EXTRA_CMAKE_OPTIONS} \
                                         DALI_TIMESTAMP=${DALI_TIMESTAMP}          \
                                         NVIDIA_DALI_BUILD_FLAVOR=${DALI_BUILD_FLAVOR} \
                                         /opt/dali/docker/build_helper.sh &&       \
