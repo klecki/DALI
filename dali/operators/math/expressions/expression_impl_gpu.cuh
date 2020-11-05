@@ -24,6 +24,8 @@
 #include "dali/pipeline/operator/op_spec.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/workspace.h"
+
+#include "dali/core/cuda_event.h"
 namespace dali {
 
 /**
@@ -173,7 +175,7 @@ __global__ void ExecuteTiledTernaryOp(const ExtendedTileDesc *tiles) {
 
 template <ArithmeticOp op, typename Result, typename Input>
 struct InvokerUnOp {
-  static void Invoke(const ExtendedTileDesc *tiles, dim3 grid, dim3 block, cudaStream_t stream) {
+  static void Invoke(const ExtendedTileDesc *tiles,const std::vector<ExtendedTileDesc> &, dim3 grid, dim3 block, cudaStream_t stream) {
     ExecuteTiledUnOp<op, Result, Input><<<grid, block, 0, stream>>>(tiles);
   }
 };
@@ -181,7 +183,7 @@ struct InvokerUnOp {
 template <ArithmeticOp op, typename Result, typename Left, typename Right, bool IsLeftTensor,
           bool IsRightTensor>
 struct InvokerBinOp {
-  static void Invoke(const ExtendedTileDesc *tiles, dim3 grid, dim3 block, cudaStream_t stream) {
+  static void Invoke(const ExtendedTileDesc *tiles,const std::vector<ExtendedTileDesc> &, dim3 grid, dim3 block, cudaStream_t stream) {
     ExecuteTiledBinOp<op, Result, Left, Right, IsLeftTensor, IsRightTensor>
         <<<grid, block, 0, stream>>>(tiles);
   }
@@ -190,9 +192,32 @@ struct InvokerBinOp {
 template <ArithmeticOp op, typename Result,
           bool IsFirstTensor, bool IsSecondTensor, bool IsThirdTensor>
 struct InvokerTernaryOp {
-  static void Invoke(const ExtendedTileDesc *tiles, dim3 grid, dim3 block, cudaStream_t stream) {
+  static void Invoke(const ExtendedTileDesc *tiles,const std::vector<ExtendedTileDesc> &tiles2, dim3 grid, dim3 block, cudaStream_t stream) {
+    CUDAEvent start = CUDAEvent::CreateWithFlags(0);
+    CUDAEvent end = CUDAEvent::CreateWithFlags(0);
     ExecuteTiledTernaryOp<op, Result, IsFirstTensor, IsSecondTensor,
                           IsThirdTensor><<<grid, block, 0, stream>>>(tiles);
+    cudaEventRecord(start, stream);
+    for (int i = 0; i < 100; i++) {
+    ExecuteTiledTernaryOp<op, Result, IsFirstTensor, IsSecondTensor,
+                          IsThirdTensor><<<grid, block, 0, stream>>>(tiles);
+    }
+    cudaEventRecord(end, stream);
+    cudaDeviceSynchronize();
+    float time;
+    CUDA_CALL(cudaEventElapsedTime(&time, start, end));
+    time *= 1e+4f;  // convert to nanoseconds / 100 samples
+    int64_t data_size = 0;
+    for (const auto &tile : tiles2) {
+      data_size += tile.desc.extent_size * sizeof(Result);
+      if (IsFirstTensor)
+        data_size += tile.desc.extent_size;
+      if (IsSecondTensor)
+        data_size += tile.desc.extent_size;
+      if (IsThirdTensor)
+        data_size += tile.desc.extent_size;
+    }
+    std::cerr << "Throughput: " << data_size / time << " GB/s " << time << " s \n";
   }
 };
 
@@ -208,7 +233,7 @@ class ExprImplGPUInvoke : public ExprImplBase {
     tiles_.Copy(tiles, ctx.stream);
     auto grid = GetGridLayout(kBlocksX, tiles.size());
     auto block = dim3(kThreadNum, 1, 1);
-    Invoker::Invoke(tiles_.data<ExtendedTileDesc>(), grid, block, ctx.stream);
+    Invoker::Invoke(tiles_.data<ExtendedTileDesc>(),tiles, grid, block, ctx.stream);
   }
 
  private:
