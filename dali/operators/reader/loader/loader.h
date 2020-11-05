@@ -214,6 +214,7 @@ class Loader {
   virtual void ReadSample(LoadTarget& tensor) = 0;
 
   void PrepareMetadata() {
+    TimeRange tr("[Loader] PrepareMetadata", TimeRange::kGreen1);
     std::lock_guard<std::mutex> l(prepare_metadata_mutex_);
     if (!loading_flag_) {
       loading_flag_ = true;
