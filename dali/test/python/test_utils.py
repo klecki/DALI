@@ -435,3 +435,24 @@ def np_type_to_dali(type):
         np.float64: types.FLOAT64,
     }
     return np_types_to_dali_dict[type]
+
+
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+        self.avg_last_n = 0
+        self.max_val = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.max_val = max(self.max_val, val)
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
