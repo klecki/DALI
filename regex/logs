@@ -1,0 +1,19 @@
+https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+
+        linux-vdso.so.1 =>  (0x00007ffffb13d000)
+        libstdc++.so.6 => /lib64/libstdc++.so.6 (0x00007f9ecdefd000)
+        libm.so.6 => /lib64/libm.so.6 (0x00007f9ecdbfb000)
+        libgcc_s.so.1 => /lib64/libgcc_s.so.1 (0x00007f9ecd9e5000)
+        libc.so.6 => /lib64/libc.so.6 (0x00007f9ecd617000)
+        /lib64/ld-linux-x86-64.so.2 (0x00007f9ece447000)
+
+
+DALI:
+/lib64/libstdc++.so.6 -> libstdc++.so.6.0.19
+(this is CXXABI_1.3.7)
+
+MXNET:
+/lib/x86_64-linux-gnu/libstdc++.so.6 -> libstdc++.so.6.0.28
+(mxnet uses CXXABI_1.3.8)
+
+OSError: ./libstdc++.so.6: version `CXXABI_1.3.8' not found (required by /usr/local/lib/libmxnet.so)
