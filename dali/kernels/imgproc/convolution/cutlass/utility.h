@@ -40,27 +40,26 @@ namespace gemm {
 // For inner convolution the input is on the left and convolution kernel window matrix on the right
 
 template <bool IsInnerConv, typename Input, typename Window>
-__host__ __device__
-std::enable_if_t<IsInnerConv, Input&&> select_A(Input&& input, Window&& window) {
+__host__ __device__ std::enable_if_t<IsInnerConv, Input&&> select_A(Input&& input,
+                                                                    Window&& window) {
   return dali::cuda_forward<Input>(input);
 }
 
 template <bool IsInnerConv, typename Input, typename Window>
-__host__ __device__
-std::enable_if_t<IsInnerConv, Window&&> select_B(Input&& input, Window&& window) {
-  return dali::cuda_forward<Window>(window);
-}
-
-
-template <bool IsInnerConv, typename Input, typename Window>
-__host__ __device__
-std::enable_if_t<!IsInnerConv, Window&&> select_A(Input&& input, Window&& window) {
+__host__ __device__ std::enable_if_t<IsInnerConv, Window&&> select_B(Input&& input,
+                                                                     Window&& window) {
   return dali::cuda_forward<Window>(window);
 }
 
 template <bool IsInnerConv, typename Input, typename Window>
-__host__ __device__
-std::enable_if_t<!IsInnerConv, Input&&> select_B(Input&& input, Window&& window) {
+__host__ __device__ std::enable_if_t<!IsInnerConv, Window&&> select_A(Input&& input,
+                                                                      Window&& window) {
+  return dali::cuda_forward<Window>(window);
+}
+
+template <bool IsInnerConv, typename Input, typename Window>
+__host__ __device__ std::enable_if_t<!IsInnerConv, Input&&> select_B(Input&& input,
+                                                                     Window&& window) {
   return dali::cuda_forward<Input>(input);
 }
 

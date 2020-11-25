@@ -36,8 +36,7 @@ struct ResamplingSetupCPU : SeparableResamplingSetup<_spatial_ndim> {
 
   static bool IsPureNN(const SampleDesc &desc) {
     for (auto flt_type : desc.filter_type)
-      if (flt_type != ResamplingFilterType::Nearest)
-        return false;
+      if (flt_type != ResamplingFilterType::Nearest) return false;
     return true;
   }
 
@@ -49,12 +48,9 @@ struct ResamplingSetupCPU : SeparableResamplingSetup<_spatial_ndim> {
     size_t indices_size = 0;
 
     MemoryReq &extend(const MemoryReq &other) {
-      if (other.tmp_size > tmp_size)
-        tmp_size = other.tmp_size;
-      if (other.coeffs_size > coeffs_size)
-        coeffs_size = other.coeffs_size;
-      if (other.indices_size > indices_size)
-        indices_size = other.indices_size;
+      if (other.tmp_size > tmp_size) tmp_size = other.tmp_size;
+      if (other.coeffs_size > coeffs_size) coeffs_size = other.coeffs_size;
+      if (other.indices_size > indices_size) indices_size = other.indices_size;
       return *this;
     }
   };
@@ -70,8 +66,7 @@ struct ResamplingSetupCPU : SeparableResamplingSetup<_spatial_ndim> {
       size_t max_tmp = 0;
       for (int i = 0; i < desc.num_tmp_buffers; i++) {
         size_t v = volume(desc.tmp_shape(i)) * desc.channels;
-        if (v + prev_tmp > max_tmp)
-          max_tmp = v + prev_tmp;
+        if (v + prev_tmp > max_tmp) max_tmp = v + prev_tmp;
         prev_tmp = v;
       }
       req.tmp_size = max_tmp;
@@ -81,15 +76,12 @@ struct ResamplingSetupCPU : SeparableResamplingSetup<_spatial_ndim> {
       // returns extent of the dimensions resized at given stage - e.g. if processing
       // (Y, Z, X)), then extent for stage 0 is height, stage 1 - depth, stage 2 - width
       auto resized_dim_extent = [&](int stage) {
-        return stage == num_stages - 1
-          ? desc.out_shape()[desc.order[num_stages - 1]]
-          : desc.tmp_shape(stage)[desc.order[stage]];
+        return stage == num_stages - 1 ? desc.out_shape()[desc.order[num_stages - 1]]
+                                       : desc.tmp_shape(stage)[desc.order[stage]];
       };
 
       // maximum support of the filter used at given stage
-      auto filter_support = [&](int stage) {
-        return desc.filter[desc.order[stage]].support();
-      };
+      auto filter_support = [&](int stage) { return desc.filter[desc.order[stage]].support(); };
 
       req.indices_size = 0;
       req.coeffs_size = 0;
@@ -99,10 +91,8 @@ struct ResamplingSetupCPU : SeparableResamplingSetup<_spatial_ndim> {
         size_t support = filter_support(stage);
         size_t num_coeffs = extent * support;
 
-        if (extent > req.indices_size)
-          req.indices_size = extent;
-        if (num_coeffs > req.coeffs_size)
-          req.coeffs_size = num_coeffs;
+        if (extent > req.indices_size) req.indices_size = extent;
+        if (num_coeffs > req.coeffs_size) req.coeffs_size = num_coeffs;
       }
 
       return req;
@@ -113,9 +103,9 @@ struct ResamplingSetupCPU : SeparableResamplingSetup<_spatial_ndim> {
 template <int spatial_ndim>
 struct ResamplingSetupSingleImage : ResamplingSetupCPU<spatial_ndim> {
   using Base = ResamplingSetupCPU<spatial_ndim>;
-  using typename Base::SampleDesc;
-  using typename Base::MemoryReq;
   using Base::tensor_ndim;
+  using typename Base::MemoryReq;
+  using typename Base::SampleDesc;
 
   void Setup(const TensorShape<tensor_ndim> &in_shape,
              const ResamplingParamsND<spatial_ndim> &params) {
@@ -128,37 +118,34 @@ struct ResamplingSetupSingleImage : ResamplingSetupCPU<spatial_ndim> {
 };
 
 template <typename OutputElement, typename InputElement, int _spatial_ndim>
-struct SeparableResampleCPU  {
+struct SeparableResampleCPU {
   static constexpr int spatial_ndim = _spatial_ndim;
   static constexpr int tensor_ndim = spatial_ndim + 1;
-  using Input =  InTensorCPU<InputElement, tensor_ndim>;
+  using Input = InTensorCPU<InputElement, tensor_ndim>;
   using Output = OutTensorCPU<OutputElement, tensor_ndim>;
 
-  KernelRequirements Setup(KernelContext &context,
-                           const Input &input,
+  KernelRequirements Setup(KernelContext &context, const Input &input,
                            const ResamplingParamsND<spatial_ndim> &params) {
     setup.Setup(input.shape, params);
 
     TensorShape<tensor_ndim> out_shape =
-      shape_cat(vec2shape(setup.desc.out_shape()), setup.desc.channels);
+        shape_cat(vec2shape(setup.desc.out_shape()), setup.desc.channels);
 
     ScratchpadEstimator se;
     se.add<float>(AllocType::Host, setup.memory.tmp_size);
     se.add<float>(AllocType::Host, setup.memory.coeffs_size);
     se.add<int32_t>(AllocType::Host, setup.memory.indices_size);
 
-    TensorListShape<> out_tls({ out_shape });
+    TensorListShape<> out_tls({out_shape});
 
     KernelRequirements req;
-    req.output_shapes = { out_tls };
+    req.output_shapes = {out_tls};
     req.scratch_sizes = se.sizes;
 
     return req;
   }
 
-  void Run(KernelContext &context,
-           const Output &output,
-           const Input &input,
+  void Run(KernelContext &context, const Output &output, const Input &input,
            const ResamplingParamsND<spatial_ndim> &params) {
     auto &desc = setup.desc;
 
@@ -181,8 +168,8 @@ struct SeparableResampleCPU  {
       }
 
       float *tmp_buf = context.scratchpad->Allocate<float>(AllocType::Host, setup.memory.tmp_size);
-      void *filter_mem = context.scratchpad->Allocate<int32_t>(AllocType::Host,
-          setup.memory.coeffs_size + setup.memory.indices_size);
+      void *filter_mem = context.scratchpad->Allocate<int32_t>(
+          AllocType::Host, setup.memory.coeffs_size + setup.memory.indices_size);
 
       Surface<spatial_ndim, float> tmp_surf = {}, tmp_prev = {};
 
@@ -190,7 +177,8 @@ struct SeparableResampleCPU  {
         if (stage < spatial_ndim - 1) {
           ptrdiff_t tmp_size = volume(tmp_shapes[stage]);
           ptrdiff_t tmp_ofs = stage & 1 ? setup.memory.tmp_size - tmp_size : 0;
-          assert(tmp_ofs >= 0 && tmp_ofs+tmp_size <= static_cast<ptrdiff_t>(setup.memory.tmp_size));
+          assert(tmp_ofs >= 0 &&
+                 tmp_ofs + tmp_size <= static_cast<ptrdiff_t>(setup.memory.tmp_size));
           tmp_surf.data = tmp_buf + tmp_ofs;
           tmp_surf.size = setup.desc.tmp_shape(stage);
           tmp_surf.channels = setup.desc.channels;
@@ -198,7 +186,7 @@ struct SeparableResampleCPU  {
           tmp_surf.channel_stride = 1;
           tmp_surf.strides.x = tmp_surf.channels;
           for (int i = 1; i < spatial_ndim; i++) {
-            tmp_surf.strides[i] = tmp_surf.strides[i-1] * tmp_surf.size[i-1];
+            tmp_surf.strides[i] = tmp_surf.strides[i - 1] * tmp_surf.size[i - 1];
           }
           assert(&tmp_surf(tmp_surf.size - 1) < tmp_buf + setup.memory.tmp_size);
         }
@@ -217,27 +205,23 @@ struct SeparableResampleCPU  {
 
   template <typename PassOutput, typename PassInput>
   void ResamplePass(const Surface<spatial_ndim, PassOutput> &out,
-                    const Surface<spatial_ndim, const PassInput> &in,
-                    void *mem,
-                    int axis) {
+                    const Surface<spatial_ndim, const PassInput> &in, void *mem, int axis) {
     auto &desc = setup.desc;
 
     if (desc.filter_type[axis] == ResamplingFilterType::Nearest) {
       // use specialized NN resampling pass - should be faster
       auto scale = desc.scale;
       for (int i = 0; i < spatial_ndim; i++) {
-        if (i != axis)
-          scale[i] = 1;
+        if (i != axis) scale[i] = 1;
       }
       ResampleNN(out, in, desc.origin, scale);
     } else {
-      int32_t *indices = static_cast<int32_t*>(mem);
+      int32_t *indices = static_cast<int32_t *>(mem);
       int out_size = desc.out_shape()[axis];
-      float *coeffs = static_cast<float*>(static_cast<void*>(indices + out_size));
+      float *coeffs = static_cast<float *>(static_cast<void *>(indices + out_size));
       int support = desc.filter[axis].support();
 
-      InitializeResamplingFilter(indices, coeffs, out_size,
-                                 desc.origin[axis], desc.scale[axis],
+      InitializeResamplingFilter(indices, coeffs, out_size, desc.origin[axis], desc.scale[axis],
                                  desc.filter[axis]);
 
       ResampleAxis(out, in, indices, coeffs, support, axis);
@@ -252,6 +236,5 @@ struct SeparableResampleCPU  {
 }  // namespace resampling
 }  // namespace kernels
 }  // namespace dali
-
 
 #endif  // DALI_KERNELS_IMGPROC_RESAMPLE_SEPARABLE_CPU_H_

@@ -27,75 +27,58 @@ namespace kernels {
 namespace resample_test {
 
 constexpr FilterDesc nearest(float radius = 0) {
-  return { ResamplingFilterType::Nearest, radius };
+  return {ResamplingFilterType::Nearest, radius};
 }
 
 constexpr FilterDesc tri(float radius = 0) {
-  return { ResamplingFilterType::Triangular, radius };
+  return {ResamplingFilterType::Triangular, radius};
 }
 
 constexpr FilterDesc lin() {
-  return { ResamplingFilterType::Linear, 0 };
+  return {ResamplingFilterType::Linear, 0};
 }
 
 constexpr FilterDesc lanczos() {
-  return { ResamplingFilterType::Lanczos3, 1 };
+  return {ResamplingFilterType::Lanczos3, 1};
 }
 
 constexpr FilterDesc cubic() {
-  return { ResamplingFilterType::Cubic, 0 };
+  return {ResamplingFilterType::Cubic, 0};
 }
 
 constexpr FilterDesc gauss(float radius) {
-  return { ResamplingFilterType::Gaussian, radius };
+  return {ResamplingFilterType::Gaussian, radius};
 }
 
 struct ResamplingTestEntry {
-  ResamplingTestEntry(std::string input,
-                      std::string reference,
-                      std::array<int, 2> sizeWH,
-                      FilterDesc filter,
-                      double epsilon = 1)
-    : ResamplingTestEntry(std::move(input)
-    , std::move(reference), sizeWH, filter, filter, epsilon) {}
+  ResamplingTestEntry(std::string input, std::string reference, std::array<int, 2> sizeWH,
+                      FilterDesc filter, double epsilon = 1)
+      : ResamplingTestEntry(std::move(input), std::move(reference), sizeWH, filter, filter,
+                            epsilon) {}
 
-  ResamplingTestEntry(std::string input,
-                      std::string reference,
-                      std::array<int, 2> sizeWH,
-                      FilterDesc fx,
-                      FilterDesc fy,
-                      double epsilon = 1)
-    : input(std::move(input)), reference(std::move(reference)), epsilon(epsilon) {
+  ResamplingTestEntry(std::string input, std::string reference, std::array<int, 2> sizeWH,
+                      FilterDesc fx, FilterDesc fy, double epsilon = 1)
+      : input(std::move(input)), reference(std::move(reference)), epsilon(epsilon) {
     params[0].output_size = sizeWH[1];
     params[1].output_size = sizeWH[0];
     params[0].mag_filter = params[0].min_filter = fy;
     params[1].mag_filter = params[1].min_filter = fx;
   }
 
-  ResamplingTestEntry(std::string input,
-                      std::string reference,
-                      std::array<float, 4> ROI_LTRB,
-                      std::array<int, 2> sizeWH,
-                      FilterDesc filter,
-                      double epsilon = 1)
-    : ResamplingTestEntry(
-        std::move(input), std::move(reference),
-        ROI_LTRB, sizeWH, filter, filter, epsilon) {}
+  ResamplingTestEntry(std::string input, std::string reference, std::array<float, 4> ROI_LTRB,
+                      std::array<int, 2> sizeWH, FilterDesc filter, double epsilon = 1)
+      : ResamplingTestEntry(std::move(input), std::move(reference), ROI_LTRB, sizeWH, filter,
+                            filter, epsilon) {}
 
-  ResamplingTestEntry(std::string input,
-                      std::string reference,
-                      std::array<float, 4> ROI_LTRB,
-                      std::array<int, 2> sizeWH,
-                      FilterDesc fx,
-                      FilterDesc fy,
-                      double epsilon = 1)
-    : input(std::move(input)), reference(std::move(reference)), epsilon(epsilon) {
+  ResamplingTestEntry(std::string input, std::string reference, std::array<float, 4> ROI_LTRB,
+                      std::array<int, 2> sizeWH, FilterDesc fx, FilterDesc fy, double epsilon = 1)
+      : input(std::move(input)), reference(std::move(reference)), epsilon(epsilon) {
     params[0].output_size = sizeWH[1];
     params[1].output_size = sizeWH[0];
-    params[0].roi = { ROI_LTRB[1], ROI_LTRB[3] };
+    params[0].roi = {ROI_LTRB[1], ROI_LTRB[3]};
     params[0].mag_filter = params[0].min_filter = fy;
     params[1].mag_filter = params[1].min_filter = fx;
-    params[1].roi = { ROI_LTRB[0], ROI_LTRB[2] };
+    params[1].roi = {ROI_LTRB[0], ROI_LTRB[2]};
   }
 
   std::string input, reference;
@@ -103,35 +86,34 @@ struct ResamplingTestEntry {
   double epsilon = 1;
 };
 
-
 using ResamplingTestBatch = std::vector<ResamplingTestEntry>;
 
 inline std::ostream &operator<<(std::ostream &os, const FilterDesc fd) {
   os << FilterName(fd.type);
   if (fd.radius) {
     switch (fd.type) {
-    case ResamplingFilterType::Gaussian:
-    case ResamplingFilterType::Triangular:
-      os << "(r = " << fd.radius << ")";
-      break;
-    case ResamplingFilterType::Cubic:
-      if (fd.radius != 4) os << "(custom radius: " << fd.radius << ")";
-      break;
-    case ResamplingFilterType::Lanczos3:
-      if (fd.radius != 3) os << "(custom radius: " << fd.radius << ")";
-      break;
-    default:
-      break;
+      case ResamplingFilterType::Gaussian:
+      case ResamplingFilterType::Triangular:
+        os << "(r = " << fd.radius << ")";
+        break;
+      case ResamplingFilterType::Cubic:
+        if (fd.radius != 4) os << "(custom radius: " << fd.radius << ")";
+        break;
+      case ResamplingFilterType::Lanczos3:
+        if (fd.radius != 3) os << "(custom radius: " << fd.radius << ")";
+        break;
+      default:
+        break;
     }
   }
   return os;
 }
 
 inline std::ostream &operator<<(std::ostream &os, const ResamplingParams2D &params) {
-  os  << "  Horizontal " << params[1].output_size << " px; "
-      << " mag = " << params[1].mag_filter << " min = " << params[1].min_filter << "\n"
-      << "  Vertical   " << params[0].output_size << " px; "
-      << " mag = " << params[0].mag_filter << " min = " << params[0].min_filter << "\n";
+  os << "  Horizontal " << params[1].output_size << " px; "
+     << " mag = " << params[1].mag_filter << " min = " << params[1].min_filter << "\n"
+     << "  Vertical   " << params[0].output_size << " px; "
+     << " mag = " << params[0].mag_filter << " min = " << params[0].min_filter << "\n";
   return os;
 }
 
@@ -144,8 +126,11 @@ inline void PrintTo(const ResamplingTestBatch &batch, std::ostream *os) {
   *os << "{\n";
   bool first = true;
   for (auto &entry : batch) {
-    if (first) { first = false;
-    } else { *os << ",\n"; }
+    if (first) {
+      first = false;
+    } else {
+      *os << ",\n";
+    }
     PrintTo(entry, os);
   }
   *os << "\n}\n";

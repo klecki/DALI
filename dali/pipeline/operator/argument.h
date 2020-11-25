@@ -28,12 +28,9 @@
 
 namespace dali {
 
-
 template <typename T>
 struct argument_storage {
-  using type = std::conditional_t<
-      std::is_integral<T>::value || std::is_enum<T>::value,
-      int64_t, T>;
+  using type = std::conditional_t<std::is_integral<T>::value || std::is_enum<T>::value, int64_t, T>;
 };
 
 template <>
@@ -81,7 +78,7 @@ class ValueInst : public Value {
     return to_string(val_);
   }
 
-  const T &Get() const {
+  const T& Get() const {
     return val_;
   }
 

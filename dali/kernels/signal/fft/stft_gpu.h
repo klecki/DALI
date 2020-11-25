@@ -35,10 +35,8 @@ struct StftArgs : ExtractWindowsArgs {
 
   DALI_HOST_DEV
   constexpr inline bool operator==(const StftArgs &other) const {
-    return ExtractWindowsArgs::operator==(other) &&
-           nfft == other.nfft &&
-           time_major_layout == other.time_major_layout &&
-           spectrum_type == other.spectrum_type;
+    return ExtractWindowsArgs::operator==(other) && nfft == other.nfft &&
+           time_major_layout == other.time_major_layout && spectrum_type == other.spectrum_type;
   }
 
   DALI_HOST_DEV
@@ -54,16 +52,11 @@ class DLL_PUBLIC StftGPU {
   StftGPU();
   StftGPU(StftGPU &&);
   ~StftGPU();
-  kernels::KernelRequirements Setup(
-    KernelContext &ctx,
-    const TensorListShape<1> &in,
-    const StftArgs &args);
+  kernels::KernelRequirements Setup(KernelContext &ctx, const TensorListShape<1> &in,
+                                    const StftArgs &args);
 
-  void Run(
-    KernelContext &ctx,
-    const OutListGPU<complexf, 2> &out,
-    const InListGPU<float, 1> &in,
-    const InTensorGPU<float, 1> &window);
+  void Run(KernelContext &ctx, const OutListGPU<complexf, 2> &out, const InListGPU<float, 1> &in,
+           const InTensorGPU<float, 1> &window);
 
  private:
   std::unique_ptr<StftImplGPU> impl_;
@@ -74,16 +67,11 @@ class DLL_PUBLIC SpectrogramGPU {
   SpectrogramGPU();
   SpectrogramGPU(SpectrogramGPU &&);
   ~SpectrogramGPU();
-  kernels::KernelRequirements Setup(
-    KernelContext &ctx,
-    const TensorListShape<1> &in,
-    const StftArgs &args);
+  kernels::KernelRequirements Setup(KernelContext &ctx, const TensorListShape<1> &in,
+                                    const StftArgs &args);
 
-  void Run(
-    KernelContext &ctx,
-    const OutListGPU<float, 2> &out,
-    const InListGPU<float, 1> &in,
-    const InTensorGPU<float, 1> &window);
+  void Run(KernelContext &ctx, const OutListGPU<float, 2> &out, const InListGPU<float, 1> &in,
+           const InTensorGPU<float, 1> &window);
 
  private:
   std::unique_ptr<StftImplGPU> impl_;
@@ -93,6 +81,5 @@ class DLL_PUBLIC SpectrogramGPU {
 }  // namespace signal
 }  // namespace kernels
 }  // namespace dali
-
 
 #endif  // DALI_KERNELS_SIGNAL_FFT_STFT_GPU_H_

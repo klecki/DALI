@@ -15,21 +15,20 @@
 #ifndef DALI_OPERATORS_DECODER_NVJPEG_DECOUPLED_API_NVJPEG_ALLOCATOR_H_
 #define DALI_OPERATORS_DECODER_NVJPEG_DECOUPLED_API_NVJPEG_ALLOCATOR_H_
 
-
 #include <cuda_runtime_api.h>
 
 #include <memory>
 #include <mutex>
 #include <numeric>
 #include <string>
-#include <utility>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "dali/core/common.h"
-#include "dali/core/error_handling.h"
 #include "dali/core/cuda_utils.h"
+#include "dali/core/error_handling.h"
 
 namespace dali {
 
@@ -48,7 +47,7 @@ class ChunkPinnedAllocator {
       element_size_hint_ = element_size_hint;
     } else {
       DALI_ENFORCE(element_size_hint_ == element_size_hint,
-        "All instances of ImageDecoder should have the same host_memory_padding.");
+                   "All instances of ImageDecoder should have the same host_memory_padding.");
     }
 
     Chunk chunk;
@@ -82,12 +81,11 @@ class ChunkPinnedAllocator {
     for (size_t chunk_idx = 0; chunk_idx < chunks_.size(); ++chunk_idx) {
       auto& chunk = chunks_[chunk_idx];
       // This chunk has no free block
-      if (chunk.free_blocks.empty())
-        continue;
+      if (chunk.free_blocks.empty()) continue;
 
       size_t block_idx = chunk.free_blocks.back();
-      *ptr = static_cast<void*>(
-              static_cast<uint8_t*>(chunk.memory) + (element_size_hint_ * block_idx));
+      *ptr = static_cast<void*>(static_cast<uint8_t*>(chunk.memory) +
+                                (element_size_hint_ * block_idx));
       allocated_buffers_[*ptr] = std::make_pair(chunk_idx, block_idx);
       chunk.free_blocks.pop_back();
       return 0;

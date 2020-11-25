@@ -16,13 +16,13 @@
 #define DALI_OPERATORS_IMAGE_PASTE_PASTE_H_
 
 #include <cstring>
+#include <random>
 #include <utility>
 #include <vector>
-#include <random>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/operator/common.h"
 #include "dali/core/error_handling.h"
+#include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
 
 namespace dali {
@@ -33,14 +33,12 @@ class Paste : public Operator<Backend> {
   // 6 values: in_H, in_W, out_H, out_W, paste_y, paste_x
   static const int NUM_INDICES = 6;
 
-  explicit inline Paste(const OpSpec &spec) :
-    Operator<Backend>(spec),
-    C_(spec.GetArgument<int>("n_channels")) {
+  explicit inline Paste(const OpSpec &spec)
+      : Operator<Backend>(spec), C_(spec.GetArgument<int>("n_channels")) {
     // Kind of arbitrary, we need to set some limit here
     // because we use static shared memory for storing
     // fill value array
-    DALI_ENFORCE(C_ <= 1024,
-      "n_channels of more than 1024 is not supported");
+    DALI_ENFORCE(C_ <= 1024, "n_channels of more than 1024 is not supported");
     std::vector<uint8> rgb;
     GetSingleOrRepeatedArg(spec, rgb, "fill_value", C_);
     fill_value_.Copy(rgb, 0);

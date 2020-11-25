@@ -25,8 +25,7 @@ namespace dali {
 template <typename Backend>
 class Copy : public Operator<Backend> {
  public:
-  inline explicit Copy(const OpSpec &spec) :
-    Operator<Backend>(spec) {}
+  inline explicit Copy(const OpSpec &spec) : Operator<Backend>(spec) {}
 
   inline ~Copy() override = default;
 

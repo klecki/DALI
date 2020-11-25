@@ -18,8 +18,8 @@
 #include <cuda_runtime_api.h>
 #include <memory>
 #include <utility>
-#include "dali/core/tensor_view.h"
 #include "dali/core/backend_tags.h"
+#include "dali/core/tensor_view.h"
 
 namespace dali {
 namespace kernels {
@@ -52,12 +52,11 @@ class TestTensorList {
     if (!cpumem_) {
       auto size = shape_.num_elements() * sizeof(T);
       char *ptr = new char[size];
-      cpumem_ = { ptr, CPUDeleter };
-      if (gpumem_)
-        cudaMemcpyAsync(ptr, gpumem_.get(), size, cudaMemcpyDeviceToHost, stream);
+      cpumem_ = {ptr, CPUDeleter};
+      if (gpumem_) cudaMemcpyAsync(ptr, gpumem_.get(), size, cudaMemcpyDeviceToHost, stream);
     }
     auto out_shape = convert_dim<out_dim>(shape_);
-    return { reinterpret_cast<T*>(cpumem_.get()), std::move(out_shape) };
+    return {reinterpret_cast<T *>(cpumem_.get()), std::move(out_shape)};
   }
 
   template <int out_dim = dim>
@@ -66,13 +65,12 @@ class TestTensorList {
     if (!gpumem_) {
       auto size = shape_.num_elements() * sizeof(T);
       char *ptr = nullptr;
-      CUDA_CALL(cudaMalloc(reinterpret_cast<void**>(&ptr), size));
-      gpumem_ = { ptr, GPUDeleter };
-      if (cpumem_)
-        cudaMemcpyAsync(ptr, cpumem_.get(), size, cudaMemcpyHostToDevice, stream);
+      CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&ptr), size));
+      gpumem_ = {ptr, GPUDeleter};
+      if (cpumem_) cudaMemcpyAsync(ptr, cpumem_.get(), size, cudaMemcpyHostToDevice, stream);
     }
     auto out_shape = convert_dim<out_dim>(shape_);
-    return { reinterpret_cast<T*>(gpumem_.get()), std::move(out_shape) };
+    return {reinterpret_cast<T *>(gpumem_.get()), std::move(out_shape)};
   }
 
   // workaround for lack of partial specialization for functions
@@ -93,9 +91,9 @@ class TestTensorList {
   }
 
  private:
-  using Deleter = void(*)(char *);
+  using Deleter = void (*)(char *);
   static void CPUDeleter(char *mem) {
-    delete [] mem;
+    delete[] mem;
   }
   static void PinnedDeleter(char *mem) {
     cudaFreeHost(mem);
@@ -107,7 +105,6 @@ class TestTensorList {
   std::unique_ptr<char, Deleter> cpumem_{nullptr, CPUDeleter}, gpumem_{nullptr, GPUDeleter};
   TensorListShape<dim> shape_;
 };
-
 
 }  // namespace kernels
 }  // namespace dali

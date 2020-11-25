@@ -311,8 +311,8 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::PitchLinear, Adva
 
   /// Underlying iterator to compute the addresses
   using TileAccessIterator =
-      PositionPredicatedTileAccessIterator<Shape, Element, Layout, kAdvanceRank,
-                                   ThreadMap, AccessType>;
+      PositionPredicatedTileAccessIterator<Shape, Element, Layout, kAdvanceRank, ThreadMap,
+                                           AccessType>;
 
   static int const kAccessesPerVector = TileAccessIterator::kAccessesPerVector;
 
@@ -486,7 +486,7 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::PitchLinear, Adva
     }
     // this is the starting element of the window, for inner-conv vector load goes in negative order
     // for default case, it's distance from center, for general it's distance from anchor
-    int window_element = dist_diag;  // offset from anchor
+    int window_element = dist_diag;                             // offset from anchor
     int absolute_window_element = to_absolute(window_element);  // index starting from 0
 
     bool is_used = any_access_within_window<kIsInnerConv>(absolute_window_element) &&
@@ -691,7 +691,7 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::PitchLinear, Adva
    */
   template <bool mirrored = true, bool IsInnerConv_ = kIsInnerConv>
   CUTLASS_DEVICE std::enable_if_t<IsInnerConv_> add_vec(AccessType &dst, int abs_window_element,
-                                                      bool mask_first, bool mask_last) {
+                                                        bool mask_first, bool mask_last) {
     static_assert(mirrored, "All accesses should be mirrored for inner conv.");
     if (mask_first || mask_last) {
       return;
@@ -943,12 +943,13 @@ class PositionPredicatedTileIterator<Shape_, Element_, layout::ColumnMajor, Adva
  public:
   /// Constructs a TileIterator from its precomputed state, threadblock offset, and thread ID
   CUTLASS_HOST_DEVICE
-  PositionPredicatedTileIterator(Params const &params,          ///< Precomputed parameters object
-                         Pointer pointer,                       ///< Pointer to start of tensor
-                         TensorCoord extent,                    ///< Extent of tensor
-                         int thread_id,                         ///< ID of each participating thread
-                         TensorCoord const &threadblock_offset  ///< Initial offset of threadblock
-                         )
+  PositionPredicatedTileIterator(
+      Params const &params,                  ///< Precomputed parameters object
+      Pointer pointer,                       ///< Pointer to start of tensor
+      TensorCoord extent,                    ///< Extent of tensor
+      int thread_id,                         ///< ID of each participating thread
+      TensorCoord const &threadblock_offset  ///< Initial offset of threadblock
+      )
       : iterator_(params.params_, pointer, layout::PitchLinearCoord(extent.row(), extent.column()),
                   thread_id,
                   layout::PitchLinearCoord(threadblock_offset.row(), threadblock_offset.column())) {

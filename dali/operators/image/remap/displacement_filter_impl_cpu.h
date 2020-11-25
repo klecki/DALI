@@ -20,22 +20,19 @@
 #include <vector>
 
 #include "dali/core/common.h"
-#include "dali/operators/image/remap/displacement_filter.h"
-#include "dali/pipeline/data/views.h"
-#include "dali/kernels/kernel_params.h"
-#include "dali/kernels/imgproc/sampler.h"
 #include "dali/core/convert.h"
 #include "dali/core/static_switch.h"
+#include "dali/kernels/imgproc/sampler.h"
+#include "dali/kernels/kernel_params.h"
+#include "dali/operators/image/remap/displacement_filter.h"
+#include "dali/pipeline/data/views.h"
 
 namespace dali {
 
-template <DALIInterpType interp_type, bool per_channel,
-          typename Out, typename In, typename Displacement, typename Border>
-void Warp(
-    const kernels::OutTensorCPU<Out, 3> &out,
-    const kernels::InTensorCPU<In, 3> &in,
-    Displacement &displacement,
-    Border border) {
+template <DALIInterpType interp_type, bool per_channel, typename Out, typename In,
+          typename Displacement, typename Border>
+void Warp(const kernels::OutTensorCPU<Out, 3> &out, const kernels::InTensorCPU<In, 3> &in,
+          Displacement &displacement, Border border) {
   DALI_ENFORCE(in.shape[2] == out.shape[2], "Number of channels in input and output must match");
   int outH = out.shape[0];
   int outW = out.shape[1];
@@ -51,11 +48,11 @@ void Warp(
       if (per_channel) {
         for (int c = 0; c < C; c++) {
           auto p = displacement(y, x, c, inH, inW, C);
-          sampler(&out_row[C*x], p, c, border);
+          sampler(&out_row[C * x], p, c, border);
         }
       } else {
         auto p = displacement(y, x, 0, inH, inW, C);
-        sampler(&out_row[C*x], p, border);
+        sampler(&out_row[C * x], p, border);
       }
     }
   }
@@ -70,10 +67,9 @@ class DisplacementFilter<CPUBackend, Displacement, per_channel_transform>
         displace_(num_threads_, Displacement(spec)),
         interp_type_(spec.GetArgument<DALIInterpType>("interp_type")) {
     has_mask_ = spec.HasTensorArgument("mask");
-    DALI_ENFORCE(
-        interp_type_ == DALI_INTERP_NN || interp_type_ == DALI_INTERP_LINEAR,
-        "Unsupported interpolation type, only NN and LINEAR are supported for "
-        "this operation");
+    DALI_ENFORCE(interp_type_ == DALI_INTERP_NN || interp_type_ == DALI_INTERP_LINEAR,
+                 "Unsupported interpolation type, only NN and LINEAR are supported for "
+                 "this operation");
     if (!spec.TryGetArgument<float>(fill_value_, "fill_value")) {
       int int_value = 0;
       if (!spec.TryGetArgument<int>(int_value, "fill_value")) {
@@ -147,15 +143,13 @@ class DisplacementFilter<CPUBackend, Displacement, per_channel_transform>
   }
 
   template <typename U = Displacement>
-  std::enable_if_t<HasParam<U>::value> PrepareDisplacement(
-      SampleWorkspace *ws) {
+  std::enable_if_t<HasParam<U>::value> PrepareDisplacement(SampleWorkspace *ws) {
     auto *p = &displace_[ws->thread_idx()].param;
     displace_[ws->thread_idx()].Prepare(p, spec_, ws, ws->data_idx());
   }
 
   template <typename U = Displacement>
-  std::enable_if_t<!HasParam<U>::value> PrepareDisplacement(
-      SampleWorkspace *) {}
+  std::enable_if_t<!HasParam<U>::value> PrepareDisplacement(SampleWorkspace *) {}
 
   /**
    * @brief Do basic input checking and output setup

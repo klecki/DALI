@@ -15,8 +15,8 @@
 #ifndef DALI_IMAGE_GENERIC_IMAGE_H_
 #define DALI_IMAGE_GENERIC_IMAGE_H_
 
-#include <opencv2/opencv.hpp>
 #include <memory>
+#include <opencv2/opencv.hpp>
 #include <utility>
 #include "dali/image/image.h"
 
@@ -27,8 +27,9 @@ class GenericImage : public Image {
   GenericImage(const uint8_t *encoded_buffer, size_t length, DALIImageType image_type);
 
  protected:
-  std::pair<std::shared_ptr<uint8_t>, Shape>
-  DecodeImpl(DALIImageType image_type, const uint8_t *encoded_buffer, size_t length) const override;
+  std::pair<std::shared_ptr<uint8_t>, Shape> DecodeImpl(DALIImageType image_type,
+                                                        const uint8_t *encoded_buffer,
+                                                        size_t length) const override;
 
   Shape PeekShapeImpl(const uint8_t *encoded_buffer, size_t length) const override;
 };

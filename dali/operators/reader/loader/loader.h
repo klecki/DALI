@@ -15,6 +15,7 @@
 #ifndef DALI_OPERATORS_READER_LOADER_LOADER_H_
 #define DALI_OPERATORS_READER_LOADER_LOADER_H_
 
+#include <deque>
 #include <list>
 #include <map>
 #include <memory>
@@ -24,23 +25,19 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include <deque>
 
-#include "dali/core/nvtx.h"
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/pipeline/operator/op_spec.h"
-#include "dali/pipeline/data/tensor.h"
+#include "dali/core/nvtx.h"
 #include "dali/operators/decoder/cache/image_cache_factory.h"
+#include "dali/pipeline/data/tensor.h"
+#include "dali/pipeline/operator/op_spec.h"
 
 namespace dali {
 
-DLL_PUBLIC size_t start_index(const size_t shard_id,
-                              const size_t shard_num,
-                              const size_t size);
+DLL_PUBLIC size_t start_index(const size_t shard_id, const size_t shard_num, const size_t size);
 
-DLL_PUBLIC Index num_samples(const size_t shard_num,
-                             const size_t size);
+DLL_PUBLIC Index num_samples(const size_t shard_num, const size_t size);
 /**
  * @brief Base class for Loaders, responsible for reading samples from resource of some kind
  *        into memory.
@@ -54,25 +51,25 @@ class Loader {
   using LoadTargetUniquePtr = std::unique_ptr<LoadTarget>;
   using LoadTargetSharedPtr = std::shared_ptr<LoadTarget>;
   explicit Loader(const OpSpec& options)
-    : shuffle_(options.GetArgument<bool>("random_shuffle")),
-      initial_buffer_fill_(shuffle_ ? options.GetArgument<int>("initial_fill") : 1),
-      initial_empty_size_(2 * options.GetArgument<int>("prefetch_queue_depth")
-                          * options.GetArgument<int>("batch_size")),
-      tensor_init_bytes_(options.GetArgument<int>("tensor_init_bytes")),
-      seed_(options.GetArgument<Index>("seed")),
-      shard_id_(options.GetArgument<int>("shard_id")),
-      num_shards_(options.GetArgument<int>("num_shards")),
-      copy_read_data_(false),
-      read_ahead_(options.GetArgument<bool>("read_ahead")),
-      stick_to_shard_(options.GetArgument<bool>("stick_to_shard")),
-      device_id_(options.GetArgument<int>("device_id")),
-      skip_cached_images_(options.GetArgument<bool>("skip_cached_images")),
-      lazy_init_(options.GetArgument<bool>("lazy_init")),
-      loading_flag_(false),
-      read_sample_counter_(0),
-      returned_sample_counter_(0),
-      pad_last_batch_(options.GetArgument<bool>("pad_last_batch")),
-      dont_use_mmap_(options.GetArgument<bool>("dont_use_mmap")) {
+      : shuffle_(options.GetArgument<bool>("random_shuffle")),
+        initial_buffer_fill_(shuffle_ ? options.GetArgument<int>("initial_fill") : 1),
+        initial_empty_size_(2 * options.GetArgument<int>("prefetch_queue_depth") *
+                            options.GetArgument<int>("batch_size")),
+        tensor_init_bytes_(options.GetArgument<int>("tensor_init_bytes")),
+        seed_(options.GetArgument<Index>("seed")),
+        shard_id_(options.GetArgument<int>("shard_id")),
+        num_shards_(options.GetArgument<int>("num_shards")),
+        copy_read_data_(false),
+        read_ahead_(options.GetArgument<bool>("read_ahead")),
+        stick_to_shard_(options.GetArgument<bool>("stick_to_shard")),
+        device_id_(options.GetArgument<int>("device_id")),
+        skip_cached_images_(options.GetArgument<bool>("skip_cached_images")),
+        lazy_init_(options.GetArgument<bool>("lazy_init")),
+        loading_flag_(false),
+        read_sample_counter_(0),
+        returned_sample_counter_(0),
+        pad_last_batch_(options.GetArgument<bool>("pad_last_batch")),
+        dont_use_mmap_(options.GetArgument<bool>("dont_use_mmap")) {
     DALI_ENFORCE(initial_empty_size_ > 0, "Batch size needs to be greater than 0");
     DALI_ENFORCE(num_shards_ > shard_id_, "num_shards needs to be greater than shard_id");
     // initialize a random distribution -- this will be
@@ -100,8 +97,7 @@ class Loader {
   }
 
   template <typename T>
-  std::enable_if_t<std::is_same<T, Tensor<CPUBackend>>::value>
-  PrepareEmptyTensor(T& tensor) {
+  std::enable_if_t<std::is_same<T, Tensor<CPUBackend>>::value> PrepareEmptyTensor(T& tensor) {
     tensor.set_pinned(false);
     // Initialize tensors to a set size to limit expensive reallocations
     tensor.Resize({tensor_init_bytes_});
@@ -109,11 +105,10 @@ class Loader {
   }
 
   template <typename T>
-  std::enable_if_t<!std::is_same<T, Tensor<CPUBackend>>::value>
-  PrepareEmptyTensor(T&) {
+  std::enable_if_t<!std::is_same<T, Tensor<CPUBackend>>::value> PrepareEmptyTensor(T&) {
     constexpr bool T_is_Tensor = std::is_same<T, Tensor<CPUBackend>>::value;
     DALI_ENFORCE(T_is_Tensor,
-      "Please overload PrepareEmpty for custom LoadTarget type other than Tensor");
+                 "Please overload PrepareEmpty for custom LoadTarget type other than Tensor");
   }
 
   // Get a random read sample
@@ -159,8 +154,8 @@ class Loader {
       // First part of this condition makes sure that the same number of batches is returned in each
       // shard. Second makes sure that padding is done up to the full batch. For the first sample in
       // the batch is_new_batch is set so it means that padding may be no longer needed
-      if ((returned_sample_counter_  < num_samples(num_shards_, Size()) || !is_new_batch) &&
-        pad_last_batch_) {
+      if ((returned_sample_counter_ < num_samples(num_shards_, Size()) || !is_new_batch) &&
+          pad_last_batch_) {
         ++returned_sample_counter_;
         return last_sample_ptr_tmp;
       }
@@ -175,10 +170,9 @@ class Loader {
 
     int offset = shuffle_ ? dis(e_) : 0;
     Index idx = (shards_.front().start + offset) % sample_buffer_.size();
-    LoadTargetSharedPtr sample_ptr(sample_buffer_[idx].release(),
-      [this](LoadTarget* sample) {
-        LoadTargetUniquePtr recycle_ptr(sample);
-        RecycleTensor(std::move(recycle_ptr));
+    LoadTargetSharedPtr sample_ptr(sample_buffer_[idx].release(), [this](LoadTarget* sample) {
+      LoadTargetUniquePtr recycle_ptr(sample);
+      RecycleTensor(std::move(recycle_ptr));
     });
     std::swap(sample_buffer_[idx], sample_buffer_[shards_.front().start % sample_buffer_.size()]);
     // now grab an empty tensor, fill it and add to filled buffers
@@ -265,18 +259,18 @@ class Loader {
 
   // Check if given reader moved to the next shard
   virtual inline bool IsNextShard(Index current_index) {
-     return current_index >= Size() ||
-            (stick_to_shard_ && shard_id_ + 1 < num_shards_ &&
+    return current_index >= Size() ||
+           (stick_to_shard_ && shard_id_ + 1 < num_shards_ &&
             current_index >= static_cast<Index>(start_index(shard_id_ + 1, num_shards_, Size())));
   }
 
   inline bool IsNextShardRelative(Index already_read, int virtual_shard_id) {
-     Index current_index = already_read
-                         + static_cast<Index>(start_index(virtual_shard_id, num_shards_, Size()));
-     return current_index >= Size() ||
-            (virtual_shard_id + 1 < num_shards_ &&
-              current_index >=
-              static_cast<Index>(start_index(virtual_shard_id + 1, num_shards_, Size())));
+    Index current_index =
+        already_read + static_cast<Index>(start_index(virtual_shard_id, num_shards_, Size()));
+    return current_index >= Size() ||
+           (virtual_shard_id + 1 < num_shards_ &&
+            current_index >=
+                static_cast<Index>(start_index(virtual_shard_id + 1, num_shards_, Size())));
   }
 
   inline void IncreaseReadSampleCounter() {
@@ -295,14 +289,13 @@ class Loader {
   }
 
   bool ShouldSkipImage(const ImageCache::ImageKey& key) {
-    if (!skip_cached_images_)
-      return false;
+    if (!skip_cached_images_) return false;
 
     // Fetch image cache factory only the first time that we try to load an image
     // we don't do it in construction because we are not sure that the cache was
     // created since the order of operator creation is not guaranteed.
-    std::call_once(fetch_cache_, [this](){
-      auto &image_cache_factory = ImageCacheFactory::Instance();
+    std::call_once(fetch_cache_, [this]() {
+      auto& image_cache_factory = ImageCacheFactory::Instance();
       if (image_cache_factory.IsInitialized(device_id_))
         cache_ = image_cache_factory.Get(device_id_);
     });
@@ -380,9 +373,9 @@ class Loader {
   std::deque<ShardBoundaries> shards_;
 };
 
-template<typename T, typename... Args>
+template <typename T, typename... Args>
 std::unique_ptr<T> InitLoader(const OpSpec& spec, Args&&... args) {
-  std::unique_ptr<T> loader (new T(spec, std::forward<Args>(args)...));
+  std::unique_ptr<T> loader(new T(spec, std::forward<Args>(args)...));
   loader->Init();
   return loader;
 }

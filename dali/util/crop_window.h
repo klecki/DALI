@@ -17,10 +17,10 @@
 
 #include <functional>
 #include <utility>
+#include "dali/core/format.h"
+#include "dali/core/tensor_layout.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/core/tensor_layout.h"
-#include "dali/core/format.h"
 
 namespace dali {
 
@@ -28,14 +28,11 @@ struct CropWindow {
   TensorShape<> anchor;
   TensorShape<> shape;
 
-  CropWindow()
-    : anchor{0, 0}, shape{0, 0}
-  {}
+  CropWindow() : anchor{0, 0}, shape{0, 0} {}
 
   operator bool() const {
     for (int dim = 0; dim < shape.size(); dim++)
-      if (shape[dim] <= 0)
-        return false;
+      if (shape[dim] <= 0) return false;
     return true;
   }
 
@@ -48,14 +45,12 @@ struct CropWindow {
   }
 
   inline bool IsInRange(const TensorShape<>& input_shape) const {
-    DALI_ENFORCE(input_shape.size() == anchor.size()
-              && input_shape.size() == shape.size(),
-      make_string("Input shape, output shape and anchor must have the "
-                  "same number of dimensions. Got:\ninput: ",
-                  input_shape, "\nanchor: ", anchor, "\noutput shape:", shape));
+    DALI_ENFORCE(input_shape.size() == anchor.size() && input_shape.size() == shape.size(),
+                 make_string("Input shape, output shape and anchor must have the "
+                             "same number of dimensions. Got:\ninput: ",
+                             input_shape, "\nanchor: ", anchor, "\noutput shape:", shape));
     for (int dim = 0; dim < input_shape.size(); dim++)
-      if (anchor[dim] < 0 || anchor[dim] + shape[dim] > input_shape[dim])
-        return false;
+      if (anchor[dim] < 0 || anchor[dim] + shape[dim] > input_shape[dim]) return false;
     return true;
   }
 
@@ -68,8 +63,8 @@ struct CropWindow {
   }
 };
 
-using CropWindowGenerator = std::function<CropWindow(const TensorShape<>& shape,
-                                                     const TensorLayout& shape_layout)>;
+using CropWindowGenerator =
+    std::function<CropWindow(const TensorShape<>& shape, const TensorLayout& shape_layout)>;
 
 }  // namespace dali
 

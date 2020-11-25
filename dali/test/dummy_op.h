@@ -24,8 +24,7 @@ namespace dali {
 template <typename Backend>
 class DummyOp : public Operator<Backend> {
  public:
-  inline explicit DummyOp(const OpSpec &spec) :
-    Operator<Backend>(spec) {}
+  inline explicit DummyOp(const OpSpec &spec) : Operator<Backend>(spec) {}
 
   inline ~DummyOp() override = default;
 

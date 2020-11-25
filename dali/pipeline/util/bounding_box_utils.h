@@ -17,8 +17,8 @@
 
 #include <limits>
 #include "dali/core/geom/box.h"
-#include "dali/core/tensor_layout.h"
 #include "dali/core/math_util.h"
+#include "dali/core/tensor_layout.h"
 
 namespace dali {
 
@@ -85,29 +85,25 @@ Box<ndim, float> Uniform(float min, float max) {
  * @brief Permutes coordinates according to an input and output layout
  */
 template <typename Coords>
-void PermuteCoords(Coords& coords,
-                   TensorLayout orig_layout,
-                   TensorLayout new_layout) {
-  if (orig_layout == new_layout)
-    return;
+void PermuteCoords(Coords& coords, TensorLayout orig_layout, TensorLayout new_layout) {
+  if (orig_layout == new_layout) return;
   assert(orig_layout.is_permutation_of(new_layout));
   assert(coords.size() == orig_layout.size());
   auto perm = GetDimIndices(orig_layout, new_layout);
   auto out = coords;
-  for (int d = 0; d < static_cast<int>(coords.size()); d++)
-    out[d] = coords[perm[d]];
+  for (int d = 0; d < static_cast<int>(coords.size()); d++) out[d] = coords[perm[d]];
   std::swap(coords, out);
 }
 
 template <int ndim>
 void CheckBBoxLayout(TensorLayout layout) {
-  auto default_layout_start_end   = DefaultBBoxLayout<ndim>();
+  auto default_layout_start_end = DefaultBBoxLayout<ndim>();
   auto default_layout_start_shape = DefaultBBoxAnchorAndShapeLayout<ndim>();
   bool is_start_and_end = layout.is_permutation_of(default_layout_start_end);
   bool is_start_and_shape = layout.is_permutation_of(default_layout_start_shape);
   DALI_ENFORCE(is_start_and_end || is_start_and_shape,
-    make_string("`", layout, "` should be a permutation of `", default_layout_start_end,
-                "` or `", default_layout_start_shape, "`"));
+               make_string("`", layout, "` should be a permutation of `", default_layout_start_end,
+                           "` or `", default_layout_start_shape, "`"));
 }
 
 /**
@@ -119,8 +115,7 @@ void CheckBBoxLayout(TensorLayout layout) {
  * coordinates are following the order x_start, y_start, x_end, y_end
  */
 template <int ndim>
-void ReadBoxes(span<Box<ndim, float>> boxes, span<const float> coords,
-               TensorLayout layout = {},
+void ReadBoxes(span<Box<ndim, float>> boxes, span<const float> coords, TensorLayout layout = {},
                const Box<ndim, float>& limits = Uniform<ndim>(0.0f, 1.0f)) {
   static constexpr int box_size = ndim * 2;
   assert(coords.size() % box_size == 0);
@@ -128,25 +123,23 @@ void ReadBoxes(span<Box<ndim, float>> boxes, span<const float> coords,
   assert(layout.empty() || layout.size() == box_size);
   int nboxes = boxes.size();
 
-  if (layout.empty())
-    layout = DefaultBBoxLayout<ndim>();
+  if (layout.empty()) layout = DefaultBBoxLayout<ndim>();
 
-  auto default_layout_start_end   = DefaultBBoxLayout<ndim>();
+  auto default_layout_start_end = DefaultBBoxLayout<ndim>();
   auto default_layout_start_shape = DefaultBBoxAnchorAndShapeLayout<ndim>();
   bool is_start_and_end = layout.is_permutation_of(default_layout_start_end);
   bool is_start_and_shape = layout.is_permutation_of(default_layout_start_shape);
   DALI_ENFORCE(is_start_and_end || is_start_and_shape,
-    make_string("`", layout, "` should be a permutation of `", default_layout_start_end,
-                "` or `", default_layout_start_shape, "`"));
+               make_string("`", layout, "` should be a permutation of `", default_layout_start_end,
+                           "` or `", default_layout_start_shape, "`"));
   TensorLayout ordered_layout =
       is_start_and_shape ? default_layout_start_shape : default_layout_start_end;
 
   std::array<float, box_size> tmp;
   for (int i = 0; i < nboxes; i++) {
-    auto &box = boxes[i];
+    auto& box = boxes[i];
     const float* in = coords.data() + i * box_size;
-    for (int d = 0; d < box_size; d++)
-      tmp[d] = in[d];
+    for (int d = 0; d < box_size; d++) tmp[d] = in[d];
     PermuteCoords(tmp, layout, ordered_layout);
     for (int d = 0; d < ndim; d++) {
       box.lo[d] = tmp[d];
@@ -162,7 +155,7 @@ void ReadBoxes(span<Box<ndim, float>> boxes, span<const float> coords,
   if (!limits.empty()) {
     for (int i = 0; i < nboxes; i++) {
       DALI_ENFORCE(limits.contains(boxes[i]),
-        make_string("box ", boxes[i], " is out of bounds ", limits));
+                   make_string("box ", boxes[i], " is out of bounds ", limits));
     }
   }
 }
@@ -172,9 +165,7 @@ void ReadBoxes(span<Box<ndim, float>> boxes, span<const float> coords,
  * @remarks see ReadBoxes
  */
 template <int ndim>
-void ReadBox(Box<ndim, float>& box,
-             span<const float> coords,
-             TensorLayout layout = {},
+void ReadBox(Box<ndim, float>& box, span<const float> coords, TensorLayout layout = {},
              const Box<ndim, float>& limits = Uniform<ndim>(0.0f, 1.0f)) {
   ReadBoxes<ndim>({&box, 1}, coords, layout, limits);
 }
@@ -188,33 +179,30 @@ void ReadBox(Box<ndim, float>& box,
  * that the coordinates are following the order x_start, y_start, width, height
  */
 template <int ndim>
-void WriteBoxes(span<float> coords,
-                span<const Box<ndim, float>> boxes,
-                TensorLayout layout = {}) {
+void WriteBoxes(span<float> coords, span<const Box<ndim, float>> boxes, TensorLayout layout = {}) {
   static constexpr int box_size = ndim * 2;
   assert(coords.size() % box_size == 0);
   assert(coords.size() / box_size == boxes.size());
   assert(layout.size() == box_size);
   int nboxes = boxes.size();
-  auto default_layout_start_end   = DefaultBBoxLayout<ndim>();
+  auto default_layout_start_end = DefaultBBoxLayout<ndim>();
   auto default_layout_start_shape = DefaultBBoxAnchorAndShapeLayout<ndim>();
 
-  if (layout.empty())
-    layout = DefaultBBoxLayout<ndim>();
+  if (layout.empty()) layout = DefaultBBoxLayout<ndim>();
 
   bool is_start_and_end = layout.is_permutation_of(default_layout_start_end);
   bool is_start_and_shape = layout.is_permutation_of(default_layout_start_shape);
   DALI_ENFORCE(is_start_and_end || is_start_and_shape,
-    make_string("`", layout, "` should be a permutation of `", default_layout_start_end,
-                "` or `", default_layout_start_shape, "`"));
+               make_string("`", layout, "` should be a permutation of `", default_layout_start_end,
+                           "` or `", default_layout_start_shape, "`"));
   TensorLayout ordered_layout =
       is_start_and_shape ? default_layout_start_shape : default_layout_start_end;
 
   for (int i = 0; i < nboxes; i++) {
-    const auto &box = boxes[i];
+    const auto& box = boxes[i];
     std::array<float, box_size> tmp;
     for (int d = 0; d < ndim; d++) {
-      tmp[d]        = box.lo[d];
+      tmp[d] = box.lo[d];
       tmp[ndim + d] = box.hi[d];
     }
 
@@ -225,7 +213,7 @@ void WriteBoxes(span<float> coords,
     }
     PermuteCoords(tmp, ordered_layout, layout);
 
-    float *out = coords.data() + box_size * i;
+    float* out = coords.data() + box_size * i;
     for (int d = 0; d < box_size; d++) {
       out[d] = tmp[d];
     }
@@ -237,9 +225,7 @@ void WriteBoxes(span<float> coords,
  * @remarks see WriteBoxes
  */
 template <int ndim>
-void WriteBox(span<float> coords,
-              const Box<ndim, float>& box,
-              TensorLayout layout = {}) {
+void WriteBox(span<float> coords, const Box<ndim, float>& box, TensorLayout layout = {}) {
   WriteBoxes<ndim>(coords, {&box, 1}, layout);
 }
 
@@ -247,7 +233,7 @@ void WriteBox(span<float> coords,
  * @brief Remaps relative bounding box coordinates to the coordinate space of a subwindow
  */
 template <int ndim>
-Box<ndim, float> RemapBox(const Box<ndim, float> &box, const Box<ndim, float> &crop) {
+Box<ndim, float> RemapBox(const Box<ndim, float>& box, const Box<ndim, float>& crop) {
   Box<ndim, float> mapped_box = box;
   auto rel_extent = crop.extent();
   auto start = (max(crop.lo, box.lo) - crop.lo) / rel_extent;

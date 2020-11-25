@@ -100,8 +100,7 @@ template <
     /// when output layout is interleaved.
     bool AccumulatorsInRowMajor = false,
     /// If the convolution is computed in the innermost or outer dimension
-    bool IsInnerConv = true
-    >
+    bool IsInnerConv = true>
 struct SpecializedConvMma {
   // Select SMEM iterators that use ElementAccumulator type as storage (and computation)
   // instead of ElementA and ElementB

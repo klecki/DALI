@@ -15,9 +15,9 @@
 #ifndef DALI_UTIL_RANDOM_CROP_GENERATOR_H_
 #define DALI_UTIL_RANDOM_CROP_GENERATOR_H_
 
-#include <vector>
 #include <random>
 #include <utility>
+#include <vector>
 #include "dali/core/common.h"
 #include "dali/util/crop_window.h"
 
@@ -28,15 +28,14 @@ using AreaRange = std::pair<float, float>;
 
 class DLL_PUBLIC RandomCropGenerator {
  public:
-  explicit DLL_PUBLIC RandomCropGenerator(
-    AspectRatioRange aspect_ratio_range = { 3.0f/4, 4.0f/3 },
-    AreaRange area_range = { 0.08, 1 },
-    int64_t seed = time(0),
-    int num_attempts_ = 10);
+  explicit DLL_PUBLIC RandomCropGenerator(AspectRatioRange aspect_ratio_range = {3.0f / 4,
+                                                                                 4.0f / 3},
+                                          AreaRange area_range = {0.08, 1}, int64_t seed = time(0),
+                                          int num_attempts_ = 10);
 
   DLL_PUBLIC CropWindow GenerateCropWindow(const TensorShape<>& shape);
-  DLL_PUBLIC std::vector<CropWindow> GenerateCropWindows(const TensorShape<>& shape,
-                                                         std::size_t N);
+  DLL_PUBLIC std::vector<CropWindow> GenerateCropWindows(const TensorShape<>& shape, std::size_t N);
+
  private:
   CropWindow GenerateCropWindowImpl(const TensorShape<>& shape);
 

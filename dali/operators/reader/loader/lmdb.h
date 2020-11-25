@@ -25,12 +25,11 @@
 
 namespace dali {
 
-#define CHECK_LMDB(status, filename) \
-  do { \
-    DALI_ENFORCE(status == MDB_SUCCESS, "LMDB Error: " + string(mdb_strerror(status)) + \
-                                        ", with file: " + filename); \
+#define CHECK_LMDB(status, filename)                                                          \
+  do {                                                                                        \
+    DALI_ENFORCE(status == MDB_SUCCESS,                                                       \
+                 "LMDB Error: " + string(mdb_strerror(status)) + ", with file: " + filename); \
   } while (0)
-
 
 class IndexedLMDB {
   MDB_env* mdb_env_ = nullptr;
@@ -58,12 +57,16 @@ class IndexedLMDB {
     MDB_stat stat;
     CHECK_LMDB(mdb_stat(mdb_transaction_, mdb_dbi_, &stat), db_path_);
     mdb_size_ = stat.ms_entries;
-    LOG_LINE << "lmdb " << num_ << " " << db_path_
-             << " has " << mdb_size_ << " entries" << std::endl;
+    LOG_LINE << "lmdb " << num_ << " " << db_path_ << " has " << mdb_size_ << " entries"
+             << std::endl;
     mdb_index_ = 0;
   }
-  size_t GetSize() const { return mdb_size_; }
-  Index GetIndex() const { return mdb_index_; }
+  size_t GetSize() const {
+    return mdb_size_;
+  }
+  Index GetIndex() const {
+    return mdb_index_;
+  }
   void SeekByIndex(Index index, MDB_val* key = nullptr, MDB_val* value = nullptr) {
     MDB_val tmp_key, tmp_value;
     if (nullptr == key) {
@@ -73,8 +76,8 @@ class IndexedLMDB {
       value = &tmp_value;
     }
     if (index == 0) {
-      LOG_LINE << "lmdb " << num_ << " " << db_path_
-               << " rewind to the begin from " << mdb_index_ << std::endl;
+      LOG_LINE << "lmdb " << num_ << " " << db_path_ << " rewind to the begin from " << mdb_index_
+               << std::endl;
     }
     DALI_ENFORCE(index >= 0 && index < mdb_size_);
     if (index == 0) {
@@ -88,15 +91,15 @@ class IndexedLMDB {
     } else if (index == mdb_index_ + 1) {
       CHECK_LMDB(mdb_cursor_get(mdb_cursor_, key, value, MDB_NEXT), db_path_);
     } else if (index > mdb_index_) {
-      LOG_LINE << "lmdb " << num_ << " " << db_path_
-               << " exec a large step forward " << mdb_index_ << "->" << index << std::endl;
+      LOG_LINE << "lmdb " << num_ << " " << db_path_ << " exec a large step forward " << mdb_index_
+               << "->" << index << std::endl;
       for (Index i = mdb_index_; i < index; ++i) {
         CHECK_LMDB(mdb_cursor_get(mdb_cursor_, key, value, MDB_NEXT), db_path_);
       }
     } else {
       // index < mdb_index_
-      LOG_LINE << "lmdb " << num_ << " " << db_path_
-               << " exec a large step backward " << mdb_index_ << "->" << index << std::endl;
+      LOG_LINE << "lmdb " << num_ << " " << db_path_ << " exec a large step backward " << mdb_index_
+               << "->" << index << std::endl;
       for (Index i = index; i < mdb_index_; i++) {
         CHECK_LMDB(mdb_cursor_get(mdb_cursor_, key, value, MDB_PREV), db_path_);
       }
@@ -124,15 +127,15 @@ class IndexedLMDB {
 static int find_lower_bound(const std::vector<Index>& a, Index x) {
   DALI_ENFORCE(x >= a.front() && x < a.back() && a.size() >= 2);
   int low = 0;
-  int high = a.size()-2;
+  int high = a.size() - 2;
   do {
-    int mid = (low+high) / 2;
-    if (x >= a[mid] && x < a[mid+1]) {
+    int mid = (low + high) / 2;
+    if (x >= a[mid] && x < a[mid + 1]) {
       return mid;
-    } else if (x >= a[mid+1]) {
-      low = mid+1;
+    } else if (x >= a[mid + 1]) {
+      low = mid + 1;
     } else if (x < a[mid]) {
-      high = mid-1;
+      high = mid - 1;
     }
   } while (low <= high);
 
@@ -142,8 +145,7 @@ static int find_lower_bound(const std::vector<Index>& a, Index x) {
 
 class LMDBLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
  public:
-  explicit LMDBLoader(const OpSpec& options)
-      : Loader(options) {
+  explicit LMDBLoader(const OpSpec& options) : Loader(options) {
     bool ret = options.TryGetRepeatedArgument<std::string>(db_paths_, "path");
     if (!ret) {
       std::string path = options.GetArgument<std::string>("path");
@@ -176,8 +178,8 @@ class LMDBLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
 
     MoveToNextShard(current_index_);
 
-    std::string image_key = db_paths_[file_index] + " at key " +
-                            to_string(reinterpret_cast<char*>(key.mv_data));
+    std::string image_key =
+        db_paths_[file_index] + " at key " + to_string(reinterpret_cast<char*>(key.mv_data));
     DALIMeta meta;
 
     meta.SetSourceInfo(image_key);
@@ -197,8 +199,7 @@ class LMDBLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
 
     tensor.SetMeta(meta);
     tensor.Resize({static_cast<Index>(value.mv_size)});
-    std::memcpy(tensor.raw_mutable_data(),
-                reinterpret_cast<uint8_t*>(value.mv_data),
+    std::memcpy(tensor.raw_mutable_data(), reinterpret_cast<uint8_t*>(value.mv_data),
                 value.mv_size * sizeof(uint8_t));
   }
 

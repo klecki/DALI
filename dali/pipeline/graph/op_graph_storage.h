@@ -23,7 +23,6 @@
 
 namespace dali {
 
-
 // MixedOpId -> queue_idx -> cudaEvent_t
 using MixedOpEventMap = std::vector<std::vector<cudaEvent_t>>;
 

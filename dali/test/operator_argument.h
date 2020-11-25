@@ -15,8 +15,8 @@
 #ifndef DALI_TEST_OPERATOR_ARGUMENT_H_
 #define DALI_TEST_OPERATOR_ARGUMENT_H_
 
-#include <string>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "dali/core/util.h"
@@ -25,35 +25,35 @@
 namespace dali {
 namespace testing {
 
-template<typename T>
+template <typename T>
 struct InputArg {
   // TODO(mszolucha): For Dali's argument input
 };
 
 template <typename T, typename Enable = void>
 struct TestOpArgToStringImpl {
-  static std::string to_string(const T&) {
+  static std::string to_string(const T &) {
     return {};
   }
 };
 
 template <typename T>
 struct TestOpArgToStringImpl<T, std::enable_if_t<std::is_arithmetic<T>::value>> {
-  static std::string to_string(const T& val) {
+  static std::string to_string(const T &val) {
     return std::to_string(val);
   }
 };
 
 template <>
 struct TestOpArgToStringImpl<std::string> {
-  static std::string to_string(const std::string& val) {
+  static std::string to_string(const std::string &val) {
     return "\"" + val + "\"";
   }
 };
 
 template <typename T>
 struct TestOpArgToStringImpl<T, if_iterable<T, void>> {
-  static std::string to_string(const T& val) {
+  static std::string to_string(const T &val) {
     std::stringstream ss;
     if (val.size() == 0) {
       return "[]";
@@ -62,7 +62,7 @@ struct TestOpArgToStringImpl<T, if_iterable<T, void>> {
     }
     using element_type = element_t<T>;
     bool first = true;
-    for (const auto& e : val) {
+    for (const auto &e : val) {
       if (!first) {
         ss << ", ";
       } else {
@@ -75,8 +75,7 @@ struct TestOpArgToStringImpl<T, if_iterable<T, void>> {
   }
 };
 
-
-template<typename T>
+template <typename T>
 class TestOpArgValue;
 
 class TestOpArgBase {
@@ -87,8 +86,7 @@ class TestOpArgBase {
 
   virtual ~TestOpArgBase() = default;
 
-
-  template<typename T>
+  template <typename T>
   T GetValue() const {
     return dynamic_cast<const TestOpArgValue<T> &>(*this).value;
   }
@@ -99,27 +97,23 @@ class TestOpArgBase {
   TestOpArgBase() = default;
 };
 
-template<typename T>
-struct is_argument_input_type : std::false_type {
-};
+template <typename T>
+struct is_argument_input_type : std::false_type {};
 
-template<typename T>
-struct is_argument_input_type<InputArg<T>> : std::true_type {
-};
+template <typename T>
+struct is_argument_input_type<InputArg<T>> : std::true_type {};
 
-template<typename T, bool isArgInput = is_argument_input_type<T>::value>
+template <typename T, bool isArgInput = is_argument_input_type<T>::value>
 class TestOpArgValueImpl : public TestOpArgBase {
  public:
   TestOpArgValueImpl() = default;
 
+  TestOpArgValueImpl(const T &value)
+      :  // NOLINT non-explicit ctor
+        value(value) {}
 
-  TestOpArgValueImpl(const T &value) :  // NOLINT non-explicit ctor
-          value(value) {
-  }
-
-
-  void
-  SetArg(const std::string &argument_name, OpSpec &opspec, ArgumentWorkspace *ws) const override {
+  void SetArg(const std::string &argument_name, OpSpec &opspec,
+              ArgumentWorkspace *ws) const override {
     opspec.AddArg(argument_name, value);
   }
 
@@ -127,34 +121,33 @@ class TestOpArgValueImpl : public TestOpArgBase {
     return TestOpArgToStringImpl<T>::to_string(value);
   }
 
-  bool IsArgumentInput() const override { return isArgInput; }
-
+  bool IsArgumentInput() const override {
+    return isArgInput;
+  }
 
   T value = {};
 };
 
-template<typename T>
+template <typename T>
 class TestOpArgValueImpl<T, true> : public TestOpArgBase {
   TestOpArgValueImpl() = default;
 
-
-  TestOpArgValueImpl(const T &value) :  // NOLINT non-explicit ctor
-          value(value) {
-  }
-
+  TestOpArgValueImpl(const T &value)
+      :  // NOLINT non-explicit ctor
+        value(value) {}
 
   void SetArg(const std::string &name, OpSpec &spec, ArgumentWorkspace *ws) const override {
     // TODO(mszolucha): For ArgumentInput
   }
 
-
-  bool IsArgumentInput() const override { return true; }
-
+  bool IsArgumentInput() const override {
+    return true;
+  }
 
   T value = {};
 };
 
-template<typename T>
+template <typename T>
 class TestOpArgValue : public TestOpArgValueImpl<T> {
   using TestOpArgValueImpl<T>::TestOpArgValueImpl;
 };
@@ -163,16 +156,15 @@ class TestOpArg {
  public:
   TestOpArg() = default;
 
-  template<size_t N>
+  template <size_t N>
   TestOpArg(const char (&text)[N]) : TestOpArg(std::string(text)) {}  // NOLINT
 
   TestOpArg(const char *text) : TestOpArg(std::string(text)) {}  // NOLINT
 
-  template<typename T>
-  TestOpArg(const T &value) :  // NOLINT non-explicit ctor
-          val(new TestOpArgValue<T>(value)) {
-  }
-
+  template <typename T>
+  TestOpArg(const T &value)
+      :  // NOLINT non-explicit ctor
+        val(new TestOpArgValue<T>(value)) {}
 
   void SetArg(const std::string &argument_name, OpSpec &spec, ArgumentWorkspace *ws) {
     val->SetArg(argument_name, spec, ws);
@@ -182,18 +174,16 @@ class TestOpArg {
     return val->to_string();
   }
 
-
-  template<typename T>
+  template <typename T>
   T GetValue() const {
     assert(val && "Value not set");
     return val->GetValue<T>();
   }
 
-
   std::shared_ptr<TestOpArgBase> val;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const TestOpArg& op_arg) {
+inline std::ostream &operator<<(std::ostream &os, const TestOpArg &op_arg) {
   os << op_arg.to_string();
   return os;
 }

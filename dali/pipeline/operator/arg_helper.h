@@ -15,10 +15,10 @@
 #ifndef DALI_PIPELINE_OPERATOR_ARG_HELPER_H_
 #define DALI_PIPELINE_OPERATOR_ARG_HELPER_H_
 
-#include <dali/pipeline/operator/argument.h>
-#include <dali/pipeline/operator/op_spec.h>
 #include <dali/pipeline/data/tensor.h>
 #include <dali/pipeline/data/views.h>
+#include <dali/pipeline/operator/argument.h>
+#include <dali/pipeline/operator/op_spec.h>
 #include <memory>
 #include <string>
 
@@ -29,9 +29,10 @@ class ArgValue {
  public:
   ArgValue() = default;
   ArgValue(ArgValue &&) = default;
-  inline ArgValue(const ArgValue &other) { *this = other; }
-  explicit inline ArgValue(const std::string &name) : name_(name) {
+  inline ArgValue(const ArgValue &other) {
+    *this = other;
   }
+  explicit inline ArgValue(const std::string &name) : name_(name) {}
 
   void Update(const OpSpec &spec, ArgumentWorkspace &ws, bool use_default = true) {
     if (spec.HasTensorArgument(name_)) {
@@ -41,8 +42,7 @@ class ArgValue {
     } else {
       is_set_ = spec.HasArgument(name_);
       arg_input_ = nullptr;
-      if (use_default || is_set_)
-        value_ = spec.GetArgument<T>(name_);
+      if (use_default || is_set_) value_ = spec.GetArgument<T>(name_);
     }
   }
 
@@ -52,13 +52,17 @@ class ArgValue {
     is_set_ = other.is_set_;
     gpu_dirty_ = true;
     gpu_.reset();
-    value_  = other.value_;
+    value_ = other.value_;
     arg_input_ = other.arg_input_;
     return *this;
   }
 
-  inline bool IsInput() const noexcept { return arg_input_ != nullptr; }
-  inline bool IsSet() const noexcept { return is_set_; }
+  inline bool IsInput() const noexcept {
+    return arg_input_ != nullptr;
+  }
+  inline bool IsSet() const noexcept {
+    return is_set_;
+  }
 
   template <int ndim = DynamicDimensions>
   inline const TensorView<StorageCPU, T, ndim> Tensor(int sample_index) const {
@@ -81,14 +85,13 @@ class ArgValue {
 #endif
       return (*arg_input_)[sample_index].data<T>()[0];
     } else {
-      return  value_;
+      return value_;
     }
   }
 
   inline const TensorList<GPUBackend> &AsGPU(cudaStream_t stream) {
     DALI_ENFORCE(IsInput());
-    if (!gpu_)
-      gpu_.reset(new TensorList<GPUBackend>());
+    if (!gpu_) gpu_.reset(new TensorList<GPUBackend>());
     if (gpu_dirty_) {
       gpu_->Copy(*arg_input_, stream);
       gpu_dirty_ = false;

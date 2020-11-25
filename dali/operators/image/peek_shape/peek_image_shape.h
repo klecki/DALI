@@ -16,10 +16,10 @@
 #define DALI_OPERATORS_IMAGE_PEEK_SHAPE_PEEK_IMAGE_SHAPE_H_
 
 #include <vector>
-#include "dali/image/image_factory.h"
-#include "dali/core/tensor_shape.h"
-#include "dali/pipeline/operator/operator.h"
 #include "dali/core/static_switch.h"
+#include "dali/core/tensor_shape.h"
+#include "dali/image/image_factory.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -30,19 +30,20 @@ class PeekImageShape : public Operator<CPUBackend> {
   explicit PeekImageShape(const OpSpec &spec) : Operator<CPUBackend>(spec) {
     output_type_ = spec.GetArgument<DALIDataType>("type");
     switch (output_type_) {
-    case DALI_INT32:
-    case DALI_UINT32:
-    case DALI_INT64:
-    case DALI_UINT64:
-    case DALI_FLOAT:
-    case DALI_FLOAT64:
-      break;
-    default:
-      {
+      case DALI_INT32:
+      case DALI_UINT32:
+      case DALI_INT64:
+      case DALI_UINT64:
+      case DALI_FLOAT:
+      case DALI_FLOAT64:
+        break;
+      default: {
         auto &name = TypeTable::GetTypeInfo(output_type_).name();
-        DALI_FAIL("Operator PeekImageShape can return the output as one of the following:\n"
-          "int32, uint32, int64, uint64, float or double;\n"
-          "requested: " + name);
+        DALI_FAIL(
+            "Operator PeekImageShape can return the output as one of the following:\n"
+            "int32, uint32, int64, uint64, float or double;\n"
+            "requested: " +
+            name);
         break;
       }
     }
@@ -56,7 +57,7 @@ class PeekImageShape : public Operator<CPUBackend> {
     const auto &input = ws.template InputRef<CPUBackend>(0);
     size_t batch_size = input.ntensor();
     output_desc.resize(1);
-    output_desc[0].shape = uniform_list_shape<1>(batch_size, { 3 });
+    output_desc[0].shape = uniform_list_shape<1>(batch_size, {3});
     output_desc[0].type = TypeTable::GetTypeInfo(output_type_);
     return true;
   }
@@ -76,20 +77,20 @@ class PeekImageShape : public Operator<CPUBackend> {
     size_t batch_size = input.ntensor();
 
     for (size_t sample_id = 0; sample_id < batch_size; ++sample_id) {
-      thread_pool.AddWork([sample_id, &input, &output, this] (int tid) {
-        const auto& image = input[sample_id];
-        // Verify input
-        DALI_ENFORCE(image.ndim() == 1,
-                      "Input must be 1D encoded jpeg string.");
-        DALI_ENFORCE(IsType<uint8>(image.type()),
-                      "Input must be stored as uint8 data.");
-        auto img = ImageFactory::CreateImage(image.data<uint8>(), image.size(), {});
-        auto shape = img->PeekShape();
-        TYPE_SWITCH(output_type_, type2id, type,
+      thread_pool.AddWork(
+          [sample_id, &input, &output, this](int tid) {
+            const auto &image = input[sample_id];
+            // Verify input
+            DALI_ENFORCE(image.ndim() == 1, "Input must be 1D encoded jpeg string.");
+            DALI_ENFORCE(IsType<uint8>(image.type()), "Input must be stored as uint8 data.");
+            auto img = ImageFactory::CreateImage(image.data<uint8>(), image.size(), {});
+            auto shape = img->PeekShape();
+            TYPE_SWITCH(output_type_, type2id, type,
                 (int32_t, uint32_t, int64_t, uint64_t, float, double),
           (WriteShape<type>(output[sample_id], shape);),
           (DALI_FAIL(make_string("Unsupported type for Shapes: ", output_type_))));
-      }, 0);
+          },
+          0);
       // the amount of work depends on the image format and exact sample which is unknown here
     }
     thread_pool.RunAll();

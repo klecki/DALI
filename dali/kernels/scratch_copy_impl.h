@@ -17,8 +17,8 @@
 
 #include <cuda_runtime.h>
 #include <algorithm>
-#include <tuple>
 #include <memory>
+#include <tuple>
 #include "dali/core/traits.h"
 #include "dali/kernels/context.h"
 
@@ -33,16 +33,16 @@ inline void copy_to_buffer(char *buffer, const size_t *offsets) {}
  * @brief Copy contents of collections `{ c, tail... }` to pointers stored in `ptrs`.
  */
 template <typename Collection, typename... Collections>
-void copy_to_buffer(char *buffer,
-                  const size_t *offsets,
-                  const Collection &c,
-                  const Collections &... tail) {
+void copy_to_buffer(char *buffer, const size_t *offsets, const Collection &c,
+                    const Collections &...tail) {
   using T = std::remove_cv_t<element_t<Collection>>;
-  std::copy(dali::begin(c), dali::end(c), reinterpret_cast<T*>(buffer + offsets[0]));
-  copy_to_buffer(buffer, offsets+1, tail...);
+  std::copy(dali::begin(c), dali::end(c), reinterpret_cast<T *>(buffer + offsets[0]));
+  copy_to_buffer(buffer, offsets + 1, tail...);
 }
 
-inline void GetCollectionOffsets(size_t base, size_t *offsets) { *offsets = base; }
+inline void GetCollectionOffsets(size_t base, size_t *offsets) {
+  *offsets = base;
+}
 
 /**
  * @brief Assuming aligned storage in a single buffer,
@@ -53,9 +53,8 @@ inline void GetCollectionOffsets(size_t base, size_t *offsets) { *offsets = base
  * @param tail     - collections to be stored after `c`
  */
 template <typename Collection, typename... Collections>
-void GetCollectionOffsets(size_t base, size_t *offsets,
-                              const Collection &c,
-                              const Collections &...tail) {
+void GetCollectionOffsets(size_t base, size_t *offsets, const Collection &c,
+                          const Collections &...tail) {
   using T = std::remove_cv_t<element_t<Collection>>;
   base = align_up(base, alignof(T));
   *offsets = base;
@@ -63,18 +62,18 @@ void GetCollectionOffsets(size_t base, size_t *offsets,
   GetCollectionOffsets(base, offsets + 1, tail...);
 }
 
-constexpr std::tuple<> GetCollectionPtrs(void *base, const size_t *offsets) { return {}; }
+constexpr std::tuple<> GetCollectionPtrs(void *base, const size_t *offsets) {
+  return {};
+}
 
 template <typename Collection, typename... Collections>
-auto GetCollectionPtrs(void *base, const size_t *offsets,
-                       const Collection &c,
+auto GetCollectionPtrs(void *base, const size_t *offsets, const Collection &c,
                        const Collections &...tail) {
   using T = std::remove_cv_t<element_t<Collection>>;
   return std::tuple_cat(
-    std::make_tuple(reinterpret_cast<T*>(static_cast<char *>(base) + offsets[0])),
-    GetCollectionPtrs(base, offsets+1, tail...));
+      std::make_tuple(reinterpret_cast<T *>(static_cast<char *>(base) + offsets[0])),
+      GetCollectionPtrs(base, offsets + 1, tail...));
 }
-
 
 template <typename T>
 T variadic_max(T t) {
@@ -93,24 +92,23 @@ auto variadic_max(T0 t0, T... tail) {
 
 }  // namespace detail
 
-
 /**
  * @brief Allocates from scratchpad and copies the collections to the allocated buffer.
  */
 template <typename... Collections>
-std::tuple<std::remove_cv_t<element_t<Collections>>*...>
-ToContiguousHostMem(Scratchpad &scratchpad, const Collections &... c) {
+std::tuple<std::remove_cv_t<element_t<Collections>> *...> ToContiguousHostMem(
+    Scratchpad &scratchpad, const Collections &...c) {
   const size_t N = sizeof...(Collections);
   static_assert(
-    all_of<std::is_trivially_copyable<std::remove_cv_t<element_t<Collections>>>::value...>::value,
-    "ToContiguousHostMem must be used with collections of trivially copyable types");
+      all_of<std::is_trivially_copyable<std::remove_cv_t<element_t<Collections>>>::value...>::value,
+      "ToContiguousHostMem must be used with collections of trivially copyable types");
 
   std::array<size_t, N + 1> offsets;
   detail::GetCollectionOffsets(0, &offsets[0], c...);
   size_t alignment = detail::variadic_max(alignof(element_t<Collections>)...);
   size_t total_size = std::get<N>(offsets);
 
-  auto *tmp = reinterpret_cast<char*>(scratchpad.Alloc(AllocType::Host, total_size, alignment));
+  auto *tmp = reinterpret_cast<char *>(scratchpad.Alloc(AllocType::Host, total_size, alignment));
   detail::copy_to_buffer(tmp, &offsets[0], c...);
 
   return detail::GetCollectionPtrs(tmp, &offsets[0], c...);
@@ -122,12 +120,12 @@ ToContiguousHostMem(Scratchpad &scratchpad, const Collections &... c) {
  *        `cudaMemcpyAsync`.
  */
 template <typename... Collections>
-std::tuple<std::remove_cv_t<element_t<Collections>>*...>
-ToContiguousGPUMem(Scratchpad &scratchpad, cudaStream_t stream, const Collections &... c) {
+std::tuple<std::remove_cv_t<element_t<Collections>> *...> ToContiguousGPUMem(
+    Scratchpad &scratchpad, cudaStream_t stream, const Collections &...c) {
   const size_t N = sizeof...(Collections);
   static_assert(
-    all_of<std::is_trivially_copyable<std::remove_cv_t<element_t<Collections>>>::value...>::value,
-    "ToContiguousGPUMem must be used with collections of trivially copyable types");
+      all_of<std::is_trivially_copyable<std::remove_cv_t<element_t<Collections>>>::value...>::value,
+      "ToContiguousGPUMem must be used with collections of trivially copyable types");
 
   std::array<size_t, N + 1> offsets;
   detail::GetCollectionOffsets(0, &offsets[0], c...);
@@ -137,7 +135,7 @@ ToContiguousGPUMem(Scratchpad &scratchpad, cudaStream_t stream, const Collection
   char *tmp;
   std::unique_ptr<char[]> heap_buf;
   if (total_size <= 0x2000) {
-     tmp = static_cast<char*>(alloca(0x2000));
+    tmp = static_cast<char *>(alloca(0x2000));
   } else {
     heap_buf.reset(new char[total_size]);
     tmp = heap_buf.get();

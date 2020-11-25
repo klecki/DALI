@@ -22,8 +22,8 @@
 #include <cassert>
 #include <cmath>
 #include <vector>
-#include "dali/operators/image/resize/resize_op_impl.h"
 #include "dali/kernels/imgproc/resample_cpu.h"
+#include "dali/operators/image/resize/resize_op_impl.h"
 
 namespace dali {
 
@@ -41,16 +41,13 @@ class ResizeOpImplCPU : public ResizeBase<CPUBackend>::Impl {
   /// Dimensionality of each separate frame. If input contains no channel dimension, one is added
   static constexpr int frame_ndim = spatial_ndim + 1;
 
-  void Setup(TensorListShape<> &out_shape,
-             const TensorListShape<> &in_shape,
-             int first_spatial_dim,
+  void Setup(TensorListShape<> &out_shape, const TensorListShape<> &in_shape, int first_spatial_dim,
              span<const kernels::ResamplingParams> params) override {
     // Calculate output shape of the input, as supplied (sequences, planar images, etc)
     GetResizedShape(out_shape, in_shape, params, spatial_ndim, first_spatial_dim);
 
     // Create "frames" from outer dimensions and "channels" from inner dimensions.
-    GetFrameShapesAndParams<spatial_ndim>(in_shape_, params_, in_shape, params,
-                                          first_spatial_dim);
+    GetFrameShapesAndParams<spatial_ndim>(in_shape_, params_, in_shape, params, first_spatial_dim);
 
     // Now that we have per-frame parameters, we can calculate the output shape of the
     // effective frames (from videos, channel planes, etc).
@@ -74,8 +71,7 @@ class ResizeOpImplCPU : public ResizeBase<CPUBackend>::Impl {
     }
   }
 
-  void RunResize(HostWorkspace &ws,
-                 TensorVector<CPUBackend> &output,
+  void RunResize(HostWorkspace &ws, TensorVector<CPUBackend> &output,
                  const TensorVector<CPUBackend> &input) override {
     auto in_view = view<const In>(input);
     auto in_frames_view = reshape(in_view, in_shape_, true);
@@ -112,8 +108,7 @@ class ResizeOpImplCPU : public ResizeBase<CPUBackend>::Impl {
 
   void OnNumFramesUpdated() {
     int N = GetNumFrames();
-    if (static_cast<int>(kmgr_.NumInstances()) < N)
-      kmgr_.Resize<Kernel>(kmgr_.NumThreads(), N);
+    if (static_cast<int>(kmgr_.NumInstances()) < N) kmgr_.Resize<Kernel>(kmgr_.NumThreads(), N);
   }
 
   int GetNumFrames() const {

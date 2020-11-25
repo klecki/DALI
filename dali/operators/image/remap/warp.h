@@ -25,12 +25,12 @@
 #include "dali/core/static_switch.h"
 #include "dali/core/tuple_helpers.h"
 #include "dali/kernels/alloc.h"
-#include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/imgproc/warp_cpu.h"
 #include "dali/kernels/imgproc/warp_gpu.h"
-#include "dali/pipeline/operator/operator.h"
+#include "dali/kernels/kernel_manager.h"
 #include "dali/operators/image/remap/warp_param_provider.h"
 #include "dali/pipeline/data/views.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 namespace detail {
@@ -79,8 +79,7 @@ class WarpOpImpl : public OpImplInterface<Backend> {
   using Workspace = workspace_t<Backend>;
 
   WarpOpImpl(const OpSpec &spec, std::unique_ptr<ParamProvider> pp)
-  : spec_(spec), param_provider_(std::move(pp)) {
-  }
+      : spec_(spec), param_provider_(std::move(pp)) {}
 
   void Setup(TensorListShape<> &shape, const Workspace &ws) override {
     param_provider_->SetContext(Spec(), ws);
@@ -95,7 +94,9 @@ class WarpOpImpl : public OpImplInterface<Backend> {
     RunBackend(ws);
   }
 
-  const OpSpec &Spec() const { return spec_; }
+  const OpSpec &Spec() const {
+    return spec_;
+  }
 
  private:
   const OpSpec &spec_;
@@ -114,13 +115,9 @@ class WarpOpImpl : public OpImplInterface<Backend> {
   void SetupBackend(TensorListShape<> &shape, const DeviceWorkspace &ws) {
     auto context = GetContext(ws);
     kmgr_.Resize<Kernel>(1, 1);
-    auto &req = kmgr_.Setup<Kernel>(
-        0, context,
-        input_,
-        param_provider_->ParamsGPU(),
-        param_provider_->OutputSizes(),
-        param_provider_->InterpTypes(),
-        param_provider_->Border());
+    auto &req = kmgr_.Setup<Kernel>(0, context, input_, param_provider_->ParamsGPU(),
+                                    param_provider_->OutputSizes(), param_provider_->InterpTypes(),
+                                    param_provider_->Border());
     shape = req.output_shapes[0];
   }
 
@@ -135,40 +132,33 @@ class WarpOpImpl : public OpImplInterface<Backend> {
     auto context = GetContext(ws);
     for (int i = 0; i < N; i++) {
       DALIInterpType interp_type = interp_types.size() > 1 ? interp_types[i] : interp_types[0];
-      auto &req = kmgr_.Setup<Kernel>(
-          i, context,
-          input_[i],
-          *param_provider_->ParamsCPU()(i),
-          param_provider_->OutputSizes()[i],
-          interp_type,
-          param_provider_->Border());
+      auto &req = kmgr_.Setup<Kernel>(i, context, input_[i], *param_provider_->ParamsCPU()(i),
+                                      param_provider_->OutputSizes()[i], interp_type,
+                                      param_provider_->Border());
       shape.set_tensor_shape(i, req.output_shapes[0][0]);
     }
   }
-
 
   void RunBackend(HostWorkspace &ws) {
     param_provider_->SetContext(Spec(), ws);
 
     auto output = view<OutputType, tensor_ndim>(ws.template OutputRef<Backend>(0));
-    input_ = view<const InputType,  tensor_ndim>(ws.template InputRef<Backend>(0));
+    input_ = view<const InputType, tensor_ndim>(ws.template InputRef<Backend>(0));
 
     ThreadPool &pool = ws.GetThreadPool();
     auto interp_types = param_provider_->InterpTypes();
 
     for (int i = 0; i < input_.num_samples(); i++) {
-      pool.AddWork([&, i](int tid) {
-        DALIInterpType interp_type = interp_types.size() > 1 ? interp_types[i] : interp_types[0];
-        auto context = GetContext(ws);
-        kmgr_.Run<Kernel>(
-            tid, i, context,
-            output[i],
-            input_[i],
-            *param_provider_->ParamsCPU()(i),
-            param_provider_->OutputSizes()[i],
-            interp_type,
-            param_provider_->Border());
-      }, output.shape.tensor_size(i));
+      pool.AddWork(
+          [&, i](int tid) {
+            DALIInterpType interp_type =
+                interp_types.size() > 1 ? interp_types[i] : interp_types[0];
+            auto context = GetContext(ws);
+            kmgr_.Run<Kernel>(tid, i, context, output[i], input_[i],
+                              *param_provider_->ParamsCPU()(i), param_provider_->OutputSizes()[i],
+                              interp_type, param_provider_->Border());
+          },
+          output.shape.tensor_size(i));
     }
     pool.RunAll();
   }
@@ -177,46 +167,45 @@ class WarpOpImpl : public OpImplInterface<Backend> {
     param_provider_->SetContext(Spec(), ws);
 
     auto output = view<OutputType, tensor_ndim>(ws.template OutputRef<Backend>(0));
-    input_ = view<const InputType,  tensor_ndim>(ws.template InputRef<Backend>(0));
+    input_ = view<const InputType, tensor_ndim>(ws.template InputRef<Backend>(0));
     auto context = GetContext(ws);
-    kmgr_.Run<Kernel>(
-        0, 0, context,
-        output,
-        input_,
-        param_provider_->ParamsGPU(),
-        param_provider_->OutputSizes(),
-        param_provider_->InterpTypes(),
-        param_provider_->Border());
+    kmgr_.Run<Kernel>(0, 0, context, output, input_, param_provider_->ParamsGPU(),
+                      param_provider_->OutputSizes(), param_provider_->InterpTypes(),
+                      param_provider_->Border());
   }
 };
 
-template <typename Backend,
-          typename Mapping, int spatial_ndim,
-          typename OutputType, typename InputType, typename BorderType>
+template <typename Backend, typename Mapping, int spatial_ndim, typename OutputType,
+          typename InputType, typename BorderType>
 struct WarpKernelSelector;
 
-template <typename Mapping, int spatial_ndim,
-          typename OutputType, typename InputType, typename BorderType>
+template <typename Mapping, int spatial_ndim, typename OutputType, typename InputType,
+          typename BorderType>
 struct WarpKernelSelector<GPUBackend, Mapping, spatial_ndim, OutputType, InputType, BorderType> {
   using type = kernels::WarpGPU<Mapping, spatial_ndim, OutputType, InputType, BorderType>;
 };
 
-template <typename Mapping, int spatial_ndim,
-          typename OutputType, typename InputType, typename BorderType>
+template <typename Mapping, int spatial_ndim, typename OutputType, typename InputType,
+          typename BorderType>
 struct WarpKernelSelector<CPUBackend, Mapping, spatial_ndim, OutputType, InputType, BorderType> {
   using type = kernels::WarpCPU<Mapping, spatial_ndim, OutputType, InputType, BorderType>;
 };
-
 
 template <typename Backend, typename Derived>
 class Warp : public Operator<Backend> {
  public:
   using MyType = Derived;
-  MyType &This() { return static_cast<MyType&>(*this); }
-  const MyType &This() const { return static_cast<const MyType&>(*this); }
+  MyType &This() {
+    return static_cast<MyType &>(*this);
+  }
+  const MyType &This() const {
+    return static_cast<const MyType &>(*this);
+  }
   using Workspace = workspace_t<Backend>;
 
-  const OpSpec &Spec() const { return this->spec_; }
+  const OpSpec &Spec() const {
+    return this->spec_;
+  }
 
  private:
   /// @defgroup WarpStaticType Dynamic to static type routing
@@ -254,7 +243,7 @@ class Warp : public Operator<Backend> {
   }
 
   int SpatialDim() const {
-    return input_shape_.sample_dim()-1;
+    return input_shape_.sample_dim() - 1;
   }
 
   bool BorderClamp() const {
@@ -274,28 +263,18 @@ class Warp : public Operator<Backend> {
     return true;
   }
 
-  using DefaultSupportedTypes = UnzipPairs<
-    uint8_t, uint8_t,
-    uint8_t, float,
-    float,   uint8_t,
+  using DefaultSupportedTypes = UnzipPairs<uint8_t, uint8_t, uint8_t, float, float, uint8_t,
 
-    int16_t, int16_t,
-    int16_t, float,
-    float,   int16_t,
+                                           int16_t, int16_t, int16_t, float, float, int16_t,
 
-    int32_t, int32_t,
-    int32_t, float,
-    float,   int32_t,
+                                           int32_t, int32_t, int32_t, float, float, int32_t,
 
-    float,   float
-  >;
+                                           float, float>;
 
   /** @brief May be shadowed by Derived, if necessary */
   using SupportedTypes = DefaultSupportedTypes;
 
-  void SetupWarp(TensorListShape<> &out_shape,
-                 DALIDataType &out_type,
-                 const Workspace &ws) {
+  void SetupWarp(TensorListShape<> &out_shape, DALIDataType &out_type, const Workspace &ws) {
     auto &input = ws.template InputRef<Backend>(0);
     input_shape_ = input.shape();
     input_type_ = input.type().id();
@@ -323,7 +302,6 @@ class Warp : public Operator<Backend> {
           (assert(!"impossible")))),
         (DALI_FAIL("Only 2D and 3D warping is supported")));
 
-
     impl_->Setup(out_shape, ws);
     out_type = output_type_;
   }
@@ -344,7 +322,6 @@ class Warp : public Operator<Backend> {
   std::unique_ptr<OpImplInterface<Backend>> impl_;
   bool border_clamp_;
 };
-
 
 }  // namespace dali
 

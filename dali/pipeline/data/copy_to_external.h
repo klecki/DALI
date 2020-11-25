@@ -36,9 +36,8 @@ struct alloc_to_backend<AllocType::GPU> {
 };
 
 template <typename DstBackend, typename SrcBackend>
-inline void CopyToExternalImpl(void* dst,
-                               const Buffer<SrcBackend> &src,
-                               cudaStream_t stream, bool use_copy_kernel) {
+inline void CopyToExternalImpl(void *dst, const Buffer<SrcBackend> &src, cudaStream_t stream,
+                               bool use_copy_kernel) {
   DeviceGuard d(src.device_id());
   const auto &type_info = src.type();
   type_info.template Copy<DstBackend, SrcBackend>(dst, src.raw_data(), src.size(), stream,
@@ -46,9 +45,8 @@ inline void CopyToExternalImpl(void* dst,
 }
 
 template <typename DstBackend, typename SrcBackend>
-inline void CopyToExternalImpl(void** dsts,
-                               const TensorList<SrcBackend> &src,
-                               cudaStream_t stream, bool use_copy_kernel) {
+inline void CopyToExternalImpl(void **dsts, const TensorList<SrcBackend> &src, cudaStream_t stream,
+                               bool use_copy_kernel) {
   DeviceGuard d(src.device_id());
 
   const auto &type_info = src.type();
@@ -58,8 +56,7 @@ inline void CopyToExternalImpl(void** dsts,
   int nsamples = src_shape.size();
   sizes.reserve(nsamples);
   for (int i = 0; i < nsamples; i++) {
-    if (dsts[i] == nullptr)
-      continue;
+    if (dsts[i] == nullptr) continue;
     sizes.push_back(src_shape.tensor_size(i));
   }
   int samples_to_copy = sizes.size();
@@ -70,8 +67,7 @@ inline void CopyToExternalImpl(void** dsts,
     SmallVector<void *, 256> to;
     to.reserve(samples_to_copy);
     for (int i = 0; i < nsamples; i++) {
-      if (dsts[i] == nullptr)
-        continue;
+      if (dsts[i] == nullptr) continue;
       from.push_back(src.raw_tensor(i));
       to.push_back(dsts[i]);
     }
@@ -85,8 +81,7 @@ inline void CopyToExternalImpl(void** dsts,
 }
 
 template <typename SrcBackend>
-inline void CopyToExternal(void* dst, AllocType dst_alloc_type,
-                           const Buffer<SrcBackend> &src,
+inline void CopyToExternal(void *dst, AllocType dst_alloc_type, const Buffer<SrcBackend> &src,
                            cudaStream_t stream, bool use_copy_kernel) {
   VALUE_SWITCH(dst_alloc_type, DstType, (AllocType::Host, AllocType::Pinned, AllocType::GPU), (
     use_copy_kernel &= (DstType == AllocType::GPU || DstType == AllocType::Pinned) &&
@@ -97,8 +92,7 @@ inline void CopyToExternal(void* dst, AllocType dst_alloc_type,
 }
 
 template <typename SrcBackend>
-inline void CopyToExternal(void** dsts, AllocType dst_alloc_type,
-                           const TensorList<SrcBackend> &src,
+inline void CopyToExternal(void **dsts, AllocType dst_alloc_type, const TensorList<SrcBackend> &src,
                            cudaStream_t stream, bool use_copy_kernel) {
   VALUE_SWITCH(dst_alloc_type, DstType, (AllocType::Host, AllocType::Pinned, AllocType::GPU), (
     use_copy_kernel &= (DstType == AllocType::GPU || DstType == AllocType::Pinned) &&

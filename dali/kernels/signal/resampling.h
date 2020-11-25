@@ -22,9 +22,9 @@
 #include <functional>
 #include <utility>
 #include <vector>
+#include "dali/core/convert.h"
 #include "dali/core/math_util.h"
 #include "dali/core/small_vector.h"
-#include "dali/core/convert.h"
 #include "dali/core/static_switch.h"
 
 namespace dali {
@@ -59,23 +59,21 @@ struct ResamplingWindow {
     __m128 fifloor = _mm_cvtepi32_ps(i);
     __m128 di = _mm_sub_ps(fi, fifloor);
     int idx[4];
-    _mm_storeu_si128(reinterpret_cast<__m128i*>(idx), i);
-    __m128 curr = _mm_setr_ps(lookup[idx[0]],   lookup[idx[1]],
-                              lookup[idx[2]],   lookup[idx[3]]);
-    __m128 next = _mm_setr_ps(lookup[idx[0]+1], lookup[idx[1]+1],
-                              lookup[idx[2]+1], lookup[idx[3]+1]);
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(idx), i);
+    __m128 curr = _mm_setr_ps(lookup[idx[0]], lookup[idx[1]], lookup[idx[2]], lookup[idx[3]]);
+    __m128 next =
+        _mm_setr_ps(lookup[idx[0] + 1], lookup[idx[1] + 1], lookup[idx[2] + 1], lookup[idx[3] + 1]);
     return _mm_add_ps(curr, _mm_mul_ps(di, _mm_sub_ps(next, curr)));
   }
 #endif
-
 
   float scale = 1, center = 1;
   int lobes = 0, coeffs = 0;
   std::vector<float> lookup;
 };
 
-inline void windowed_sinc(ResamplingWindow &window,
-    int coeffs, int lobes, std::function<double(double)> envelope = Hann) {
+inline void windowed_sinc(ResamplingWindow &window, int coeffs, int lobes,
+                          std::function<double(double)> envelope = Hann) {
   assert(coeffs > 1 && lobes > 0 && "Degenerate parameters specified.");
   float scale = 2.0f * lobes / (coeffs - 1);
   float scale_envelope = 2.0f / coeffs;
@@ -92,7 +90,6 @@ inline void windowed_sinc(ResamplingWindow &window,
   window.center = center + 1;  // allow for leading zero
   window.scale = 1 / scale;
 }
-
 
 inline int64_t resampled_length(int64_t in_length, double in_rate, double out_rate) {
   return std::ceil(in_length * out_rate / in_rate);
@@ -113,9 +110,8 @@ struct Resampler {
    * To reuse memory and still simulate chunk processing, adjust the in/out pointers.
    */
   template <typename Out>
-  void Resample(
-        Out *__restrict__ out, int64_t out_begin, int64_t out_end, double out_rate,
-        const float *__restrict__ in, int64_t n_in, double in_rate) const {
+  void Resample(Out *__restrict__ out, int64_t out_begin, int64_t out_end, double out_rate,
+                const float *__restrict__ in, int64_t n_in, double in_rate) const {
     assert(out_rate > 0 && in_rate > 0 && "Sampling rate must be positive");
     int64_t in_pos = 0;
     int64_t block = 1 << 10;  // still leaves 13 significant bits for fractional part
@@ -130,16 +126,14 @@ struct Resampler {
       for (int64_t out_pos = out_block; out_pos < block_end; out_pos++, in_pos += fscale) {
         int i0, i1;
         std::tie(i0, i1) = window.input_range(in_pos);
-        if (i0 + in_block_i < 0)
-          i0 = -in_block_i;
-        if (i1 + in_block_i >= n_in)
-          i1 = n_in - 1 - in_block_i;
+        if (i0 + in_block_i < 0) i0 = -in_block_i;
+        if (i1 + in_block_i >= n_in) i1 = n_in - 1 - in_block_i;
         float f = 0;
         int i = i0;
 
 #ifdef __SSE2__
         __m128 f4 = _mm_setzero_ps();
-        __m128 x4 = _mm_setr_ps(i - in_pos, i+1 - in_pos, i+2 - in_pos, i+3 - in_pos);
+        __m128 x4 = _mm_setr_ps(i - in_pos, i + 1 - in_pos, i + 2 - in_pos, i + 3 - in_pos);
         for (; i + 3 <= i1; i += 4) {
           __m128 w4 = window(x4);
 
@@ -163,7 +157,6 @@ struct Resampler {
     }
   }
 
-
   /**
    * @brief Resample multi-channel signal and convert to Out
    *
@@ -174,12 +167,12 @@ struct Resampler {
    * @tparam static_channels   number of channels, if known at compile time, or -1
    */
   template <int static_channels, typename Out>
-  void Resample(
-        Out *__restrict__ out, int64_t out_begin, int64_t out_end, double out_rate,
-        const float *__restrict__ in, int64_t n_in, double in_rate,
-        int dynamic_num_channels) {
-    static_assert(static_channels != 0, "Static number of channels must be positive (use static) "
-                                        "or negative (use dynamic).");
+  void Resample(Out *__restrict__ out, int64_t out_begin, int64_t out_end, double out_rate,
+                const float *__restrict__ in, int64_t n_in, double in_rate,
+                int dynamic_num_channels) {
+    static_assert(static_channels != 0,
+                  "Static number of channels must be positive (use static) "
+                  "or negative (use dynamic).");
     assert(out_rate > 0 && in_rate > 0 && "Sampling rate must be positive");
     if (dynamic_num_channels == 1) {
       // fast path
@@ -206,13 +199,10 @@ struct Resampler {
       for (int64_t out_pos = out_block; out_pos < block_end; out_pos++, in_pos += fscale) {
         int i0, i1;
         std::tie(i0, i1) = window.input_range(in_pos);
-        if (i0 + in_block_i < 0)
-          i0 = -in_block_i;
-        if (i1 + in_block_i >= n_in)
-          i1 = n_in - 1 - in_block_i;
+        if (i0 + in_block_i < 0) i0 = -in_block_i;
+        if (i1 + in_block_i >= n_in) i1 = n_in - 1 - in_block_i;
 
-        for (int c = 0; c < num_channels; c++)
-          tmp[c] = 0;
+        for (int c = 0; c < num_channels; c++) tmp[c] = 0;
 
         float x = i0 - in_pos;
         int ofs0 = i0 * num_channels;
@@ -232,7 +222,6 @@ struct Resampler {
     }
   }
 
-
   /**
    * @brief Resample multi-channel signal and convert to Out
    *
@@ -241,10 +230,8 @@ struct Resampler {
    * To reuse memory and still simulate chunk processing, adjust the in/out pointers.
    */
   template <typename Out>
-  void Resample(
-        Out *__restrict__ out, int64_t out_begin, int64_t out_end, double out_rate,
-        const float *__restrict__ in, int64_t n_in, double in_rate,
-        int num_channels) {
+  void Resample(Out *__restrict__ out, int64_t out_begin, int64_t out_end, double out_rate,
+                const float *__restrict__ in, int64_t n_in, double in_rate, int num_channels) {
     VALUE_SWITCH(num_channels, static_channels, (1, 2, 3, 4, 5, 6, 7, 8),
       (Resample<static_channels, Out>(out, out_begin, out_end, out_rate,
         in, n_in, in_rate, static_channels);),

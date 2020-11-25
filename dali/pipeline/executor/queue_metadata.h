@@ -21,14 +21,17 @@ namespace dali {
 
 // Used to store Stage queue sizes
 struct StageQueues {
-  int &operator[](OpType op_type) { return idxs[static_cast<size_t>(op_type)]; }
+  int &operator[](OpType op_type) {
+    return idxs[static_cast<size_t>(op_type)];
+  }
 
-  const int &operator[](OpType op_type) const { return idxs[static_cast<size_t>(op_type)]; }
+  const int &operator[](OpType op_type) const {
+    return idxs[static_cast<size_t>(op_type)];
+  }
 
   StageQueues() = default;
 
-  explicit StageQueues(int uniform_idx)
-      : idxs{uniform_idx, uniform_idx, uniform_idx} {}
+  explicit StageQueues(int uniform_idx) : idxs{uniform_idx, uniform_idx, uniform_idx} {}
 
   StageQueues(int cpu, int mixed, int gpu) {
     operator[](OpType::CPU) = cpu;
@@ -45,10 +48,8 @@ using QueueIdxs = StageQueues;
 
 struct QueueSizes {
   QueueSizes() = default;
-  explicit QueueSizes(int output_size)
-      : cpu_size(output_size), gpu_size(output_size) {}
-  QueueSizes(int cpu_size, int gpu_size)
-      : cpu_size(cpu_size), gpu_size(gpu_size) {}
+  explicit QueueSizes(int output_size) : cpu_size(output_size), gpu_size(output_size) {}
+  QueueSizes(int cpu_size, int gpu_size) : cpu_size(cpu_size), gpu_size(gpu_size) {}
 
   int cpu_size = 1, gpu_size = 1;
 };
@@ -82,7 +83,6 @@ static std::ostream &operator<<(std::ostream &os, StageQueues idxs) {
   return os;
 }
 
-
 static OpType PreviousStage(OpType op) {
   switch (op) {
     case OpType::MIXED:
@@ -112,7 +112,6 @@ static OpType NextStage(OpType op) {
 static bool HasNextStage(OpType op) {
   return op != OpType::GPU;
 }
-
 
 }  // namespace dali
 

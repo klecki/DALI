@@ -16,20 +16,18 @@
 #define DALI_KERNELS_IMGPROC_POINTWISE_MULTIPLY_ADD_GPU_H_
 
 #include <vector>
-#include "dali/core/span.h"
 #include "dali/core/convert.h"
 #include "dali/core/geom/box.h"
-#include "dali/kernels/imgproc/roi.h"
+#include "dali/core/span.h"
 #include "dali/kernels/common/block_setup.h"
+#include "dali/kernels/imgproc/roi.h"
 
 namespace dali {
 namespace kernels {
 namespace multiply_add {
 
-
 template <size_t ndims>
 using Roi = Box<ndims, int>;
-
 
 template <class OutputType, class InputType, int ndims>
 struct SampleDescriptor {
@@ -63,7 +61,6 @@ TensorShape<ndims - 1> FlattenChannels(const TensorShape<ndims> &shape) {
   return ret;
 }
 
-
 /**
  * Convenient overload for TensorListShape case
  */
@@ -76,7 +73,6 @@ TensorListShape<ndims - 1> FlattenChannels(const TensorListShape<ndims> &shape) 
   }
   return ret;
 }
-
 
 template <int ndim>
 ivec<ndim - 2> pitch_flatten_channels(const TensorShape<ndim> &shape) {
@@ -96,11 +92,11 @@ ivec<ndim - 2> pitch_flatten_channels(const TensorShape<ndim> &shape) {
  * @see FlattenChannels
  */
 template <class OutputType, class InputType, int ndims>
-void CreateSampleDescriptors(
-        span<SampleDescriptor<OutputType, InputType, ndims - 1>> out_descs,
-        const OutListGPU<OutputType, ndims> &out,
-        const InListGPU<InputType, ndims> &in,
-        const std::vector<float> &addends, const std::vector<float> &multipliers) {
+void CreateSampleDescriptors(span<SampleDescriptor<OutputType, InputType, ndims - 1>> out_descs,
+                             const OutListGPU<OutputType, ndims> &out,
+                             const InListGPU<InputType, ndims> &in,
+                             const std::vector<float> &addends,
+                             const std::vector<float> &multipliers) {
   assert(out_descs.size() >= in.num_samples());
 
   for (int i = 0; i < in.num_samples(); i++) {
@@ -116,11 +112,9 @@ void CreateSampleDescriptors(
   }
 }
 
-
 template <class OutputType, class InputType, int ndims>
-__global__ void
-MultiplyAddKernel(const SampleDescriptor<OutputType, InputType, ndims> *samples,
-                  const BlockDesc<ndims> *blocks) {
+__global__ void MultiplyAddKernel(const SampleDescriptor<OutputType, InputType, ndims> *samples,
+                                  const BlockDesc<ndims> *blocks) {
   static_assert(ndims == 2, "Function requires 2 dimensions in the input");
   const auto &block = blocks[blockIdx.x];
   const auto &sample = samples[block.sample_idx];
@@ -130,8 +124,8 @@ MultiplyAddKernel(const SampleDescriptor<OutputType, InputType, ndims> *samples,
 
   for (int y = threadIdx.y + block.start.y; y < block.end.y; y += blockDim.y) {
     for (int x = threadIdx.x + block.start.x; x < block.end.x; x += blockDim.x) {
-      out[y * sample.out_pitch.x + x] = ConvertSat<OutputType>(
-              in[y * sample.in_pitch.x + x] * sample.multiplier + sample.addend);
+      out[y * sample.out_pitch.x + x] =
+          ConvertSat<OutputType>(in[y * sample.in_pitch.x + x] * sample.multiplier + sample.addend);
     }
   }
 }
@@ -150,30 +144,30 @@ class MultiplyAddGpu {
  public:
   BlockSetup<spatial_dims, -1 /* No channel dimension, only spatial */> block_setup_;
 
-
-  KernelRequirements Setup(
-      KernelContext &context,
-      const InListGPU<InputType, ndims> &in,
-      const std::vector<float> &addends, const std::vector<float> &multipliers,
-      const std::vector<Roi<spatial_dims>> &rois = {}) {
+  KernelRequirements Setup(KernelContext &context, const InListGPU<InputType, ndims> &in,
+                           const std::vector<float> &addends, const std::vector<float> &multipliers,
+                           const std::vector<Roi<spatial_dims>> &rois = {}) {
     DALI_ENFORCE(rois.empty() || rois.size() == static_cast<size_t>(in.num_samples()),
                  "Provide ROIs either for all or none input tensors");
-    DALI_ENFORCE([=]() -> bool {
-        for (const auto &roi : rois) {
-          if (!all_coords(roi.hi >= roi.lo))
-            return false;
-        }
-        return true;
-    }(), "One or more regions of interests are invalid");
-    DALI_ENFORCE([=]() -> bool {
-        auto ref_nchannels = in.shape[0][ndims - 1];
-        for (int i = 0; i < in.num_samples(); i++) {
-          if (in.shape[i][ndims - 1] != ref_nchannels) {
-            return false;
+    DALI_ENFORCE(
+        [=]() -> bool {
+          for (const auto &roi : rois) {
+            if (!all_coords(roi.hi >= roi.lo)) return false;
           }
-        }
-        return true;
-    }(), "Number of channels for every image in batch must be equal");
+          return true;
+        }(),
+        "One or more regions of interests are invalid");
+    DALI_ENFORCE(
+        [=]() -> bool {
+          auto ref_nchannels = in.shape[0][ndims - 1];
+          for (int i = 0; i < in.num_samples(); i++) {
+            if (in.shape[i][ndims - 1] != ref_nchannels) {
+              return false;
+            }
+          }
+          return true;
+        }(),
+        "Number of channels for every image in batch must be equal");
 
     auto adjusted_rois = AdjustRoi(make_cspan(rois), in.shape);
     auto nchannels = in.shape[0][ndims - 1];
@@ -190,20 +184,17 @@ class MultiplyAddGpu {
     return req;
   }
 
-
-  void Run(
-      KernelContext &context,
-      const OutListGPU<OutputType, ndims> &out, const InListGPU<InputType, ndims> &in,
-      const std::vector<float> &addends, const std::vector<float> &multipliers,
-      const std::vector<Roi<spatial_dims>> &rois = {}) {
-    multiply_add::CreateSampleDescriptors(
-        make_span(sample_descriptors_), out, in, addends, multipliers);
+  void Run(KernelContext &context, const OutListGPU<OutputType, ndims> &out,
+           const InListGPU<InputType, ndims> &in, const std::vector<float> &addends,
+           const std::vector<float> &multipliers, const std::vector<Roi<spatial_dims>> &rois = {}) {
+    multiply_add::CreateSampleDescriptors(make_span(sample_descriptors_), out, in, addends,
+                                          multipliers);
 
     SampleDesc *samples_gpu;
     BlockDesc *blocks_gpu;
 
     std::tie(samples_gpu, blocks_gpu) = context.scratchpad->ToContiguousGPU(
-            context.gpu.stream, sample_descriptors_, block_setup_.Blocks());
+        context.gpu.stream, sample_descriptors_, block_setup_.Blocks());
 
     dim3 grid_dim = block_setup_.GridDim();
     dim3 block_dim = block_setup_.BlockDim();

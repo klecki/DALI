@@ -113,7 +113,7 @@ class DLL_PUBLIC TensorVector {
     return tensors_[idx]->raw_data();
   }
 
-  void* raw_mutable_tensor(int idx) {
+  void *raw_mutable_tensor(int idx) {
     return tensors_[idx]->raw_mutable_data();
   }
 
@@ -185,7 +185,9 @@ class DLL_PUBLIC TensorVector {
   enum class State { contiguous, noncontiguous };
 
   struct ViewRefDeleter {
-    void operator()(void*) { --*ref; }
+    void operator()(void *) {
+      --*ref;
+    }
     std::atomic<int> *ref;
   };
 

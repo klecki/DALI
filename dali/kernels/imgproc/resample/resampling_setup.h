@@ -18,11 +18,11 @@
 #include <cuda_runtime.h>
 #include <memory>
 #include <vector>
+#include "dali/core/dev_array.h"
+#include "dali/core/geom/vec.h"
 #include "dali/kernels/common/block_setup.h"
 #include "dali/kernels/imgproc/resample/params.h"
 #include "dali/kernels/imgproc/resample/resampling_filters.cuh"
-#include "dali/core/dev_array.h"
-#include "dali/core/geom/vec.h"
 #include "dali/kernels/imgproc/roi.h"
 
 namespace dali {
@@ -32,8 +32,12 @@ namespace resampling {
 template <int spatial_ndim>
 using ProcessingOrder = i8vec<spatial_ndim>;
 
-constexpr ProcessingOrder<2> VertHorz() { return { 1, 0 }; }
-constexpr ProcessingOrder<2> HorzVert() { return { 0, 1 }; }
+constexpr ProcessingOrder<2> VertHorz() {
+  return {1, 0};
+}
+constexpr ProcessingOrder<2> HorzVert() {
+  return {0, 1};
+}
 
 template <int spatial_ndim>
 struct SampleDesc {
@@ -44,13 +48,13 @@ struct SampleDesc {
 
   DeviceArray<uintptr_t, num_buffers> pointers;
   DeviceArray<ptrdiff_t, num_buffers> offsets;
-  DeviceArray<Strides, num_buffers>   strides;
-  DeviceArray<Shape, num_buffers>  shapes;
+  DeviceArray<Strides, num_buffers> strides;
+  DeviceArray<Shape, num_buffers> shapes;
 
   template <typename Input, typename Tmp, typename Output, int D = spatial_ndim>
   void set_base_pointers(Input *in, Tmp *tmp, Output *out) {
     static_assert(D == 2 && D == spatial_ndim, "This overload is only usable for 2D resampling");
-    std::array<Tmp *, 1> tmp_arr = {{ tmp }};
+    std::array<Tmp *, 1> tmp_arr = {{tmp}};
     set_base_pointers(in, tmp_arr, out);
   }
 
@@ -63,33 +67,63 @@ struct SampleDesc {
   template <typename Input, typename Tmp, typename Output, int D = spatial_ndim>
   void set_base_pointers(Input *in, std::array<Tmp *, num_tmp_buffers> tmp, Output *out) {
     int i = 0;
-    pointers[i] = reinterpret_cast<uintptr_t>(in  + offsets[i]);
+    pointers[i] = reinterpret_cast<uintptr_t>(in + offsets[i]);
     i++;
     for (i = 1; i < num_buffers - 1; i++)
       pointers[i] = reinterpret_cast<uintptr_t>(tmp[i - 1] + offsets[i]);
     pointers[i] = reinterpret_cast<uintptr_t>(out + offsets[i]);
   }
 
-  DALI_HOST_DEV Shape &in_shape()                   { return shapes[0]; }
-  DALI_HOST_DEV const Shape &in_shape() const       { return shapes[0]; }
-  DALI_HOST_DEV Shape &tmp_shape(int i)             { return shapes[i+1]; }
-  DALI_HOST_DEV const Shape &tmp_shape(int i) const { return shapes[i+1]; }
-  DALI_HOST_DEV Shape &out_shape()                  { return shapes[spatial_ndim]; }
-  DALI_HOST_DEV const Shape &out_shape() const      { return shapes[spatial_ndim]; }
+  DALI_HOST_DEV Shape &in_shape() {
+    return shapes[0];
+  }
+  DALI_HOST_DEV const Shape &in_shape() const {
+    return shapes[0];
+  }
+  DALI_HOST_DEV Shape &tmp_shape(int i) {
+    return shapes[i + 1];
+  }
+  DALI_HOST_DEV const Shape &tmp_shape(int i) const {
+    return shapes[i + 1];
+  }
+  DALI_HOST_DEV Shape &out_shape() {
+    return shapes[spatial_ndim];
+  }
+  DALI_HOST_DEV const Shape &out_shape() const {
+    return shapes[spatial_ndim];
+  }
 
-  DALI_HOST_DEV ptrdiff_t  &in_offset()            { return offsets[0]; }
-  DALI_HOST_DEV ptrdiff_t   in_offset() const      { return offsets[0]; }
-  DALI_HOST_DEV ptrdiff_t &tmp_offset(int i)       { return offsets[i+1]; }
-  DALI_HOST_DEV ptrdiff_t  tmp_offset(int i) const { return offsets[i+1]; }
-  DALI_HOST_DEV ptrdiff_t &out_offset()            { return offsets[spatial_ndim]; }
-  DALI_HOST_DEV ptrdiff_t  out_offset() const      { return offsets[spatial_ndim]; }
+  DALI_HOST_DEV ptrdiff_t &in_offset() {
+    return offsets[0];
+  }
+  DALI_HOST_DEV ptrdiff_t in_offset() const {
+    return offsets[0];
+  }
+  DALI_HOST_DEV ptrdiff_t &tmp_offset(int i) {
+    return offsets[i + 1];
+  }
+  DALI_HOST_DEV ptrdiff_t tmp_offset(int i) const {
+    return offsets[i + 1];
+  }
+  DALI_HOST_DEV ptrdiff_t &out_offset() {
+    return offsets[spatial_ndim];
+  }
+  DALI_HOST_DEV ptrdiff_t out_offset() const {
+    return offsets[spatial_ndim];
+  }
 
   template <typename T>
-  DALI_HOST_DEV const T *in_ptr() const { return reinterpret_cast<const T*>(pointers[0]); }
+  DALI_HOST_DEV const T *in_ptr() const {
+    return reinterpret_cast<const T *>(pointers[0]);
+  }
   template <typename T>
-  DALI_HOST_DEV T *tmp_ptr(int i) const { return reinterpret_cast<T*>(pointers[i+1]); }
+  DALI_HOST_DEV T *tmp_ptr(int i) const {
+    return reinterpret_cast<T *>(pointers[i + 1]);
+  }
   template <typename T>
-  DALI_HOST_DEV T *out_ptr() const { return reinterpret_cast<T*>(pointers[spatial_ndim]); }
+  DALI_HOST_DEV T *out_ptr() const {
+    return reinterpret_cast<T *>(pointers[spatial_ndim]);
+  }
 
   vec<spatial_ndim> origin, scale;
 
@@ -110,7 +144,7 @@ template <int _spatial_ndim>
 class SeparableResamplingSetup {
  public:
   SeparableResamplingSetup() {
-    block_dim = { 32, _spatial_ndim == 2 ? 24 : 8, 1 };
+    block_dim = {32, _spatial_ndim == 2 ? 24 : 8, 1};
   }
   static constexpr int channel_dim = _spatial_ndim;  // assumes interleaved channel data
   static constexpr int spatial_ndim = _spatial_ndim;
@@ -129,8 +163,7 @@ class SeparableResamplingSetup {
   static constexpr int num_buffers = num_tmp_buffers + 2;
 
   /** @brief Preprares a sample descriptor based on input shape and resampling parameters */
-  DLL_PUBLIC void SetupSample(SampleDesc &desc,
-                              const TensorShape<tensor_ndim> &in_shape,
+  DLL_PUBLIC void SetupSample(SampleDesc &desc, const TensorShape<tensor_ndim> &in_shape,
                               const ResamplingParamsND<spatial_ndim> &params) const;
 
   void Initialize() {
@@ -152,23 +185,23 @@ class SeparableResamplingSetup {
   std::shared_ptr<ResamplingFilters> filters;
 
   static_assert(std::is_pod<SampleDesc>::value,
-    "Internal error! Something crept into SampleDesc and made it non-POD");
+                "Internal error! Something crept into SampleDesc and made it non-POD");
 };
 
 template <int _spatial_ndim>
 class BatchResamplingSetup : public SeparableResamplingSetup<_spatial_ndim> {
  public:
   using Base = SeparableResamplingSetup<_spatial_ndim>;
+  using Base::num_tmp_buffers;
   using Base::spatial_ndim;
   using Base::tensor_ndim;
-  using Base::num_tmp_buffers;
   using Params = span<const ResamplingParamsND<spatial_ndim>>;
   using SampleDesc = resampling::SampleDesc<spatial_ndim>;
   using BlockDesc = kernels::BlockDesc<spatial_ndim>;
 
   std::vector<SampleDesc> sample_descs;
-  TensorListShape<tensor_ndim> output_shape, intermediate_shapes[num_tmp_buffers]; // NOLINT
-  size_t intermediate_sizes[num_tmp_buffers];  // NOLINT
+  TensorListShape<tensor_ndim> output_shape, intermediate_shapes[num_tmp_buffers];  // NOLINT
+  size_t intermediate_sizes[num_tmp_buffers];                                       // NOLINT
   ivec<spatial_ndim> total_blocks;
 
   /** @brief Prepares sample descriptors and block info for entire batch */

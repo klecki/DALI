@@ -17,9 +17,9 @@
 
 #include <cuda_runtime.h>
 #include <memory>
-#include "dali/kernels/kernel.h"
 #include "dali/kernels/imgproc/resample/params.h"
 #include "dali/kernels/imgproc/resample/separable.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -38,12 +38,8 @@ struct ResampleGPU {
 
   ImplPtr pImpl;
 
-  Impl *SelectImpl(
-      KernelContext &context,
-      const Input &input,
-      const Params &params) {
-    if (!pImpl)
-      pImpl = Impl::Create(params);
+  Impl *SelectImpl(KernelContext &context, const Input &input, const Params &params) {
+    if (!pImpl) pImpl = Impl::Create(params);
     return pImpl.get();
   }
 

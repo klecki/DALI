@@ -15,14 +15,14 @@
 #ifndef DALI_PIPELINE_GRAPH_OP_GRAPH_H_
 #define DALI_PIPELINE_GRAPH_OP_GRAPH_H_
 
+#include <fstream>
 #include <map>
+#include <memory>
+#include <set>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include <string>
-#include <memory>
-#include <fstream>
-#include <set>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -36,7 +36,6 @@ using TensorNodeId = int64_t;
 using TensorPartitionId = int64_t;
 // using producer_edge_t = std::pair<OpNodeId, Index>;
 // using consumer_edge_t = std::pair<OpNodeId, Index>;
-
 
 template <StorageDevice>
 struct storage_backend_type;
@@ -59,10 +58,10 @@ struct OpNode {
   virtual ~OpNode() = default;
   OpNode& operator=(const OpNode&) = delete;
 
-  OpNode(OpNode &&) = default;
-  OpNode& operator=(OpNode &&) = default;
+  OpNode(OpNode&&) = default;
+  OpNode& operator=(OpNode&&) = default;
 
-  inline OperatorBase &InstantiateOperator() {
+  inline OperatorBase& InstantiateOperator() {
     if (!op) op = dali::InstantiateOperator(spec);
     return *op;
   }
@@ -102,8 +101,6 @@ struct TensorNode {
   std::vector<consumer_edge_t> consumers;
 };
 
-
-
 /**
  * @brief Stores all meta-data about a graph of operations to be run
  * keeps track of useful meta-data about consumers/producers of
@@ -125,7 +122,7 @@ class DLL_PUBLIC OpGraph {
   /**
    * @brief Adds an op with the input specification to the graph.
    */
-  DLL_PUBLIC void AddOp(const OpSpec &spec, const std::string& name);
+  DLL_PUBLIC void AddOp(const OpSpec& spec, const std::string& name);
 
   /**
    * @brief Removes the node with the specified OpNodeId from
@@ -245,17 +242,17 @@ class DLL_PUBLIC OpGraph {
    * @brief Returns the TensorMeta objects for the tensor
    * with the given name and its producer node.
    */
-  DLL_PUBLIC inline TensorMeta TensorSourceMeta(const string &name) const {
+  DLL_PUBLIC inline TensorMeta TensorSourceMeta(const string& name) const {
     auto it = tensor_name_to_id_.find(name);
-    DALI_ENFORCE(it != tensor_name_to_id_.end(), "Tensor with name \"" +
-        name + "\" has no known source.");
+    DALI_ENFORCE(it != tensor_name_to_id_.end(),
+                 "Tensor with name \"" + name + "\" has no known source.");
     return tensor_nodes_[it->second].producer;
   }
 
   /**
    * @brief Checks if given Tensor already exists in the graph
    */
-  DLL_PUBLIC inline bool TensorExists(const string &name) {
+  DLL_PUBLIC inline bool TensorExists(const string& name) {
     auto it = tensor_name_to_id_.find(name);
     return it != tensor_name_to_id_.end();
   }
@@ -264,7 +261,7 @@ class DLL_PUBLIC OpGraph {
    * @brief Returns the id of the op that produces the tensor with
    * the given name.
    */
-  DLL_PUBLIC inline OpNodeId TensorSourceID(const string &name) {
+  DLL_PUBLIC inline OpNodeId TensorSourceID(const string& name) {
     return TensorSourceMeta(name).node;
   }
 
@@ -272,7 +269,7 @@ class DLL_PUBLIC OpGraph {
    * @brief Returns the output idx of the input tensor in
    * its source.
    */
-  DLL_PUBLIC inline Index TensorIdxInSource(const string &name) {
+  DLL_PUBLIC inline Index TensorIdxInSource(const string& name) {
     return TensorSourceMeta(name).index;
   }
 
@@ -281,13 +278,13 @@ class DLL_PUBLIC OpGraph {
    * has a backend type that matches the calling type.
    */
   template <typename Backend>
-  DLL_PUBLIC bool TensorIsType(const string &name);
+  DLL_PUBLIC bool TensorIsType(const string& name);
 
   /**
    * @brief Returns a vector of meta-data about the nodes that
    * consume the tensor with the input name.
    */
-  DLL_PUBLIC inline vector<TensorMeta> TensorConsumerMeta(const string &name) const {
+  DLL_PUBLIC inline vector<TensorMeta> TensorConsumerMeta(const string& name) const {
     auto it = tensor_name_to_id_.find(name);
     if (it == tensor_name_to_id_.end()) {
       // If we have no entries for this tensors consumers,
@@ -312,7 +309,7 @@ class DLL_PUBLIC OpGraph {
    * @brief Save graph in DOT directed graph format
    * in filename.
    */
-  DLL_PUBLIC void SaveToDotFile(const string &filename, bool show_tensors = false,
+  DLL_PUBLIC void SaveToDotFile(const string& filename, bool show_tensors = false,
                                 bool show_ids = false, bool use_colors = false) {
     std::ofstream ofs(filename);
     ofs << "digraph graphname {\n";
@@ -331,8 +328,7 @@ class DLL_PUBLIC OpGraph {
   void GenerateDOTFromGraph(const TensorNode& current_node, std::ofstream& ofs, bool show_tensors,
                             bool show_ids);
 
-  bool HasConsumersInOtherStage(const TensorNode &tensor, OpType this_stage) const;
-
+  bool HasConsumersInOtherStage(const TensorNode& tensor, OpType this_stage) const;
 
   /**
    * @brief Recalculate OpNodes partitioning
@@ -348,7 +344,7 @@ class DLL_PUBLIC OpGraph {
    *
    * @return Reference to the newly added OpNode.
    */
-  OpNode& PlaceNewOp(OpType op_type, const OpSpec &op_spec, std::string instance_name);
+  OpNode& PlaceNewOp(OpType op_type, const OpSpec& op_spec, std::string instance_name);
 
   /**
    * @brief Creates new tensor node with conscutive id.
@@ -356,7 +352,6 @@ class DLL_PUBLIC OpGraph {
    * @return Reference to the newly added tensor node.
    */
   TensorNode& PlaceNewTensor();
-
 
   std::vector<OpNode> op_nodes_;
   std::vector<TensorNode> tensor_nodes_;

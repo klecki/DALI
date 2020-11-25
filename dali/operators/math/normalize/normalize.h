@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "dali/core/any.h"
-#include "dali/core/tensor_shape.h"
 #include "dali/core/static_switch.h"
+#include "dali/core/tensor_shape.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/operators/util/diag_msg.h"
 #include "dali/pipeline/data/views.h"
@@ -54,34 +54,40 @@ class NormalizeBase : public Operator<Backend> {
     output_type_ = spec.GetArgument<DALIDataType>("dtype");
 
     DALI_ENFORCE(!has_axes_arg_ || !has_axis_names_arg_,
-      "Normalize: Arguments `axes` and `axis_names` are mutually exclusive");
+                 "Normalize: Arguments `axes` and `axis_names` are mutually exclusive");
 
     if (has_scalar_mean_ && has_scalar_stddev_) {
       DALI_ENFORCE(!has_axes_arg_ && !has_axis_names_arg_,
-        "Normalize: Axes must not be specified when both mean and standard deviation are scalars");
+                   "Normalize: Axes must not be specified when both mean and standard deviation "
+                   "are scalars");
     }
 
     if (has_tensor_mean_ || has_tensor_stddev_) {
-      DALI_ENFORCE(!batch_norm_, "Normalize: Batch normalization cannot be used with parameters "
-      "specified as TensorList inputs");
+      DALI_ENFORCE(!batch_norm_,
+                   "Normalize: Batch normalization cannot be used with parameters "
+                   "specified as TensorList inputs");
     }
     mean_.set_pinned(false);
     inv_stddev_.set_pinned(false);
   }
 
-  Normalize<Backend> &This() noexcept
-  { return static_cast<Normalize<Backend>&>(*this); }
+  Normalize<Backend> &This() noexcept {
+    return static_cast<Normalize<Backend> &>(*this);
+  }
 
-  const Normalize<Backend> &This() const noexcept
-  { return static_cast<const Normalize<Backend>&>(*this); }
+  const Normalize<Backend> &This() const noexcept {
+    return static_cast<const Normalize<Backend> &>(*this);
+  }
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
   bool SetupImpl(std::vector<OutputDesc> &output_descs, const workspace_t<Backend> &ws) override {
     const auto &input = ws.template InputRef<Backend>(0);
     data_shape_ = input.shape();
     output_descs.resize(1);
-    output_descs[0] = { data_shape_, TypeTable::GetTypeInfo(output_type_) };
+    output_descs[0] = {data_shape_, TypeTable::GetTypeInfo(output_type_)};
     input_type_ = input.type().id();
 
     SetupAxes(ws);
@@ -89,7 +95,7 @@ class NormalizeBase : public Operator<Backend> {
       TYPE_SWITCH(output_type_, type2id, OutputType, DALI_NORMALIZE_OUTPUT_TYPES, (
         This().template SetupTyped<OutputType, InputType>(ws);
       ), (DALI_FAIL(make_string("Normalize: unsupported output type: ", output_type_))))  // NOLINT
-    ), (DALI_FAIL(make_string("Normalize: unsupported input type: ", input_type_))));    // NOLINT
+    ), (DALI_FAIL(make_string("Normalize: unsupported input type: ", input_type_))));  // NOLINT
     return true;
   }
 
@@ -98,9 +104,8 @@ class NormalizeBase : public Operator<Backend> {
       TYPE_SWITCH(output_type_, type2id, OutputType, DALI_NORMALIZE_OUTPUT_TYPES, (
         This().template RunTyped<OutputType, InputType>(ws);
       ), (DALI_FAIL("Normalize: ureachable code - Run without matching Setup?")))  // NOLINT
-    ), (DALI_FAIL("Normalize: ureachable code - Run without matching Setup?")));   // NOLINT
+    ), (DALI_FAIL("Normalize: ureachable code - Run without matching Setup?")));  // NOLINT
   }
-
 
   void UseAllAxes() {
     int dim = data_shape_.sample_dim();
@@ -124,22 +129,20 @@ class NormalizeBase : public Operator<Backend> {
     if (has_axes_arg_) {
       axes_ = spec.GetRepeatedArgument<int>("axes");
       DALI_ENFORCE(!axes_.empty(),
-        "Normalize `axes` argument must specify at least one reduction axis.");
+                   "Normalize `axes` argument must specify at least one reduction axis.");
       for (auto axis : axes_) {
         DALI_ENFORCE(axis >= 0 && axis < dim, make_string("Normalize: axis index ", axis,
-        " is out of valid range 0..", dim-1));
+                                                          " is out of valid range 0..", dim - 1));
       }
       SetAxisMask();
-      if (!has_tensor_mean_ && !has_tensor_stddev_)
-        GetParamShapeFromAxes();
+      if (!has_tensor_mean_ && !has_tensor_stddev_) GetParamShapeFromAxes();
     } else if (has_axis_names_arg_) {
       TensorLayout names = spec.GetArgument<TensorLayout>("axis_names");
       const auto &input = ws.template InputRef<Backend>(0);
       auto dim_idx = GetDimIndices(input.GetLayout(), names);
       axes_ = dim_idx.to_vector();
       SetAxisMask();
-      if (!has_tensor_mean_ && !has_tensor_stddev_)
-        GetParamShapeFromAxes();
+      if (!has_tensor_mean_ && !has_tensor_stddev_) GetParamShapeFromAxes();
     } else if (has_tensor_mean_ || has_tensor_stddev_) {
       GetAxesFromParamShape();
     } else {
@@ -149,7 +152,6 @@ class NormalizeBase : public Operator<Backend> {
     CheckParamShape();
   }
 
-
   void GetParamShapeFromAxes() {
     int dim = data_shape_.sample_dim();
     int n = data_shape_.num_samples();
@@ -158,18 +160,21 @@ class NormalizeBase : public Operator<Backend> {
       DALI_ENFORCE(data_shape_.num_samples() > 0, "Normalize: Got an empty batch!");
       param_shape_.set_tensor_shape(0, data_shape_[0]);
       for (int axis = 0; axis < dim; axis++) {
-        if (IsReducedAxis(axis))
-          param_shape_.tensor_shape_span(0)[axis] = 1;
+        if (IsReducedAxis(axis)) param_shape_.tensor_shape_span(0)[axis] = 1;
       }
       for (int i = 1; i < n; i++) {
         for (int axis = 0; axis < dim; axis++) {
           if (!IsReducedAxis(axis))
-            DALI_ENFORCE(data_shape_[i][axis] == data_shape_[0][axis], make_string(
-              "Normalize: Batch normalization requires that non-reduced dimensions have equal "
-              "extent in all samples in the batch. Got sample #", i, " with shape ",
-              data_shape_[i], " which has a different extent  (", data_shape_[i][axis],
-              ") in axis ", axis, " than sample #0, which was "
-              "of shape ", data_shape_[0], " (", data_shape_[0][axis], " in axis ", axis, ")"));
+            DALI_ENFORCE(
+                data_shape_[i][axis] == data_shape_[0][axis],
+                make_string("Normalize: Batch normalization requires that non-reduced dimensions "
+                            "have equal "
+                            "extent in all samples in the batch. Got sample #",
+                            i, " with shape ", data_shape_[i], " which has a different extent  (",
+                            data_shape_[i][axis], ") in axis ", axis,
+                            " than sample #0, which was "
+                            "of shape ",
+                            data_shape_[0], " (", data_shape_[0][axis], " in axis ", axis, ")"));
         }
       }
     } else {
@@ -177,8 +182,7 @@ class NormalizeBase : public Operator<Backend> {
       for (int i = 0; i < n; i++) {
         param_shape_.set_tensor_shape(i, data_shape_[i]);
         for (int axis = 0; axis < dim; axis++) {
-          if (IsReducedAxis(axis))
-            param_shape_.tensor_shape_span(i)[axis] = 1;
+          if (IsReducedAxis(axis)) param_shape_.tensor_shape_span(i)[axis] = 1;
         }
       }
     }
@@ -199,8 +203,10 @@ class NormalizeBase : public Operator<Backend> {
     if (has_tensor_mean_ && has_tensor_stddev_) {
       if (mean_input_.shape != stddev_input_.shape) {
         auto msg = ShapeMismatchMsg(mean_input_.shape, stddev_input_.shape);
-        DALI_FAIL(make_string("Normalize: When providing both `mean` and `stddev`, "
-          "their shapes must match.\n", msg));
+        DALI_FAIL(
+            make_string("Normalize: When providing both `mean` and `stddev`, "
+                        "their shapes must match.\n",
+                        msg));
       }
     }
   }
@@ -208,8 +214,7 @@ class NormalizeBase : public Operator<Backend> {
   void GetAxesFromParamShape() {
     axes_.clear();
     for (int d = 0; d < param_shape_.sample_dim(); d++) {
-      if (is_degenerate_dim(param_shape_, d))
-          axes_.push_back(d);
+      if (is_degenerate_dim(param_shape_, d)) axes_.push_back(d);
     }
     axis_mask_ = to_bit_mask(axes_);
   }
@@ -224,27 +229,31 @@ class NormalizeBase : public Operator<Backend> {
         expected[d] = IsReducedAxis(d) ? 1 : data_shape_.tensor_shape_span(i)[d];
       }
       int param_idx = batch_norm_ ? 0 : i;
-      DALI_ENFORCE(param_shape_[param_idx] == expected, make_string(
-        "Normalize: At sample ", i, ": parameter shape: ", param_shape_[param_idx],
-        " does not match the reduced input sample shape which is : ", expected));
+      DALI_ENFORCE(
+          param_shape_[param_idx] == expected,
+          make_string("Normalize: At sample ", i, ": parameter shape: ", param_shape_[param_idx],
+                      " does not match the reduced input sample shape which is : ", expected));
     }
   }
 
   void SetAxisMask() {
     axis_mask_ = 0;
-    for (auto axis : axes_)
-      axis_mask_ |= 1 << axis;
+    for (auto axis : axes_) axis_mask_ |= 1 << axis;
   }
 
   bool IsReducedAxis(int axis) const noexcept {
     return axis_mask_ & (1 << axis);
   }
 
-  bool ShouldCalcMean() const noexcept { return !has_tensor_mean_ && !has_scalar_mean_; }
-  bool ShouldCalcStdDev() const noexcept { return !has_tensor_stddev_ && !has_scalar_stddev_; }
+  bool ShouldCalcMean() const noexcept {
+    return !has_tensor_mean_ && !has_scalar_mean_;
+  }
+  bool ShouldCalcStdDev() const noexcept {
+    return !has_tensor_stddev_ && !has_scalar_stddev_;
+  }
   bool IsFullReduction() const noexcept {
     int ndim = data_shape_.sample_dim();
-    return axis_mask_== ((1 << ndim) - 1);
+    return axis_mask_ == ((1 << ndim) - 1);
   }
 
  protected:
@@ -255,7 +264,6 @@ class NormalizeBase : public Operator<Backend> {
   // when we have either GPU argument inputs or named regular inputs
   TensorListView<StorageCPU, const float> mean_input_, stddev_input_;
 
-
   TensorList<Backend> mean_, inv_stddev_;
   bool has_tensor_mean_, has_tensor_stddev_ = false;
   bool has_scalar_mean_, has_scalar_stddev_ = false;
@@ -264,7 +272,7 @@ class NormalizeBase : public Operator<Backend> {
   bool has_axis_names_arg_ = false;
   float shift_ = 0;
   float scale_ = 1;
-  float epsilon_ = 0;  //!< Added to variance for regularization
+  float epsilon_ = 0;           //!< Added to variance for regularization
   int degrees_of_freedom_ = 0;  //!< For Bessel's correction
   DALIDataType input_type_ = DALI_NO_TYPE, output_type_ = DALI_FLOAT;
   std::vector<int> axes_;

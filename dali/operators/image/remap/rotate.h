@@ -16,12 +16,12 @@
 #define DALI_OPERATORS_IMAGE_REMAP_ROTATE_H_
 
 #include <memory>
-#include <vector>
 #include <sstream>
+#include <vector>
 #include "dali/kernels/imgproc/warp/affine.h"
 #include "dali/kernels/imgproc/warp/mapping_traits.h"
-#include "dali/operators/image/remap/warp.h"
 #include "dali/operators/image/remap/rotate_params.h"
+#include "dali/operators/image/remap/warp.h"
 
 namespace dali {
 

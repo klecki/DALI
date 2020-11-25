@@ -15,15 +15,13 @@
  *
  ************************************************************************/
 
-
 // Dynamically handle dependencies on external libraries (other than cudart).
 
 #ifndef DALI_UTIL_NVML_WRAP_H_
 #define DALI_UTIL_NVML_WRAP_H_
 
-
-#include <nvml.h>
 #include <cuda_runtime_api.h>
+#include <nvml.h>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -38,4 +36,3 @@ bool nvmlIsSymbolAvailable(const char *name);
 bool nvmlHasCuda11NvmlFunctions(void);
 
 #endif  // DALI_UTIL_NVML_WRAP_H_
-

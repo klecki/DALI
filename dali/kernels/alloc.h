@@ -18,8 +18,8 @@
 #include <functional>
 #include <memory>
 #include <type_traits>
-#include "dali/kernels/alloc_type.h"
 #include "dali/core/api_helper.h"
+#include "dali/kernels/alloc_type.h"
 
 namespace dali {
 namespace kernels {
@@ -31,20 +31,21 @@ DLL_PUBLIC void Deallocate(AllocType type, void *mem, int device) noexcept;
 struct Deleter {
   int device;
   AllocType alloc_type;
-  inline void operator()(void *p) noexcept { Deallocate(alloc_type, p, device); }
+  inline void operator()(void *p) noexcept {
+    Deallocate(alloc_type, p, device);
+  }
 };
 DLL_PUBLIC Deleter GetDeleter(AllocType type) noexcept;
 
 template <typename T>
 std::shared_ptr<T> alloc_shared(AllocType type, size_t count) {
   static_assert(std::is_pod<T>::value, "Only POD types are supported");
-  void *mem = Allocate(type, count*sizeof(T));
-  if (!mem)
-    throw std::bad_alloc();
+  void *mem = Allocate(type, count * sizeof(T));
+  if (!mem) throw std::bad_alloc();
 
   // From cppreference: if additional storage cannot be allocated
   // deleter will be called on the pointer passed to shared_ptr constructor.
-  return { static_cast<T*>(mem), GetDeleter(type) };
+  return {static_cast<T *>(mem), GetDeleter(type)};
 }
 
 template <typename T>
@@ -53,10 +54,9 @@ using KernelUniquePtr = std::unique_ptr<T, Deleter>;
 template <typename T>
 KernelUniquePtr<T> alloc_unique(AllocType type, size_t count) {
   static_assert(std::is_pod<T>::value, "Only POD types are supported");
-  void *mem = Allocate(type, count*sizeof(T));
-  if (!mem)
-    throw std::bad_alloc();
-  return { reinterpret_cast<T*>(mem), GetDeleter(type) };
+  void *mem = Allocate(type, count * sizeof(T));
+  if (!mem) throw std::bad_alloc();
+  return {reinterpret_cast<T *>(mem), GetDeleter(type)};
 }
 
 }  // namespace memory

@@ -12,15 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_IMAGE_REMAP_SPHERE_H_
 #define DALI_OPERATORS_IMAGE_REMAP_SPHERE_H_
 
 #include <ctgmath>
 #include <vector>
-#include "dali/pipeline/operator/operator.h"
 #include "dali/core/geom/vec.h"
 #include "dali/operators/image/remap/displacement_filter.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -40,7 +39,7 @@ class SphereAugment {
     const float trueX = w + 0.5f - mid_x;
     const float rad = sqrtf(trueX * trueX + trueY * trueY) / d;
 
-    return { mid_x + rad * trueX, mid_y + rad * trueY };
+    return {mid_x + rad * trueX, mid_y + rad * trueY};
   }
 
   void Cleanup() {}
@@ -49,11 +48,9 @@ class SphereAugment {
 template <typename Backend>
 class Sphere : public DisplacementFilter<Backend, SphereAugment> {
  public:
-    inline explicit Sphere(const OpSpec &spec)
-      : DisplacementFilter<Backend, SphereAugment>(spec) {}
+  inline explicit Sphere(const OpSpec& spec) : DisplacementFilter<Backend, SphereAugment>(spec) {}
 
-
-    ~Sphere() override = default;
+  ~Sphere() override = default;
 };
 
 }  // namespace dali

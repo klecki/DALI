@@ -76,7 +76,6 @@ static constexpr bool allows_tensor_input(StorageDevice device) {
   return is_in_array(device, parent_constraints<op_type>::allowed_input_tensors, 0);
 }
 
-
 DLL_PUBLIC std::vector<int> ArgumentInputConstraints();
 DLL_PUBLIC std::vector<std::set<OpType>> ParentOpTypeConstraints();
 

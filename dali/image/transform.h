@@ -41,10 +41,11 @@ namespace dali {
  * parameters from this function will make the API consistent across the CPU
  * & GPU versions.
  */
-DLL_PUBLIC DALIError_t ResizeCropMirrorHost(const uint8 *img, int H, int W, int C,
-    int rsz_h, int rsz_w, const std::pair<int, int> &crop, int crop_h, int crop_w,
-    int mirror, uint8 *out_img, DALIInterpType type = DALI_INTERP_LINEAR,
-    uint8 *workspace = nullptr);
+DLL_PUBLIC DALIError_t ResizeCropMirrorHost(const uint8 *img, int H, int W, int C, int rsz_h,
+                                            int rsz_w, const std::pair<int, int> &crop, int crop_h,
+                                            int crop_w, int mirror, uint8 *out_img,
+                                            DALIInterpType type = DALI_INTERP_LINEAR,
+                                            uint8 *workspace = nullptr);
 
 /**
  * @brief Performs resize, crop, & random mirror on the input image on the CPU. Input
@@ -63,10 +64,11 @@ DLL_PUBLIC DALIError_t ResizeCropMirrorHost(const uint8 *img, int H, int W, int 
  * this temporary workspace pointer to avoid extra memory allocation. The size
  * of the memory pointed to by 'workspace' should be crop_h*crop_w*C bytes
  */
-DLL_PUBLIC DALIError_t FastResizeCropMirrorHost(const uint8 *img, int H, int W, int C,
-    int rsz_h, int rsz_w, const std::pair<int, int> &crop, int crop_h, int crop_w,
-    int mirror, uint8 *out_img, DALIInterpType type = DALI_INTERP_LINEAR,
-    uint8 *workspace = nullptr);
+DLL_PUBLIC DALIError_t FastResizeCropMirrorHost(const uint8 *img, int H, int W, int C, int rsz_h,
+                                                int rsz_w, const std::pair<int, int> &crop,
+                                                int crop_h, int crop_w, int mirror, uint8 *out_img,
+                                                DALIInterpType type = DALI_INTERP_LINEAR,
+                                                uint8 *workspace = nullptr);
 
 DLL_PUBLIC void CheckParam(const Tensor<CPUBackend> &input, const std::string &pOperator);
 

@@ -15,8 +15,8 @@
 #ifndef DALI_KERNELS_TEST_KERNEL_TEST_UTILS_H_
 #define DALI_KERNELS_TEST_KERNEL_TEST_UTILS_H_
 
-#include <type_traits>
 #include <tuple>
+#include <type_traits>
 #include "dali/core/util.h"
 #include "dali/kernels/kernel_traits.h"
 
@@ -28,12 +28,10 @@ struct SimpleKernelTestBase {
   using Kernel = Kernel_;
 
   template <int i>
-  using Input =  std::remove_reference_t<
-          std::tuple_element_t<i, kernels::kernel_inputs<Kernel>>>;
+  using Input = std::remove_reference_t<std::tuple_element_t<i, kernels::kernel_inputs<Kernel>>>;
 
   template <int i>
-  using Output = std::remove_reference_t<std::tuple_element_t<i,
-          kernels::kernel_outputs<Kernel>>>;
+  using Output = std::remove_reference_t<std::tuple_element_t<i, kernels::kernel_outputs<Kernel>>>;
 
   template <int i>
   using Arg = std::tuple_element_t<i, kernels::kernel_args<Kernel>>;
@@ -76,13 +74,10 @@ struct InputOutputTypes {
 };
 
 template <typename T>
-struct is_tuple : std::false_type {
-};
+struct is_tuple : std::false_type {};
 
 template <typename... Ts>
-struct is_tuple<std::tuple<Ts...>> : std::true_type {
-};
-
+struct is_tuple<std::tuple<Ts...>> : std::true_type {};
 
 }  // namespace detail
 
@@ -127,8 +122,9 @@ struct is_tuple<std::tuple<Ts...>> : std::true_type {
                 "Maximum size of a tuple is 7 (enforced by GTest)");                               \
   static_assert(std::tuple_size<TupleWithTypes>::value >= 1,                                       \
                 "TupleWithTypes has to contain at least 1 type");                                  \
-  using MyTypesTuple = ::dali::testing::detail::AllPairs<                                          \
-                       ::dali::testing::detail::InputOutputTypes, TupleWithTypes, TupleWithTypes>; \
+  using MyTypesTuple =                                                                             \
+      ::dali::testing::detail::AllPairs<::dali::testing::detail::InputOutputTypes, TupleWithTypes, \
+                                        TupleWithTypes>;                                           \
   using GTestTypes = ::dali::testing::detail::TupleToGTest<MyTypesTuple>::type;                    \
   TYPED_TEST_SUITE(CaseName, GTestTypes)
 

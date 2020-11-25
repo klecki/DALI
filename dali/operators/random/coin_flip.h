@@ -24,10 +24,10 @@ namespace dali {
 
 class CoinFlip : public Operator<CPUBackend> {
  public:
-  inline explicit CoinFlip(const OpSpec &spec) :
-    Operator<CPUBackend>(spec),
-    dis_(spec.GetArgument<float>("probability")),
-    rng_(spec.GetArgument<int64_t>("seed")) {}
+  inline explicit CoinFlip(const OpSpec &spec)
+      : Operator<CPUBackend>(spec),
+        dis_(spec.GetArgument<float>("probability")),
+        rng_(spec.GetArgument<int64_t>("seed")) {}
 
   inline ~CoinFlip() override = default;
 

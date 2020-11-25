@@ -17,14 +17,14 @@
 
 #include <algorithm>
 #include "dali/core/common.h"
-#include "dali/core/geom/vec.h"
 #include "dali/core/geom/transform.h"
+#include "dali/core/geom/vec.h"
 #include "dali/core/static_switch.h"
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/imgproc/warp/mapping_traits.h"
 #include "dali/kernels/imgproc/sampler.h"
-#include "dali/kernels/imgproc/warp/map_coords.h"
 #include "dali/kernels/imgproc/warp/affine.h"
+#include "dali/kernels/imgproc/warp/map_coords.h"
+#include "dali/kernels/imgproc/warp/mapping_traits.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -56,27 +56,21 @@ class WarpCPU {
   using BorderType = _BorderType;
   using MappingParams = warp::mapping_params_t<Mapping>;
 
-  KernelRequirements Setup(
-      KernelContext &context,
-      const InTensorCPU<InputType, tensor_ndim> &input,
-      const MappingParams &mapping_params,
-      const TensorShape<spatial_ndim> &out_size,
-      DALIInterpType interp = DALI_INTERP_LINEAR,
-      const BorderType &border = {}) {
+  KernelRequirements Setup(KernelContext &context, const InTensorCPU<InputType, tensor_ndim> &input,
+                           const MappingParams &mapping_params,
+                           const TensorShape<spatial_ndim> &out_size,
+                           DALIInterpType interp = DALI_INTERP_LINEAR,
+                           const BorderType &border = {}) {
     KernelRequirements req;
     auto out_shape = shape_cat(out_size, input.shape[channel_dim]);
-    req.output_shapes = { TensorListShape<tensor_ndim>({out_shape}) };
+    req.output_shapes = {TensorListShape<tensor_ndim>({out_shape})};
     return req;
   }
 
-  void Run(
-      KernelContext &context,
-      const OutTensorCPU<OutputType, tensor_ndim> &output,
-      const InTensorCPU<InputType, tensor_ndim> &input,
-      const MappingParams &mapping_params,
-      const TensorShape<spatial_ndim> &out_size,
-      DALIInterpType interp = DALI_INTERP_LINEAR,
-      const BorderType &border = {}) {
+  void Run(KernelContext &context, const OutTensorCPU<OutputType, tensor_ndim> &output,
+           const InTensorCPU<InputType, tensor_ndim> &input, const MappingParams &mapping_params,
+           const TensorShape<spatial_ndim> &out_size, DALIInterpType interp = DALI_INTERP_LINEAR,
+           const BorderType &border = {}) {
     Mapping mapping(mapping_params);
 
     assert(output.shape == shape_cat(out_size, input.shape[channel_dim]));
@@ -84,20 +78,16 @@ class WarpCPU {
     VALUE_SWITCH(interp, static_interp, (DALI_INTERP_NN, DALI_INTERP_LINEAR),
       (RunImpl<static_interp>(context, output, input, mapping, border);),
       (DALI_FAIL("Unsupported interpolation type"))
-    ); // NOLINT
+    );  // NOLINT
   }
 
  private:
   template <DALIInterpType static_interp, typename Mapping_>
-  void RunImpl(
-      KernelContext &context,
-      const OutTensorCPU<OutputType, 3> &output,
-      const InTensorCPU<InputType, 3> &input,
-      Mapping_ &mapping,
-      BorderType border = {}) {
+  void RunImpl(KernelContext &context, const OutTensorCPU<OutputType, 3> &output,
+               const InTensorCPU<InputType, 3> &input, Mapping_ &mapping, BorderType border = {}) {
     int out_w = output.shape[1];
     int out_h = output.shape[0];
-    int c     = output.shape[2];
+    int c = output.shape[2];
 
     Surface2D<const InputType> in = as_surface_channel_last(input);
 
@@ -107,22 +97,18 @@ class WarpCPU {
       OutputType *out_row = output(y, 0);
       for (int x = 0; x < out_w; x++) {
         auto src = warp::map_coords(mapping, ivec2(x, y));
-        sampler(&out_row[c*x], src, border);
+        sampler(&out_row[c * x], src, border);
       }
     }
   }
 
   template <DALIInterpType static_interp, typename Mapping_>
-  void RunImpl(
-      KernelContext &context,
-      const OutTensorCPU<OutputType, 4> &output,
-      const InTensorCPU<InputType, 4> &input,
-      Mapping_ &mapping,
-      BorderType border = {}) {
+  void RunImpl(KernelContext &context, const OutTensorCPU<OutputType, 4> &output,
+               const InTensorCPU<InputType, 4> &input, Mapping_ &mapping, BorderType border = {}) {
     int out_w = output.shape[2];
     int out_h = output.shape[1];
     int out_d = output.shape[0];
-    int c     = output.shape[3];
+    int c = output.shape[3];
 
     Surface2D<const InputType> in = as_surface_channel_last(input);
 
@@ -133,23 +119,19 @@ class WarpCPU {
         OutputType *out_row = output(z, y, 0);
         for (int x = 0; x < out_w; x++) {
           auto src = warp::map_coords(mapping, ivec3(x, y, z));
-          sampler(&out_row[c*x], src, border);
+          sampler(&out_row[c * x], src, border);
         }
       }
     }
   }
 
-
   template <DALIInterpType static_interp>
-  void RunImpl(
-      KernelContext &context,
-      const OutTensorCPU<OutputType, 3> &output,
-      const InTensorCPU<InputType, 3> &input,
-      AffineMapping<2> &mapping,
-      BorderType border = {}) {
+  void RunImpl(KernelContext &context, const OutTensorCPU<OutputType, 3> &output,
+               const InTensorCPU<InputType, 3> &input, AffineMapping<2> &mapping,
+               BorderType border = {}) {
     int out_w = output.shape[1];
     int out_h = output.shape[0];
-    int c     = output.shape[2];
+    int c = output.shape[2];
 
     Surface2D<const InputType> in = as_surface_channel_last(input);
 
@@ -171,24 +153,20 @@ class WarpCPU {
         int x_tile_end = std::min(x_tile + tile_w, out_w);
         auto src = src_tile;
         for (int x = x_tile; x < x_tile_end; x++, src += dsdx) {
-          sampler(&out_row[c*x], src, border);
+          sampler(&out_row[c * x], src, border);
         }
       }
     }
   }
 
-
   template <DALIInterpType static_interp>
-  void RunImpl(
-      KernelContext &context,
-      const OutTensorCPU<OutputType, 4> &output,
-      const InTensorCPU<InputType, 4> &input,
-      AffineMapping<3> &mapping,
-      BorderType border = {}) {
+  void RunImpl(KernelContext &context, const OutTensorCPU<OutputType, 4> &output,
+               const InTensorCPU<InputType, 4> &input, AffineMapping<3> &mapping,
+               BorderType border = {}) {
     int out_w = output.shape[2];
     int out_h = output.shape[1];
     int out_d = output.shape[0];
-    int c     = output.shape[3];
+    int c = output.shape[3];
 
     Surface3D<const InputType> in = as_surface_channel_last(input);
 
@@ -211,7 +189,7 @@ class WarpCPU {
           int x_tile_end = std::min(x_tile + tile_w, out_w);
           auto src = src_tile;
           for (int x = x_tile; x < x_tile_end; x++, src += dsdx) {
-            sampler(&out_row[c*x], src, border);
+            sampler(&out_row[c * x], src, border);
           }
         }
       }

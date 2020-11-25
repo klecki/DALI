@@ -16,17 +16,16 @@
 #define DALI_TEST_DALI_OPERATOR_TEST_H_
 
 #include <gtest/gtest.h>
-#include <vector>
-#include <memory>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
-#include "dali/test/operator_argument.h"
+#include <vector>
 #include "dali/pipeline/pipeline.h"
-#include "dali/test/graph_descr.h"
-#include "dali/test/tensor_list_wrapper.h"
 #include "dali/test/argument_key.h"
-
+#include "dali/test/graph_descr.h"
+#include "dali/test/operator_argument.h"
+#include "dali/test/tensor_list_wrapper.h"
 
 namespace dali {
 namespace testing {
@@ -35,19 +34,17 @@ using Arguments = std::map<ArgumentKey, TestOpArg>;
 
 namespace detail {
 
-template<typename Backend>
+template <typename Backend>
 std::string BackendStringName() {
   FAIL() << "Backend not supported. You may want to write your own specialization", std::string();
 }
 
-
-template<>
+template <>
 inline std::string BackendStringName<CPUBackend>() {
   return "cpu";
 }
 
-
-template<>
+template <>
 inline std::string BackendStringName<GPUBackend>() {
   return "gpu";
 }
@@ -65,7 +62,7 @@ inline std::string GetOpDevice(const Arguments &op_args) {
 }  // namespace detail
 
 // JSON-like output
-inline std::ostream& operator<<(std::ostream& os, const Arguments& args) {
+inline std::ostream &operator<<(std::ostream &os, const Arguments &args) {
   std::string separator("");
   std::string indent("");
   if (args.size() == 0) {
@@ -94,15 +91,14 @@ inline std::ostream& operator<<(std::ostream& os, const Arguments& args) {
 }
 
 // Force GTest to write our way
-inline void PrintTo(const Arguments& args, std::ostream* os) {
+inline void PrintTo(const Arguments &args, std::ostream *os) {
   *os << args;
 }
 
 inline std::unique_ptr<Pipeline> CreatePipeline(size_t batch_size, size_t num_threads) {
   return std::unique_ptr<Pipeline>(
-          new Pipeline(static_cast<int>(batch_size), static_cast<int>(num_threads), 0));
+      new Pipeline(static_cast<int>(batch_size), static_cast<int>(num_threads), 0));
 }
-
 
 inline void AddInputToPipeline(Pipeline &pipeline, const TensorListWrapper &input) {
   ASSERT_TRUE(input && input.has_cpu()) << "External input works only for CPUBackend";
@@ -111,25 +107,22 @@ inline void AddInputToPipeline(Pipeline &pipeline, const TensorListWrapper &inpu
   pipeline.SetExternalInput(input_name, *input.get<CPUBackend>());
 }
 
-
 inline void AddOperatorToPipeline(Pipeline &pipeline, const OpSpec &op_spec) {
   pipeline.AddOperator(op_spec);
 }
-
 
 inline DeviceWorkspace CreateWorkspace() {
   DeviceWorkspace ws;
   return ws;
 }
 
-
 inline void RunPipeline(Pipeline &pipeline) {
   pipeline.RunCPU();
   pipeline.RunGPU();
 }
 
-inline std::vector<TensorListWrapper>
-GetOutputsFromPipeline(Pipeline &pipeline, const std::string &output_backend) {
+inline std::vector<TensorListWrapper> GetOutputsFromPipeline(Pipeline &pipeline,
+                                                             const std::string &output_backend) {
   std::vector<TensorListWrapper> ret;
   auto workspace = CreateWorkspace();
   pipeline.Outputs(&workspace);
@@ -143,7 +136,6 @@ GetOutputsFromPipeline(Pipeline &pipeline, const std::string &output_backend) {
   return ret;
 }
 
-
 inline void BuildPipeline(Pipeline &pipeline, const OpSpec &spec) {
   std::vector<std::pair<std::string, std::string>> vecoutputs_;
   for (int i = 0; i < spec.NumOutput(); ++i) {
@@ -152,11 +144,10 @@ inline void BuildPipeline(Pipeline &pipeline, const OpSpec &spec) {
   pipeline.Build(vecoutputs_);
 }
 
-
 // TODO(mszolucha): graph of operators
-inline OpSpec
-CreateOpSpec(const std::string &operator_name, Arguments operator_arguments, bool has_input,
-             const std::string &input_backend, const std::string &output_backend) {
+inline OpSpec CreateOpSpec(const std::string &operator_name, Arguments operator_arguments,
+                           bool has_input, const std::string &input_backend,
+                           const std::string &output_backend) {
   ASSERT_TRUE(input_backend == "cpu" || input_backend == "gpu"), OpSpec();
   ASSERT_TRUE(output_backend == "cpu" || output_backend == "gpu"), OpSpec();
 
@@ -170,7 +161,6 @@ CreateOpSpec(const std::string &operator_name, Arguments operator_arguments, boo
   opspec.AddOutput("output", output_backend);
   return opspec;
 }
-
 
 /**
  * Defines and conducts test for given graph of operators.
@@ -190,7 +180,6 @@ class DaliOperatorTest : public ::testing::Test, public ::testing::WithParamInte
  public:
   DaliOperatorTest() = default;
 
-
   /**
    * Type of the function used for verification, whether graph test passed or failed.
    * Within this function, please use GTest's ASSERTs and EXPECTs, for test validation.
@@ -201,15 +190,13 @@ class DaliOperatorTest : public ::testing::Test, public ::testing::WithParamInte
    *
    * This is some sort or template method pattern.
    */
-  using Verify = std::function<void(const std::vector<TensorListWrapper> & /* inputs */,
-                                    const std::vector<TensorListWrapper> & /* outputs */,
-                                    const Arguments &)>;
+  using Verify =
+      std::function<void(const std::vector<TensorListWrapper> & /* inputs */,
+                         const std::vector<TensorListWrapper> & /* outputs */, const Arguments &)>;
 
-
-  using VerifySingleIo = std::function<void(const TensorListWrapper & /* single input */,
-                                            const TensorListWrapper & /* single output */,
-                                            const Arguments &)>;
-
+  using VerifySingleIo =
+      std::function<void(const TensorListWrapper & /* single input */,
+                         const TensorListWrapper & /* single output */, const Arguments &)>;
 
  protected:
   /**
@@ -243,12 +230,11 @@ class DaliOperatorTest : public ::testing::Test, public ::testing::WithParamInte
     if (input) {
       AddInputToPipeline(*pipeline, input);
     }
-    auto outputs = RunTestImpl(*pipeline, operator_arguments, input ? true : false,
-                                              op_backend, op_backend);
+    auto outputs =
+        RunTestImpl(*pipeline, operator_arguments, input ? true : false, op_backend, op_backend);
     verify(input, outputs[0], operator_arguments);
     output = outputs[0];
   }
-
 
  private:
   /**
@@ -258,13 +244,9 @@ class DaliOperatorTest : public ::testing::Test, public ::testing::WithParamInte
    */
   virtual GraphDescr GenerateOperatorGraph() const = 0;
 
+  void SetUp() final {}
 
-  void SetUp() final {
-  }
-
-
-  void TearDown() final {
-  }
+  void TearDown() final {}
 
   std::vector<TensorListWrapper> RunTestImpl(Pipeline &pipeline,
                                              const Arguments &operator_arguments, bool has_inputs,

@@ -19,13 +19,13 @@
 
 #include <memory>
 #include <string>
-#include <utility>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
-#include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg_helper.h"
 #include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg_allocator.h"
+#include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg_helper.h"
 
 #include "dali/image/image_factory.h"
 #include "dali/pipeline/operator/operator.h"
@@ -34,20 +34,19 @@
 
 namespace dali {
 
-
 using ImageInfo = EncodedImageInfo<unsigned int>;
 
 using PinnedAllocator = memory::ChunkPinnedAllocator;
 
 class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
  public:
-  explicit nvJPEGDecoderCPUStage(const OpSpec& spec) :
-    Operator<CPUBackend>(spec),
-    output_image_type_(spec.GetArgument<DALIImageType>("output_type")),
-    hybrid_huffman_threshold_(spec.GetArgument<unsigned int>("hybrid_huffman_threshold")),
-    use_fast_idct_(spec.GetArgument<bool>("use_fast_idct")),
-    decode_params_(batch_size_),
-    use_chunk_allocator_(spec.GetArgument<bool>("use_chunk_allocator")) {
+  explicit nvJPEGDecoderCPUStage(const OpSpec& spec)
+      : Operator<CPUBackend>(spec),
+        output_image_type_(spec.GetArgument<DALIImageType>("output_type")),
+        hybrid_huffman_threshold_(spec.GetArgument<unsigned int>("hybrid_huffman_threshold")),
+        use_fast_idct_(spec.GetArgument<bool>("use_fast_idct")),
+        decode_params_(batch_size_),
+        use_chunk_allocator_(spec.GetArgument<bool>("use_chunk_allocator")) {
     NVJPEG_CALL(nvjpegCreateSimple(&handle_));
 
     // Do we really need both in both stages ops?
@@ -61,8 +60,8 @@ class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
 
     for (int i = 0; i < batch_size_; i++) {
       NVJPEG_CALL(nvjpegDecodeParamsCreate(handle_, &decode_params_[i]));
-      NVJPEG_CALL(nvjpegDecodeParamsSetOutputFormat(decode_params_[i],
-                                                    GetFormat(output_image_type_)));
+      NVJPEG_CALL(
+          nvjpegDecodeParamsSetOutputFormat(decode_params_[i], GetFormat(output_image_type_)));
       NVJPEG_CALL(nvjpegDecodeParamsSetAllowCMYK(decode_params_[i], true));
     }
 
@@ -83,21 +82,21 @@ class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
       }
       NVJPEG_CALL(nvjpegDestroy(handle_));
       PinnedAllocator::FreeBuffers();
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       // If destroying nvJPEG resources failed we are leaking something so terminate
       std::cerr << "Fatal error: exception in ~nvJPEGDecoderCPUStage():\n" << e.what() << std::endl;
       std::terminate();
     }
   }
 
-  bool SetupImpl(std::vector<OutputDesc> &output_desc, const HostWorkspace &ws) override {
+  bool SetupImpl(std::vector<OutputDesc>& output_desc, const HostWorkspace& ws) override {
     return false;
   }
 
-  void RunImpl(SampleWorkspace &ws) override {
+  void RunImpl(SampleWorkspace& ws) override {
     const int data_idx = ws.data_idx();
     const auto& in = ws.Input<CPUBackend>(0);
-    const auto *input_data = in.data<uint8_t>();
+    const auto* input_data = in.data<uint8_t>();
     const auto in_size = in.size();
     const auto file_name = in.GetSourceInfo();
 
@@ -111,29 +110,24 @@ class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
 
     ImageInfo* info;
     StateNvJPEG* state_nvjpeg;
-    std::tie(info, state_nvjpeg) = InitAndGet(ws.Output<CPUBackend>(0),
-                                              ws.Output<CPUBackend>(1));
+    std::tie(info, state_nvjpeg) = InitAndGet(ws.Output<CPUBackend>(0), ws.Output<CPUBackend>(1));
 
     ws.Output<CPUBackend>(0).SetSourceInfo(file_name);
 
-    nvjpegStatus_t ret = nvjpegJpegStreamParse(handle_,
-                                                static_cast<const unsigned char*>(input_data),
-                                                in_size,
-                                                false,
-                                                false,
-                                                state_nvjpeg->jpeg_stream);
+    nvjpegStatus_t ret =
+        nvjpegJpegStreamParse(handle_, static_cast<const unsigned char*>(input_data), in_size,
+                              false, false, state_nvjpeg->jpeg_stream);
     info->nvjpeg_support = ret == NVJPEG_STATUS_SUCCESS;
     auto crop_generator = GetCropWindowGenerator(data_idx);
     int64_t nchannels = NumberOfChannels(output_image_type_);
     if (!info->nvjpeg_support) {
       try {
-        const auto image = ImageFactory::CreateImage(static_cast<const uint8 *>(input_data),
-                                                     in_size, output_image_type_);
+        const auto image = ImageFactory::CreateImage(static_cast<const uint8*>(input_data), in_size,
+                                                     output_image_type_);
         const auto shape = image->PeekShape();
         info->heights[0] = shape[0];
         info->widths[0] = shape[1];
-        if (output_image_type_ == DALI_ANY_DATA)
-          nchannels = shape[2];
+        if (output_image_type_ == DALI_ANY_DATA) nchannels = shape[2];
 
         if (crop_generator) {
           TensorShape<> shape{info->heights[0], info->widths[0]};
@@ -146,45 +140,40 @@ class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
         out.set_type(TypeInfo::Create<uint8_t>());
         out.SetLayout("HWC");
         out.Resize({info->heights[0], info->widths[0], nchannels});
-        auto *output_data = out.mutable_data<uint8_t>();
+        auto* output_data = out.mutable_data<uint8_t>();
 
-        HostFallback<StorageCPU>(input_data, in_size, output_image_type_, output_data, 0,
-                                          file_name, info->crop_window, use_fast_idct_);
+        HostFallback<StorageCPU>(input_data, in_size, output_image_type_, output_data, 0, file_name,
+                                 info->crop_window, use_fast_idct_);
       } catch (const std::runtime_error& e) {
         DALI_FAIL(e.what() + ". File: " + file_name);
       }
     } else {
-      NVJPEG_CALL(nvjpegJpegStreamGetFrameDimensions(state_nvjpeg->jpeg_stream,
-                                                     info->widths,
+      NVJPEG_CALL(nvjpegJpegStreamGetFrameDimensions(state_nvjpeg->jpeg_stream, info->widths,
                                                      info->heights));
-      NVJPEG_CALL(nvjpegJpegStreamGetComponentsNum(state_nvjpeg->jpeg_stream,
-                                                   &info->c));
+      NVJPEG_CALL(nvjpegJpegStreamGetComponentsNum(state_nvjpeg->jpeg_stream, &info->c));
 
       if (crop_generator) {
         TensorShape<> shape{info->heights[0], info->widths[0]};
         info->crop_window = crop_generator(shape, "HW");
-        auto &crop_window = info->crop_window;
+        auto& crop_window = info->crop_window;
         DALI_ENFORCE(crop_window.IsInRange(shape));
-        NVJPEG_CALL(nvjpegDecodeParamsSetROI(decode_params_[data_idx],
-                                             crop_window.anchor[1], crop_window.anchor[0],
-                                             crop_window.shape[1], crop_window.shape[0]));
+        NVJPEG_CALL(nvjpegDecodeParamsSetROI(decode_params_[data_idx], crop_window.anchor[1],
+                                             crop_window.anchor[0], crop_window.shape[1],
+                                             crop_window.shape[0]));
         info->widths[0] = crop_window.shape[1];
         info->heights[0] = crop_window.shape[0];
       }
 
       state_nvjpeg->nvjpeg_backend =
-                    ShouldUseHybridHuffman(*info, input_data, in_size, hybrid_huffman_threshold_)
-                    ? NVJPEG_BACKEND_GPU_HYBRID : NVJPEG_BACKEND_HYBRID;
+          ShouldUseHybridHuffman(*info, input_data, in_size, hybrid_huffman_threshold_)
+              ? NVJPEG_BACKEND_GPU_HYBRID
+              : NVJPEG_BACKEND_HYBRID;
 
       nvjpegJpegState_t state = GetNvjpegState(*state_nvjpeg);
-      NVJPEG_CALL(nvjpegStateAttachPinnedBuffer(state,
-                                                state_nvjpeg->pinned_buffer));
-      nvjpegStatus_t ret = nvjpegDecodeJpegHost(
-          handle_,
-          GetDecoder(state_nvjpeg->nvjpeg_backend),
-          state,
-          decode_params_[data_idx],
-          state_nvjpeg->jpeg_stream);
+      NVJPEG_CALL(nvjpegStateAttachPinnedBuffer(state, state_nvjpeg->pinned_buffer));
+      nvjpegStatus_t ret =
+          nvjpegDecodeJpegHost(handle_, GetDecoder(state_nvjpeg->nvjpeg_backend), state,
+                               decode_params_[data_idx], state_nvjpeg->jpeg_stream);
       if (ret != NVJPEG_STATUS_SUCCESS) {
         if (ret == NVJPEG_STATUS_JPEG_NOT_SUPPORTED || ret == NVJPEG_STATUS_BAD_JPEG) {
           info->nvjpeg_support = false;
@@ -204,8 +193,8 @@ class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
     return {};
   }
 
-  inline std::pair<ImageInfo*, StateNvJPEG*>
-  InitAndGet(Tensor<CPUBackend>& info_tensor, Tensor<CPUBackend>& state_tensor) {
+  inline std::pair<ImageInfo*, StateNvJPEG*> InitAndGet(Tensor<CPUBackend>& info_tensor,
+                                                        Tensor<CPUBackend>& state_tensor) {
     if (info_tensor.size() == 0) {
       TypeInfo type;
       // we need to set a arbitrary to be able to access to call raw_data()
@@ -215,24 +204,20 @@ class nvJPEGDecoderCPUStage : public Operator<CPUBackend> {
       info_tensor.ShareData(info_p, sizeof(ImageInfo), {1});
       info_tensor.set_type(TypeInfo::Create<ImageInfo>());
 
-      std::shared_ptr<StateNvJPEG> state_p(new StateNvJPEG(),
-        [](StateNvJPEG* s) {
-          NVJPEG_CALL(nvjpegJpegStreamDestroy(s->jpeg_stream));
-          NVJPEG_CALL(nvjpegBufferPinnedDestroy(s->pinned_buffer));
-          NVJPEG_CALL(nvjpegJpegStateDestroy(s->decoder_host_state));
-          NVJPEG_CALL(nvjpegJpegStateDestroy(s->decoder_hybrid_state));
-          delete s;
+      std::shared_ptr<StateNvJPEG> state_p(new StateNvJPEG(), [](StateNvJPEG* s) {
+        NVJPEG_CALL(nvjpegJpegStreamDestroy(s->jpeg_stream));
+        NVJPEG_CALL(nvjpegBufferPinnedDestroy(s->pinned_buffer));
+        NVJPEG_CALL(nvjpegJpegStateDestroy(s->decoder_host_state));
+        NVJPEG_CALL(nvjpegJpegStateDestroy(s->decoder_hybrid_state));
+        delete s;
       });
 
       // We want to use nvJPEG default pinned allocator
       auto* allocator = use_chunk_allocator_ ? &pinned_allocator_ : nullptr;
       NVJPEG_CALL(nvjpegBufferPinnedCreate(handle_, allocator, &state_p->pinned_buffer));
-      NVJPEG_CALL(nvjpegDecoderStateCreate(handle_,
-                                        decoder_host_,
-                                        &state_p->decoder_host_state));
-      NVJPEG_CALL(nvjpegDecoderStateCreate(handle_,
-                                        decoder_hybrid_,
-                                        &state_p->decoder_hybrid_state));
+      NVJPEG_CALL(nvjpegDecoderStateCreate(handle_, decoder_host_, &state_p->decoder_host_state));
+      NVJPEG_CALL(
+          nvjpegDecoderStateCreate(handle_, decoder_hybrid_, &state_p->decoder_hybrid_state));
       NVJPEG_CALL(nvjpegJpegStreamCreate(handle_, &state_p->jpeg_stream));
 
       state_tensor.ShareData(state_p, sizeof(StateNvJPEG), {1});

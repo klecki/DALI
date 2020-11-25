@@ -15,8 +15,8 @@
 #ifndef DALI_PIPELINE_UTIL_LOOKAHEAD_PARSER_H_
 #define DALI_PIPELINE_UTIL_LOOKAHEAD_PARSER_H_
 
-#include <rapidjson/reader.h>
 #include <rapidjson/document.h>
+#include <rapidjson/reader.h>
 #include "dali/core/api_helper.h"
 
 RAPIDJSON_DIAG_PUSH
@@ -27,41 +27,84 @@ RAPIDJSON_DIAG_OFF(effc++)
 namespace dali {
 namespace detail {
 
-using rapidjson::SizeType;
-using rapidjson::Value;
-using rapidjson::Reader;
 using rapidjson::InsituStringStream;
-using rapidjson::kParseDefaultFlags;
-using rapidjson::kParseInsituFlag;
 using rapidjson::kArrayType;
 using rapidjson::kObjectType;
+using rapidjson::kParseDefaultFlags;
+using rapidjson::kParseInsituFlag;
+using rapidjson::Reader;
+using rapidjson::SizeType;
+using rapidjson::Value;
 
-// taken from https://github.com/Tencent/rapidjson/blob/master/example/lookaheadparser/lookaheadparser.cpp
+// taken from
+// https://github.com/Tencent/rapidjson/blob/master/example/lookaheadparser/lookaheadparser.cpp
 
 class LookaheadParserHandler {
  public:
-  inline bool Null() { st_ = kHasNull; v_.SetNull(); return true; }
-  inline bool Bool(bool b) { st_ = kHasBool; v_.SetBool(b); return true; }
-  inline bool Int(int i) { st_ = kHasNumber; v_.SetInt(i); return true; }
-  inline bool Uint(unsigned u) { st_ = kHasNumber; v_.SetUint(u); return true; }
-  inline bool Int64(int64_t i) { st_ = kHasNumber; v_.SetInt64(i); return true; }
-  inline bool Uint64(uint64_t u) { st_ = kHasNumber; v_.SetUint64(u); return true; }
-  inline bool Double(double d) { st_ = kHasNumber; v_.SetDouble(d); return true; }
-  inline bool RawNumber(const char*, SizeType, bool) { return false; }
+  inline bool Null() {
+    st_ = kHasNull;
+    v_.SetNull();
+    return true;
+  }
+  inline bool Bool(bool b) {
+    st_ = kHasBool;
+    v_.SetBool(b);
+    return true;
+  }
+  inline bool Int(int i) {
+    st_ = kHasNumber;
+    v_.SetInt(i);
+    return true;
+  }
+  inline bool Uint(unsigned u) {
+    st_ = kHasNumber;
+    v_.SetUint(u);
+    return true;
+  }
+  inline bool Int64(int64_t i) {
+    st_ = kHasNumber;
+    v_.SetInt64(i);
+    return true;
+  }
+  inline bool Uint64(uint64_t u) {
+    st_ = kHasNumber;
+    v_.SetUint64(u);
+    return true;
+  }
+  inline bool Double(double d) {
+    st_ = kHasNumber;
+    v_.SetDouble(d);
+    return true;
+  }
+  inline bool RawNumber(const char*, SizeType, bool) {
+    return false;
+  }
   inline bool String(const char* str, SizeType length, bool) {
     st_ = kHasString;
     v_.SetString(str, length);
     return true;
   }
-  inline bool StartObject() { st_ = kEnteringObject; return true; }
+  inline bool StartObject() {
+    st_ = kEnteringObject;
+    return true;
+  }
   inline bool Key(const char* str, SizeType length, bool) {
     st_ = kHasKey;
     v_.SetString(str, length);
     return true;
   }
-  inline bool EndObject(SizeType) { st_ = kExitingObject; return true; }
-  inline bool StartArray() { st_ = kEnteringArray; return true; }
-  inline bool EndArray(SizeType) { st_ = kExitingArray; return true; }
+  inline bool EndObject(SizeType) {
+    st_ = kExitingObject;
+    return true;
+  }
+  inline bool StartArray() {
+    st_ = kEnteringArray;
+    return true;
+  }
+  inline bool EndArray(SizeType) {
+    st_ = kExitingArray;
+    return true;
+  }
 
  protected:
   inline explicit LookaheadParserHandler(char* str);
@@ -90,8 +133,7 @@ class LookaheadParserHandler {
   static const int parseFlags = kParseDefaultFlags | kParseInsituFlag;
 };
 
-LookaheadParserHandler::LookaheadParserHandler(char* str) :
-    v_(), st_(kInit), r_(), ss_(str) {
+LookaheadParserHandler::LookaheadParserHandler(char* str) : v_(), st_(kInit), r_(), ss_(str) {
   r_.IterativeParseInit();
   ParseNext();
 }
@@ -126,7 +168,9 @@ class DLL_PUBLIC LookaheadParser : protected LookaheadParserHandler {
   // returns a rapidjson::Type, or -1 for no value (at end of object/array)
   inline int PeekType();
 
-  inline bool IsValid() { return st_ != kError; }
+  inline bool IsValid() {
+    return st_ != kError;
+  }
 
  protected:
   void SkipOut(int depth);
@@ -134,7 +178,7 @@ class DLL_PUBLIC LookaheadParser : protected LookaheadParserHandler {
 
 bool LookaheadParser::EnterObject() {
   if (st_ != kEnteringObject) {
-    st_  = kError;
+    st_ = kError;
     return false;
   }
 
@@ -144,7 +188,7 @@ bool LookaheadParser::EnterObject() {
 
 bool LookaheadParser::EnterArray() {
   if (st_ != kEnteringArray) {
-    st_  = kError;
+    st_ = kError;
     return false;
   }
 
@@ -195,7 +239,7 @@ int LookaheadParser::GetInt() {
 
 double LookaheadParser::GetDouble() {
   if (st_ != kHasNumber) {
-    st_  = kError;
+    st_ = kError;
     return 0.;
   }
 
@@ -206,7 +250,7 @@ double LookaheadParser::GetDouble() {
 
 bool LookaheadParser::GetBool() {
   if (st_ != kHasBool) {
-    st_  = kError;
+    st_ = kError;
     return false;
   }
 
@@ -217,7 +261,7 @@ bool LookaheadParser::GetBool() {
 
 void LookaheadParser::GetNull() {
   if (st_ != kHasNull) {
-    st_  = kError;
+    st_ = kError;
     return;
   }
 
@@ -226,7 +270,7 @@ void LookaheadParser::GetNull() {
 
 const char* LookaheadParser::GetString() {
   if (st_ != kHasString) {
-    st_  = kError;
+    st_ = kError;
     return 0;
   }
 

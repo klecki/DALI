@@ -27,11 +27,9 @@ namespace dali {
 template <typename Backend>
 class DumpImage : public Operator<Backend> {
  public:
-  explicit inline DumpImage(const OpSpec &spec) :
-    Operator<Backend>(spec),
-    suffix_(spec.GetArgument<string>("suffix")) {
-    DALI_ENFORCE(spec.GetArgument<TensorLayout>("input_layout") == "HWC",
-        "CHW not supported yet.");
+  explicit inline DumpImage(const OpSpec &spec)
+      : Operator<Backend>(spec), suffix_(spec.GetArgument<string>("suffix")) {
+    DALI_ENFORCE(spec.GetArgument<TensorLayout>("input_layout") == "HWC", "CHW not supported yet.");
   }
 
   inline ~DumpImage() override = default;

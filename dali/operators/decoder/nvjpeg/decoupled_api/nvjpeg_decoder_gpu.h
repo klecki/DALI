@@ -19,10 +19,10 @@
 #include <utility>
 #include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg_helper.h"
-#include "dali/util/ocv.h"
 #include "dali/core/device_guard.h"
+#include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg_helper.h"
+#include "dali/pipeline/operator/operator.h"
+#include "dali/util/ocv.h"
 
 namespace dali {
 
@@ -30,10 +30,10 @@ using ImageInfo = EncodedImageInfo<unsigned int>;
 
 class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
  public:
-  explicit nvJPEGDecoderGPUStage(const OpSpec& spec) :
-    Operator<MixedBackend>(spec),
-    output_image_type_(spec.GetArgument<DALIImageType>("output_type")),
-    device_id_(spec.GetArgument<int>("device_id")) {
+  explicit nvJPEGDecoderGPUStage(const OpSpec& spec)
+      : Operator<MixedBackend>(spec),
+        output_image_type_(spec.GetArgument<DALIImageType>("output_type")),
+        device_id_(spec.GetArgument<int>("device_id")) {
     NVJPEG_CALL(nvjpegCreateSimple(&handle_));
 
     NVJPEG_CALL(nvjpegDecoderCreate(handle_, NVJPEG_BACKEND_HYBRID, &decoder_host_));
@@ -55,19 +55,19 @@ class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
       NVJPEG_CALL(nvjpegDecoderDestroy(decoder_host_));
       NVJPEG_CALL(nvjpegDecoderDestroy(decoder_hybrid_));
       NVJPEG_CALL(nvjpegDestroy(handle_));
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
       // If destroying nvJPEG resources failed we are leaking something so terminate
       std::cerr << "Fatal error: exception in ~nvJPEGDecoder():\n" << e.what() << std::endl;
       std::terminate();
     }
   }
 
-  bool SetupImpl(std::vector<OutputDesc> &output_desc, const MixedWorkspace &ws) override {
+  bool SetupImpl(std::vector<OutputDesc>& output_desc, const MixedWorkspace& ws) override {
     return false;
   }
 
   using dali::OperatorBase::Run;
-  void Run(MixedWorkspace &ws) override {
+  void Run(MixedWorkspace& ws) override {
     std::vector<std::vector<Index>> output_shape(batch_size_);
     // Creating output shape and setting the order of images so the largest are processed first
     // (for load balancing)
@@ -79,8 +79,7 @@ class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
       output_shape[i] = {info->heights[0], info->widths[0], c};
       image_order[i] = std::make_pair(volume(output_shape[i]), i);
     }
-    std::sort(image_order.begin(), image_order.end(),
-              std::greater<std::pair<size_t, size_t>>());
+    std::sort(image_order.begin(), image_order.end(), std::greater<std::pair<size_t, size_t>>());
 
     auto& output = ws.Output<GPUBackend>(0);
     output.Resize(output_shape);
@@ -99,7 +98,7 @@ class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
 
       const auto file_name = info_tensor.GetSourceInfo();
 
-      auto *output_data = output.mutable_tensor<uint8_t>(sample_idx);
+      auto* output_data = output.mutable_tensor<uint8_t>(sample_idx);
       if (info->nvjpeg_support) {
         nvjpegImage_t nvjpeg_image;
         nvjpeg_image.channel[0] = output_data;
@@ -107,33 +106,25 @@ class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
 
         nvjpegJpegState_t state = GetNvjpegState(*nvjpeg_state);
 
-        NVJPEG_CALL(nvjpegStateAttachDeviceBuffer(state,
-                              device_buffer_));
+        NVJPEG_CALL(nvjpegStateAttachDeviceBuffer(state, device_buffer_));
 
         nvjpegJpegDecoder_t decoder = GetDecoder(nvjpeg_state->nvjpeg_backend);
-        NVJPEG_CALL_EX(nvjpegDecodeJpegTransferToDevice(
-            handle_,
-            decoder,
-            state,
-            nvjpeg_state->jpeg_stream,
-            ws.stream()), file_name);
+        NVJPEG_CALL_EX(nvjpegDecodeJpegTransferToDevice(handle_, decoder, state,
+                                                        nvjpeg_state->jpeg_stream, ws.stream()),
+                       file_name);
 
-        NVJPEG_CALL_EX(nvjpegDecodeJpegDevice(
-            handle_,
-            decoder,
-            state,
-            &nvjpeg_image,
-            ws.stream()), file_name);
+        NVJPEG_CALL_EX(nvjpegDecodeJpegDevice(handle_, decoder, state, &nvjpeg_image, ws.stream()),
+                       file_name);
       } else {
         // Fallback was handled by CPU op and wrote OpenCV ouput in Input #2
         // we just need to copy to device
         auto& in = ws.Input<CPUBackend>(2, sample_idx);
-        const auto *input_data = in.data<uint8_t>();
-        auto *output_data = output.mutable_tensor<uint8_t>(sample_idx);
-        CUDA_CALL(cudaMemcpyAsync(output_data,
-                    input_data,
-                    info->heights[0] * info->widths[0] * NumberOfChannels(output_image_type_),
-                    cudaMemcpyHostToDevice, ws.stream()));
+        const auto* input_data = in.data<uint8_t>();
+        auto* output_data = output.mutable_tensor<uint8_t>(sample_idx);
+        CUDA_CALL(cudaMemcpyAsync(
+            output_data, input_data,
+            info->heights[0] * info->widths[0] * NumberOfChannels(output_image_type_),
+            cudaMemcpyHostToDevice, ws.stream()));
       }
     }
   }
@@ -141,8 +132,8 @@ class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
  protected:
   USE_OPERATOR_MEMBERS();
 
-  inline std::pair<const ImageInfo*, const StateNvJPEG*>
-  GetInfoState(const Tensor<CPUBackend>& info_tensor, const Tensor<CPUBackend>& state_tensor) {
+  inline std::pair<const ImageInfo*, const StateNvJPEG*> GetInfoState(
+      const Tensor<CPUBackend>& info_tensor, const Tensor<CPUBackend>& state_tensor) {
     const auto* info = info_tensor.data<ImageInfo>();
     const auto* nvjpeg_state = state_tensor.data<StateNvJPEG>();
     return std::make_pair(info, nvjpeg_state);
@@ -171,7 +162,6 @@ class nvJPEGDecoderGPUStage : public Operator<MixedBackend> {
 
   int device_id_;
 };
-
 
 }  // namespace dali
 

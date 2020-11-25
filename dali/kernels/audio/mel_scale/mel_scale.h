@@ -15,8 +15,8 @@
 #ifndef DALI_KERNELS_AUDIO_MEL_SCALE_MEL_SCALE_H_
 #define DALI_KERNELS_AUDIO_MEL_SCALE_MEL_SCALE_H_
 
-#include <vector>
 #include <cmath>
+#include <vector>
 #include "dali/core/force_inline.h"
 #include "dali/kernels/audio/mel_scale/mel_filter_bank_args.h"
 
@@ -76,7 +76,7 @@ template <typename T, int Dims>
 class MelFilterImplBase {
  public:
   template <typename MelScale>
-  MelFilterImplBase(MelScale mel_scale, const MelFilterBankArgs &args): args_(args) {
+  MelFilterImplBase(MelScale mel_scale, const MelFilterBankArgs& args) : args_(args) {
     assert(args.sample_rate > 0);
 
     assert(args.freq_low >= 0 && args.freq_low <= args.sample_rate / 2);
@@ -99,8 +99,7 @@ class MelFilterImplBase {
     fftbin_start_ = std::ceil(args.freq_low * inv_hz_step);
     assert(fftbin_start_ >= 0);
     fftbin_end_ = std::floor(args.freq_high * inv_hz_step);
-    if (fftbin_end_ > fftbin_size_ - 1)
-      fftbin_end_ = fftbin_size_ - 1;
+    if (fftbin_end_ > fftbin_size_ - 1) fftbin_end_ = fftbin_size_ - 1;
 
     weights_down_.resize(fftbin_size_);
     norm_factors_.resize(nfilter, T(1));
@@ -110,12 +109,9 @@ class MelFilterImplBase {
     double f = fftbin * hz_step_;
 
     int last_interval = nfilter;
-    for (int interval = 0; interval <= last_interval;
-         interval++, mel0 = mel1, mel1 += mel_delta_) {
-      if (interval == last_interval)
-        mel1 = mel_high_;
-      double f0 = mel_scale.mel_to_hz(mel0),
-             f1 = mel_scale.mel_to_hz(mel1);
+    for (int interval = 0; interval <= last_interval; interval++, mel0 = mel1, mel1 += mel_delta_) {
+      if (interval == last_interval) mel1 = mel_high_;
+      double f0 = mel_scale.mel_to_hz(mel0), f1 = mel_scale.mel_to_hz(mel1);
       if (args.normalize && interval < nfilter) {
         // Filters are normalized so that they have constant energy per band
         double f2 = mel_scale.mel_to_hz(mel1 + mel_delta_);
@@ -143,16 +139,16 @@ class MelFilterImplBase {
   double hz_step_, mel_delta_;
 };
 
-#define USE_MEL_FILTER_IMPL_MEMBERS(T, Dims) \
-  using MelFilterImplBase<T, Dims>::args_; \
+#define USE_MEL_FILTER_IMPL_MEMBERS(T, Dims)       \
+  using MelFilterImplBase<T, Dims>::args_;         \
   using MelFilterImplBase<T, Dims>::fftbin_start_; \
-  using MelFilterImplBase<T, Dims>::fftbin_end_; \
-  using MelFilterImplBase<T, Dims>::mel_low_; \
-  using MelFilterImplBase<T, Dims>::mel_high_; \
-  using MelFilterImplBase<T, Dims>::fftbin_size_; \
+  using MelFilterImplBase<T, Dims>::fftbin_end_;   \
+  using MelFilterImplBase<T, Dims>::mel_low_;      \
+  using MelFilterImplBase<T, Dims>::mel_high_;     \
+  using MelFilterImplBase<T, Dims>::fftbin_size_;  \
   using MelFilterImplBase<T, Dims>::weights_down_; \
   using MelFilterImplBase<T, Dims>::norm_factors_; \
-  using MelFilterImplBase<T, Dims>::mel_delta_; \
+  using MelFilterImplBase<T, Dims>::mel_delta_;    \
   using MelFilterImplBase<T, Dims>::hz_step_
 
 }  // namespace audio

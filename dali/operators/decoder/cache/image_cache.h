@@ -43,16 +43,15 @@ class DLL_PUBLIC ImageCache {
    */
   DLL_PUBLIC virtual const ImageShape& GetShape(const ImageKey& image_key) const = 0;
 
-    /**
-     * @brief Try to read from cache
-     * @param image_key key representing the image in cache
-     * @param destination_data destination buffer
-     * @param stream cuda stream
-     * @return true if successful cache read, false otherwise
-     */
-    DLL_PUBLIC virtual bool Read(const ImageKey& image_key,
-                                 void* destination_data,
-                                 cudaStream_t stream) const = 0;
+  /**
+   * @brief Try to read from cache
+   * @param image_key key representing the image in cache
+   * @param destination_data destination buffer
+   * @param stream cuda stream
+   * @return true if successful cache read, false otherwise
+   */
+  DLL_PUBLIC virtual bool Read(const ImageKey& image_key, void* destination_data,
+                               cudaStream_t stream) const = 0;
 
   /**
    * @brief Try to add entry to cache.
@@ -63,10 +62,8 @@ class DLL_PUBLIC ImageCache {
    * @param data_shape dimensions of the data to be stored
    * @param stream cuda stream
    */
-  DLL_PUBLIC virtual void Add(const ImageKey& image_key,
-                              const uint8_t *data,
-                              const ImageShape& data_shape,
-                              cudaStream_t stream) = 0;
+  DLL_PUBLIC virtual void Add(const ImageKey& image_key, const uint8_t* data,
+                              const ImageShape& data_shape, cudaStream_t stream) = 0;
 
   /**
    * @brief Get a cache entry describing an image
@@ -75,7 +72,7 @@ class DLL_PUBLIC ImageCache {
    * @remarks This function is valid only if the implementation doesn't evict
    *          images from the cache.
    */
-  DLL_PUBLIC virtual DecodedImage Get(const ImageKey &image_key) const = 0;
+  DLL_PUBLIC virtual DecodedImage Get(const ImageKey& image_key) const = 0;
 
   /**
    * @brief Synchronizes internal cache CUDA stream with a provided stream before a cache reading

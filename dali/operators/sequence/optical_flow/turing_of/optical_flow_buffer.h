@@ -15,14 +15,13 @@
 #ifndef DALI_OPERATORS_SEQUENCE_OPTICAL_FLOW_TURING_OF_OPTICAL_FLOW_BUFFER_H_
 #define DALI_OPERATORS_SEQUENCE_OPTICAL_FLOW_TURING_OF_OPTICAL_FLOW_BUFFER_H_
 
+#include <nvOpticalFlowCuda.h>
 #include <sstream>
 #include "dali/core/error_handling.h"
 #include "dali/operators/sequence/optical_flow/turing_of/utils.h"
-#include <nvOpticalFlowCuda.h>
 
 namespace dali {
 namespace optical_flow {
-
 
 /**
  * Wrapper class for TuringOF API Buffer
@@ -30,14 +29,13 @@ namespace optical_flow {
 class OpticalFlowBuffer {
  public:
   OpticalFlowBuffer(NvOFHandle &of_handle, size_t width, size_t height,
-                    NV_OF_CUDA_API_FUNCTION_LIST function_list,
-                    NV_OF_BUFFER_USAGE usage, NV_OF_BUFFER_FORMAT format) :
-          turing_of_(function_list),
-          descriptor_(GenerateBufferDescriptor(width, height, format, usage)) {
+                    NV_OF_CUDA_API_FUNCTION_LIST function_list, NV_OF_BUFFER_USAGE usage,
+                    NV_OF_BUFFER_FORMAT format)
+      : turing_of_(function_list),
+        descriptor_(GenerateBufferDescriptor(width, height, format, usage)) {
     // Buffer alloc
-    TURING_OF_API_CALL(turing_of_.nvOFCreateGPUBufferCuda(of_handle, &descriptor_,
-                                                          NV_OF_CUDA_BUFFER_TYPE_CUDEVICEPTR,
-                                                          &handle_));
+    TURING_OF_API_CALL(turing_of_.nvOFCreateGPUBufferCuda(
+        of_handle, &descriptor_, NV_OF_CUDA_BUFFER_TYPE_CUDEVICEPTR, &handle_));
     ptr_ = turing_of_.nvOFGPUBufferGetCUdeviceptr(handle_);
     DALI_ENFORCE(ptr_ != 0, "Invalid pointer");
 
@@ -47,11 +45,9 @@ class OpticalFlowBuffer {
     stride_ = {stride_info.strideInfo[0].strideXInBytes, stride_info.strideInfo[0].strideYInBytes};
   }
 
-
   OpticalFlowBuffer(const OpticalFlowBuffer &) = delete;
 
   void operator=(const OpticalFlowBuffer &) = delete;
-
 
   ~OpticalFlowBuffer() {
     auto err = turing_of_.nvOFDestroyGPUBufferCuda(handle_);
@@ -63,31 +59,25 @@ class OpticalFlowBuffer {
     }
   }
 
-
   NV_OF_BUFFER_DESCRIPTOR GetDescriptor() {
     return descriptor_;
   }
-
 
   NvOFGPUBufferHandle GetHandle() {
     return handle_;
   }
 
-
   CUdeviceptr GetPtr() {
     return ptr_;
   }
-
 
   struct Stride {
     size_t x, y;
   };
 
-
   Stride GetStride() {
     return stride_;
   }
-
 
  private:
   NV_OF_BUFFER_DESCRIPTOR
@@ -100,7 +90,6 @@ class OpticalFlowBuffer {
     ret.bufferUsage = usage;
     return ret;
   }
-
 
   NV_OF_CUDA_API_FUNCTION_LIST turing_of_;
   NV_OF_BUFFER_DESCRIPTOR descriptor_;

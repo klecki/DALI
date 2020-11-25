@@ -89,8 +89,8 @@ struct UncompressFlags {
 // The function returns a pointer to the raw uncompressed data or NULL if
 // there was an error. The caller of the function is responsible for
 // freeing the memory (using delete []).
-uint8* Uncompress(const void* srcdata, int datasize,
-                  const UncompressFlags& flags, int* width, int* height,
+uint8* Uncompress(const void* srcdata, int datasize, const UncompressFlags& flags, int* width,
+                  int* height,
                   int* components,  // Output only: useful with autodetect
                   int64* nwarn);
 
@@ -99,14 +99,12 @@ uint8* Uncompress(const void* srcdata, int datasize,
 // time this function can return an existing buffer; passing a callback allows
 // the buffer to be shaped based on the JPEG header.  The caller is responsible
 // for freeing the memory *even along error paths*.
-uint8* Uncompress(const void* srcdata, int datasize,
-                  const UncompressFlags& flags, int64* nwarn,
+uint8* Uncompress(const void* srcdata, int datasize, const UncompressFlags& flags, int64* nwarn,
                   std::function<uint8*(int, int, int)> allocate_output);
 
 // Read jpeg header and get image information.  Returns true on success.
 // The width, height, and components points may be null.
-bool GetImageInfo(const void* srcdata, int datasize, int* width, int* height,
-                  int* components);
+bool GetImageInfo(const void* srcdata, int datasize, int* width, int* height, int* components);
 
 // Note: (format & 0xff) = number of components (<=> bytes per pixels)
 enum Format {
@@ -152,12 +150,11 @@ struct CompressFlags {
 // The encoded data is returned as a string.
 // If not empty, XMP metadata can be embedded in the image header
 // On error, returns the empty string (which is never a valid jpeg).
-string Compress(const void* srcdata, int width, int height,
-                const CompressFlags& flags);
+string Compress(const void* srcdata, int width, int height, const CompressFlags& flags);
 
 // On error, returns false and sets output to empty.
-bool Compress(const void* srcdata, int width, int height,
-              const CompressFlags& flags, string* output);
+bool Compress(const void* srcdata, int width, int height, const CompressFlags& flags,
+              string* output);
 
 }  // namespace jpeg
 }  // namespace dali

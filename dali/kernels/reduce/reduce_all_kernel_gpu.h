@@ -22,8 +22,8 @@
 #include "dali/core/format.h"
 #include "dali/core/util.h"
 #include "dali/kernels/kernel.h"
-#include "dali/kernels/reduce/reductions.h"
 #include "dali/kernels/reduce/reduce_all_gpu_impl.cuh"
+#include "dali/kernels/reduce/reductions.h"
 
 namespace dali {
 namespace kernels {
@@ -39,8 +39,8 @@ class DLL_PUBLIC ReduceAllGPU {
 
   DLL_PUBLIC ~ReduceAllGPU() = default;
 
-  DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
-                                      const InListGPU<In, DynamicDimensions> &in) {
+  DLL_PUBLIC KernelRequirements Setup(KernelContext& context,
+                                      const InListGPU<In, DynamicDimensions>& in) {
     auto num_samples = in.size();
     ScratchpadEstimator se;
 
@@ -67,9 +67,8 @@ class DLL_PUBLIC ReduceAllGPU {
     return req;
   }
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutListGPU<Out, 0> &out,
-                      const InListGPU<In, DynamicDimensions> &in) {
+  DLL_PUBLIC void Run(KernelContext& context, const OutListGPU<Out, 0>& out,
+                      const InListGPU<In, DynamicDimensions>& in) {
     DALI_ENFORCE(out.is_contiguous(), "Reduce all kernel expects the output to be contiguous");
     auto* out_start = out[0].data;
 
@@ -84,10 +83,9 @@ class DLL_PUBLIC ReduceAllGPU {
     auto* sample_data_gpu = context.scratchpad->Allocate<const In*>(AllocType::GPU, num_samples);
     auto* sample_size_gpu = context.scratchpad->Allocate<int64_t>(AllocType::GPU, num_samples);
     // Single memcpy, since the data in the scratchpad is contiguous
-    CUDA_CALL(
-      cudaMemcpyAsync(sample_data_gpu, sample_data,
-                      num_samples * sizeof(const In*) + num_samples * sizeof(int64_t),
-                      cudaMemcpyHostToDevice, context.gpu.stream));
+    CUDA_CALL(cudaMemcpyAsync(sample_data_gpu, sample_data,
+                              num_samples * sizeof(const In*) + num_samples * sizeof(int64_t),
+                              cudaMemcpyHostToDevice, context.gpu.stream));
 
     auto* buffer_gpu = context.scratchpad->Allocate<Out>(AllocType::GPU, tmp_buffer_size_);
 

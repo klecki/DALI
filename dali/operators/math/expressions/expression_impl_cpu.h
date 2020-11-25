@@ -17,10 +17,10 @@
 
 #include <vector>
 
-#include "dali/pipeline/data/types.h"
 #include "dali/operators/math/expressions/arithmetic_meta.h"
 #include "dali/operators/math/expressions/expression_impl_factory.h"
 #include "dali/operators/math/expressions/expression_tree.h"
+#include "dali/pipeline/data/types.h"
 #include "dali/pipeline/operator/op_spec.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/workspace.h"
@@ -124,8 +124,8 @@ class ExprImplCpuTC : public ExprImplBase {
 
 // Ternary operators
 
-template <ArithmeticOp op, typename Result,
-          bool IsFirstTensor, bool IsSecondTensor, bool IsThirdTensor>
+template <ArithmeticOp op, typename Result, bool IsFirstTensor, bool IsSecondTensor,
+          bool IsThirdTensor>
 class ExprImplCpuTernary : public ExprImplBase {
  public:
   void Execute(ExprImplContext &ctx, const std::vector<ExtendedTileDesc> &tiles,
@@ -137,19 +137,16 @@ class ExprImplCpuTernary : public ExprImplBase {
     const void *first = tile.args[0];
     const void *second = tile.args[1];
     const void *third = tile.args[2];
-    Execute(output,
-            expression_detail::Pass<IsFirstTensor, Result>(first, tile.in_types[0]),
+    Execute(output, expression_detail::Pass<IsFirstTensor, Result>(first, tile.in_types[0]),
             expression_detail::Pass<IsSecondTensor, Result>(second, tile.in_types[1]),
             expression_detail::Pass<IsThirdTensor, Result>(third, tile.in_types[2]),
-            tile.in_types[0], tile.in_types[1], tile.in_types[2],
-            tile.desc.extent_size);
+            tile.in_types[0], tile.in_types[1], tile.in_types[2], tile.desc.extent_size);
   }
 
  private:
   using meta_t = arithm_meta<op, CPUBackend>;
 
-  static void Execute(Result *result,
-                      expression_detail::param_t<IsFirstTensor, Result> first,
+  static void Execute(Result *result, expression_detail::param_t<IsFirstTensor, Result> first,
                       expression_detail::param_t<IsSecondTensor, Result> second,
                       expression_detail::param_t<IsThirdTensor, Result> third,
                       DALIDataType first_type, DALIDataType second_type, DALIDataType third_type,

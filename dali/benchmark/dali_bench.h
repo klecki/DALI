@@ -54,15 +54,15 @@ class DALIBenchmark : public benchmark::Fixture {
     DALI_ENFORCE(nImgs > 0, "jpegs must be loaded to create batches");
     TensorListShape<> shape(n, 1);
     for (int i = 0; i < n; ++i) {
-      shape.set_tensor_shape(i, { jpegs_.sizes_[i % nImgs] });
+      shape.set_tensor_shape(i, {jpegs_.sizes_[i % nImgs]});
     }
 
     tl->template mutable_data<uint8>();
     tl->Resize(shape);
 
     for (int i = 0; i < n; ++i) {
-      std::memcpy(tl->template mutable_tensor<uint8>(i),
-          jpegs_.data_[i % nImgs], jpegs_.sizes_[i % nImgs]);
+      std::memcpy(tl->template mutable_tensor<uint8>(i), jpegs_.data_[i % nImgs],
+                  jpegs_.sizes_[i % nImgs]);
       tl->SetSourceInfo(i, jpeg_names_[i % nImgs] + "_" + std::to_string(i));
     }
   }

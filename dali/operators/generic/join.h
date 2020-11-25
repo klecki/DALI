@@ -18,10 +18,10 @@
 #include <string>
 #include <vector>
 #include "dali/core/any.h"
-#include "dali/pipeline/operator/operator.h"
-#include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/common/join/tensor_join_cpu.h"
 #include "dali/kernels/common/join/tensor_join_gpu.h"
+#include "dali/kernels/kernel_manager.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -33,15 +33,15 @@ class TensorJoin : public Operator<Backend> {
     has_axis_name_ = spec.HasArgument("axis_name");
     if (!new_axis) {
       DALI_ENFORCE(!(has_axis_ && has_axis_name_),
-        "Arguments ``axis`` and ``axis_name`` cannot be used together.");
+                   "Arguments ``axis`` and ``axis_name`` cannot be used together.");
     }
 
-    if (has_axis_)
-      axis_arg_ = spec.GetArgument<int>("axis");
+    if (has_axis_) axis_arg_ = spec.GetArgument<int>("axis");
     if (has_axis_name_) {
       auto axis_name_str = spec.GetArgument<std::string>("axis_name");
       DALI_ENFORCE(axis_name_str.length() == 1, make_string("``axis_name``"
-        " must be a single character; got ", axis_name_str));
+                                                            " must be a single character; got ",
+                                                            axis_name_str));
       axis_name_arg_ = axis_name_str[0];
     }
   }
@@ -50,7 +50,9 @@ class TensorJoin : public Operator<Backend> {
 
   using Operator<Backend>::Operator;
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
   void RunImpl(workspace_t<Backend> &ws) override;
   bool SetupImpl(vector<OutputDesc> &outputs, const workspace_t<Backend> &ws) override;
 
@@ -58,10 +60,9 @@ class TensorJoin : public Operator<Backend> {
   template <typename T>
   auto &inputs() {
     using RetType = vector<TensorListView<Storage, const T>>;
-    if (RetType *inp = any_cast<RetType>(&inputs_))
-      return *inp;
+    if (RetType *inp = any_cast<RetType>(&inputs_)) return *inp;
     inputs_ = RetType();
-    return any_cast<RetType&>(inputs_);
+    return any_cast<RetType &>(inputs_);
   }
 
   template <typename T>

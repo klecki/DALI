@@ -18,8 +18,8 @@
 #include <string>
 #include <vector>
 
-#include "dali/pipeline/operator/operator.h"
 #include "dali/core/tensor_view.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -51,12 +51,7 @@ class Reshape : public Operator<Backend> {
     return this->spec_.name();
   }
 
-  enum class ShapeSource {
-    None,
-    Input,
-    Arg,
-    ArgInput
-  };
+  enum class ShapeSource { None, Input, Arg, ArgInput };
 
   ShapeSource shape_source_ = ShapeSource::None;
   bool use_rel_shape_ = false;

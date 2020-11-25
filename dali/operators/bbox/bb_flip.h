@@ -53,8 +53,7 @@ class BbFlip<CPUBackend> : public Operator<CPUBackend> {
                             Tensor<CPUBackend> *tensor) {
     tensor->Resize({batch_size_});
     for (int i = 0; i < batch_size_; i++) {
-      tensor->mutable_data<TensorDataType>()[i] =
-          spec.GetArgument<TensorDataType>(argument_name);
+      tensor->mutable_data<TensorDataType>()[i] = spec.GetArgument<TensorDataType>(argument_name);
     }
   }
 

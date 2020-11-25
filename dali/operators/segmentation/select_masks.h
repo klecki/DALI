@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_SEGMENTATION_SELECT_MASKS_H_
 #define DALI_OPERATORS_SEGMENTATION_SELECT_MASKS_H_
 
-#include <vector>
 #include <unordered_map>
+#include <vector>
 #include "dali/core/common.h"
 #include "dali/core/span.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/operator/operator.h"
 
 namespace dali {
-
 
 class SelectMasksCPU : public Operator<CPUBackend> {
  public:

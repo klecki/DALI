@@ -19,15 +19,15 @@
 #include <string>
 #include <vector>
 #include "dali/core/static_switch.h"
+#include "dali/core/tensor_view.h"
+#include "dali/kernels/signal/downmixing.h"
+#include "dali/kernels/signal/resampling.h"
 #include "dali/operators/decoder/audio/audio_decoder.h"
 #include "dali/operators/decoder/audio/generic_decoder.h"
 #include "dali/pipeline/data/backend.h"
-#include "dali/pipeline/workspace/workspace.h"
 #include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/workspace/host_workspace.h"
-#include "dali/kernels/signal/resampling.h"
-#include "dali/kernels/signal/downmixing.h"
-#include "dali/core/tensor_view.h"
+#include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {
 
@@ -36,12 +36,12 @@ class AudioDecoderCpu : public Operator<CPUBackend> {
   using Backend = CPUBackend;
 
  public:
-  explicit inline AudioDecoderCpu(const OpSpec &spec) :
-          Operator<Backend>(spec),
-          output_type_(spec.GetArgument<DALIDataType>("dtype")),
-          downmix_(spec.GetArgument<bool>("downmix")),
-          use_resampling_(spec.HasArgument("sample_rate") || spec.HasTensorArgument("sample_rate")),
-          quality_(spec.GetArgument<float>("quality")) {
+  explicit inline AudioDecoderCpu(const OpSpec &spec)
+      : Operator<Backend>(spec),
+        output_type_(spec.GetArgument<DALIDataType>("dtype")),
+        downmix_(spec.GetArgument<bool>("downmix")),
+        use_resampling_(spec.HasArgument("sample_rate") || spec.HasTensorArgument("sample_rate")),
+        quality_(spec.GetArgument<float>("quality")) {
     if (use_resampling_) {
       double q = quality_;
       DALI_ENFORCE(q >= 0 && q <= 100, "Resampling quality must be in [0..100] range");
@@ -58,14 +58,12 @@ class AudioDecoderCpu : public Operator<CPUBackend> {
 
   void RunImpl(workspace_t<Backend> &ws) override;
 
-
   bool CanInferOutputs() const override {
     return true;
   }
 
-
  private:
-  template<typename OutputType>
+  template <typename OutputType>
   void DecodeSample(const TensorView<StorageCPU, OutputType, DynamicDimensions> &audio,
                     int thread_idx, int sample_idx);
 
@@ -74,8 +72,8 @@ class AudioDecoderCpu : public Operator<CPUBackend> {
 
   int64_t OutputLength(int64_t in_length, double in_rate, int sample_idx) const {
     if (use_resampling_) {
-      return kernels::signal::resampling::resampled_length(
-          in_length, in_rate, target_sample_rates_[sample_idx]);
+      return kernels::signal::resampling::resampled_length(in_length, in_rate,
+                                                           target_sample_rates_[sample_idx]);
     } else {
       return in_length;
     }

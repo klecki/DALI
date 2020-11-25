@@ -27,68 +27,62 @@ namespace dali {
 
 class DLL_PUBLIC ImageCacheBlob : public ImageCache {
  public:
-    DLL_PUBLIC ImageCacheBlob(std::size_t cache_size,
-                              std::size_t image_size_threshold,
-                              bool stats_enabled = false);
+  DLL_PUBLIC ImageCacheBlob(std::size_t cache_size, std::size_t image_size_threshold,
+                            bool stats_enabled = false);
 
-    ~ImageCacheBlob() override;
+  ~ImageCacheBlob() override;
 
-    DISABLE_COPY_MOVE_ASSIGN(ImageCacheBlob);
+  DISABLE_COPY_MOVE_ASSIGN(ImageCacheBlob);
 
-    bool IsCached(const ImageKey& image_key) const override;
+  bool IsCached(const ImageKey& image_key) const override;
 
-    bool Read(const ImageKey& image_key,
-              void* destination_data,
-              cudaStream_t stream) const override;
+  bool Read(const ImageKey& image_key, void* destination_data, cudaStream_t stream) const override;
 
-    const ImageShape& GetShape(const ImageKey& image_key) const override;
+  const ImageShape& GetShape(const ImageKey& image_key) const override;
 
-    void Add(const ImageKey& image_key,
-             const uint8_t *data,
-             const ImageShape& data_shape,
-             cudaStream_t stream) override;
+  void Add(const ImageKey& image_key, const uint8_t* data, const ImageShape& data_shape,
+           cudaStream_t stream) override;
 
-    DecodedImage Get(const ImageKey &image_key) const override;
+  DecodedImage Get(const ImageKey& image_key) const override;
 
-    void SyncToRead(cudaStream_t stream) const override;  // part of the API
+  void SyncToRead(cudaStream_t stream) const override;  // part of the API
 
  protected:
-    void SyncAfterWrite(cudaStream_t stream) const;       // internal impl only
+  void SyncAfterWrite(cudaStream_t stream) const;  // internal impl only
 
-    void print_stats() const;
+  void print_stats() const;
 
-    inline std::size_t images_seen() const {
-        return (total_seen_images_ == 0) ?
-            stats_.size() : total_seen_images_;
-    }
+  inline std::size_t images_seen() const {
+    return (total_seen_images_ == 0) ? stats_.size() : total_seen_images_;
+  }
 
-    inline std::size_t bytes_left() const {
-        DALI_ENFORCE(buffer_end_ >= tail_);
-        return static_cast<std::size_t>(buffer_end_ - tail_);
-    }
+  inline std::size_t bytes_left() const {
+    DALI_ENFORCE(buffer_end_ >= tail_);
+    return static_cast<std::size_t>(buffer_end_ - tail_);
+  }
 
-    std::size_t cache_size_ = 0;
-    std::size_t image_size_threshold_ = 0;
-    bool stats_enabled_ = false;
-    kernels::memory::KernelUniquePtr<uint8_t> buffer_;
-    uint8_t* buffer_end_ = nullptr;
-    uint8_t* tail_ = nullptr;
+  std::size_t cache_size_ = 0;
+  std::size_t image_size_threshold_ = 0;
+  bool stats_enabled_ = false;
+  kernels::memory::KernelUniquePtr<uint8_t> buffer_;
+  uint8_t* buffer_end_ = nullptr;
+  uint8_t* tail_ = nullptr;
 
-    std::unordered_map<ImageKey, DecodedImage> cache_;
-    mutable std::mutex mutex_;
+  std::unordered_map<ImageKey, DecodedImage> cache_;
+  mutable std::mutex mutex_;
 
-    struct Stats {
-        std::size_t decodes = 0;
-        std::size_t reads = 0;
-        bool is_cached = false;
-    };
-    mutable std::unordered_map<ImageKey, Stats> stats_;
-    bool is_full = false;
-    std::size_t total_seen_images_ = 0;
+  struct Stats {
+    std::size_t decodes = 0;
+    std::size_t reads = 0;
+    bool is_cached = false;
+  };
+  mutable std::unordered_map<ImageKey, Stats> stats_;
+  bool is_full = false;
+  std::size_t total_seen_images_ = 0;
 
-    cudaStream_t cache_stream_;
-    cudaEvent_t cache_read_event_;
-    cudaEvent_t cache_write_event_;
+  cudaStream_t cache_stream_;
+  cudaEvent_t cache_read_event_;
+  cudaEvent_t cache_write_event_;
 };
 
 }  // namespace dali

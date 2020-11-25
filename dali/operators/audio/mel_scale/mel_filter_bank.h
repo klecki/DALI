@@ -19,8 +19,8 @@
 #include <string>
 #include <vector>
 #include "dali/core/common.h"
-#include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/audio/mel_scale/mel_filter_bank_args.h"
+#include "dali/kernels/kernel_manager.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
 
@@ -35,8 +35,7 @@ static constexpr int kNumOutputs = 1;
 template <typename Backend>
 class MelFilterBank : public Operator<Backend> {
  public:
-  explicit MelFilterBank(const OpSpec &spec)
-      : Operator<Backend>(spec) {
+  explicit MelFilterBank(const OpSpec &spec) : Operator<Backend>(spec) {
     args_.nfilter = spec.GetArgument<int>("nfilter");
     DALI_ENFORCE(args_.nfilter > 0, "number of filters should be > 0");
 
@@ -47,10 +46,9 @@ class MelFilterBank : public Operator<Backend> {
     DALI_ENFORCE(args_.freq_low >= 0.0f, "freq_low should be >= 0");
 
     args_.freq_high = spec.GetArgument<float>("freq_high");
-    if (args_.freq_high <= 0.0f)
-      args_.freq_high = 0.5f * args_.sample_rate;
+    if (args_.freq_high <= 0.0f) args_.freq_high = 0.5f * args_.sample_rate;
     DALI_ENFORCE(args_.freq_high > args_.freq_low && args_.freq_high <= args_.sample_rate,
-      "freq_high should be within the range (freq_low, sample_rate/2]");
+                 "freq_high should be within the range (freq_low, sample_rate/2]");
 
     args_.mel_formula = kernels::audio::MelScaleFormula::Slaney;
     if (spec.HasArgument("mel_formula")) {
@@ -61,7 +59,7 @@ class MelFilterBank : public Operator<Backend> {
         args_.mel_formula = kernels::audio::MelScaleFormula::Slaney;
       } else {
         DALI_FAIL(make_string("Unsupported mel_formula value \"", mel_formula,
-          "\". Supported values are: \"slaney\", \"htk\""));
+                              "\". Supported values are: \"slaney\", \"htk\""));
       }
     }
 
@@ -69,7 +67,9 @@ class MelFilterBank : public Operator<Backend> {
   }
 
  protected:
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override;
   void RunImpl(workspace_t<Backend> &ws) override;
 

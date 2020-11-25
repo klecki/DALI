@@ -35,7 +35,7 @@ namespace dali {
  */
 class RandomCropAttr {
  public:
-  explicit inline RandomCropAttr(const OpSpec &spec) {
+  explicit inline RandomCropAttr(const OpSpec& spec) {
     int num_attempts = spec.GetArgument<int>("num_attempts");
 
     std::vector<float> aspect_ratio;
@@ -56,12 +56,10 @@ class RandomCropAttr {
     crop_window_generators_.resize(batch_size);
 
     for (int i = 0; i < batch_size; i++) {
-      std::shared_ptr<RandomCropGenerator> random_crop_generator(
-        new RandomCropGenerator(
+      std::shared_ptr<RandomCropGenerator> random_crop_generator(new RandomCropGenerator(
           {aspect_ratio[0], aspect_ratio[1]}, {area[0], area[1]}, seeds[i], num_attempts));
-      crop_window_generators_[i] = std::bind(
-        &RandomCropGenerator::GenerateCropWindow, random_crop_generator,
-        std::placeholders::_1);
+      crop_window_generators_[i] = std::bind(&RandomCropGenerator::GenerateCropWindow,
+                                             random_crop_generator, std::placeholders::_1);
     }
   }
 

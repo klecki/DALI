@@ -15,20 +15,19 @@
 #ifndef DALI_OPERATORS_READER_MXNET_READER_OP_H_
 #define DALI_OPERATORS_READER_MXNET_READER_OP_H_
 
-#include "dali/operators/reader/reader_op.h"
 #include "dali/operators/reader/loader/recordio_loader.h"
 #include "dali/operators/reader/parser/recordio_parser.h"
+#include "dali/operators/reader/reader_op.h"
 
 namespace dali {
 class MXNetReader : public DataReader<CPUBackend, Tensor<CPUBackend>> {
  public:
-  explicit MXNetReader(const OpSpec& spec)
-  : DataReader<CPUBackend, Tensor<CPUBackend>>(spec) {
+  explicit MXNetReader(const OpSpec& spec) : DataReader<CPUBackend, Tensor<CPUBackend>>(spec) {
     loader_ = InitLoader<RecordIOLoader>(spec);
     parser_.reset(new RecordIOParser(spec));
   }
 
-  void RunImpl(SampleWorkspace &ws) override {
+  void RunImpl(SampleWorkspace& ws) override {
     const auto& tensor = GetSample(ws.data_idx());
     ParseIfNeeded(tensor, &ws);
   }

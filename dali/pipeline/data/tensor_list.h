@@ -17,11 +17,11 @@
 
 #include <assert.h>
 #include <cstring>
-#include <string>
-#include <vector>
 #include <list>
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
@@ -53,8 +53,8 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     Resize(TensorListShape<>(batch_size));
   }
 
-  DLL_PUBLIC TensorList<Backend>(const TensorList<Backend>&) = delete;
-  DLL_PUBLIC TensorList<Backend>& operator=(const TensorList<Backend>&) = delete;
+  DLL_PUBLIC TensorList<Backend>(const TensorList<Backend> &) = delete;
+  DLL_PUBLIC TensorList<Backend> &operator=(const TensorList<Backend> &) = delete;
 
   DLL_PUBLIC TensorList<Backend>(TensorList<Backend> &&other) noexcept {
     // Steal all data and set input to default state
@@ -124,10 +124,11 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     int dim = other[0].shape().sample_dim();
     TensorListShape<> new_shape(other.size(), dim);
     for (size_t i = 0; i < other.size(); ++i) {
-      DALI_ENFORCE(other[i].shape().sample_dim() == dim,
-         "TensorList can only have uniform dimensions across all samples, mismatch at index "
-         + std::to_string(i) + " expected Tensor with dim = " + to_string(dim)
-         + " found Tensor with dim = " + to_string(other[i].shape().sample_dim()));
+      DALI_ENFORCE(
+          other[i].shape().sample_dim() == dim,
+          "TensorList can only have uniform dimensions across all samples, mismatch at index " +
+              std::to_string(i) + " expected Tensor with dim = " + to_string(dim) +
+              " found Tensor with dim = " + to_string(other[i].shape().sample_dim()));
       assert(type == other[i].type());
       assert(layout == other[i].GetLayout());
       new_shape.set_tensor_shape(i, other[i].shape());
@@ -140,9 +141,9 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     this->SetLayout(layout);
 
     auto nsamples = other.size();
-    SmallVector<const void*, 256> srcs;
+    SmallVector<const void *, 256> srcs;
     srcs.reserve(nsamples);
-    SmallVector<void*, 256> dsts;
+    SmallVector<void *, 256> dsts;
     dsts.reserve(nsamples);
     SmallVector<Index, 256> sizes;
     sizes.reserve(nsamples);
@@ -156,8 +157,8 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
 
     use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || other.is_pinned()) &&
                        (std::is_same<Backend, GPUBackend>::value || pinned_);
-    type.template Copy<SrcBackend, Backend>(dsts.data(), srcs.data(), sizes.data(),
-                                            nsamples, stream, use_copy_kernel);
+    type.template Copy<SrcBackend, Backend>(dsts.data(), srcs.data(), sizes.data(), nsamples,
+                                            stream, use_copy_kernel);
   }
 
   using Buffer<Backend>::reserve;
@@ -224,8 +225,9 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    */
   DLL_PUBLIC inline void ShareData(TensorList<Backend> *other) {
     DALI_ENFORCE(other != nullptr, "Input TensorList is nullptr");
-    DALI_ENFORCE(IsValidType(other->type_), "To share data, "
-        "the input TensorList must have a valid data type");
+    DALI_ENFORCE(IsValidType(other->type_),
+                 "To share data, "
+                 "the input TensorList must have a valid data type");
 
     // Save the calling TensorLists meta-data
     data_ = other->data_;
@@ -338,7 +340,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     tensor_views_.clear();
   }
 
-  DLL_PUBLIC inline TensorList<Backend>& operator=(TensorList<Backend> &&other) noexcept {
+  DLL_PUBLIC inline TensorList<Backend> &operator=(TensorList<Backend> &&other) noexcept {
     if (&other != this) {
       // Steal all data and set input to default state
       data_ = other.data_;
@@ -389,7 +391,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    * @brief Returns a typed pointer to the tensor with the given index.
    */
   template <typename T>
-  DLL_PUBLIC inline T* mutable_tensor(int idx) {
+  DLL_PUBLIC inline T *mutable_tensor(int idx) {
     return this->template mutable_data<T>() + tensor_offset(idx);
   }
 
@@ -397,26 +399,24 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    * @brief Returns a const typed pointer to the tensor with the given index.
    */
   template <typename T>
-  DLL_PUBLIC inline const T* tensor(int idx) const {
+  DLL_PUBLIC inline const T *tensor(int idx) const {
     return this->template data<T>() + tensor_offset(idx);
   }
 
   /**
    * @brief Returns a raw pointer to the tensor with the given index.
    */
-  DLL_PUBLIC inline void* raw_mutable_tensor(int idx) {
-    return static_cast<void*>(
-        static_cast<uint8*>(this->raw_mutable_data()) +
-        (tensor_offset(idx) * type_.size()));
+  DLL_PUBLIC inline void *raw_mutable_tensor(int idx) {
+    return static_cast<void *>(static_cast<uint8 *>(this->raw_mutable_data()) +
+                               (tensor_offset(idx) * type_.size()));
   }
 
   /**
    * @brief Returns a const raw pointer to the tensor with the given index.
    */
-  DLL_PUBLIC inline const void* raw_tensor(int idx) const {
-    return static_cast<const void*>(
-        static_cast<const uint8*>(this->raw_data()) +
-        (tensor_offset(idx) * type_.size()));
+  DLL_PUBLIC inline const void *raw_tensor(int idx) const {
+    return static_cast<const void *>(static_cast<const uint8 *>(this->raw_data()) +
+                                     (tensor_offset(idx) * type_.size()));
   }
 
   /**
@@ -524,7 +524,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    * @brief Returns a Tensor view with given shape or nullptr if no
    * such exists
    */
-  inline Tensor<Backend> * GetViewWithShape(const TensorShape<> &shape) {
+  inline Tensor<Backend> *GetViewWithShape(const TensorShape<> &shape) {
     for (auto &t : tensor_views_) {
       if (t.shape() == shape) {
         return &t;
@@ -539,7 +539,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    * Tensor list owns the memory. The tensor obtained through
    * this function stays valid for as long as TensorList data is unchanged.
    */
-  DLL_PUBLIC inline Tensor<Backend> * AsReshapedTensor(const TensorShape<> &new_shape) {
+  DLL_PUBLIC inline Tensor<Backend> *AsReshapedTensor(const TensorShape<> &new_shape) {
     auto t = GetViewWithShape(new_shape);
     if (t) {
       return t;
@@ -558,18 +558,18 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    * obtained through this function stays valid for as long
    * as TensorList data is unchanged.
    */
-  DLL_PUBLIC inline Tensor<Backend> * AsTensor() {
+  DLL_PUBLIC inline Tensor<Backend> *AsTensor() {
     // To prevent situation when AsReshapedTensor is called first with some shape, and then
     // AsTensor which return non-dense tensor after all
     // i.e. [[2], [3], [1]] is not dense but requesting [3, 2] AsReshapedTensor will work
     // while AsTensor should not return for that case
-    DALI_ENFORCE(this->IsDenseTensor(),
-      "All tensors in the input TensorList must have the same shape and be densely packed.");
+    DALI_ENFORCE(
+        this->IsDenseTensor(),
+        "All tensors in the input TensorList must have the same shape and be densely packed.");
     auto requested_shape = shape_cat(static_cast<int64_t>(this->ntensor()), shape_[0]);
 
     return this->AsReshapedTensor(requested_shape);
   }
-
 
   // So we can access the members of other TensorListes
   // with different template types
@@ -580,7 +580,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
     return meta_[idx].GetSourceInfo();
   }
 
-  inline void SetSourceInfo(int idx, const std::string& source_info) {
+  inline void SetSourceInfo(int idx, const std::string &source_info) {
     meta_[idx].SetSourceInfo(source_info);
   }
 
@@ -592,8 +592,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
   /** @brief Set uniform layout for all samples in the list */
   inline void SetLayout(const TensorLayout &layout) {
     layout_ = layout;
-    for (auto& meta : meta_)
-      meta.SetLayout(layout);
+    for (auto &meta : meta_) meta.SetLayout(layout);
   }
 
   inline void SetSkipSample(int idx, bool skip_sample) {

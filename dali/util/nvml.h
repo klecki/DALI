@@ -15,25 +15,24 @@
 #ifndef DALI_UTIL_NVML_H_
 #define DALI_UTIL_NVML_H_
 
-#include <nvml.h>
 #include <cuda_runtime_api.h>
+#include <nvml.h>
 #include <pthread.h>
 #include <sys/sysinfo.h>
 #include <mutex>
-#include <vector>
 #include <string>
-#include "dali/core/cuda_utils.h"
-#include "dali/util/nvml_wrap.h"
+#include <vector>
 #include "dali/core/cuda_error.h"
+#include "dali/core/cuda_utils.h"
 #include "dali/core/format.h"
+#include "dali/util/nvml_wrap.h"
 
 namespace dali {
 
 class NvmlError : public std::runtime_error {
  public:
   explicit NvmlError(nvmlReturn_t result, const char *details = nullptr)
-  : std::runtime_error(Message(result, details))
-  , result_(result) {}
+      : std::runtime_error(Message(result, details)), result_(result) {}
 
   static const char *ErrorString(nvmlReturn_t result) {
     switch (result) {
@@ -97,15 +96,15 @@ class NvmlError : public std::runtime_error {
 
   static std::string Message(nvmlReturn_t result, const char *details) {
     if (details && *details) {
-      return make_string("nvml error: ", result, " ", ErrorString(result),
-                         "\nDetails:\n", details);
+      return make_string("nvml error: ", result, " ", ErrorString(result), "\nDetails:\n", details);
     } else {
       return make_string("nvml error: ", result, " ", ErrorString(result));
     }
   }
 
-
-  nvmlReturn_t result() const { return result_; }
+  nvmlReturn_t result() const {
+    return result_;
+  }
 
  private:
   nvmlReturn_t result_;
@@ -116,12 +115,12 @@ class NvmlBadAlloc : public CUDABadAlloc {};
 template <>
 inline void cudaResultCheck<nvmlReturn_t>(nvmlReturn_t status) {
   switch (status) {
-  case NVML_SUCCESS:
-    return;
-  case NVML_ERROR_MEMORY:
-    throw dali::NvmlBadAlloc();
-  default:
-    throw dali::NvmlError(status);
+    case NVML_SUCCESS:
+      return;
+    case NVML_ERROR_MEMORY:
+      throw dali::NvmlBadAlloc();
+    default:
+      throw dali::NvmlError(status);
   }
 }
 
@@ -130,7 +129,7 @@ namespace nvml {
 /**
  * @brief Getter for the nvml mutex
  */
-inline std::mutex& Mutex() {
+inline std::mutex &Mutex() {
   static std::mutex mutex;
   return mutex;
 }
@@ -146,7 +145,7 @@ inline void Init() {
  * @brief Gets the CPU affinity mask using NVML,
  *        respecting previously set mask.
  */
-inline void GetNVMLAffinityMask(cpu_set_t * mask, size_t num_cpus) {
+inline void GetNVMLAffinityMask(cpu_set_t *mask, size_t num_cpus) {
   if (!nvmlIsInitialized()) {
     return;
   }
@@ -156,19 +155,19 @@ inline void GetNVMLAffinityMask(cpu_set_t * mask, size_t num_cpus) {
   // Get the ideal placement from NVML
   size_t cpu_set_size = (num_cpus + 63) / 64;
   std::vector<unsigned long> nvml_mask_container(cpu_set_size);  // NOLINT(runtime/int)
-  auto * nvml_mask = nvml_mask_container.data();
+  auto *nvml_mask = nvml_mask_container.data();
   nvmlDevice_t device;
   CUDA_CALL(nvmlDeviceGetHandleByIndex(device_idx, &device));
-  #if (CUDART_VERSION >= 11000)
-    if (nvmlHasCuda11NvmlFunctions()) {
-      CUDA_CALL(nvmlDeviceGetCpuAffinityWithinScope(device, cpu_set_size, nvml_mask,
-                                                        NVML_AFFINITY_SCOPE_SOCKET));
-    } else {
-      CUDA_CALL(nvmlDeviceGetCpuAffinity(device, cpu_set_size, nvml_mask));
-    }
-  #else
+#if (CUDART_VERSION >= 11000)
+  if (nvmlHasCuda11NvmlFunctions()) {
+    CUDA_CALL(nvmlDeviceGetCpuAffinityWithinScope(device, cpu_set_size, nvml_mask,
+                                                  NVML_AFFINITY_SCOPE_SOCKET));
+  } else {
     CUDA_CALL(nvmlDeviceGetCpuAffinity(device, cpu_set_size, nvml_mask));
-  #endif
+  }
+#else
+  CUDA_CALL(nvmlDeviceGetCpuAffinity(device, cpu_set_size, nvml_mask));
+#endif
 
   // Convert it to cpu_set_t
   cpu_set_t nvml_set;
@@ -180,7 +179,7 @@ inline void GetNVMLAffinityMask(cpu_set_t * mask, size_t num_cpus) {
     const unsigned long current_mask = 1ul << position;  // NOLINT(runtime/int)
     const bool cpu_is_set = (nvml_mask[index] & current_mask) != 0;
     if (cpu_is_set) {
-        CPU_SET(i, &nvml_set);
+      CPU_SET(i, &nvml_set);
     }
   }
 
@@ -205,8 +204,8 @@ inline void SetCPUAffinity(int core = -1) {
   CPU_ZERO(&requested_set);
   if (core != -1) {
     if (core < 0 || (size_t)core >= num_cpus) {
-      DALI_WARN(make_string("Requested setting affinity to core ", core,
-                            " but only ", num_cpus, " cores available. Ignoring..."));
+      DALI_WARN(make_string("Requested setting affinity to core ", core, " but only ", num_cpus,
+                            " cores available. Ignoring..."));
       GetNVMLAffinityMask(&requested_set, num_cpus);
     } else {
       CPU_SET(core, &requested_set);
@@ -221,9 +220,10 @@ inline void SetCPUAffinity(int core = -1) {
     at_least_one_cpu_set |= CPU_ISSET(i, &requested_set);
   }
   if (!at_least_one_cpu_set) {
-    DALI_WARN("CPU affinity requested by user or recommended by nvml setting"
-              " does not meet allowed affinity for given DALI thread."
-              " Use taskset tool to check allowed affinity");
+    DALI_WARN(
+        "CPU affinity requested by user or recommended by nvml setting"
+        " does not meet allowed affinity for given DALI thread."
+        " Use taskset tool to check allowed affinity");
     return;
   }
 
@@ -232,7 +232,6 @@ inline void SetCPUAffinity(int core = -1) {
     DALI_WARN("Setting affinity failed! Error code: " + to_string(error));
   }
 }
-
 
 inline void Shutdown() {
   std::lock_guard<std::mutex> lock(Mutex());

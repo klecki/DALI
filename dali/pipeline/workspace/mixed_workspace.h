@@ -15,9 +15,9 @@
 #ifndef DALI_PIPELINE_WORKSPACE_MIXED_WORKSPACE_H_
 #define DALI_PIPELINE_WORKSPACE_MIXED_WORKSPACE_H_
 
-#include <vector>
-#include <utility>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -45,7 +45,6 @@ class DLL_PUBLIC MixedWorkspace : public WorkspaceBase<MixedInputType, MixedOutp
   using WorkspaceBase<MixedInputType, MixedOutputType>::output_t;
   DLL_PUBLIC inline MixedWorkspace() : stream_(0), event_(nullptr) {}
   DLL_PUBLIC inline ~MixedWorkspace() override = default;
-
 
   /**
    * @brief Returns the number of Tensors in the input set of
@@ -87,7 +86,6 @@ class DLL_PUBLIC MixedWorkspace : public WorkspaceBase<MixedInputType, MixedOutp
     return has_stream_;
   }
 
-
   /**
    * @brief Sets the event for this workspace.
    */
@@ -99,7 +97,9 @@ class DLL_PUBLIC MixedWorkspace : public WorkspaceBase<MixedInputType, MixedOutp
   /**
    * @brief Returns true if 'set_event' has been called.
    */
-  DLL_PUBLIC inline bool has_event() const { return has_event_; }
+  DLL_PUBLIC inline bool has_event() const {
+    return has_event_;
+  }
 
   /**
    * @brief Returns the cuda event that signals this works completion.

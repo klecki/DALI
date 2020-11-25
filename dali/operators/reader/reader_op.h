@@ -20,9 +20,9 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
 
 #include "dali/core/nvtx.h"
 #include "dali/operators/reader/loader/loader.h"
@@ -64,14 +64,14 @@ class DataReader : public Operator<Backend> {
         producer_cycle_(false),
         device_id_(-1),
         samples_processed_(0) {
-          if (std::is_same<Backend, GPUBackend>::value) {
-            device_id_ = spec.GetArgument<int>("device_id");
-          }
-        }
+    if (std::is_same<Backend, GPUBackend>::value) {
+      device_id_ = spec.GetArgument<int>("device_id");
+    }
+  }
 
   ~DataReader() noexcept override {
     StopPrefetchThread();
-    for (auto &batch : prefetched_batch_queue_) {
+    for (auto& batch : prefetched_batch_queue_) {
       // make share_ptr do their job while loader is still alive
       // and RecycleTensor could be safelly executed
       batch.clear();
@@ -83,7 +83,7 @@ class DataReader : public Operator<Backend> {
     // We actually prepare the next batch
     DomainTimeRange tr("[DALI][DataReader] Prefetch #" + to_string(curr_batch_producer_),
                        DomainTimeRange::kRed);
-    auto &curr_batch = prefetched_batch_queue_[curr_batch_producer_];
+    auto& curr_batch = prefetched_batch_queue_[curr_batch_producer_];
     curr_batch.reserve(Operator<Backend>::batch_size_);
     curr_batch.clear();
     for (int i = 0; i < Operator<Backend>::batch_size_; ++i) {
@@ -126,12 +126,12 @@ class DataReader : public Operator<Backend> {
     }
   }
 
-  bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
+  bool SetupImpl(std::vector<OutputDesc>& output_desc, const workspace_t<Backend>& ws) override {
     return false;
   }
 
   // CPUBackend operators
-  void Run(HostWorkspace &ws) override {
+  void Run(HostWorkspace& ws) override {
     // If necessary start prefetching thread and wait for a consumable batch
     StartPrefetchThread();
     ConsumerWait();
@@ -149,32 +149,40 @@ class DataReader : public Operator<Backend> {
     ConsumerAdvanceQueue();
   }
 
-  void EnforceUniformOutput(const HostWorkspace &ws) const {
+  void EnforceUniformOutput(const HostWorkspace& ws) const {
     for (int out_idx = 0; out_idx < ws.NumOutput(); out_idx++) {
-      auto &out = ws.OutputRef<CPUBackend>(out_idx);
+      auto& out = ws.OutputRef<CPUBackend>(out_idx);
       int n = out.ntensor();
-      if (n < 2)
-        continue;
+      if (n < 2) continue;
       auto type0 = out[0].type().id();
       int ndim0 = out[0].shape().size();
       for (int i = 1; i < n; i++) {
         auto type = out[i].type().id();
-        DALI_ENFORCE(type == type0, make_string("Inconsistent data! "
-        "The data produced by the reader has inconsistent type:\n"
-        "type of outputs[", out_idx, "][", i, "] is ", type, " whereas\n"
-        "type of outputs[", out_idx, "][0] is ", type0));
+        DALI_ENFORCE(type == type0,
+                     make_string("Inconsistent data! "
+                                 "The data produced by the reader has inconsistent type:\n"
+                                 "type of outputs[",
+                                 out_idx, "][", i, "] is ", type,
+                                 " whereas\n"
+                                 "type of outputs[",
+                                 out_idx, "][0] is ", type0));
 
         int ndim = out[i].shape().size();
-        DALI_ENFORCE(ndim == ndim0, make_string("Inconsistent data! "
-        "The data produced by the reader has inconsistent dimensionality:\n"
-        "outputs[", out_idx, "][", i, "] has ", ndim, " dimensions whereas\n"
-        "outputs[", out_idx, "][0] has ", ndim0, " dimensions."));      }
+        DALI_ENFORCE(
+            ndim == ndim0,
+            make_string("Inconsistent data! "
+                        "The data produced by the reader has inconsistent dimensionality:\n"
+                        "outputs[",
+                        out_idx, "][", i, "] has ", ndim,
+                        " dimensions whereas\n"
+                        "outputs[",
+                        out_idx, "][0] has ", ndim0, " dimensions."));
+      }
     }
   }
 
-
   // GPUBackend operators
-  void Run(DeviceWorkspace &ws) override {
+  void Run(DeviceWorkspace& ws) override {
     // If necessary start prefetching thread and wait for a consumable batch
     StartPrefetchThread();
     ConsumerWait();
@@ -206,7 +214,7 @@ class DataReader : public Operator<Backend> {
   }
 
   LoadTargetPtr MoveSample(int sample_idx) {
-    auto &sample = prefetched_batch_queue_[curr_batch_consumer_][sample_idx];
+    auto& sample = prefetched_batch_queue_[curr_batch_consumer_][sample_idx];
     auto sample_ptr = std::move(sample);
     sample = {};
     return sample_ptr;
@@ -225,12 +233,11 @@ class DataReader : public Operator<Backend> {
     if (should_skip_sample) {
       std::lock_guard<std::mutex> lock(output_cache_mutex);
       auto it = output_cache.find(source_info);
-      DALI_ENFORCE(it != output_cache.end(),
-        "Image `" + source_info + "` should be in cache (cache size: "
-        + std::to_string(output_cache.size()) + ")");
+      DALI_ENFORCE(it != output_cache.end(), "Image `" + source_info +
+                                                 "` should be in cache (cache size: " +
+                                                 std::to_string(output_cache.size()) + ")");
       auto& cached_outputs = it->second;
-      DALI_ENFORCE(cached_outputs.size() == num_outputs,
-        "Unexpected number of outputs");
+      DALI_ENFORCE(cached_outputs.size() == num_outputs, "Unexpected number of outputs");
       for (std::size_t i = 0; i < cached_outputs.size(); i++) {
         auto& output = ws->Output<CPUBackend>(i);
         output.Copy(cached_outputs[i], 0);
@@ -267,8 +274,7 @@ class DataReader : public Operator<Backend> {
     {
       std::lock_guard<std::mutex> lock(prefetch_access_mutex_);
       finished_ = true;
-      if (error)
-        prefetch_error_ = error;
+      if (error) prefetch_error_ = error;
     }
     consumer_.notify_all();
   }
@@ -288,7 +294,7 @@ class DataReader : public Operator<Backend> {
 
   void ConsumerWait() {
     DomainTimeRange tr("[DALI][DataReader] ConsumerWait #" + to_string(curr_batch_consumer_),
-                 DomainTimeRange::kMagenta);
+                       DomainTimeRange::kMagenta);
     std::unique_lock<std::mutex> prefetch_lock(prefetch_access_mutex_);
     consumer_.wait(prefetch_lock, [this]() { return finished_ || !IsPrefetchQueueEmpty(); });
     if (prefetch_error_) std::rethrow_exception(prefetch_error_);
@@ -308,13 +314,11 @@ class DataReader : public Operator<Backend> {
   }
 
   bool IsPrefetchQueueEmpty() {
-    return curr_batch_producer_ == curr_batch_consumer_
-           && consumer_cycle_ == producer_cycle_;
+    return curr_batch_producer_ == curr_batch_consumer_ && consumer_cycle_ == producer_cycle_;
   }
 
   bool IsPrefetchQueueFull() {
-    return curr_batch_producer_ == curr_batch_consumer_
-           && consumer_cycle_ != producer_cycle_;
+    return curr_batch_producer_ == curr_batch_consumer_ && consumer_cycle_ != producer_cycle_;
   }
 
   std::thread prefetch_thread_;
@@ -362,10 +366,9 @@ class DataReader : public Operator<Backend> {
   using DataReader<Backend, LoadTarget, ParseTarget>::parser_;          \
   using DataReader<Backend, LoadTarget, ParseTarget>::prefetched_batch_queue_;
 
-#define USE_READER_OPERATOR_MEMBERS(Backend, ...) \
-  GET_MACRO(__VA_ARGS__,                          \
-            USE_READER_OPERATOR_MEMBERS_2,        \
-            USE_READER_OPERATOR_MEMBERS_1)(Backend, __VA_ARGS__)
+#define USE_READER_OPERATOR_MEMBERS(Backend, ...)                                      \
+  GET_MACRO(__VA_ARGS__, USE_READER_OPERATOR_MEMBERS_2, USE_READER_OPERATOR_MEMBERS_1) \
+  (Backend, __VA_ARGS__)
 
 };  // namespace dali
 

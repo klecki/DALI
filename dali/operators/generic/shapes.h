@@ -17,9 +17,9 @@
 
 #include <memory>
 #include <vector>
+#include "dali/core/static_switch.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/operator/operator.h"
-#include "dali/core/static_switch.h"
 
 namespace dali {
 
@@ -30,24 +30,27 @@ class Shapes : public Operator<Backend> {
   explicit Shapes(const OpSpec &spec) : Operator<Backend>(spec) {
     output_type_ = spec.GetArgument<DALIDataType>("dtype");
     switch (output_type_) {
-    case DALI_INT32:
-    case DALI_UINT32:
-    case DALI_INT64:
-    case DALI_UINT64:
-    case DALI_FLOAT:
-    case DALI_FLOAT64:
-      break;
-    default:
-      {
+      case DALI_INT32:
+      case DALI_UINT32:
+      case DALI_INT64:
+      case DALI_UINT64:
+      case DALI_FLOAT:
+      case DALI_FLOAT64:
+        break;
+      default: {
         auto &name = TypeTable::GetTypeInfo(output_type_).name();
-        DALI_FAIL("Operator Shapes can return the output as one of the following:\n"
-          "int32, uint32, int64, uint64, float or double;\n"
-          "requested: " + name);
+        DALI_FAIL(
+            "Operator Shapes can return the output as one of the following:\n"
+            "int32, uint32, int64, uint64, float or double;\n"
+            "requested: " +
+            name);
         break;
       }
     }
   }
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     output_desc.resize(1);
@@ -68,8 +71,7 @@ class Shapes : public Operator<Backend> {
     for (int i = 0; i < n; i++) {
       type *data = out.mutable_tensor<type>(i);
       auto sample_shape = shape.tensor_shape_span(i);
-      for (int j = 0; j < shape.sample_dim(); j++)
-        data[j] = sample_shape[j];
+      for (int j = 0; j < shape.sample_dim(); j++) data[j] = sample_shape[j];
     }
   }
 
@@ -80,8 +82,7 @@ class Shapes : public Operator<Backend> {
     for (int i = 0; i < n; i++) {
       type *data = out[i].mutable_data<type>();
       auto sample_shape = shape.tensor_shape_span(i);
-      for (int j = 0; j < shape.sample_dim(); j++)
-        data[j] = sample_shape[j];
+      for (int j = 0; j < shape.sample_dim(); j++) data[j] = sample_shape[j];
     }
   }
 
@@ -111,7 +112,7 @@ class Shapes : public Operator<Backend> {
   }
 
   static TensorListShape<1> ShapeShape(const TensorListShape<> &shape) {
-    return uniform_list_shape<1>(shape.num_samples(), { shape.sample_dim() });
+    return uniform_list_shape<1>(shape.num_samples(), {shape.sample_dim()});
   }
 
   static const TensorListShape<> &GetInputShape(const DeviceWorkspace &ws) {

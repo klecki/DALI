@@ -3,32 +3,28 @@
 #define DALI_TEST_DALI_TEST_RESIZE_H_
 
 #include <cmath>
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
-#include <string>
-#include <memory>
 #include "dali/test/dali_test_single_op.h"
 
 namespace dali {
 
-enum t_resizeOptions : uint32_t {
-  t_externSizes = 1,
-  t_cropping    = 2,
-  t_mirroring   = 4
-};
+enum t_resizeOptions : uint32_t { t_externSizes = 1, t_cropping = 2, t_mirroring = 4 };
 
 template <typename ImgType>
 class GenericResizeTest : public DALISingleOpTest<ImgType> {
  public:
-  vector<std::shared_ptr<TensorList<CPUBackend>>>
-  Reference(const vector<TensorList<CPUBackend>*> &inputs, DeviceWorkspace *ws) override {
+  vector<std::shared_ptr<TensorList<CPUBackend>>> Reference(
+      const vector<TensorList<CPUBackend> *> &inputs, DeviceWorkspace *ws) override {
     const int c = this->GetNumColorComp();
     auto cv_type = (c == 3) ? CV_8UC3 : CV_8UC1;
 
     // single input - encoded images
     // single output - decoded images
     TensorVector<CPUBackend> out(inputs[0]->ntensor());
-    const TensorList<CPUBackend>& image_data = *inputs[0];
+    const TensorList<CPUBackend> &image_data = *inputs[0];
 
     const uint32_t resizeOptions = getResizeOptions();
 
@@ -37,11 +33,10 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
     bool max_size_enforced = false;
     std::vector<float> max_size;
     const OpSpec &spec = this->GetOperationSpec();
-    const bool useExternSizes = (resizeOptions & t_externSizes) &&
-                                spec.GetArgument<bool>("save_attrs");
+    const bool useExternSizes =
+        (resizeOptions & t_externSizes) && spec.GetArgument<bool>("save_attrs");
     if (!useExternSizes) {
-      if (resizeOptions & t_externSizes)
-        assert(false);  // Can't handle these right now
+      if (resizeOptions & t_externSizes) assert(false);  // Can't handle these right now
 
       resize_a = spec.GetArgument<float>("resize_x");
       warp_resize = resize_a != 0;
@@ -103,7 +98,7 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
             if (resize_shorter) {
               rsz_h = resize_a;
               rsz_w = static_cast<int>(std::round(W * static_cast<float>(rsz_h) / H));
-               if (max_size_enforced) {
+              if (max_size_enforced) {
                 if (rsz_w > max_size[1]) {
                   const float ratio = static_cast<float>(H) / static_cast<float>(W);
                   rsz_h = static_cast<int>(std::round(ratio * max_size[1]));
@@ -118,7 +113,7 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
         }
       }
 
-      cv::Mat input(H, W, cv_type, const_cast<unsigned char*>(data));
+      cv::Mat input(H, W, cv_type, const_cast<unsigned char *>(data));
 
       // perform the resize
       cv::Mat rsz_img;
@@ -163,8 +158,7 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
         const int crop_offset = (crop_y * rsz_w + crop_x) * c;
         uint8 *crop_ptr = rsz_img.ptr() + crop_offset;
 
-        CUDA_CALL(cudaMemcpy2D(crop_img.ptr(), crop_w * c,
-                               crop_ptr, rsz_w * c, crop_w * c, crop_h,
+        CUDA_CALL(cudaMemcpy2D(crop_img.ptr(), crop_w * c, crop_ptr, rsz_w * c, crop_w * c, crop_h,
                                cudaMemcpyHostToHost));
       }
 
@@ -188,12 +182,18 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
   }
 
  protected:
-  virtual int getInterpType() const                 { return cv::INTER_LINEAR; }
-  virtual uint32_t getResizeOptions() const         { return t_cropping /*+ t_mirroring*/; }
-  int CurrentCheckTypeID() const {
-    return (this->GetTestCheckType() & t_checkElements) == t_checkElements? 1 : 0;
+  virtual int getInterpType() const {
+    return cv::INTER_LINEAR;
   }
-  virtual double *testEpsValues() const             { return nullptr; }
+  virtual uint32_t getResizeOptions() const {
+    return t_cropping /*+ t_mirroring*/;
+  }
+  int CurrentCheckTypeID() const {
+    return (this->GetTestCheckType() & t_checkElements) == t_checkElements ? 1 : 0;
+  }
+  virtual double *testEpsValues() const {
+    return nullptr;
+  }
   virtual double getEps(int testId) const {
     const int numCheckTypes = 2;
     return *(testEpsValues() + testId * numCheckTypes + this->CurrentCheckTypeID());

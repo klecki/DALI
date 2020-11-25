@@ -30,9 +30,7 @@ struct ImageRecordIOHeader {
 
 class RecordIOParser : public Parser<Tensor<CPUBackend>> {
  public:
-  explicit RecordIOParser(const OpSpec& spec) :
-    Parser<Tensor<CPUBackend>>(spec) {
-  }
+  explicit RecordIOParser(const OpSpec& spec) : Parser<Tensor<CPUBackend>>(spec) {}
 
   void Parse(const Tensor<CPUBackend>& data, SampleWorkspace* ws) override {
     auto& image = ws->Output<CPUBackend>(0);
@@ -56,9 +54,8 @@ class RecordIOParser : public Parser<Tensor<CPUBackend>> {
     *in += sizeof(T);
   }
 
-  inline void ReadSingleImageRecordIO(Tensor<CPUBackend>& o_image,
-                Tensor<CPUBackend>& o_label,
-                const uint8_t* input) {
+  inline void ReadSingleImageRecordIO(Tensor<CPUBackend>& o_image, Tensor<CPUBackend>& o_label,
+                                      const uint8_t* input) {
     uint32_t magic;
     const uint32_t kMagic = 0xced7230a;
     ReadSingle<uint32_t>(&input, &magic);
@@ -87,7 +84,7 @@ class RecordIOParser : public Parser<Tensor<CPUBackend>> {
       uint8_t* data = o_image.mutable_data<uint8_t>();
       memcpy(data, input + label_size, image_size);
       if (hdr.flag > 0) {
-        float * label = o_label.mutable_data<float>();
+        float* label = o_label.mutable_data<float>();
         memcpy(label, input, label_size);
       }
     } else {
@@ -119,7 +116,7 @@ class RecordIOParser : public Parser<Tensor<CPUBackend>> {
       uint8_t* data = o_image.mutable_data<uint8_t>();
       memcpy(data, (&temp_vec[0]) + label_size, temp_vec.size() - label_size);
       if (hdr.flag > 0) {
-        float * label = o_label.mutable_data<float>();
+        float* label = o_label.mutable_data<float>();
         memcpy(label, &temp_vec[0], label_size);
       }
     }

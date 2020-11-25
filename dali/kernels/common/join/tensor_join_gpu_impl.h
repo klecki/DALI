@@ -15,11 +15,11 @@
 #ifndef DALI_KERNELS_COMMON_JOIN_TENSOR_JOIN_GPU_IMPL_H_
 #define DALI_KERNELS_COMMON_JOIN_TENSOR_JOIN_GPU_IMPL_H_
 
-#include <memory>
 #include <functional>
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/common/type_erasure.h"
+#include <memory>
 #include "dali/kernels/common/join/tensor_join_shape.h"
+#include "dali/kernels/common/type_erasure.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -30,7 +30,7 @@ class DLL_PUBLIC TensorJoinImplGPU {
  public:
   static_assert(std::is_same<T, type_of_size<sizeof(T)>>::value,
                 "This class must be used with a type proudced by `type_of_size<size>`");
-  static_assert(sizeof(T) >= 1 && sizeof(T) <= 16 && (sizeof(T)&(sizeof(T)-1)) == 0,
+  static_assert(sizeof(T) >= 1 && sizeof(T) <= 16 && (sizeof(T) & (sizeof(T) - 1)) == 0,
                 "TensorJoin works only for types of size 1, 2, 4, 8 and 16 bytes.");
 
   /**
@@ -51,16 +51,14 @@ class DLL_PUBLIC TensorJoinImplGPU {
    * Respective tensors in the input must have the same shape (if new_axis == `true`) or can
    * differ at index `axis` (if new_axis == `false`).
    */
-  void Setup(TensorListShape<> &output_shape,
-             ScratchpadEstimator &se,
-             const std::function<const TensorListShape<> *(int)> &get_input_shape,
-             int num_inputs,
+  void Setup(TensorListShape<> &output_shape, ScratchpadEstimator &se,
+             const std::function<const TensorListShape<> *(int)> &get_input_shape, int num_inputs,
              int axis);
 
   void Run(KernelContext &ctx, const OutListGPU<T> &out, span<const InListGPU<T> *const> in_lists);
 
  private:
-  int axis_  = -1;
+  int axis_ = -1;
 };
 
 }  // namespace tensor_join

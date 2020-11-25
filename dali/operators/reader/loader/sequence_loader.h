@@ -92,8 +92,7 @@ class SequenceLoader : public Loader<CPUBackend, TensorSequence> {
         step_(spec.GetArgument<int32_t>("step")),
         stride_(spec.GetArgument<int32_t>("stride")),
         total_size_(0),
-        current_sequence_(0) {
-  }
+        current_sequence_(0) {}
 
   void PrepareEmpty(TensorSequence &tensor) override;
   void ReadSample(TensorSequence &tensor) override;
@@ -109,8 +108,8 @@ class SequenceLoader : public Loader<CPUBackend, TensorSequence> {
     DALI_ENFORCE(step_ > 0, "Step must be positive");
     DALI_ENFORCE(stride_ > 0, "Stride must be positive");
     if (!dont_use_mmap_) {
-      mmap_reserver = FileStream::FileStreamMappinReserver(
-                                  static_cast<unsigned int>(initial_buffer_fill_));
+      mmap_reserver =
+          FileStream::FileStreamMappinReserver(static_cast<unsigned int>(initial_buffer_fill_));
     }
     copy_read_data_ = dont_use_mmap_ || !mmap_reserver.CanShareMappedData();
     if (shuffle_) {

@@ -27,36 +27,30 @@ namespace testing {
 class TensorListWrapper {
  public:
   TensorListWrapper(const TensorList<CPUBackend> *tensor_list)  // NOLINT non-explicit ctor
-          : cpu_(tensor_list) {}
-
+      : cpu_(tensor_list) {}
 
   TensorListWrapper(const TensorList<GPUBackend> *tensor_list)  // NOLINT non-explicit ctor
-          : gpu_(tensor_list) {}
-
+      : gpu_(tensor_list) {}
 
   TensorListWrapper() = default;
 
-
-  template<typename Backend>
+  template <typename Backend>
   const TensorList<Backend> *get() const {
     FAIL() << "Backend type not supported. You may want to write your own specialization", nullptr;
   }
 
-  template<typename Backend>
+  template <typename Backend>
   constexpr bool has() const {
     FAIL() << "Backend type not supported. You may want to write your own specialization", false;
   }
-
 
   constexpr bool has_cpu() const noexcept {
     return cpu_ != nullptr;
   }
 
-
   constexpr bool has_gpu() const noexcept {
     return gpu_ != nullptr;
   }
-
 
   std::string backend() const noexcept {
     if (cpu_) {
@@ -68,14 +62,12 @@ class TensorListWrapper {
     }
   }
 
-
-  const TensorList<CPUBackend>& cpu() const noexcept {
+  const TensorList<CPUBackend> &cpu() const noexcept {
     ASSERT_TRUE(cpu_) << "This wrapper doesn't contain TensorList<CPUBackend>", *cpu_;
     return *cpu_;
   }
 
-
-  const TensorList<GPUBackend>& gpu() const noexcept {
+  const TensorList<GPUBackend> &gpu() const noexcept {
     ASSERT_TRUE(gpu_) << "This wrapper doesn't contain TensorList<GPUBackend>", *gpu_;
     return *gpu_;
   }
@@ -83,8 +75,8 @@ class TensorListWrapper {
   template <typename DestinationBackend>
   std::unique_ptr<TensorList<DestinationBackend>> CopyTo() const {
     std::unique_ptr<TensorList<DestinationBackend>> result(new TensorList<DestinationBackend>());
-    ASSERT_NE(has_cpu(), has_gpu())
-        << "Should contain TensorList from exactly one backend", nullptr;
+    ASSERT_NE(has_cpu(), has_gpu()) << "Should contain TensorList from exactly one backend",
+        nullptr;
     if (has_cpu()) {
       result->Copy(*cpu_, 0);
     } else {
@@ -98,21 +90,18 @@ class TensorListWrapper {
     return cpu_ || gpu_;
   }
 
-
  private:
   const TensorList<GPUBackend> *gpu_ = nullptr;
   const TensorList<CPUBackend> *cpu_ = nullptr;
 };
 
-
-template<>
+template <>
 inline const TensorList<CPUBackend> *TensorListWrapper::get() const {
   ASSERT_TRUE(cpu_) << "This wrapper doesn't contain TensorList<CPUBackend>", nullptr;
   return cpu_;
 }
 
-
-template<>
+template <>
 inline const TensorList<GPUBackend> *TensorListWrapper::get() const {
   ASSERT_TRUE(gpu_) << "This wrapper doesn't contain TensorList<GPUBackend>", nullptr;
   return gpu_;

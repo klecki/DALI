@@ -15,24 +15,24 @@
 #ifndef DALI_OPERATORS_READER_PARSER_CAFFE_PARSER_H_
 #define DALI_OPERATORS_READER_PARSER_CAFFE_PARSER_H_
 
-#include "dali/operators/reader/parser/parser.h"
 #include "dali/operators/reader/parser/caffe.pb.h"
+#include "dali/operators/reader/parser/parser.h"
 
 namespace dali {
 
 class CaffeParser : public Parser<Tensor<CPUBackend>> {
  public:
-  explicit CaffeParser(const OpSpec& spec) :
-    Parser(spec),
-    image_available_(spec.GetArgument<bool>("image_available")),
-    label_available_(spec.GetArgument<bool>("label_available")) {}
+  explicit CaffeParser(const OpSpec& spec)
+      : Parser(spec),
+        image_available_(spec.GetArgument<bool>("image_available")),
+        label_available_(spec.GetArgument<bool>("label_available")) {}
 
   void Parse(const Tensor<CPUBackend>& data, SampleWorkspace* ws) override {
     caffe::Datum datum;
     int out_tensors = 0;
     DALI_ENFORCE(datum.ParseFromArray(data.raw_data(), data.size()),
-      make_string("Error while parsing Caffe file: ", data.GetSourceInfo(),
-                  " (raw data length: ", data.size(), " bytes)."));
+                 make_string("Error while parsing Caffe file: ", data.GetSourceInfo(),
+                             " (raw data length: ", data.size(), " bytes)."));
 
     if (image_available_ && datum.has_data()) {
       bool encoded_data = true;
@@ -47,7 +47,7 @@ class CaffeParser : public Parser<Tensor<CPUBackend>> {
         image.Resize({datum.height(), datum.width(), datum.channels()});
       }
       std::memcpy(image.mutable_data<uint8_t>(), datum.data().data(),
-                  datum.data().size()*sizeof(uint8_t));
+                  datum.data().size() * sizeof(uint8_t));
       image.SetSourceInfo(data.GetSourceInfo());
       out_tensors++;
     }

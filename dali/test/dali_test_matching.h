@@ -32,19 +32,19 @@ class GenericMatchingTest : public DALISingleOpTest<ImgType, OutputImgType> {
 
     auto pipe = this->GetPipeline();
     // Decode the images
-    pipe->AddOperator(
-      OpSpec("ImageDecoder")
-        .AddArg("output_type", this->ImageType())
-        .AddInput("jpegs", "cpu")
-        .AddOutput("input", "cpu"), "ImageDecoder");
+    pipe->AddOperator(OpSpec("ImageDecoder")
+                          .AddArg("output_type", this->ImageType())
+                          .AddInput("jpegs", "cpu")
+                          .AddOutput("input", "cpu"),
+                      "ImageDecoder");
 
     // Launching the same transformation on CPU (outputIdx 0) and GPU (outputIdx 1)
     this->AddOperatorWithOutput(descr);
     this->RunOperator(descr);
   }
 
-  vector<std::shared_ptr<TensorList<CPUBackend>>>
-  Reference(const vector<TensorList<CPUBackend>*> &inputs, DeviceWorkspace *ws) override {
+  vector<std::shared_ptr<TensorList<CPUBackend>>> Reference(
+      const vector<TensorList<CPUBackend> *> &inputs, DeviceWorkspace *ws) override {
     if (GetOpType() == OpType::GPU)
       return this->CopyToHost(ws->Output<GPUBackend>(1));
     else
@@ -62,8 +62,8 @@ class GenericMatchingTest : public DALISingleOpTest<ImgType, OutputImgType> {
     RunTestImpl(finalDesc);
   }
 
-  void RunTest(const char *opName, const OpArg params[] = nullptr,
-                int nParam = 0, bool addImgType = false, double eps = 0.001) {
+  void RunTest(const char *opName, const OpArg params[] = nullptr, int nParam = 0,
+               bool addImgType = false, double eps = 0.001) {
     if (params && nParam > 0) {
       vector<OpArg> args(params, params + nParam);
       RunTestImpl(opDescr(opName, eps, addImgType, &args));
@@ -72,9 +72,12 @@ class GenericMatchingTest : public DALISingleOpTest<ImgType, OutputImgType> {
     }
   }
 
-  inline OpType GetOpType() const                { return op_type_; }
-  inline void SetOpType(OpType opType)        { op_type_ = opType; }
-
+  inline OpType GetOpType() const {
+    return op_type_;
+  }
+  inline void SetOpType(OpType opType) {
+    op_type_ = opType;
+  }
 
   OpType op_type_ = OpType::GPU;
 };

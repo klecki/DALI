@@ -32,17 +32,15 @@
 
 namespace dali {
 
-#define CONSTANT_STORAGE_ALLOWED_TYPES   \
-  (bool,                                 \
-  uint8_t, uint16_t, uint32_t, uint64_t, \
-  int8_t, int16_t, int32_t, int64_t,     \
-  float16, float, double)
+#define CONSTANT_STORAGE_ALLOWED_TYPES                                                             \
+  (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float16, float, \
+   double)
 
 /**
  * @brief Provide integral and floating point constants under `Backend` memory accessible by
  * a pointer.
- * Constructed by extracting the constants from spec arguments `integer_constants` and `real_constants`
- * based on list of constant_nodes
+ * Constructed by extracting the constants from spec arguments `integer_constants` and
+ * `real_constants` based on list of constant_nodes
  *
  * @tparam Backend
  */

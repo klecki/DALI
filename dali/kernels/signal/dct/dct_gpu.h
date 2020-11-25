@@ -15,18 +15,18 @@
 #ifndef DALI_KERNELS_SIGNAL_DCT_DCT_GPU_H_
 #define DALI_KERNELS_SIGNAL_DCT_DCT_GPU_H_
 
-#include <memory>
-#include <vector>
 #include <map>
+#include <memory>
 #include <utility>
+#include <vector>
 #include "dali/core/common.h"
+#include "dali/core/cuda_event.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
 #include "dali/core/util.h"
+#include "dali/kernels/common/block_setup.h"
 #include "dali/kernels/kernel.h"
 #include "dali/kernels/signal/dct/dct_args.h"
-#include "dali/kernels/common/block_setup.h"
-#include "dali/core/cuda_event.h"
 
 namespace dali {
 namespace kernels {
@@ -57,8 +57,8 @@ class BlockSetupInner {
 
   template <typename OutputType, typename InputType>
   size_t SharedMemSize(int64_t max_input_length, int64_t max_cos_table_size) {
-    return sizeof(InputType) * max_input_length * frames_per_block_
-           + sizeof(OutputType) * max_cos_table_size;
+    return sizeof(InputType) * max_input_length * frames_per_block_ +
+           sizeof(OutputType) * max_cos_table_size;
   }
 
  private:
@@ -77,7 +77,7 @@ class BlockSetupInner {
  *
  * @see DCTArgs
  */
-template <typename OutputType = float,  typename InputType = OutputType>
+template <typename OutputType = float, typename InputType = OutputType>
 class DLL_PUBLIC Dct1DGpu {
  public:
   struct SampleDesc {
@@ -102,30 +102,25 @@ class DLL_PUBLIC Dct1DGpu {
   }
 
  public:
-  static_assert(std::is_floating_point<InputType>::value,
-    "Data type should be floating point");
+  static_assert(std::is_floating_point<InputType>::value, "Data type should be floating point");
   static_assert(std::is_same<OutputType, InputType>::value,
-    "Data type conversion is not supported");
+                "Data type conversion is not supported");
 
-  DLL_PUBLIC Dct1DGpu(): buffer_events_{CUDAEvent::Create(), CUDAEvent::Create()} {};
+  DLL_PUBLIC Dct1DGpu() : buffer_events_{CUDAEvent::Create(), CUDAEvent::Create()} {};
 
-  DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
-                                      const InListGPU<InputType> &in,
+  DLL_PUBLIC KernelRequirements Setup(KernelContext &context, const InListGPU<InputType> &in,
                                       span<const DctArgs> args, int axis);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutListGPU<OutputType> &out,
-                      const InListGPU<InputType> &in,
-                      InTensorGPU<float, 1> lifter_coeffs);
+  DLL_PUBLIC void Run(KernelContext &context, const OutListGPU<OutputType> &out,
+                      const InListGPU<InputType> &in, InTensorGPU<float, 1> lifter_coeffs);
 
  private:
   void RunInnerDCT(KernelContext &context, int64_t max_input_length,
                    InTensorGPU<float, 1> lifter_coeffs);
 
-  void RunPlanarDCT(KernelContext &context, int max_ndct,
-                    InTensorGPU<float, 1> lifter_coeffs);
+  void RunPlanarDCT(KernelContext &context, int max_ndct, InTensorGPU<float, 1> lifter_coeffs);
 
-  std::map<std::pair<int, DctArgs>, OutputType*> cos_tables_{};
+  std::map<std::pair<int, DctArgs>, OutputType *> cos_tables_{};
   std::vector<DctArgs> args_{};
   BlockSetup<3, -1> block_setup_{};
   BlockSetupInner block_setup_inner_{};

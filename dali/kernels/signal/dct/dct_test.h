@@ -30,7 +30,7 @@ void ReferenceDctTypeI(span<T> out, span<const T> in, bool normalize, float lift
   double phase_mul = M_PI / (in_length - 1);
   for (int64_t k = 0; k < out_length; k++) {
     double sign = (k % 2 == 0) ? 1 : -1;
-    double out_val = 0.5 * (in[0] + sign * in[in_length-1]);
+    double out_val = 0.5 * (in[0] + sign * in[in_length - 1]);
     for (int64_t n = 1; n < in_length - 1; n++) {
       out_val += in[n] * std::cos(phase_mul * n * k);
     }
@@ -96,7 +96,6 @@ void ReferenceDctTypeIV(span<T> out, span<const T> in, bool normalize, float lif
     out[k] = out_val * coeff;
   }
 }
-
 
 template <typename T>
 void ReferenceDct(int dct_type, span<T> out, span<const T> in, bool normalize, float lifter = 0) {

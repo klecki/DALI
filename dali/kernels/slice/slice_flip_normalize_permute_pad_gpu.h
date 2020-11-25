@@ -49,8 +49,7 @@ class SliceFlipNormalizePermutePadGpu {
 
  public:
   using Args = SliceFlipNormalizePermutePadArgs<Dims>;
-  KernelRequirements Setup(KernelContext &context,
-                           const InListGPU<InputType, Dims> &in,
+  KernelRequirements Setup(KernelContext &context, const InListGPU<InputType, Dims> &in,
                            const std::vector<Args> &args) {
     KernelRequirements req;
     ScratchpadEstimator se;
@@ -79,7 +78,7 @@ class SliceFlipNormalizePermutePadGpu {
         if (norm_args_size_ != sample_args.mean.size() ||
             norm_args_size_ != sample_args.inv_stddev.size())
           throw std::invalid_argument(
-            "Normalization arguments should have the same size for all the samples");
+              "Normalization arguments should have the same size for all the samples");
         if (nfill_values_ != sample_args.fill_values.size())
           throw std::invalid_argument("Fill values should have the same size for all the samples");
         if (channel_dim_ != sample_args.channel_dim)
@@ -90,8 +89,8 @@ class SliceFlipNormalizePermutePadGpu {
     if (need_normalize_) {
       se.add<float>(AllocType::Host, num_samples * norm_args_size_);
       se.add<float>(AllocType::Host, num_samples * norm_args_size_);
-      se.add<float>(AllocType::GPU,  num_samples * norm_args_size_);
-      se.add<float>(AllocType::GPU,  num_samples * norm_args_size_);
+      se.add<float>(AllocType::GPU, num_samples * norm_args_size_);
+      se.add<float>(AllocType::GPU, num_samples * norm_args_size_);
     }
 
     assert(nfill_values_ > 0);
@@ -104,8 +103,7 @@ class SliceFlipNormalizePermutePadGpu {
     block_count_ = 0;
     for (auto &elem : args) {
       size_t sample_size = volume(elem.shape);
-      block_count_ += std::ceil(
-        sample_size / static_cast<float>(kBlockSize));
+      block_count_ += std::ceil(sample_size / static_cast<float>(kBlockSize));
     }
 
     se.add<detail::BlockDesc>(AllocType::Host, block_count_);
@@ -120,15 +118,13 @@ class SliceFlipNormalizePermutePadGpu {
       out_shape = permute(out_shape, args[i].permuted_dims);
       output_shapes.set_tensor_shape(i, out_shape);
     }
-    req.output_shapes = { output_shapes };
+    req.output_shapes = {output_shapes};
     return req;
   }
 
-  void Run(KernelContext &context,
-           const OutListGPU<OutputType, Dims> &out,
-           const InListGPU<InputType, Dims> &in,
-           const std::vector<Args> &args) {
-    (void) args;
+  void Run(KernelContext &context, const OutListGPU<OutputType, Dims> &out,
+           const InListGPU<InputType, Dims> &in, const std::vector<Args> &args) {
+    (void)args;
     const auto num_samples = in.size();
 
     float *norm_add_cpu = nullptr, *norm_mul_cpu = nullptr;
@@ -149,8 +145,7 @@ class SliceFlipNormalizePermutePadGpu {
       }
 
       std::tie(norm_add_gpu, norm_mul_gpu) = context.scratchpad->ToContiguousGPU(
-          context.gpu.stream,
-          make_span(norm_add_cpu, num_samples * norm_args_size_),
+          context.gpu.stream, make_span(norm_add_cpu, num_samples * norm_args_size_),
           make_span(norm_mul_cpu, num_samples * norm_args_size_));
     }
 
@@ -160,8 +155,7 @@ class SliceFlipNormalizePermutePadGpu {
     for (int i = 0; i < num_samples; i++) {
       auto *fill_values = fill_values_cpu + i * nfill_values_;
       auto &sample_args = processed_args_[i];
-      for (int d = 0; d < nfill_values_; d++)
-        fill_values[d] = sample_args.fill_values[d];
+      for (int d = 0; d < nfill_values_; d++) fill_values[d] = sample_args.fill_values[d];
     }
     OutputType *fill_values_gpu = context.scratchpad->ToGPU(
         context.gpu.stream, make_span(fill_values_cpu, num_samples * nfill_values_));
@@ -192,8 +186,7 @@ class SliceFlipNormalizePermutePadGpu {
                   processed_args.out_shape.data());
       need_pad |= sample_desc.need_pad;
       sample_desc.need_flip = false;
-      for (int d = 0; d < Dims; d++)
-        sample_desc.need_flip |= processed_args.in_strides[d] < 0;
+      for (int d = 0; d < Dims; d++) sample_desc.need_flip |= processed_args.in_strides[d] < 0;
       need_flip |= sample_desc.need_flip;
 
       // We fuse the last dimension with the previous IF:
@@ -213,8 +206,8 @@ class SliceFlipNormalizePermutePadGpu {
 
       if (last_dim < Dims - 1) {
         auto stride = sample_desc.in_strides[last_dim];  // same as out_strides[last_dim]
-        sample_desc.anchor[last_dim]    *= stride;
-        sample_desc.in_shape[last_dim]  *= stride;
+        sample_desc.anchor[last_dim] *= stride;
+        sample_desc.in_shape[last_dim] *= stride;
         sample_desc.out_shape[last_dim] *= stride;
       }
       sample_desc.effective_ndim = last_dim + 1;
@@ -235,8 +228,7 @@ class SliceFlipNormalizePermutePadGpu {
     detail::SampleDesc<Dims> *sample_descs_gpu = nullptr;
     detail::BlockDesc *block_descs_gpu = nullptr;
     std::tie(sample_descs_gpu, block_descs_gpu) = context.scratchpad->ToContiguousGPU(
-        context.gpu.stream,
-        make_span(sample_descs_cpu, num_samples),
+        context.gpu.stream, make_span(sample_descs_cpu, num_samples),
         make_span(block_descs_cpu, block_count_));
 
     VALUE_SWITCH(need_pad ? 1 : 0, NeedPad, (false, true), (

@@ -15,17 +15,16 @@
 #ifndef DALI_PIPELINE_UTIL_THREAD_POOL_H_
 #define DALI_PIPELINE_UTIL_THREAD_POOL_H_
 
-#include <cstdlib>
-#include <utility>
 #include <condition_variable>
+#include <cstdlib>
 #include <functional>
 #include <mutex>
 #include <queue>
-#include <thread>
-#include <vector>
 #include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 #include "dali/core/common.h"
-
 
 namespace dali {
 
@@ -80,7 +79,7 @@ class DLL_PUBLIC ThreadPool {
 
   using PrioritizedWork = std::pair<int64_t, Work>;
   struct SortByPriority {
-    bool operator() (const PrioritizedWork &a, const PrioritizedWork &b) {
+    bool operator()(const PrioritizedWork &a, const PrioritizedWork &b) {
       return a.first < b.first;
     }
   };

@@ -15,15 +15,14 @@
 #ifndef DALI_OPERATORS_SEQUENCE_OPTICAL_FLOW_TURING_OF_UTILS_H_
 #define DALI_OPERATORS_SEQUENCE_OPTICAL_FLOW_TURING_OF_UTILS_H_
 
-#define TURING_OF_API_CALL(nvOFAPI)                                                  \
-    do                                                                               \
-    {                                                                                \
-        NV_OF_STATUS errorCode = nvOFAPI;                                            \
-        if (errorCode != NV_OF_SUCCESS) {                                            \
-            std::ostringstream errorLog;                                             \
-            errorLog << #nvOFAPI << " returned error: " << errorCode << std::endl;   \
-            DALI_FAIL(errorLog.str());                                               \
-        }                                                                            \
-    } while (0)
+#define TURING_OF_API_CALL(nvOFAPI)                                          \
+  do {                                                                       \
+    NV_OF_STATUS errorCode = nvOFAPI;                                        \
+    if (errorCode != NV_OF_SUCCESS) {                                        \
+      std::ostringstream errorLog;                                           \
+      errorLog << #nvOFAPI << " returned error: " << errorCode << std::endl; \
+      DALI_FAIL(errorLog.str());                                             \
+    }                                                                        \
+  } while (0)
 
 #endif  // DALI_OPERATORS_SEQUENCE_OPTICAL_FLOW_TURING_OF_UTILS_H_

@@ -15,10 +15,10 @@
 #ifndef DALI_OPERATORS_DECODER_CACHE_IMAGE_CACHE_FACTORY_H_
 #define DALI_OPERATORS_DECODER_CACHE_IMAGE_CACHE_FACTORY_H_
 
-#include <memory>
-#include <string>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <string>
 #include "dali/operators/decoder/cache/image_cache.h"
 
 namespace dali {
@@ -37,12 +37,9 @@ class DLL_PUBLIC ImageCacheFactory {
    * Will fail if the cache was already allocated but with different
    * parameters
    */
-  DLL_PUBLIC std::shared_ptr<ImageCache> Get(
-    int device_id,
-    const std::string& cache_policy,
-    std::size_t cache_size,
-    bool cache_debug = false,
-    std::size_t cache_threshold = 0);
+  DLL_PUBLIC std::shared_ptr<ImageCache> Get(int device_id, const std::string& cache_policy,
+                                             std::size_t cache_size, bool cache_debug = false,
+                                             std::size_t cache_threshold = 0);
 
   /**
    * @brief Get the already allocated cache
@@ -67,10 +64,8 @@ class DLL_PUBLIC ImageCacheFactory {
     std::size_t cache_threshold;
 
     inline bool operator==(const CacheParams& oth) const {
-      return cache_policy == oth.cache_policy
-          && cache_size == oth.cache_size
-          && cache_debug == oth.cache_debug
-          && cache_threshold == oth.cache_threshold;
+      return cache_policy == oth.cache_policy && cache_size == oth.cache_size &&
+             cache_debug == oth.cache_debug && cache_threshold == oth.cache_threshold;
     }
   };
 

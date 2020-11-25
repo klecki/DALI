@@ -15,22 +15,22 @@
 #ifndef DALI_OPERATORS_IMAGE_RESIZE_RESIZE_MODE_H_
 #define DALI_OPERATORS_IMAGE_RESIZE_RESIZE_MODE_H_
 
-#include <string>
 #include <cstring>
 #include <iostream>
+#include <string>
 #include "dali/core/format.h"
 
 namespace dali {
 
 enum class ResizeMode {
-    /// Resize exactly to this size; missing extents are calculated to maintain aspect ratio
-    Default = 0,
-    /// Resize exactly to this size; missing extents keep input size
-    Stretch = 1,
-    /// Maintain aspect ratio; resized image is not larger than requested in any dimension
-    NotLarger = 2,
-    /// Maintain aspect ratio; resized image is not smaller than requested in any dimension
-    NotSmaller = 3,
+  /// Resize exactly to this size; missing extents are calculated to maintain aspect ratio
+  Default = 0,
+  /// Resize exactly to this size; missing extents keep input size
+  Stretch = 1,
+  /// Maintain aspect ratio; resized image is not larger than requested in any dimension
+  NotLarger = 2,
+  /// Maintain aspect ratio; resized image is not smaller than requested in any dimension
+  NotSmaller = 3,
 };
 
 inline ResizeMode ParseResizeMode(const char *mode) {

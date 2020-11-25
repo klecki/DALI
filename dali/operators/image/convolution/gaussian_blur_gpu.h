@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_IMAGE_CONVOLUTION_GAUSSIAN_BLUR_GPU_H_
 #define DALI_OPERATORS_IMAGE_CONVOLUTION_GAUSSIAN_BLUR_GPU_H_
 
@@ -66,7 +65,7 @@ class GaussianBlurOpGpu : public OpImplBase<GPUBackend> {
 
     params_.resize(nsamples);
     windows_.resize(nsamples);
-    for (auto &win_shape : window_shapes_) {
+    for (auto& win_shape : window_shapes_) {
       win_shape.resize(nsamples);
     }
 

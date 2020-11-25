@@ -30,18 +30,15 @@ namespace signal {
 template <typename T = float>
 class DLL_PUBLIC ToDecibelsGpu {
  public:
-  static_assert(std::is_floating_point<T>::value,
-    "Only floating point types are supported");
+  static_assert(std::is_floating_point<T>::value, "Only floating point types are supported");
 
   DLL_PUBLIC ~ToDecibelsGpu();
 
   DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
                                       const InListGPU<T, DynamicDimensions> &in);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutListGPU<T, DynamicDimensions> &out,
-                      const InListGPU<T, DynamicDimensions> &in,
-                      const ToDecibelsArgs<T> &args,
+  DLL_PUBLIC void Run(KernelContext &context, const OutListGPU<T, DynamicDimensions> &out,
+                      const InListGPU<T, DynamicDimensions> &in, const ToDecibelsArgs<T> &args,
                       InListGPU<T, 0> max_values = {});
 };
 

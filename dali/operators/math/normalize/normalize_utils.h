@@ -19,8 +19,8 @@
 #include <xmmintrin.h>
 #endif
 #include <algorithm>
-#include "dali/core/tensor_view.h"
 #include "dali/core/math_util.h"
+#include "dali/core/tensor_view.h"
 #include "dali/pipeline/data/tensor_list.h"
 
 namespace dali {
@@ -31,11 +31,9 @@ template <typename T>
 void SumArrays(T *const *arrays, int num_arrays, int64_t array_size) {
   if (num_arrays > 1) {
     int mid = num_arrays >> 1;
-    if (mid > 1)
-      SumArrays(arrays, mid, array_size);
+    if (mid > 1) SumArrays(arrays, mid, array_size);
 
-    if (num_arrays - mid > 1)
-      SumArrays(arrays + mid, num_arrays - mid, array_size);
+    if (num_arrays - mid > 1) SumArrays(arrays + mid, num_arrays - mid, array_size);
 
     T *a0 = arrays[0];
     const T *a1 = arrays[mid];
@@ -58,8 +56,7 @@ void SumArrays(T *const *arrays, int num_arrays, int64_t array_size) {
 template <typename T>
 void SumSamples(const TensorListView<StorageCPU, T> &tlv) {
   int n = tlv.num_samples();
-  if (!n)
-    return;  // empty list - nothing to do
+  if (!n) return;  // empty list - nothing to do
 
   assert(is_uniform(tlv.shape));
   auto v = volume(tlv.shape[0]);
@@ -71,13 +68,11 @@ inline int64_t ReducedVolume(const TensorListShape<> &shape, span<const int> axe
   for (int i = 0; i < shape.num_samples(); i++) {
     auto sample_shape = shape.tensor_shape_span(i);
     int64_t sample_v = 1;
-    for (auto a : axes)
-      sample_v *= sample_shape[a];
+    for (auto a : axes) sample_v *= sample_shape[a];
     v += sample_v;
   }
   return v;
 }
-
 
 template <typename T>
 void UniformFill(TensorList<CPUBackend> &tl, const T &value) {
@@ -100,8 +95,7 @@ void UniformFill(TensorList<CPUBackend> &tl, const T &value) {
  * @param scale   a multiplier, applied to the final result
  */
 static void CalcInvStdDev(const TensorListView<StorageCPU, float> &inv,
-                          const TensorListView<StorageCPU, const float> &stddev,
-                          float epsilon,
+                          const TensorListView<StorageCPU, const float> &stddev, float epsilon,
                           float scale) {
   assert(inv.shape == stddev.shape);
   for (int i = 0; i < inv.shape.num_samples(); i++) {
@@ -178,8 +172,7 @@ static void ScaleRSqrtKeepZero(float *data, int64_t n, float eps, float rdiv, fl
 #endif
 
   if (eps) {
-    for (; i < n; i++)
-      data[i] = rsqrt(data[i] * rdiv + eps) * mul;
+    for (; i < n; i++) data[i] = rsqrt(data[i] * rdiv + eps) * mul;
   } else {
     for (; i < n; i++) {
       float x = data[i] * rdiv;
@@ -188,16 +181,14 @@ static void ScaleRSqrtKeepZero(float *data, int64_t n, float eps, float rdiv, fl
   }
 }
 
-static void ScaleRSqrtKeepZero(const TensorView<StorageCPU, float> &inout,
-                               float eps, float rdiv, float mul) {
+static void ScaleRSqrtKeepZero(const TensorView<StorageCPU, float> &inout, float eps, float rdiv,
+                               float mul) {
   ScaleRSqrtKeepZero(inout.data, inout.num_elements(), eps, rdiv, mul);
 }
 
 static void SumSquare2InvStdDev(const TensorView<StorageCPU, float> &inout,
-                                const TensorShape<> &data_shape,
-                                int degrees_of_freedom,
-                                double epsilon,
-                                double scale) {
+                                const TensorShape<> &data_shape, int degrees_of_freedom,
+                                double epsilon, double scale) {
   if (inout.num_elements() == 0) {
     return;
   }
@@ -215,7 +206,6 @@ static void SumSquare2InvStdDev(const TensorView<StorageCPU, float> &inout,
   }
   ScaleRSqrtKeepZero(inout, static_cast<float>(epsilon), rdiv, scale);
 }
-
 
 }  // namespace normalize
 }  // namespace dali

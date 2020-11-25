@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <utility>
 #include <vector>
-#include "dali/core/tensor_view.h"
 #include "dali/core/span.h"
+#include "dali/core/tensor_view.h"
 
 namespace dali {
 
@@ -37,7 +37,9 @@ class SearchableRLEMask {
 
   struct is_positive {
     template <typename T>
-    bool operator()(const T &value) const { return value > 0; }
+    bool operator()(const T &value) const {
+      return value > 0;
+    }
   };
 
   void Clear() {
@@ -83,7 +85,8 @@ class SearchableRLEMask {
       return -1;
     }
     auto it = std::upper_bound(groups_.begin(), groups_.end(), ith,
-                               [](int64_t x, const Group &g) { return x < g.ith; }) - 1;
+                               [](int64_t x, const Group &g) { return x < g.ith; }) -
+              1;
     return it->start + (ith - it->ith);
   }
 
@@ -94,7 +97,7 @@ class SearchableRLEMask {
     return count_;
   }
 
-  /** 
+  /**
    * @brief returns the internal RLE representation of the mask
    */
   span<const Group> encoded() const {

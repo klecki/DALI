@@ -32,7 +32,7 @@ const int kNumOutputs = 1;
 
 }  // namespace detail
 
-template<typename Backend>
+template <typename Backend>
 class PreemphasisFilter : public Operator<Backend> {
  public:
   explicit PreemphasisFilter(const OpSpec &spec)

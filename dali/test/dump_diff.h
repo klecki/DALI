@@ -21,12 +21,10 @@
 namespace dali {
 namespace testing {
 
-inline void DumpDiff(const std::string &base_name,
-                     const cv::Mat &actual,
-                     const cv::Mat &reference,
+inline void DumpDiff(const std::string &base_name, const cv::Mat &actual, const cv::Mat &reference,
                      bool abs_diff = false) {
-  cv::imwrite(base_name+"_out.png", actual);
-  cv::imwrite(base_name+"_ref.png", reference);
+  cv::imwrite(base_name + "_out.png", actual);
+  cv::imwrite(base_name + "_ref.png", reference);
   cv::Mat diff;
   if (abs_diff) {
     cv::absdiff(actual, reference, diff);
@@ -37,7 +35,7 @@ inline void DumpDiff(const std::string &base_name,
     tmpA -= tmpR;
     tmpA.convertTo(diff, CV_8U, 1.0, 128);
   }
-  cv::imwrite(base_name+"_diff.png", diff);
+  cv::imwrite(base_name + "_diff.png", diff);
 }
 
 }  // namespace testing

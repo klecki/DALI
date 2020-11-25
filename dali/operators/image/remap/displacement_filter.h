@@ -27,27 +27,25 @@
 namespace dali {
 
 template <typename T, typename = int>
-struct HasParam : std::false_type { };
+struct HasParam : std::false_type {};
 
 template <typename T>
-struct HasParam <T, decltype((void) (typename T::Param()), 0)> : std::true_type {};
+struct HasParam<T, decltype((void)(typename T::Param()), 0)> : std::true_type {};
 
 class DisplacementIdentity {
  public:
   explicit DisplacementIdentity(const OpSpec& spec) {}
 
   DALI_HOST_DEV
-  ivec2 operator()(const int h, const int w, const int c,
-                   const int H, const int W, const int C) {
+  ivec2 operator()(const int h, const int w, const int c, const int H, const int W, const int C) {
     // identity
-    return { w, h };
+    return {w, h};
   }
 
   void Cleanup() {}
 };
 
-template <typename Backend,
-          class Displacement = DisplacementIdentity,
+template <typename Backend, class Displacement = DisplacementIdentity,
           bool per_channel_transform = false>
 class DisplacementFilter : public Operator<Backend> {};
 

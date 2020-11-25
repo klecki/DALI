@@ -32,13 +32,15 @@ namespace dali {
 class COCOReader : public DataReader<CPUBackend, ImageLabelWrapper> {
  public:
   explicit COCOReader(const OpSpec& spec);
-  void RunImpl(SampleWorkspace &ws) override;
+  void RunImpl(SampleWorkspace& ws) override;
 
  protected:
   USE_READER_OPERATOR_MEMBERS(CPUBackend, ImageLabelWrapper);
 
  private:
-  CocoLoader& LoaderImpl() { return dynamic_cast<CocoLoader&>(*loader_); }
+  CocoLoader& LoaderImpl() {
+    return dynamic_cast<CocoLoader&>(*loader_);
+  }
 
   bool output_polygon_masks_ = false;
   bool output_pixelwise_masks_ = false;

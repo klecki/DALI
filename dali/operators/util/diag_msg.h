@@ -19,8 +19,8 @@
 #include <sstream>
 #include <string>
 #include "dali/core/format.h"
-#include "dali/core/tensor_view.h"
 #include "dali/core/tensor_shape_print.h"
+#include "dali/core/tensor_view.h"
 
 namespace dali {
 
@@ -34,19 +34,16 @@ namespace dali {
  * If the shapes match, the function prints nothing.
  */
 template <int ndim>
-inline void PrintShapeMismatchMsg(
-    std::ostream &stream,
-    const TensorListShape<ndim> &a,
-    const TensorListShape<ndim> &b,
-    int print_max_samples = 4) {
+inline void PrintShapeMismatchMsg(std::ostream &stream, const TensorListShape<ndim> &a,
+                                  const TensorListShape<ndim> &b, int print_max_samples = 4) {
   if (a.sample_dim() != b.sample_dim()) {
     print(stream, "Sample dimensionality differs: ", a.sample_dim(), " vs ", b.sample_dim());
     return;
   }
 
   if (a.num_samples() != b.num_samples()) {
-    print(stream, "Number of samples in the lists differs: ",
-      a.num_samples(), " vs ", b.num_samples());
+    print(stream, "Number of samples in the lists differs: ", a.num_samples(), " vs ",
+          b.num_samples());
     return;
   }
 
@@ -64,10 +61,8 @@ inline void PrintShapeMismatchMsg(
 }
 
 template <int ndim>
-inline std::string ShapeMismatchMsg(
-    const TensorListShape<ndim> &a,
-    const TensorListShape<ndim> &b,
-    int print_max_samples = 4) {
+inline std::string ShapeMismatchMsg(const TensorListShape<ndim> &a, const TensorListShape<ndim> &b,
+                                    int print_max_samples = 4) {
   std::stringstream ss;
   PrintShapeMismatchMsg(ss, a, b, print_max_samples);
   return ss.str();

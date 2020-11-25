@@ -23,16 +23,13 @@ namespace dali {
 
 class nvJPEGDecoderSlice : public nvJPEGDecoder {
  public:
-  explicit nvJPEGDecoderSlice(const OpSpec& spec)
-    : nvJPEGDecoder(spec)
-    , slice_attr_(spec)
-  {}
+  explicit nvJPEGDecoderSlice(const OpSpec& spec) : nvJPEGDecoder(spec), slice_attr_(spec) {}
 
   DISABLE_COPY_MOVE_ASSIGN(nvJPEGDecoderSlice);
 
  protected:
   using OperatorBase::Run;
-  void Run(MixedWorkspace &ws) override {
+  void Run(MixedWorkspace& ws) override {
     slice_attr_.ProcessArguments<MixedBackend>(ws);
     nvJPEGDecoder::Run(ws);
   }

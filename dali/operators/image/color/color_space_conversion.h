@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_IMAGE_COLOR_COLOR_SPACE_CONVERSION_H_
 #define DALI_OPERATORS_IMAGE_COLOR_COLOR_SPACE_CONVERSION_H_
 
@@ -26,10 +25,9 @@ template <typename Backend>
 class ColorSpaceConversion : public Operator<Backend> {
  public:
   inline explicit ColorSpaceConversion(const OpSpec &spec)
-    : Operator<Backend>(spec)
-    , input_type_(spec.GetArgument<DALIImageType>("image_type"))
-    , output_type_(spec.GetArgument<DALIImageType>("output_type")) {
-  }
+      : Operator<Backend>(spec),
+        input_type_(spec.GetArgument<DALIImageType>("image_type")),
+        output_type_(spec.GetArgument<DALIImageType>("output_type")) {}
 
  protected:
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {

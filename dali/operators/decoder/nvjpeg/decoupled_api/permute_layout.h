@@ -25,8 +25,8 @@ namespace dali {
  * @param comp_size - volume of a single component
  * @param comp_count - number of components (channels)
  */
-void PermuteToInterleaved(uint8_t *output, const uint8_t *input,
-                          int64_t comp_size, int64_t comp_count, cudaStream_t stream);
+void PermuteToInterleaved(uint8_t *output, const uint8_t *input, int64_t comp_size,
+                          int64_t comp_count, cudaStream_t stream);
 
 }  // namespace dali
 

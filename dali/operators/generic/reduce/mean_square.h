@@ -15,29 +15,23 @@
 #ifndef DALI_OPERATORS_GENERIC_REDUCE_MEAN_SQUARE_H__
 #define DALI_OPERATORS_GENERIC_REDUCE_MEAN_SQUARE_H__
 
-#include "include/dali/core/static_map.h"
 #include "dali/operators/generic/reduce/reduce.h"
+#include "include/dali/core/static_map.h"
 
 /// Definition of mapping between input types and possible output types
 /// for MeanSquare operator. Is uesed as parameter to TYPE_MAP macro.
-#define MEAN_SQUARE_TYPES_MAP ( \
-    ((uint8_t), (uint64_t, float)), \
-    ((int8_t), (int64_t, float)), \
-    ((uint16_t), (uint64_t, float)), \
-    ((int16_t), (int64_t, float)), \
-    ((uint32_t), (uint64_t, float)), \
-    ((int32_t), (int64_t, float)), \
-    ((uint64_t), (uint64_t, float)), \
-    ((int64_t), (int64_t, float)), \
-    ((float), (float)))
+#define MEAN_SQUARE_TYPES_MAP                                                                     \
+  (((uint8_t), (uint64_t, float)), ((int8_t), (int64_t, float)), ((uint16_t), (uint64_t, float)), \
+   ((int16_t), (int64_t, float)), ((uint32_t), (uint64_t, float)), ((int32_t), (int64_t, float)), \
+   ((uint64_t), (uint64_t, float)), ((int64_t), (int64_t, float)), ((float), (float)))
 
 namespace dali {
 
 template <template <typename T, typename R> class ReductionType, typename Backend>
 class MeanSquareOp : public Reduce<ReductionType, Backend, MeanSquareOp> {
  public:
-  explicit inline MeanSquareOp(const OpSpec &spec) :
-    Reduce<ReductionType, Backend, MeanSquareOp>(spec) {}
+  explicit inline MeanSquareOp(const OpSpec &spec)
+      : Reduce<ReductionType, Backend, MeanSquareOp>(spec) {}
 
   DALIDataType OutputTypeImpl(DALIDataType input_type) const {
     if (this->output_type_ != DALI_NO_TYPE) {
@@ -48,20 +42,14 @@ class MeanSquareOp : public Reduce<ReductionType, Backend, MeanSquareOp> {
   }
 
   void RunImplImpl(workspace_t<Backend> &ws) {
-    auto& in = ws.template InputRef<Backend>(0);
+    auto &in = ws.template InputRef<Backend>(0);
     DALIDataType input_type = in.type().id();
     DALIDataType output_type = this->OutputType(input_type);
 
-    TYPE_MAP(
-      input_type,
-      output_type,
-      type2id,
-      InputType,
-      OutputType,
-      MEAN_SQUARE_TYPES_MAP,
-      (this->template RunTyped<OutputType, InputType>(ws);),
-      (DALI_FAIL(make_string("Unsupported input type: ", input_type));),
-      (DALI_FAIL(make_string("Unsupported types: ", input_type, ", ", output_type));))
+    TYPE_MAP(input_type, output_type, type2id, InputType, OutputType, MEAN_SQUARE_TYPES_MAP,
+             (this->template RunTyped<OutputType, InputType>(ws);),
+             (DALI_FAIL(make_string("Unsupported input type: ", input_type));),
+             (DALI_FAIL(make_string("Unsupported types: ", input_type, ", ", output_type));))
   }
 };
 

@@ -15,15 +15,15 @@
 #ifndef DALI_KERNELS_ERASE_ERASE_CPU_H_
 #define DALI_KERNELS_ERASE_ERASE_CPU_H_
 
-#include <vector>
 #include <utility>
+#include <vector>
 #include "dali/core/common.h"
 #include "dali/core/convert.h"
-#include "dali/core/format.h"
 #include "dali/core/error_handling.h"
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/erase/erase_args.h"
+#include "dali/core/format.h"
 #include "dali/kernels/common/utils.h"
+#include "dali/kernels/erase/erase_args.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -31,14 +31,14 @@ namespace kernels {
 namespace detail {
 
 template <typename O>
-inline std::enable_if_t<std::is_trivially_copyable<O>::value, void>
-CopyImpl(O *out, const O *in, size_t num) {
+inline std::enable_if_t<std::is_trivially_copyable<O>::value, void> CopyImpl(O *out, const O *in,
+                                                                             size_t num) {
   std::memcpy(out, in, num * sizeof(O));
 }
 
 template <typename O>
-inline std::enable_if_t<!std::is_trivially_copyable<O>::value, void>
-CopyImpl(O *out, const O *in, size_t num) {
+inline std::enable_if_t<!std::is_trivially_copyable<O>::value, void> CopyImpl(O *out, const O *in,
+                                                                              size_t num) {
   for (size_t i = 0; i < num; ++i) {
     *out = *in;
     ++in;
@@ -47,12 +47,8 @@ CopyImpl(O *out, const O *in, size_t num) {
 }
 
 template <typename T, int Dims>
-void EraseKernelImpl(T *data,
-                     const TensorShape<Dims> &strides,
-                     const TensorShape<Dims> &shape,
-                     const T* fill_values,
-                     int channels_dim,
-                     std::integral_constant<int, 1>) {
+void EraseKernelImpl(T *data, const TensorShape<Dims> &strides, const TensorShape<Dims> &shape,
+                     const T *fill_values, int channels_dim, std::integral_constant<int, 1>) {
   assert(fill_values != nullptr);
   for (int i = 0; i < shape[Dims - 1]; i++) {
     data[i] = *fill_values;
@@ -63,11 +59,8 @@ void EraseKernelImpl(T *data,
 }
 
 template <typename T, int Dims, int DimsLeft>
-void EraseKernelImpl(T *data,
-                     const TensorShape<Dims> &strides,
-                     const TensorShape<Dims> &shape,
-                     const T* fill_values,
-                     int channels_dim,
+void EraseKernelImpl(T *data, const TensorShape<Dims> &strides, const TensorShape<Dims> &shape,
+                     const T *fill_values, int channels_dim,
                      std::integral_constant<int, DimsLeft>) {
   constexpr auto d = Dims - DimsLeft;  // NOLINT
   for (int i = 0; i < shape[d]; i++) {
@@ -82,13 +75,9 @@ void EraseKernelImpl(T *data,
 
 }  // namespace detail
 
-
 template <typename T, int Dims>
-void EraseKernel(T *data,
-                 const TensorShape<Dims> &strides,
-                 const TensorShape<Dims> &anchor,
-                 const TensorShape<Dims> &shape,
-                 const T* fill_values = nullptr,
+void EraseKernel(T *data, const TensorShape<Dims> &strides, const TensorShape<Dims> &anchor,
+                 const TensorShape<Dims> &shape, const T *fill_values = nullptr,
                  int channels_dim = -1) {
   T default_fill_value = 0;
   if (fill_values == nullptr) {
@@ -108,17 +97,14 @@ void EraseKernel(T *data,
 template <typename T, int Dims>
 class EraseCpu {
  public:
-  KernelRequirements Setup(KernelContext &context,
-                           const InTensorCPU<T, Dims> &in,
+  KernelRequirements Setup(KernelContext &context, const InTensorCPU<T, Dims> &in,
                            const EraseArgs<T, Dims> &args) {
     KernelRequirements req;
     req.output_shapes.push_back(uniform_list_shape<Dims>(1, in.shape));
     return req;
   }
 
-  void Run(KernelContext &context,
-           OutTensorCPU<T, Dims> &out,
-           const InTensorCPU<T, Dims> &in,
+  void Run(KernelContext &context, OutTensorCPU<T, Dims> &out, const InTensorCPU<T, Dims> &in,
            const EraseArgs<T, Dims> &orig_args) {
     auto args = orig_args;
     DALI_ENFORCE(in.shape == out.shape);
@@ -154,17 +140,16 @@ class EraseCpu {
         assert(roi.anchor[d] + roi.shape[d] <= shape[d]);
       }
 
-      if (!valid_region)
-        continue;
+      if (!valid_region) continue;
 
-      const T* fill_values = roi.fill_values.empty() ? nullptr : roi.fill_values.data();
+      const T *fill_values = roi.fill_values.empty() ? nullptr : roi.fill_values.data();
       int channels_dim = -1;  // by default single-value
       int fill_values_size = roi.fill_values.size();
       if (fill_values_size > 1) {
         channels_dim = roi.channels_dim;
         DALI_ENFORCE(channels_dim >= 0 && channels_dim < Dims);
         DALI_ENFORCE(fill_values_size == in.shape[channels_dim],
-          "Multi-channel fill value does not match the number of channels in the input");
+                     "Multi-channel fill value does not match the number of channels in the input");
         fill_values = roi.fill_values.data();
       }
 
@@ -177,4 +162,3 @@ class EraseCpu {
 }  // namespace dali
 
 #endif  // DALI_KERNELS_ERASE_ERASE_CPU_H_
-

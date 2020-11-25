@@ -15,9 +15,9 @@
 #ifndef DALI_OPERATORS_DECODER_DECODER_TEST_H_
 #define DALI_OPERATORS_DECODER_DECODER_TEST_H_
 
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 #include "dali/test/dali_test_decoder.h"
 
 namespace dali {
@@ -39,14 +39,13 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
     return {};
   }
 
-  inline OpSpec GetOpSpec(const std::string& op_name,
-                          const std::string& device = "cpu") const {
+  inline OpSpec GetOpSpec(const std::string &op_name, const std::string &device = "cpu") const {
     const bool is_mixed = (device == "mixed");
     return OpSpec(op_name)
-      .AddArg("device", device)
-      .AddArg("output_type", this->img_type_)
-      .AddInput("encoded", is_mixed ? "cpu" : device)
-      .AddOutput("decoded", is_mixed ? "gpu" : device);
+        .AddArg("device", device)
+        .AddArg("output_type", this->img_type_)
+        .AddInput("encoded", is_mixed ? "cpu" : device)
+        .AddOutput("decoded", is_mixed ? "gpu" : device);
   }
 
   inline uint32_t GetTestCheckType() const override {
@@ -59,8 +58,7 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
   }
 
   vector<std::shared_ptr<TensorList<CPUBackend>>> Reference(
-    const vector<TensorList<CPUBackend> *> &inputs,
-    DeviceWorkspace *ws) override {
+      const vector<TensorList<CPUBackend> *> &inputs, DeviceWorkspace *ws) override {
     // single input - encoded images
     // single output - decoded images
     TensorVector<CPUBackend> out(inputs[0]->ntensor());
@@ -70,9 +68,7 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
     for (size_t i = 0; i < encoded_data.ntensor(); ++i) {
       auto *data = encoded_data.tensor<unsigned char>(i);
       auto data_size = volume(encoded_data.tensor_shape(i));
-      this->DecodeImage(
-        data, data_size, c, this->ImageType(),
-        &out[i], GetCropWindowGenerator(i));
+      this->DecodeImage(data, data_size, c, this->ImageType(), &out[i], GetCropWindowGenerator(i));
     }
 
     vector<std::shared_ptr<TensorList<CPUBackend>>> outputs;

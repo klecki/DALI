@@ -14,7 +14,7 @@ namespace dali {
 struct SingleParamOpDescr {
   SingleParamOpDescr() = default;
   SingleParamOpDescr(const char *name, OpArg &&arg, double eps = 0)  // NOLINT
-  : opName(name), opArg(std::move(arg)), epsVal(eps) {}
+      : opName(name), opArg(std::move(arg)), epsVal(eps) {}
   const char *opName = nullptr;
   OpArg opArg;
   double epsVal = 0;
@@ -69,7 +69,7 @@ class GenericBBoxesTest : public DALISingleOpTest<ImgType> {
     pipe->AddOperator(OpSpec("RandomBBoxCrop")
                           .AddArg("device", "cpu")
                           .AddArg("image_type", this->ImageType())
-                          .AddArg("bytes_per_sample_hint", vector<int>{ 8, 8, 256, 128 })
+                          .AddArg("bytes_per_sample_hint", vector<int>{8, 8, 256, 128})
                           .AddInput("boxes", "cpu")
                           .AddInput("labels", "cpu")
                           .AddOutput("begin", "cpu")
@@ -148,8 +148,7 @@ class GenericBBoxesTest : public DALISingleOpTest<ImgType> {
   }
 
   vector<std::shared_ptr<TensorList<CPUBackend>>> Reference(
-      const vector<TensorList<CPUBackend> *> &inputs,
-      DeviceWorkspace *ws) override {
+      const vector<TensorList<CPUBackend> *> &inputs, DeviceWorkspace *ws) override {
     auto &from = ws->Output<GPUBackend>(1);
     auto reference = this->CopyToHost(from);
     reference[0]->SetLayout(from.GetLayout());
@@ -157,12 +156,10 @@ class GenericBBoxesTest : public DALISingleOpTest<ImgType> {
   }
 
   uint32_t GetTestCheckType() const override {
-    return t_checkColorComp +
-           t_checkElements;  // + t_checkAll + t_checkNoAssert;
+    return t_checkColorComp + t_checkElements;  // + t_checkAll + t_checkNoAssert;
   }
 
-  void RunBBoxesCPU(const SingleParamOpDescr &paramOp, bool addImgType = false,
-                    bool ltrb = true) {
+  void RunBBoxesCPU(const SingleParamOpDescr &paramOp, bool addImgType = false, bool ltrb = true) {
     vector<OpArg> args;
     args.push_back(paramOp.opArg);
     opDescr finalDesc(paramOp.opName, paramOp.epsVal, addImgType, &args);

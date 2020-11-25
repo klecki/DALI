@@ -19,18 +19,16 @@
 
 namespace dali {
 
-template <typename T,
-  bool integral = std::is_integral<T>::value,
-  bool fp = std::is_floating_point<T>::value>
+template <typename T, bool integral = std::is_integral<T>::value,
+          bool fp = std::is_floating_point<T>::value>
 struct TypeTagBase;
 
 template <typename T>
 struct TypeTagBase<T, true, false>
- : std::integral_constant<int, sizeof(T) | (std::is_unsigned<T>::value << 8) > {};
+    : std::integral_constant<int, sizeof(T) | (std::is_unsigned<T>::value << 8)> {};
 
 template <typename T>
-struct TypeTagBase<T, false, true>
- : std::integral_constant<int, sizeof(T) | (1<<10) > {};
+struct TypeTagBase<T, false, true> : std::integral_constant<int, sizeof(T) | (1 << 10)> {};
 
 template <typename T>
 struct TypeTag : TypeTagBase<T> {};

@@ -38,24 +38,23 @@ inline std::string serialize_type(const float&) {
   return "float";
 }
 
-template<typename T>
-inline auto serialize_type(const T& t)
-  -> decltype(t.SerializeType()) {
+template <typename T>
+inline auto serialize_type(const T& t) -> decltype(t.SerializeType()) {
   return t.SerializeType();
 }
 
-#define SERIALIZE_ARGUMENT(type, field)                               \
-inline DaliProtoPriv * SerializeToProtobuf(const type& t, DaliProtoPriv *arg) {  \
-  arg->set_type(serialize_type(t));                                   \
-  arg->set_is_vector(false);                                          \
-  arg->add_##field(t);                                      \
-  return arg;                                                         \
-}
+#define SERIALIZE_ARGUMENT(type, field)                                          \
+  inline DaliProtoPriv* SerializeToProtobuf(const type& t, DaliProtoPriv* arg) { \
+    arg->set_type(serialize_type(t));                                            \
+    arg->set_is_vector(false);                                                   \
+    arg->add_##field(t);                                                         \
+    return arg;                                                                  \
+  }
 
-#define SERIALIZE_ARGUMENT_AS_INT64(type) \
-inline DaliProtoPriv * SerializeToProtobuf(const type& t, DaliProtoPriv *arg) { \
-  return dali::SerializeToProtobuf(static_cast<int64>(t), arg); \
-}
+#define SERIALIZE_ARGUMENT_AS_INT64(type)                                        \
+  inline DaliProtoPriv* SerializeToProtobuf(const type& t, DaliProtoPriv* arg) { \
+    return dali::SerializeToProtobuf(static_cast<int64>(t), arg);                \
+  }
 
 SERIALIZE_ARGUMENT(int64, ints);
 SERIALIZE_ARGUMENT(float, floats);
@@ -66,10 +65,10 @@ SERIALIZE_ARGUMENT_AS_INT64(int);
 SERIALIZE_ARGUMENT_AS_INT64(unsigned int);
 SERIALIZE_ARGUMENT_AS_INT64(uint64);
 
-template<typename T>
-inline auto SerializeToProtobuf(const T& t, DaliProtoPriv *arg)
-  -> decltype(t.SerializeToProtobuf(arg)) {
-    return t.SerializeToProtobuf(arg);
+template <typename T>
+inline auto SerializeToProtobuf(const T& t, DaliProtoPriv* arg)
+    -> decltype(t.SerializeToProtobuf(arg)) {
+  return t.SerializeToProtobuf(arg);
 }
 
 #undef SERIALIZE_ARGUMENT

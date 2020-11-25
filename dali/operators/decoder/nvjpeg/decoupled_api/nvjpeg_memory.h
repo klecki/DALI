@@ -17,8 +17,8 @@
 
 #include <nvjpeg.h>
 #include <thread>
-#include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg2k_helper.h"
 #include "dali/kernels/alloc_type.h"
+#include "dali/operators/decoder/nvjpeg/decoupled_api/nvjpeg2k_helper.h"
 
 namespace dali {
 
@@ -26,8 +26,8 @@ namespace nvjpeg_memory {
 
 /**
  * @brief Returns a buffer of at least the requested size, preferrably from the preallocated pool
- *        If no buffer that satisfies the requested arguments already exists in the pool, an allocation
- *        will take place
+ *        If no buffer that satisfies the requested arguments already exists in the pool, an
+ * allocation will take place
  */
 void* GetBuffer(std::thread::id thread_id, kernels::AllocType alloc_type, size_t size);
 

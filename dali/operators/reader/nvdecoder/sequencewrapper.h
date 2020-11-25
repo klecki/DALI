@@ -22,10 +22,10 @@
 
 #include "dali/core/common.h"
 #include "dali/core/cuda_event.h"
-#include "dali/core/static_switch.h"
 #include "dali/core/error_handling.h"
-#include "dali/pipeline/operator/argument.h"
+#include "dali/core/static_switch.h"
 #include "dali/pipeline/data/tensor.h"
+#include "dali/pipeline/operator/argument.h"
 #include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {

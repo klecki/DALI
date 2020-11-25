@@ -16,8 +16,8 @@
 #define DALI_OPERATORS_GENERIC_PERMUTE_BATCH_H_
 
 #include <vector>
-#include "dali/pipeline/operator/operator.h"
 #include "dali/kernels/common/scatter_gather.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -45,12 +45,13 @@ class PermuteBatchBase : public Operator<Backend> {
     out_shape.resize(indices_.size(), D);
     for (int i = 0; i < out_shape.num_samples(); i++) {
       auto out_ts = out_shape.tensor_shape_span(i);
-      DALI_ENFORCE(indices_[i] >= 0 && indices_[i] < in_shape.num_samples(), make_string(
-        "Sample index out of range. indices[", i, "] = ", indices_[i], " is not a valid index for "
-        "an input batch of ", in_shape.num_samples(), " tensors."));
+      DALI_ENFORCE(indices_[i] >= 0 && indices_[i] < in_shape.num_samples(),
+                   make_string("Sample index out of range. indices[", i, "] = ", indices_[i],
+                               " is not a valid index for "
+                               "an input batch of ",
+                               in_shape.num_samples(), " tensors."));
       auto in_ts = in_shape.tensor_shape_span(indices_[i]);
-      for (int d = 0; d < D; d++)
-        out_ts[d] = in_ts[d];
+      for (int d = 0; d < D; d++) out_ts[d] = in_ts[d];
     }
     return true;
   }
@@ -58,7 +59,6 @@ class PermuteBatchBase : public Operator<Backend> {
   bool CanInferOutputs() const override {
     return true;
   }
-
 
  protected:
   vector<int> indices_;
@@ -80,9 +80,7 @@ template <>
 class PermuteBatch<GPUBackend> : public PermuteBatchBase<GPUBackend> {
  public:
   explicit PermuteBatch(const OpSpec &spec)
-  : PermuteBatchBase<GPUBackend>(spec)
-  , sg_(1<<18, spec.GetArgument<int>("batch_size")) {}
-
+      : PermuteBatchBase<GPUBackend>(spec), sg_(1 << 18, spec.GetArgument<int>("batch_size")) {}
 
   void RunImpl(DeviceWorkspace &ws) override;
 

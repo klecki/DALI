@@ -18,9 +18,9 @@
 
 #include <memory>
 
+#include "dali/core/static_switch.h"
 #include "dali/operators/math/expressions/arithmetic_meta.h"
 #include "dali/operators/math/expressions/expression_impl_cpu.h"
-#include "dali/core/static_switch.h"
 
 namespace dali {
 
@@ -36,8 +36,7 @@ namespace dali {
  *                    @see ExprImplCpuT or ExprImplGpuT
  * @param expr The expression node for which we return the executor
  */
-template <ArithmeticOp op, typename Backend,
-          template <ArithmeticOp, typename...> class ImplTensor>
+template <ArithmeticOp op, typename Backend, template <ArithmeticOp, typename...> class ImplTensor>
 std::unique_ptr<ExprImplBase> ExprImplFactoryUnOp(const ExprFunc &expr) {
   std::unique_ptr<ExprImplBase> result;
   auto input_type = expr[0].GetTypeId();
@@ -104,7 +103,6 @@ std::unique_ptr<ExprImplBase> ExprImplFactoryBinOp(const ExprFunc &expr) {
   ), DALI_FAIL(make_string("Invalid type (left operarand): ", left_type)););  // NOLINT
   return result;
 }
-
 
 /**
  * @brief Inspect `expr` to transform runtime information to static information, obtain the
@@ -187,15 +185,15 @@ std::unique_ptr<ExprImplBase> ExprImplFactoryTernaryOp(const ExprFunc &expr) {
                                 ExprImplCpuCT>(expr);                                       \
   }
 
-#define IMPLEMENT_OP_FACTORY_CPU_TERNARY(OP)                                                  \
-  std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::OP, CPUBackend> op,       \
-                                          const ExprFunc &expr) {                             \
+#define IMPLEMENT_OP_FACTORY_CPU_TERNARY(OP)                                                 \
+  std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::OP, CPUBackend> op,      \
+                                          const ExprFunc &expr) {                            \
     return ExprImplFactoryTernaryOp<ArithmeticOp::OP, CPUBackend, ExprImplCpuTernary>(expr); \
   }
 
-#define IMPLEMENT_OP_FACTORY_GPU_TERNARY(OP)                                                  \
-  std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::OP, GPUBackend> op,       \
-                                          const ExprFunc &expr) {                             \
+#define IMPLEMENT_OP_FACTORY_GPU_TERNARY(OP)                                                 \
+  std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::OP, GPUBackend> op,      \
+                                          const ExprFunc &expr) {                            \
     return ExprImplFactoryTernaryOp<ArithmeticOp::OP, GPUBackend, ExprImplGpuTernary>(expr); \
   }
 
@@ -214,8 +212,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::plus, CPUBacke
  */
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::minus, CPUBackend>,
                                         const ExprFunc &expr);
-
-
 
 /**
  * @brief Factory function returning proper variant of implementation for `add`
@@ -273,7 +269,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::mod, CPUBacken
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::min, CPUBackend>,
                                         const ExprFunc &expr);
 
-
 /**
  * @brief Factory function returning proper variant of implementation for `max`
  *        on CPUBackend for supplied input types and input kinds (Scalar/Tensor inputs),
@@ -281,7 +276,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::min, CPUBacken
  */
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::max, CPUBackend>,
                                         const ExprFunc &expr);
-
 
 /**
  * @brief Factory function returning proper variant of implementation for `eq`
@@ -355,7 +349,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::bit_or, CPUBac
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::bit_xor, CPUBackend>,
                                         const ExprFunc &expr);
 
-
 /**
  * @brief Factory function returning proper variant of implementation for `clamp`
  *        on CPUBackend for supplied input types and input kinds (Scalar/Tensor inputs),
@@ -363,8 +356,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::bit_xor, CPUBa
  */
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::clamp, CPUBackend>,
                                         const ExprFunc &expr);
-
-
 
 /**
  * @brief Factory function returning proper variant of implementation for `plus`
@@ -381,8 +372,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::plus, GPUBacke
  */
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::minus, GPUBackend>,
                                         const ExprFunc &expr);
-
-
 
 /**
  * @brief Factory function returning proper variant of implementation for `add`
@@ -439,7 +428,6 @@ std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::mod, GPUBacken
  */
 std::unique_ptr<ExprImplBase> OpFactory(arithm_meta<ArithmeticOp::min, GPUBackend>,
                                         const ExprFunc &expr);
-
 
 /**
  * @brief Factory function returning proper variant of implementation for `max`

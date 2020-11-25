@@ -27,8 +27,7 @@ template <typename Backend>
 class CoordFlip : public Operator<Backend> {
  public:
   explicit CoordFlip(const OpSpec &spec)
-      : Operator<Backend>(spec)
-      , layout_(spec.GetArgument<TensorLayout>("layout")) {}
+      : Operator<Backend>(spec), layout_(spec.GetArgument<TensorLayout>("layout")) {}
 
   ~CoordFlip() override = default;
   DISABLE_COPY_MOVE_ASSIGN(CoordFlip);
@@ -50,7 +49,8 @@ class CoordFlip : public Operator<Backend> {
     DALI_ENFORCE(in_shape[0].size() == 2);
     ndim_ = in_shape[0][1];
     for (int i = 1; i < in_shape.size(); i++) {
-      DALI_ENFORCE(ndim_ == in_shape[i][1],
+      DALI_ENFORCE(
+          ndim_ == in_shape[i][1],
           make_string(
               "All samples are expected to have coordinates with same number of dimensions. Got : ",
               in_shape));

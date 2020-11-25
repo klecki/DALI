@@ -16,16 +16,16 @@
 #define DALI_OPERATORS_READER_NEMO_ASR_READER_OP_H_
 
 #include <fstream>
+#include <istream>
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <istream>
-#include <memory>
 
-#include "dali/operators/reader/reader_op.h"
 #include "dali/operators/reader/loader/nemo_asr_loader.h"
+#include "dali/operators/reader/reader_op.h"
 
 namespace dali {
 class NemoAsrReader : public DataReader<CPUBackend, AsrSample> {
@@ -35,7 +35,7 @@ class NemoAsrReader : public DataReader<CPUBackend, AsrSample> {
 
  protected:
   void Prefetch() override;
-  void RunImpl(SampleWorkspace &ws) override;
+  void RunImpl(SampleWorkspace& ws) override;
 
  private:
   Tensor<CPUBackend>& GetDecodedAudioSample(int sample_idx);

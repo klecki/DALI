@@ -15,39 +15,37 @@
 #ifndef DALI_OPERATORS_GENERIC_REDUCE_REDUCE_WITH_MEAN_INPUT_H__
 #define DALI_OPERATORS_GENERIC_REDUCE_REDUCE_WITH_MEAN_INPUT_H__
 
-#include <vector>
 #include <algorithm>
+#include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/operators/generic/reduce/reduce.h"
 #include "dali/kernels/kernel_manager.h"
-#include "dali/kernels/reduce/reductions.h"
 #include "dali/kernels/reduce/reduce_cpu.h"
 #include "dali/kernels/reduce/reduce_gpu.h"
 #include "dali/kernels/reduce/reduce_setup_utils.h"
+#include "dali/kernels/reduce/reductions.h"
+#include "dali/operators/generic/reduce/reduce.h"
+#include "dali/pipeline/operator/operator.h"
 
-#define REDUCE_WITH_MEAN_INPUT_TYPES ( \
-  uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float)
+#define REDUCE_WITH_MEAN_INPUT_TYPES \
+  (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float)
 
 namespace dali {
-template <
-  template <typename T, typename R, typename S> class ReductionType,
-  typename Backend>
+template <template <typename T, typename R, typename S> class ReductionType, typename Backend>
 class ReduceWithMeanInput : public Operator<Backend>, detail::AxesHelper {
  public:
-  explicit inline ReduceWithMeanInput(const OpSpec &spec) :
-    Operator<Backend>(spec),
-    AxesHelper(spec),
-    keep_dims_(spec.GetArgument<bool>("keep_dims")),
-    ddof_(spec.GetArgument<int>("ddof")) {
-  }
+  explicit inline ReduceWithMeanInput(const OpSpec &spec)
+      : Operator<Backend>(spec),
+        AxesHelper(spec),
+        keep_dims_(spec.GetArgument<bool>("keep_dims")),
+        ddof_(spec.GetArgument<int>("ddof")) {}
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
   inline ~ReduceWithMeanInput() override = default;
 
-  bool SetupImpl(
-    std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
+  bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     output_desc.resize(1);
     auto &input = ws.template InputRef<Backend>(0);
 
@@ -57,19 +55,15 @@ class ReduceWithMeanInput : public Operator<Backend>, detail::AxesHelper {
     PrepareAxes(input.GetLayout(), input.shape().sample_dim());
 
     TensorListShape<> output_shape;
-    kernels::reduce_impl::CalculateReducedShape(
-      output_shape,
-      input.shape(),
-      make_span(axes_),
-      keep_dims_,
-      false);
+    kernels::reduce_impl::CalculateReducedShape(output_shape, input.shape(), make_span(axes_),
+                                                keep_dims_, false);
     output_desc[0].shape = output_shape;
 
     return true;
   }
 
   void RunImpl(workspace_t<Backend> &ws) override {
-    auto& in = ws.template InputRef<Backend>(0);
+    auto &in = ws.template InputRef<Backend>(0);
     DALIDataType input_type = in.type().id();
     DALIDataType output_type = DALI_FLOAT;
 
@@ -84,10 +78,10 @@ class ReduceWithMeanInput : public Operator<Backend>, detail::AxesHelper {
 
   template <typename OutputType, typename InputType>
   void RunTyped(HostWorkspace &ws) {
-    auto& in = ws.InputRef<CPUBackend>(0);
+    auto &in = ws.InputRef<CPUBackend>(0);
     auto in_view = view<const InputType>(in);
 
-    auto& mean = ws.InputRef<CPUBackend>(1);
+    auto &mean = ws.InputRef<CPUBackend>(1);
     auto mean_view = view<const OutputType>(mean);
 
     auto &out = ws.OutputRef<CPUBackend>(0);
@@ -102,38 +96,32 @@ class ReduceWithMeanInput : public Operator<Backend>, detail::AxesHelper {
     for (int sample = 0; sample < in_view.num_samples(); sample++) {
       int64_t priority = volume(in_view.shape.tensor_shape_span(sample));
       thread_pool.AddWork(
-        [&, sample](int thread_id) {
-          auto in_sample_view = in_view[sample];
-          auto mean_sample_view = mean_view[sample];
-          auto out_sample_view = out_view[sample];
-          kernels::KernelContext ctx;
+          [&, sample](int thread_id) {
+            auto in_sample_view = in_view[sample];
+            auto mean_sample_view = mean_view[sample];
+            auto out_sample_view = out_view[sample];
+            kernels::KernelContext ctx;
 
-          kmgr_.Setup<Kernel>(
-            thread_id,
-            ctx,
-            out_sample_view,
-            in_sample_view,
-            make_cspan(axes_),
-            mean_sample_view,
-            ddof_);
-          if (!has_empty_axes_arg_) {
-            kmgr_.Run<Kernel>(thread_id, thread_id, ctx);
-          } else {
-            OutputType *data = out_sample_view.data;
-            std::fill(data, data + out_sample_view.num_elements(), 0);
-          }
-        },
-        priority);
+            kmgr_.Setup<Kernel>(thread_id, ctx, out_sample_view, in_sample_view, make_cspan(axes_),
+                                mean_sample_view, ddof_);
+            if (!has_empty_axes_arg_) {
+              kmgr_.Run<Kernel>(thread_id, thread_id, ctx);
+            } else {
+              OutputType *data = out_sample_view.data;
+              std::fill(data, data + out_sample_view.num_elements(), 0);
+            }
+          },
+          priority);
     }
     thread_pool.RunAll();
   }
 
   template <typename OutputType, typename InputType>
   void RunTyped(DeviceWorkspace &ws) {
-    auto& in = ws.InputRef<GPUBackend>(0);
+    auto &in = ws.InputRef<GPUBackend>(0);
     auto in_view = view<const InputType>(in);
 
-    auto& mean = ws.InputRef<GPUBackend>(1);
+    auto &mean = ws.InputRef<GPUBackend>(1);
     auto mean_view = view<const OutputType>(mean);
 
     auto &out = ws.OutputRef<GPUBackend>(0);
@@ -145,23 +133,15 @@ class ReduceWithMeanInput : public Operator<Backend>, detail::AxesHelper {
     kernels::KernelContext ctx;
     ctx.gpu.stream = ws.stream();
 
-    kmgr_.Setup<Kernel>(
-      0,
-      ctx,
-      in_view.shape,
-      make_cspan(axes_),
-      keep_dims_,
-      false);
+    kmgr_.Setup<Kernel>(0, ctx, in_view.shape, make_cspan(axes_), keep_dims_, false);
     if (!has_empty_axes_arg_) {
       kmgr_.Run<Kernel>(0, 0, ctx, out_view, in_view, mean_view, ddof_);
     } else {
       for (int i = 0; i < out_view.num_samples(); ++i) {
         auto out_sample_view = out_view[i];
-        CUDA_CALL(cudaMemsetAsync(
-          out_sample_view.data,
-          0,
-          out_sample_view.num_elements()*sizeof(OutputType),
-          ws.stream()));
+        CUDA_CALL(cudaMemsetAsync(out_sample_view.data, 0,
+                                  out_sample_view.num_elements() * sizeof(OutputType),
+                                  ws.stream()));
       }
     }
   }

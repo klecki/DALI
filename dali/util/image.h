@@ -36,13 +36,18 @@ namespace dali {
 
 class ImgSetDescr {
  public:
-  ~ImgSetDescr()                  { clear(); }
+  ~ImgSetDescr() {
+    clear();
+  }
   inline void clear() {
     for (auto &ptr : data_) delete[] ptr;
-    data_.clear(); sizes_.clear();
+    data_.clear();
+    sizes_.clear();
   }
 
-  inline size_t nImages() const   { return data_.size(); }
+  inline size_t nImages() const {
+    return data_.size();
+  }
 
   vector<uint8 *> data_;
   vector<int> sizes_;
@@ -61,7 +66,7 @@ DLL_PUBLIC void LoadImages(const vector<string> &image_names, ImgSetDescr *imgs)
  * If there is no image list, the folder is searched for files with the supported extensions
  * Unsupported extensions and empty files are discarded
  */
-DLL_PUBLIC std::vector<std::string> ImageList(const std::string& image_folder,
+DLL_PUBLIC std::vector<std::string> ImageList(const std::string &image_folder,
                                               const std::vector<std::string> &supported_extensions,
                                               const int max_images = INT_MAX);
 
@@ -69,31 +74,31 @@ DLL_PUBLIC std::vector<std::string> ImageList(const std::string& image_folder,
  * @brief Writes the input image as a ppm file
  */
 DLL_PUBLIC void WriteHWCImage(const uint8 *img, int h, int w, int c, const string &file_name);
-DLL_PUBLIC void WriteBatch(const TensorList<CPUBackend> &tl, const string &suffix,
-                           float bias = 0.f, float scale = 1.f);
+DLL_PUBLIC void WriteBatch(const TensorList<CPUBackend> &tl, const string &suffix, float bias = 0.f,
+                           float scale = 1.f);
 
 template <typename T>
-int outHWCImage(const vector<T> &tmp, int h, int w, int c,
-                int i, int j, int k, float bias, float scale) {
-  return static_cast<int>(static_cast<float>(tmp[i*w*c + j*c + k])*scale + bias);
+int outHWCImage(const vector<T> &tmp, int h, int w, int c, int i, int j, int k, float bias,
+                float scale) {
+  return static_cast<int>(static_cast<float>(tmp[i * w * c + j * c + k]) * scale + bias);
 }
 
 template <typename T>
-int outCHWImage(const vector<T> &tmp, int h, int w, int c,
-                int i, int j, int k, float bias, float scale) {
-  return static_cast<int>(tmp[k*h*w + i*w + j]*scale + bias);
+int outCHWImage(const vector<T> &tmp, int h, int w, int c, int i, int j, int k, float bias,
+                float scale) {
+  return static_cast<int>(tmp[k * h * w + i * w + j] * scale + bias);
 }
 
-typedef int (*outFunc)(const vector<uint8_t> &tmp, int h, int w, int c,
-                       int i, int j, int k, float bias, float scale);
+typedef int (*outFunc)(const vector<uint8_t> &tmp, int h, int w, int c, int i, int j, int k,
+                       float bias, float scale);
 
 /**
  * @brief Writes an image after applying a scale and bias to get
  * pixel values in the range 0-255
  */
 template <typename Backend, typename T>
-void WriteImageScaleBias(const T *img, int h, int w,
-    int c, float bias, float scale, const string &file_name, outFunc pFunc) {
+void WriteImageScaleBias(const T *img, int h, int w, int c, float bias, float scale,
+                         const string &file_name, outFunc pFunc) {
   DALI_ENFORCE(img != nullptr);
   DALI_ENFORCE(h >= 0);
   DALI_ENFORCE(w >= 0);
@@ -108,7 +113,7 @@ void WriteImageScaleBias(const T *img, int h, int w,
   std::ofstream file(file_name + ".ppm");
   DALI_ENFORCE(file.is_open());
 
-  file << (c == 3? "P3" : "P2") << endl;    // For color/grayscale images, respectively
+  file << (c == 3 ? "P3" : "P2") << endl;  // For color/grayscale images, respectively
   file << w << " " << h << endl;
   file << "255" << endl;
 
@@ -138,9 +143,8 @@ void WriteBatch(const TensorList<Backend> &tl, float bias, float scale, const st
     if (std::is_same<Backend, GPUBackend>::value) {
       CUDA_CALL(cudaDeviceSynchronize());
     }
-    WriteImageScaleBias<Backend, T>(tl.template tensor<T>(i),
-                        h, w, c, bias, scale,
-                        std::to_string(i) + "-" + suffix, pFunc);
+    WriteImageScaleBias<Backend, T>(tl.template tensor<T>(i), h, w, c, bias, scale,
+                                    std::to_string(i) + "-" + suffix, pFunc);
   }
 }
 

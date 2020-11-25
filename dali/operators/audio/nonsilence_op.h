@@ -32,7 +32,7 @@ namespace detail {
 
 const int kNumOutputs = 2;
 
-template<typename InputType>
+template <typename InputType>
 struct Args {
   TensorView<StorageCPU, const InputType, 1> input;
   float cutoff_db;
@@ -41,7 +41,6 @@ struct Args {
   int window_length;
   int reset_interval;
 };
-
 
 /**
  * If the buffer is not silent, add window length to the actual result,
@@ -53,8 +52,7 @@ void extend_nonsilent_range(std::pair<int, int> &thresholding_result, int window
   }
 }
 
-
-template<typename T, int ndims>
+template <typename T, int ndims>
 T max_element(const TensorView<StorageCPU, const T, ndims> &tv) {
   T max = tv.data[0];
   for (int i = 1; i < tv.num_elements(); i++) {
@@ -62,7 +60,6 @@ T max_element(const TensorView<StorageCPU, const T, ndims> &tv) {
   }
   return max;
 }
-
 
 /**
  * @brief Performs leading and trailing thresholding.
@@ -79,7 +76,7 @@ T max_element(const TensorView<StorageCPU, const T, ndims> &tv) {
  *
  * @return (begin_idx, length)
  */
-template<typename T>
+template <typename T>
 std::pair<int, int> LeadTrailThresh(span<const T> buffer, T cutoff) {
   assert(buffer.size() > 0);
   int end = buffer.size();
@@ -100,8 +97,7 @@ std::pair<int, int> LeadTrailThresh(span<const T> buffer, T cutoff) {
   return {begin, end - begin + 1};
 }
 
-
-template<typename InputType>
+template <typename InputType>
 void RunKernel(TensorView<StorageCPU, const InputType, 1> in, Tensor<CPUBackend> &out,
                const kernels::signal::MovingMeanSquareArgs &mms_args) {
   kernels::KernelContext kctx;
@@ -112,14 +108,13 @@ void RunKernel(TensorView<StorageCPU, const InputType, 1> in, Tensor<CPUBackend>
   mms.Run(kctx, tv.template to_static<1>(), in, mms_args);
 }
 
-
 /**
  * Performs nonsilent region detection for single sample
  * @return (begin_idx, length)
  */
-template<typename InputType>
-std::pair<int, int>
-DetectNonsilenceRegion(Tensor<CPUBackend> &intermediate_buffer, const Args<InputType> &args) {
+template <typename InputType>
+std::pair<int, int> DetectNonsilenceRegion(Tensor<CPUBackend> &intermediate_buffer,
+                                           const Args<InputType> &args) {
   RunKernel(args.input, intermediate_buffer, {args.window_length, args.reset_interval});
   auto signal_mms = view_as_tensor<const float>(intermediate_buffer);
   kernels::signal::DecibelToMagnitude<float> db2mag(
@@ -132,7 +127,7 @@ DetectNonsilenceRegion(Tensor<CPUBackend> &intermediate_buffer, const Args<Input
 
 }  // namespace detail
 
-template<typename Backend>
+template <typename Backend>
 class NonsilenceOperator : public Operator<Backend> {
  public:
   ~NonsilenceOperator() override = default;
@@ -140,14 +135,11 @@ class NonsilenceOperator : public Operator<Backend> {
   DISABLE_COPY_MOVE_ASSIGN(NonsilenceOperator);
 
  protected:
-  explicit NonsilenceOperator(const OpSpec &spec) :
-          Operator<Backend>(spec) {}
-
+  explicit NonsilenceOperator(const OpSpec &spec) : Operator<Backend>(spec) {}
 
   bool CanInferOutputs() const override {
     return true;
   }
-
 
   void AcquireArgs(const OpSpec &spec, const workspace_t<Backend> &ws) {
     this->GetPerSampleArgument(cutoff_db_, "cutoff_db", ws);
@@ -162,15 +154,14 @@ class NonsilenceOperator : public Operator<Backend> {
     window_length_ = spec.GetArgument<int>("window_length", &ws);
     auto input_type = ws.template InputRef<Backend>(0).type().id();
     // If input type is not floating point, there's no need for reset interval
-    reset_interval_ = IsFloatingPoint(input_type) ? spec.GetArgument<int>("reset_interval", &ws)
-                                                  : -1;
+    reset_interval_ =
+        IsFloatingPoint(input_type) ? spec.GetArgument<int>("reset_interval", &ws) : -1;
 
     DALI_ENFORCE(reset_interval_ == -1 || reset_interval_ % window_length_ == 0,
                  make_string("`reset_interval` shall be a multiple of `window_length`. "
-                             "Got: reset_interval: ", reset_interval_, " vs window_length: ",
-                             window_length_));
+                             "Got: reset_interval: ",
+                             reset_interval_, " vs window_length: ", window_length_));
   }
-
 
   std::vector<float> cutoff_db_;
   std::vector<float> reference_power_;
@@ -181,17 +172,14 @@ class NonsilenceOperator : public Operator<Backend> {
   USE_OPERATOR_MEMBERS();
 };
 
-
 class NonsilenceOperatorCpu : public NonsilenceOperator<CPUBackend> {
  public:
-  explicit NonsilenceOperatorCpu(const OpSpec &spec) :
-          NonsilenceOperator<CPUBackend>(spec) {
+  explicit NonsilenceOperatorCpu(const OpSpec &spec) : NonsilenceOperator<CPUBackend>(spec) {
     intermediate_buffers_.resize(num_threads_);
     for (auto &b : intermediate_buffers_) {
       b.set_pinned(false);
     }
   }
-
 
   ~NonsilenceOperatorCpu() override = default;
 
@@ -204,7 +192,7 @@ class NonsilenceOperatorCpu : public NonsilenceOperator<CPUBackend> {
   void RunImpl(workspace_t<CPUBackend> &ws) override;
 
  private:
-  template<typename InputType>
+  template <typename InputType>
   void RunImplTyped(workspace_t<CPUBackend> &ws) {
     const auto &input = ws.template InputRef<CPUBackend>(0);
     auto &output_begin = ws.OutputRef<CPUBackend>(0);
@@ -213,32 +201,32 @@ class NonsilenceOperatorCpu : public NonsilenceOperator<CPUBackend> {
     auto in_shape = input.shape();
     for (int sample_id = 0; sample_id < batch_size_; sample_id++) {
       tp.AddWork(
-              [&, sample_id](int thread_id) {
-                  detail::Args<InputType> args;
-                  args.input = view<const InputType, 1>(input[sample_id]);
-                  args.cutoff_db = cutoff_db_[sample_id];
-                  if (!reference_max_) {
-                    args.reference_power = reference_power_[sample_id];
-                  }
-                  args.reference_max = reference_max_;
-                  args.window_length = window_length_ < args.input.num_elements() ?
-                                                        window_length_ : args.input.num_elements();
-                  args.reset_interval = reset_interval_;
+          [&, sample_id](int thread_id) {
+            detail::Args<InputType> args;
+            args.input = view<const InputType, 1>(input[sample_id]);
+            args.cutoff_db = cutoff_db_[sample_id];
+            if (!reference_max_) {
+              args.reference_power = reference_power_[sample_id];
+            }
+            args.reference_max = reference_max_;
+            args.window_length = window_length_ < args.input.num_elements()
+                                     ? window_length_
+                                     : args.input.num_elements();
+            args.reset_interval = reset_interval_;
 
-                  auto res = DetectNonsilenceRegion(intermediate_buffers_[thread_id], args);
-                  auto beg_ptr = output_begin[sample_id].mutable_data<int>();
-                  auto len_ptr = output_length[sample_id].mutable_data<int>();
-                  *beg_ptr = res.first;
-                  *len_ptr = res.second;
-              }, in_shape.tensor_size(sample_id));
+            auto res = DetectNonsilenceRegion(intermediate_buffers_[thread_id], args);
+            auto beg_ptr = output_begin[sample_id].mutable_data<int>();
+            auto len_ptr = output_length[sample_id].mutable_data<int>();
+            *beg_ptr = res.first;
+            *len_ptr = res.second;
+          },
+          in_shape.tensor_size(sample_id));
     }
     tp.RunAll();
   }
 
-
   std::vector<Tensor<CPUBackend>> intermediate_buffers_;
 };
-
 
 }  // namespace dali
 

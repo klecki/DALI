@@ -17,10 +17,10 @@
 
 #include <cassert>
 #include <type_traits>
-#include "dali/core/static_switch.h"
 #include "dali/core/convert.h"
-#include "dali/kernels/imgproc/surface.h"
 #include "dali/core/geom/vec.h"
+#include "dali/core/static_switch.h"
+#include "dali/kernels/imgproc/surface.h"
 
 namespace dali {
 namespace kernels {
@@ -29,8 +29,8 @@ struct FilterWindow;
 struct ResamplingFilter;
 
 DLL_PUBLIC
-void InitializeResamplingFilter(int32_t *out_indices, float *out_coeffs, int out_size,
-                                float srcx0, float scale, const ResamplingFilter &filter);
+void InitializeResamplingFilter(int32_t *out_indices, float *out_coeffs, int out_size, float srcx0,
+                                float scale, const ResamplingFilter &filter);
 
 /**
  * @brief Calculates a single pixel for horizontal resampling
@@ -59,27 +59,30 @@ void ResampleCol(Out *out, const In *in, int x, int w, const int32_t *in_columns
       float sum = 0;
       for (int k = 0; k < support; k++) {
         int srcx = x0 + k;
-        if (clamp_left) if (srcx < 0) srcx = 0;
-        if (clamp_right) if (srcx > w-1) srcx = w-1;
+        if (clamp_left)
+          if (srcx < 0) srcx = 0;
+        if (clamp_right)
+          if (srcx > w - 1) srcx = w - 1;
         sum += coeffs[k0 + k] * in[srcx * channels + c];
       }
       out[channels * x + c] = ConvertSat<Out>(sum);
     }
   } else {
     // we know how many channels we have at compile time - inner loop over channels
-    float tmp[static_channels > 0 ? static_channels : 1] = { 0 };  // NOLINT
+    float tmp[static_channels > 0 ? static_channels : 1] = {0};  // NOLINT
 
     for (int k = 0; k < support; k++) {
       int srcx = x0 + k;
-      if (clamp_left) if (srcx < 0) srcx = 0;
-      if (clamp_right) if (srcx > w-1) srcx = w-1;
+      if (clamp_left)
+        if (srcx < 0) srcx = 0;
+      if (clamp_right)
+        if (srcx > w - 1) srcx = w - 1;
       for (int c = 0; c < channels; c++) {
         tmp[c] += coeffs[k0 + k] * in[srcx * channels + c];
       }
     }
 
-    for (int c = 0; c < channels; c++)
-      out[channels * x + c] = ConvertSat<Out>(tmp[c]);
+    for (int c = 0; c < channels; c++) out[channels * x + c] = ConvertSat<Out>(tmp[c]);
   }
 }
 
@@ -99,21 +102,17 @@ void ResampleCol(Out *out, const In *in, int x, int w, const int32_t *in_columns
  *
  * @return true, if the resampling is flipped (right to left) or false otherwise
  */
-inline bool GetFirstAndLastRegularCol(int &first_regular_col,
-                                      int &last_regular_col,
-                                      int out_width, int in_width, const int *in_col_idxs,
-                                      int support) {
-  bool flipped = in_col_idxs[out_width-1] < in_col_idxs[0];
+inline bool GetFirstAndLastRegularCol(int &first_regular_col, int &last_regular_col, int out_width,
+                                      int in_width, const int *in_col_idxs, int support) {
+  bool flipped = in_col_idxs[out_width - 1] < in_col_idxs[0];
   first_regular_col = 0;
   last_regular_col = out_width - 1;
   if (flipped) {
     while (first_regular_col < out_width && in_col_idxs[first_regular_col] + support > in_width)
       first_regular_col++;
-    while (last_regular_col >= 0 && in_col_idxs[last_regular_col] < 0)
-      last_regular_col--;
+    while (last_regular_col >= 0 && in_col_idxs[last_regular_col] < 0) last_regular_col--;
   } else {
-    while (first_regular_col < out_width && in_col_idxs[first_regular_col] < 0)
-      first_regular_col++;
+    while (first_regular_col < out_width && in_col_idxs[first_regular_col] < 0) first_regular_col++;
     while (last_regular_col >= 0 && in_col_idxs[last_regular_col] + support > in_width)
       last_regular_col--;
   }
@@ -141,90 +140,85 @@ inline bool GetFirstAndLastRegularCol(int &first_regular_col,
  */
 template <int static_channels = -1, typename Out, typename In>
 void ResamplHorzRow(Out *out_row, int out_width, const In *in_row, int in_width, int channels,
-                    const int *in_columns, const float *coeffs, int support,
-                    int first_regular_col, int last_regular_col, bool flipped) {
+                    const int *in_columns, const float *coeffs, int support, int first_regular_col,
+                    int last_regular_col, bool flipped) {
   int x = 0;
   if (flipped) {
     for (; x < first_regular_col && x <= last_regular_col; x++) {
-      ResampleCol<static_channels, false, true>(
-        out_row, in_row, x, in_width, in_columns, coeffs, support, channels);
+      ResampleCol<static_channels, false, true>(out_row, in_row, x, in_width, in_columns, coeffs,
+                                                support, channels);
     }
   } else {
     for (; x < first_regular_col && x <= last_regular_col; x++) {
-      ResampleCol<static_channels, true, false>(
-        out_row, in_row, x, in_width, in_columns, coeffs, support, channels);
+      ResampleCol<static_channels, true, false>(out_row, in_row, x, in_width, in_columns, coeffs,
+                                                support, channels);
     }
   }
 
   for (; x < first_regular_col; x++) {
-    ResampleCol<static_channels, true, true>(
-      out_row, in_row, x, in_width, in_columns, coeffs, support, channels);
+    ResampleCol<static_channels, true, true>(out_row, in_row, x, in_width, in_columns, coeffs,
+                                             support, channels);
   }
   for (; x <= last_regular_col; x++) {
-    ResampleCol<static_channels, false, false>(
-      out_row, in_row, x, in_width, in_columns, coeffs, support, channels);
+    ResampleCol<static_channels, false, false>(out_row, in_row, x, in_width, in_columns, coeffs,
+                                               support, channels);
   }
 
   if (flipped) {
     for (; x < out_width; x++) {
-      ResampleCol<static_channels, true, false>(
-        out_row, in_row, x, in_width, in_columns, coeffs, support, channels);
+      ResampleCol<static_channels, true, false>(out_row, in_row, x, in_width, in_columns, coeffs,
+                                                support, channels);
     }
   } else {
     for (; x < out_width; x++) {
-      ResampleCol<static_channels, false, true>(
-        out_row, in_row, x, in_width, in_columns, coeffs, support, channels);
+      ResampleCol<static_channels, false, true>(out_row, in_row, x, in_width, in_columns, coeffs,
+                                                support, channels);
     }
   }
 }
 
 template <int static_channels = -1, typename Out, typename In>
-void ResampleHorz_Channels(
-    Surface2D<Out> out, Surface2D<In> in, const int *in_columns,
-    const float *coeffs, int support) {
+void ResampleHorz_Channels(Surface2D<Out> out, Surface2D<In> in, const int *in_columns,
+                           const float *coeffs, int support) {
   const int channels = static_channels < 0 ? out.channels : static_channels;
 
   int first_regular_col, last_regular_col;
-  bool flipped = GetFirstAndLastRegularCol(first_regular_col, last_regular_col,
-                                           out.size.x, in.size.x, in_columns, support);
+  bool flipped = GetFirstAndLastRegularCol(first_regular_col, last_regular_col, out.size.x,
+                                           in.size.x, in_columns, support);
 
   for (int y = 0; y < out.size.y; y++) {
     Out *out_row = &out(0, y);
     const In *in_row = &in(0, y);
 
-    ResamplHorzRow<static_channels>(out_row, out.size.x, in_row, in.size.x, channels,
-                                    in_columns, coeffs, support,
-                                    first_regular_col, last_regular_col, flipped);
+    ResamplHorzRow<static_channels>(out_row, out.size.x, in_row, in.size.x, channels, in_columns,
+                                    coeffs, support, first_regular_col, last_regular_col, flipped);
   }
 }
 
-
 template <int static_channels = -1, typename Out, typename In>
-void ResampleHorz_Channels(
-    Surface3D<Out> out, Surface3D<In> in, const int *in_columns,
-    const float *coeffs, int support) {
+void ResampleHorz_Channels(Surface3D<Out> out, Surface3D<In> in, const int *in_columns,
+                           const float *coeffs, int support) {
   const int channels = static_channels < 0 ? out.channels : static_channels;
 
   int first_regular_col, last_regular_col;
-  bool flipped = GetFirstAndLastRegularCol(first_regular_col, last_regular_col,
-                                           out.size.x, in.size.x, in_columns, support);
+  bool flipped = GetFirstAndLastRegularCol(first_regular_col, last_regular_col, out.size.x,
+                                           in.size.x, in_columns, support);
 
   for (int z = 0; z < out.size.z; z++) {
     for (int y = 0; y < out.size.y; y++) {
       Out *out_row = &out(0, y, z);
       const In *in_row = &in(0, y, z);
 
-      ResamplHorzRow<static_channels>(out_row, out.size.x, in_row, in.size.x, channels,
-                                      in_columns, coeffs, support,
-                                      first_regular_col, last_regular_col, flipped);
+      ResamplHorzRow<static_channels>(out_row, out.size.x, in_row, in.size.x, channels, in_columns,
+                                      coeffs, support, first_regular_col, last_regular_col,
+                                      flipped);
     }
   }
 }
 
 template <typename Out, typename In>
-void ResampleVert(
-    Surface2D<Out> out, Surface2D<In> in, const int32_t *in_rows,
-    const float *row_coeffs, int support) {
+void ResampleVert(Surface2D<Out> out, Surface2D<In> in, const int32_t *in_rows,
+                  const float *row_coeffs, int support) {
   constexpr int tile = 64;
   float tmp[tile];  // NOLINT
 
@@ -238,16 +232,17 @@ void ResampleVert(
 
     for (int k = 0; k < support; k++) {
       int sy = in_rows[y] + k;
-      if (sy < 0) sy = 0;
-      else if (sy > in.size.y-1) sy = in.size.y-1;
+      if (sy < 0)
+        sy = 0;
+      else if (sy > in.size.y - 1)
+        sy = in.size.y - 1;
       in_row_ptrs[k] = &in(0, sy);
     }
 
     for (int x0 = 0; x0 < flat_w; x0 += tile) {
       int tile_w = x0 + tile <= flat_w ? tile : flat_w - x0;
       assert(tile_w <= tile);
-      for (int j = 0; j < tile_w; j++)
-        tmp[j] = 0;
+      for (int j = 0; j < tile_w; j++) tmp[j] = 0;
 
       for (int k = 0; k < support; k++) {
         float flt = row_coeffs[y * support + k];
@@ -257,8 +252,7 @@ void ResampleVert(
         }
       }
 
-      for (int j = 0; j < tile_w; j++)
-        out_row[x0 + j] = ConvertSat<Out>(tmp[j]);
+      for (int j = 0; j < tile_w; j++) out_row[x0 + j] = ConvertSat<Out>(tmp[j]);
     }
   }
 }
@@ -275,34 +269,37 @@ void ResampleVert(
  * @param support      - size of the resampling kernel
  */
 template <typename Out, typename In>
-void ResampleVert(
-    Surface3D<Out> out, Surface3D<In> in, const int32_t *in_rows,
-    const float *row_coeffs, int support) {
+void ResampleVert(Surface3D<Out> out, Surface3D<In> in, const int32_t *in_rows,
+                  const float *row_coeffs, int support) {
   for (int z = 0; z < out.size.z; z++) {
     ResampleVert(out.slice(z), in.slice(z), in_rows, row_coeffs, support);
   }
 }
 
 template <typename Out, typename In>
-inline void ResampleDepth(Surface2D<Out> out, Surface2D<In> in,
-                         const int *in_columns, const float *col_coeffs, int support) {
+inline void ResampleDepth(Surface2D<Out> out, Surface2D<In> in, const int *in_columns,
+                          const float *col_coeffs, int support) {
   assert(!"Unreachable code");
 }
 
 template <typename T>
 inline Surface2D<T> FuseXY(const Surface3D<T> &surface) {
-  return { surface.data,
-           surface.size.x * surface.size.y, surface.size.z, surface.channels,
-           surface.strides.x, surface.strides.z, surface.channel_stride };
+  return {surface.data,          surface.size.x * surface.size.y,
+          surface.size.z,        surface.channels,
+          surface.strides.x,     surface.strides.z,
+          surface.channel_stride};
 }
 
 template <typename T>
 inline Surface2D<T> SliceY(const Surface3D<T> &surface, int y) {
-  return { surface.data + surface.strides.y * y,
-           surface.size.x, surface.size.z, surface.channels,
-           surface.strides.x, surface.strides.z, surface.channel_stride };
+  return {surface.data + surface.strides.y * y,
+          surface.size.x,
+          surface.size.z,
+          surface.channels,
+          surface.strides.x,
+          surface.strides.z,
+          surface.channel_stride};
 }
-
 
 /**
  * @brief Resamples a surface depthwise
@@ -316,10 +313,9 @@ inline Surface2D<T> SliceY(const Surface3D<T> &surface, int y) {
  * @param support      - size of the resampling kernel
  */
 template <typename Out, typename In>
-inline void ResampleDepth(Surface3D<Out> out, Surface3D<In> in,
-                         const int *in_slices, const float *slice_coeffs, int support) {
-  if (in.strides.y == in.size.x * in.strides.x &&
-      out.strides.y == out.size.x * out.strides.x) {
+inline void ResampleDepth(Surface3D<Out> out, Surface3D<In> in, const int *in_slices,
+                          const float *slice_coeffs, int support) {
+  if (in.strides.y == in.size.x * in.strides.x && out.strides.y == out.size.x * out.strides.x) {
     // We're processing entire width of the image, so we can safely fuse width and height into
     // long rows and treat depth as height and reuse the code for 2D vertical pass.
     ResampleVert(FuseXY(out), FuseXY(in), in_slices, slice_coeffs, support);
@@ -330,12 +326,10 @@ inline void ResampleDepth(Surface3D<Out> out, Surface3D<In> in,
     for (int y = 0; y < out.size.y; y++) {
       ResampleVert(out_xz, in_xz, in_slices, slice_coeffs, support);
       out_xz.data += out.strides.y;
-      if (y < in.size.y)
-        in_xz.data += in.strides.y;
+      if (y < in.size.y) in_xz.data += in.strides.y;
     }
   }
 }
-
 
 /**
  * @brief Resamples a surface horizontally
@@ -355,7 +349,7 @@ inline void ResampleHorz(Surface<spatial_ndim, Out> out, Surface<spatial_ndim, I
     ResampleHorz_Channels<static_channels>(out, in, in_columns, col_coeffs, support);
   ), (  // NOLINT
     ResampleHorz_Channels<-1>(out, in, in_columns, col_coeffs, support);
-  ));   // NOLINT
+  ));  // NOLINT
 }
 
 /**
@@ -394,8 +388,7 @@ inline void ResampleAxis(Surface<spatial_ndim, Out> out, Surface<spatial_ndim, I
  *          Scales can be negative to achieve flipping.
  */
 template <typename Out, typename In>
-void ResampleNN(Surface2D<Out> out, Surface2D<const In> in,
-                vec2 origin, vec2 scale) {
+void ResampleNN(Surface2D<Out> out, Surface2D<const In> in, vec2 origin, vec2 scale) {
   assert(out.channels == in.channels);
   assert((in.channel_stride == 1 && out.channel_stride == 1) ||
          (in.channels == 1 && out.channels == 1));
@@ -406,8 +399,7 @@ void ResampleNN(Surface2D<Out> out, Surface2D<const In> in,
     // FAST PATH - not scaling along X axis - just copy with repeated boundaries
     int sx0 = std::floor(origin.x + 0.5f);
     int dx1 = sx0 + in.size.x;
-    if (dx1 > out.size.x)
-      dx1 = out.size.x;
+    if (dx1 > out.size.x) dx1 = out.size.x;
     int dx0 = 0;
     if (sx0 < 0) {
       dx0 = std::min(-sx0, out.size.x);
@@ -417,27 +409,27 @@ void ResampleNN(Surface2D<Out> out, Surface2D<const In> in,
     for (int y = 0; y < out.size.y; y++, sy += scale.y) {
       int srcy = std::floor(sy);
 
-      if (srcy < 0) srcy = 0;
-      else if (srcy > in.size.y-1) srcy = in.size.y-1;
+      if (srcy < 0)
+        srcy = 0;
+      else if (srcy > in.size.y - 1)
+        srcy = in.size.y - 1;
 
       Out *out_ch = &out(0, y, 0);
 
       int x;
       const In *first_px = &in(0, srcy, 0);
       for (x = 0; x < dx0; x++) {
-        for (int c = 0; c < out.channels; c++)
-          *out_ch++ = first_px[c];
+        for (int c = 0; c < out.channels; c++) *out_ch++ = first_px[c];
       }
 
       const In *in_row = &in(sx0 + dx0, srcy, 0);
       for (int j = x * out.channels; j < dx1 * out.channels; j++)
-          *out_ch++ = ConvertSat<Out>(*in_row++);
+        *out_ch++ = ConvertSat<Out>(*in_row++);
 
       x = dx1;
-      const In *last_px = &in(in.size.x-1, srcy, 0);
+      const In *last_px = &in(in.size.x - 1, srcy, 0);
       for (; x < out.size.x; x++) {
-        for (int c = 0; c < out.channels; c++)
-          *out_ch++ = last_px[c];
+        for (int c = 0; c < out.channels; c++) *out_ch++ = last_px[c];
       }
     }
     return;
@@ -455,16 +447,20 @@ void ResampleNN(Surface2D<Out> out, Surface2D<const In> in,
       int x = x0 + j;
       float sx = origin.x + (x + 0.5f) * scale.x;
       int srcx = std::floor(sx);
-      if (srcx < 0) srcx = 0;
-      else if (srcx > in.size.x-1) srcx += in.size.x - 1;
+      if (srcx < 0)
+        srcx = 0;
+      else if (srcx > in.size.x - 1)
+        srcx += in.size.x - 1;
       col_offsets[j] = srcx * in.strides.x;
     }
 
     for (int y = 0; y < out.size.y; y++, sy += scale.y) {
       int srcy = std::floor(sy);
 
-      if (srcy < 0) srcy = 0;
-      else if (srcy > in.size.y-1) srcy = in.size.y-1;
+      if (srcy < 0)
+        srcy = 0;
+      else if (srcy > in.size.y - 1)
+        srcy = in.size.y - 1;
 
       const In *in_row = &in(0, srcy);
       Out *out_ch = &out(x0, y, 0);
@@ -479,7 +475,6 @@ void ResampleNN(Surface2D<Out> out, Surface2D<const In> in,
   }
 }
 
-
 /**
  * @brief Resamples `in` using Nearest Neighbor interpolation and stores result in `out`
  * @param out - output surface
@@ -490,14 +485,13 @@ void ResampleNN(Surface2D<Out> out, Surface2D<const In> in,
  *          Scales can be negative to achieve flipping.
  */
 template <typename Out, typename In, int n>
-void ResampleNN(Surface<n, Out> out, Surface<n, const In> in,
-                vec<n> origin, vec<n> scale) {
+void ResampleNN(Surface<n, Out> out, Surface<n, const In> in, vec<n> origin, vec<n> scale) {
   static_assert(n > 2, "This function only works with surfaces of dimensionality > 2");
-  const float step = scale[n-1];
-  float src = origin[n-1] + 0.5f * step;
-  for (int i = 0; i < out.size[n-1]; i++, src += step) {
-    int isrc = clamp<int>(std::floor(src), 0, in.size[n-1]-1);
-    ResampleNN(out.slice(i), in.slice(isrc), sub<n-1>(origin), sub<n-1>(scale));
+  const float step = scale[n - 1];
+  float src = origin[n - 1] + 0.5f * step;
+  for (int i = 0; i < out.size[n - 1]; i++, src += step) {
+    int isrc = clamp<int>(std::floor(src), 0, in.size[n - 1] - 1);
+    ResampleNN(out.slice(i), in.slice(isrc), sub<n - 1>(origin), sub<n - 1>(scale));
   }
 }
 

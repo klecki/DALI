@@ -16,14 +16,14 @@
 #define DALI_OPERATORS_SSD_RANDOM_CROP_H_
 
 #include <cfloat>
-#include <vector>
-#include <random>
 #include <memory>
+#include <random>
 #include <utility>
+#include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/operator/op_spec.h"
 #include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/op_spec.h"
+#include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/util/batch_rng.h"
 
 namespace dali {
@@ -31,12 +31,12 @@ namespace dali {
 template <typename Backend>
 class SSDRandomCrop : public Operator<Backend> {
  public:
-  explicit inline SSDRandomCrop(const OpSpec &spec) :
-    Operator<Backend>(spec),
-    num_attempts_(spec.GetArgument<int>("num_attempts")),
-    rngs_(spec.GetArgument<int64_t>("seed"), batch_size_),
-    int_dis_(0, 6),        // sample option
-    float_dis_(0.3, 1.) {  // w, h generation
+  explicit inline SSDRandomCrop(const OpSpec &spec)
+      : Operator<Backend>(spec),
+        num_attempts_(spec.GetArgument<int>("num_attempts")),
+        rngs_(spec.GetArgument<int64_t>("seed"), batch_size_),
+        int_dis_(0, 6),        // sample option
+        float_dis_(0.3, 1.) {  // w, h generation
     // setup all possible sample types
     sample_options_.push_back(SampleOption{false, -1.f});
     sample_options_.push_back(SampleOption{false, 0.1});
@@ -72,8 +72,7 @@ class SSDRandomCrop : public Operator<Backend> {
     bool no_crop_ = false;
     float min_iou_ = FLT_MAX;
 
-    SampleOption(bool no_crop, float min_iou) :
-      no_crop_(no_crop), min_iou_(min_iou) {}
+    SampleOption(bool no_crop, float min_iou) : no_crop_(no_crop), min_iou_(min_iou) {}
 
     bool no_crop() const {
       return no_crop_;
@@ -94,6 +93,5 @@ class SSDRandomCrop : public Operator<Backend> {
 };
 
 }  // namespace dali
-
 
 #endif  // DALI_OPERATORS_SSD_RANDOM_CROP_H_

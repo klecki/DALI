@@ -15,29 +15,28 @@
 #ifndef DALI_TEST_DALI_TEST_CONVERSION_H_
 #define DALI_TEST_DALI_TEST_CONVERSION_H_
 
+#include <memory>
+#include <string>
 #include <utility>
 #include <vector>
-#include <string>
-#include <memory>
 
-#include "dali/util/ocv.h"
 #include "dali/test/dali_test_matching.h"
+#include "dali/util/ocv.h"
 
 namespace dali {
 
 template <typename InputImgType, typename OutputImgType>
 class GenericConversionTest : public GenericMatchingTest<InputImgType, OutputImgType> {
  protected:
-  void AddDefaultArgs(OpSpec& spec) override {
-    spec.AddArg("image_type", this->ImageType())
-        .AddArg("output_type", this->OutputImageType());
+  void AddDefaultArgs(OpSpec &spec) override {
+    spec.AddArg("image_type", this->ImageType()).AddArg("output_type", this->OutputImageType());
   }
 
   OpSpec DefaultSchema(const string &pName, const string &pDevice = "cpu") const override {
     return OpSpec(pName)
-      .AddArg("device", pDevice)
-      .AddInput("input", pDevice)
-      .AddOutput("output", pDevice);
+        .AddArg("device", pDevice)
+        .AddInput("input", pDevice)
+        .AddOutput("output", pDevice);
   }
 };
 

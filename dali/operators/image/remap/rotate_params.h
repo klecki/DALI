@@ -19,13 +19,13 @@
 #include <string>
 #include <type_traits>
 #include <vector>
-#include "dali/pipeline/operator/operator.h"
+#include "dali/core/format.h"
+#include "dali/core/tensor_shape_print.h"
+#include "dali/kernels/imgproc/roi.h"
 #include "dali/kernels/imgproc/warp/affine.h"
 #include "dali/kernels/imgproc/warp/mapping_traits.h"
-#include "dali/kernels/imgproc/roi.h"
 #include "dali/operators/image/remap/warp_param_provider.h"
-#include "dali/core/tensor_shape_print.h"
-#include "dali/core/format.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -44,18 +44,14 @@ inline TensorShape<2> RotatedCanvasSize(TensorShape<2> input_size, double angle)
   if (abs_sin <= abs_cos) {
     // if rotated by less than +/-45deg (or more than +/-135deg),
     // maintain size parity to reduce blur
-    if (w_out % 2 != w % 2)
-      w_out++;
-    if (h_out % 2 != h % 2)
-      h_out++;
+    if (w_out % 2 != w % 2) w_out++;
+    if (h_out % 2 != h % 2) h_out++;
   } else {
     // if rotated by +/-(45..135deg), swap size parity to reduce blur
-    if (h_out % 2 != w % 2)
-      h_out++;
-    if (w_out % 2 != h % 2)
-      w_out++;
+    if (h_out % 2 != w % 2) h_out++;
+    if (w_out % 2 != h % 2) w_out++;
   }
-  out_size = { h_out, w_out };
+  out_size = {h_out, w_out};
   return out_size;
 }
 
@@ -64,11 +60,9 @@ inline TensorShape<3> RotatedCanvasSize(TensorShape<3> input_shape, vec3 axis, d
   float eps = 1e-2f;
   mat3 M = sub<3, 3>(rotation3D(axis, angle));
 
-
   mat3 absM;
   for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++)
-      absM(i, j) = std::abs(M(i, j));
+    for (int j = 0; j < 3; j++) absM(i, j) = std::abs(M(i, j));
 
   ivec3 out_size = ceil_int(absM * vec3(in_size) - eps);
 
@@ -77,7 +71,7 @@ inline TensorShape<3> RotatedCanvasSize(TensorShape<3> input_shape, vec3 axis, d
   // For example, if
   //    out_size.x = 0.4 * in_size.x + 0.7 * in_size.y  + 0.1 * in_size.z
   // then the dominant_src_axis.x is y (1)
-  ivec3 dominant_src_axis = { 0, 1, 2 };
+  ivec3 dominant_src_axis = {0, 1, 2};
 
   for (int i = 0; i < 3; i++) {
     float maxv = absM(i, dominant_src_axis[i]);
@@ -93,8 +87,7 @@ inline TensorShape<3> RotatedCanvasSize(TensorShape<3> input_shape, vec3 axis, d
   // source dimension - this helps reduce the blur in central area, especially for
   // small angles.
   for (int i = 0; i < 3; i++) {
-    if (out_size[i] % 2 != in_size[dominant_src_axis[i]] % 2)
-      out_size[i]++;
+    if (out_size[i] % 2 != in_size[dominant_src_axis[i]] % 2) out_size[i]++;
   }
 
   return kernels::vec2shape(out_size);
@@ -102,18 +95,18 @@ inline TensorShape<3> RotatedCanvasSize(TensorShape<3> input_shape, vec3 axis, d
 
 template <typename Backend, int spatial_ndim_, typename BorderType>
 class RotateParamProvider
-: public WarpParamProvider<Backend, spatial_ndim_, RotateParams<spatial_ndim_>, BorderType> {
+    : public WarpParamProvider<Backend, spatial_ndim_, RotateParams<spatial_ndim_>, BorderType> {
  protected:
   static constexpr int spatial_ndim = spatial_ndim_;
   using MappingParams = RotateParams<spatial_ndim>;
   using Base = WarpParamProvider<Backend, spatial_ndim, MappingParams, BorderType>;
   using Workspace = typename Base::Workspace;
-  using Base::ws_;
-  using Base::spec_;
-  using Base::params_gpu_;
-  using Base::params_cpu_;
   using Base::num_samples_;
   using Base::out_sizes_;
+  using Base::params_cpu_;
+  using Base::params_gpu_;
+  using Base::spec_;
+  using Base::ws_;
 
   void SetParams() override {
     input_shape_ = convert_dim<spatial_ndim + 1>(ws_->template InputRef<Backend>(0).shape());
@@ -124,18 +117,16 @@ class RotateParamProvider
     if (spatial_ndim == 2)
       for (auto &a : angles_) a = -a;
 
-    if (spatial_ndim == 3)
-      Collect(axes_, "axis", true);
+    if (spatial_ndim == 3) Collect(axes_, "axis", true);
   }
 
   template <typename T>
   void CopyIgnoreShape(vector<T> &out, const TensorListView<StorageCPU, const T> &TL) {
     int64_t n = TL.num_elements();
     out.resize(n);
-    if (!n)
-      return;
+    if (!n) return;
     int64_t sample_size = TL.shape[0].num_elements();
-    int s = 0;  // sample index
+    int s = 0;        // sample index
     int64_t ofs = 0;  // offset within sample
     for (int64_t i = 0; i < n; i++) {
       if (ofs == sample_size) {
@@ -152,10 +143,9 @@ class RotateParamProvider
   void CopyIgnoreShape(vector<vec<N, T>> &out, const TensorListView<StorageCPU, const T> &TL) {
     int64_t n = TL.num_elements() / N;
     out.resize(n);
-    if (!n)
-      return;
+    if (!n) return;
     int64_t sample_size = TL.shape[0].num_elements();
-    int s = 0;  // sample index
+    int s = 0;        // sample index
     int64_t ofs = 0;  // offset within sample
     for (int64_t i = 0; i < n; i++) {
       for (int j = 0; j < N; j++) {
@@ -171,24 +161,21 @@ class RotateParamProvider
   }
 
   template <typename T>
-  enable_if_t<is_scalar<T>::value>
-  Collect(std::vector<T> &v, const std::string &name, bool required) {
+  enable_if_t<is_scalar<T>::value> Collect(std::vector<T> &v, const std::string &name,
+                                           bool required) {
     if (spec_->HasTensorArgument(name)) {
       auto arg_view = dali::view<const T>(ws_->ArgumentInput(name));
       int n = arg_view.num_elements();
-      DALI_ENFORCE(n == num_samples_, make_string(
-        "Unexpected number of elements in argument `", name, "`: ", n,
-        "; expected: ", num_samples_));
+      DALI_ENFORCE(n == num_samples_, make_string("Unexpected number of elements in argument `",
+                                                  name, "`: ", n, "; expected: ", num_samples_));
       CopyIgnoreShape(v, arg_view);
     } else {
       T scalar;
       v.clear();
 
-      if (required)
-        scalar = spec_->template GetArgument<T>(name);
+      if (required) scalar = spec_->template GetArgument<T>(name);
 
-      if (required || spec_->TryGetArgument(scalar, name))
-        v.resize(num_samples_, scalar);
+      if (required || spec_->TryGetArgument(scalar, name)) v.resize(num_samples_, scalar);
     }
   }
 
@@ -197,9 +184,9 @@ class RotateParamProvider
     if (spec_->HasTensorArgument(name)) {
       auto arg_view = dali::view<const T>(ws_->ArgumentInput(name));
       int n = arg_view.num_elements();
-      DALI_ENFORCE(n == N * num_samples_, make_string(
-        "Unexpected number of elements in argument `", name, "`: ", n,
-        "; expected: ", num_samples_));
+      DALI_ENFORCE(n == N * num_samples_,
+                   make_string("Unexpected number of elements in argument `", name, "`: ", n,
+                               "; expected: ", num_samples_));
       CopyIgnoreShape(v, arg_view);
     } else {
       v.clear();
@@ -207,17 +194,15 @@ class RotateParamProvider
       std::vector<T> tmp;
 
       if (!spec_->TryGetArgument(tmp, name)) {
-        if (required)
-          DALI_FAIL(make_string("Argument `", name, "` is required"));
+        if (required) DALI_FAIL(make_string("Argument `", name, "` is required"));
         return;
       }
 
       DALI_ENFORCE(static_cast<int>(tmp.size()) == N,
-        make_string("Argument `", name, "` must be a ", N, "D vector"));
+                   make_string("Argument `", name, "` must be a ", N, "D vector"));
 
       vec<N, T> fill;
-      for (int i = 0; i < N; i++)
-        fill[i] = tmp[i];
+      for (int i = 0; i < N; i++) fill[i] = tmp[i];
 
       v.resize(num_samples_, fill);
     }
@@ -239,7 +224,7 @@ class RotateParamProvider
       ivec2 out_size = shape2vec(out_sizes_[i]);
 
       float a = deg2rad(angles_[i]);
-      mat3 M = translation(in_size*0.5f) * rotation2D(-a) * translation(-out_size*0.5f);
+      mat3 M = translation(in_size * 0.5f) * rotation2D(-a) * translation(-out_size * 0.5f);
       params[i] = sub<2, 3>(M);
     }
   }
@@ -258,7 +243,7 @@ class RotateParamProvider
       vec3 axis = axes_[i];
       float a = deg2rad(angles_[i]);
       // NOTE: This is a destination-to-source transform - hence, angle is reversed
-      mat4 M = translation(in_size*0.5f) * rotation3D(axis, -a) * translation(-out_size*0.5f);
+      mat4 M = translation(in_size * 0.5f) * rotation3D(axis, -a) * translation(-out_size * 0.5f);
       params[i] = sub<3, 4>(M);
     }
   }

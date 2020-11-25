@@ -20,10 +20,10 @@
 #include <mutex>
 #include <unordered_map>
 
-#include "dali/pipeline/data/buffer.h"
-#include "dali/pipeline/data/backend.h"
-#include "dali/core/error_handling.h"
 #include "dali/core/device_guard.h"
+#include "dali/core/error_handling.h"
+#include "dali/pipeline/data/backend.h"
+#include "dali/pipeline/data/buffer.h"
 
 // This file contains utilities helping inspection and interaction with DALI GPU buffers
 // without forcing synchronization of all pipelines.
@@ -36,7 +36,7 @@ class DLL_PUBLIC UserStream {
   /**
    * @brief Gets UserStream instance
    */
-  DLL_PUBLIC static UserStream* Get() {
+  DLL_PUBLIC static UserStream *Get() {
     std::lock_guard<std::mutex> lock(m_);
     if (us_ == nullptr) {
       us_ = new UserStream();
@@ -77,8 +77,7 @@ class DLL_PUBLIC UserStream {
    */
   DLL_PUBLIC void Wait(const dali::Buffer<GPUBackend> &b) {
     size_t dev = GetDeviceForBuffer(b);
-    DALI_ENFORCE(streams_.find(dev) != streams_.end(),
-        "Can only wait on user streams");
+    DALI_ENFORCE(streams_.find(dev) != streams_.end(), "Can only wait on user streams");
     DeviceGuard g(dev);
     CUDA_CALL(cudaStreamSynchronize(streams_[dev]));
   }
@@ -89,8 +88,7 @@ class DLL_PUBLIC UserStream {
   DLL_PUBLIC void Wait() {
     int dev;
     CUDA_CALL(cudaGetDevice(&dev));
-    DALI_ENFORCE(streams_.find(dev) != streams_.end(),
-        "Can only wait on user streams");
+    DALI_ENFORCE(streams_.find(dev) != streams_.end(), "Can only wait on user streams");
     DeviceGuard g(dev);
     CUDA_CALL(cudaStreamSynchronize(streams_[dev]));
   }
@@ -110,13 +108,12 @@ class DLL_PUBLIC UserStream {
 
   size_t GetDeviceForBuffer(const dali::Buffer<GPUBackend> &b) {
     int dev = b.device_id();
-    DALI_ENFORCE(dev != -1,
-        "Used a pointer from unknown device");
+    DALI_ENFORCE(dev != -1, "Used a pointer from unknown device");
     return dev;
   }
 
   static std::mutex m_;
-  static UserStream * us_;
+  static UserStream *us_;
 
   std::unordered_map<int, cudaStream_t> streams_;
 };

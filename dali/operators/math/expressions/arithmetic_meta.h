@@ -141,7 +141,6 @@ DALI_HOST_DEV constexpr bool IsComparison(ArithmeticOp op) {
   }
 }
 
-
 // TODO(klecki): float16
 #define ARITHMETIC_ALLOWED_TYPES \
   (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float, double)
@@ -173,88 +172,91 @@ struct binary_op_promotion<T, T> {
   using type = T;
 };
 
-#define REGISTER_TYPE_PROMOTION(Arg1, Arg2, Result)              \
-template <>                                                      \
-struct binary_op_promotion<Arg1, Arg2> { using type = Result; }; \
-template <>                                                      \
-struct binary_op_promotion<Arg2, Arg1> { using type = Result; }
+#define REGISTER_TYPE_PROMOTION(Arg1, Arg2, Result) \
+  template <>                                       \
+  struct binary_op_promotion<Arg1, Arg2> {          \
+    using type = Result;                            \
+  };                                                \
+  template <>                                       \
+  struct binary_op_promotion<Arg2, Arg1> {          \
+    using type = Result;                            \
+  }
 
+REGISTER_TYPE_PROMOTION(float, float16, float);
+REGISTER_TYPE_PROMOTION(double, float16, double);
 
-REGISTER_TYPE_PROMOTION(float,    float16, float);
-REGISTER_TYPE_PROMOTION(double,   float16, double);
+REGISTER_TYPE_PROMOTION(double, float, double);
 
-REGISTER_TYPE_PROMOTION(double,   float, double);
-
-REGISTER_TYPE_PROMOTION(bool,     float16, float16);
-REGISTER_TYPE_PROMOTION(int8_t,   float16, float16);
-REGISTER_TYPE_PROMOTION(uint8_t,  float16, float16);
-REGISTER_TYPE_PROMOTION(int16_t,  float16, float16);
+REGISTER_TYPE_PROMOTION(bool, float16, float16);
+REGISTER_TYPE_PROMOTION(int8_t, float16, float16);
+REGISTER_TYPE_PROMOTION(uint8_t, float16, float16);
+REGISTER_TYPE_PROMOTION(int16_t, float16, float16);
 REGISTER_TYPE_PROMOTION(uint16_t, float16, float16);
-REGISTER_TYPE_PROMOTION(int32_t,  float16, float16);
+REGISTER_TYPE_PROMOTION(int32_t, float16, float16);
 REGISTER_TYPE_PROMOTION(uint32_t, float16, float16);
-REGISTER_TYPE_PROMOTION(int64_t,  float16, float16);
+REGISTER_TYPE_PROMOTION(int64_t, float16, float16);
 REGISTER_TYPE_PROMOTION(uint64_t, float16, float16);
 
-REGISTER_TYPE_PROMOTION(bool,     float, float);
-REGISTER_TYPE_PROMOTION(int8_t,   float, float);
-REGISTER_TYPE_PROMOTION(uint8_t,  float, float);
-REGISTER_TYPE_PROMOTION(int16_t,  float, float);
+REGISTER_TYPE_PROMOTION(bool, float, float);
+REGISTER_TYPE_PROMOTION(int8_t, float, float);
+REGISTER_TYPE_PROMOTION(uint8_t, float, float);
+REGISTER_TYPE_PROMOTION(int16_t, float, float);
 REGISTER_TYPE_PROMOTION(uint16_t, float, float);
-REGISTER_TYPE_PROMOTION(int32_t,  float, float);
+REGISTER_TYPE_PROMOTION(int32_t, float, float);
 REGISTER_TYPE_PROMOTION(uint32_t, float, float);
-REGISTER_TYPE_PROMOTION(int64_t,  float, float);
+REGISTER_TYPE_PROMOTION(int64_t, float, float);
 REGISTER_TYPE_PROMOTION(uint64_t, float, float);
 
-REGISTER_TYPE_PROMOTION(bool,     double, double);
-REGISTER_TYPE_PROMOTION(int8_t,   double, double);
-REGISTER_TYPE_PROMOTION(uint8_t,  double, double);
-REGISTER_TYPE_PROMOTION(int16_t,  double, double);
+REGISTER_TYPE_PROMOTION(bool, double, double);
+REGISTER_TYPE_PROMOTION(int8_t, double, double);
+REGISTER_TYPE_PROMOTION(uint8_t, double, double);
+REGISTER_TYPE_PROMOTION(int16_t, double, double);
 REGISTER_TYPE_PROMOTION(uint16_t, double, double);
-REGISTER_TYPE_PROMOTION(int32_t,  double, double);
+REGISTER_TYPE_PROMOTION(int32_t, double, double);
 REGISTER_TYPE_PROMOTION(uint32_t, double, double);
-REGISTER_TYPE_PROMOTION(int64_t,  double, double);
+REGISTER_TYPE_PROMOTION(int64_t, double, double);
 REGISTER_TYPE_PROMOTION(uint64_t, double, double);
 
-REGISTER_TYPE_PROMOTION(int8_t,   bool, int8_t);
-REGISTER_TYPE_PROMOTION(uint8_t,  bool, uint8_t);
-REGISTER_TYPE_PROMOTION(int16_t,  bool, int16_t);
+REGISTER_TYPE_PROMOTION(int8_t, bool, int8_t);
+REGISTER_TYPE_PROMOTION(uint8_t, bool, uint8_t);
+REGISTER_TYPE_PROMOTION(int16_t, bool, int16_t);
 REGISTER_TYPE_PROMOTION(uint16_t, bool, uint16_t);
-REGISTER_TYPE_PROMOTION(int32_t,  bool, int32_t);
+REGISTER_TYPE_PROMOTION(int32_t, bool, int32_t);
 REGISTER_TYPE_PROMOTION(uint32_t, bool, uint32_t);
-REGISTER_TYPE_PROMOTION(int64_t,  bool, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, bool, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, bool, uint64_t);
 
-REGISTER_TYPE_PROMOTION(uint8_t,  int8_t, int16_t);
-REGISTER_TYPE_PROMOTION(int16_t,  int8_t, int16_t);
+REGISTER_TYPE_PROMOTION(uint8_t, int8_t, int16_t);
+REGISTER_TYPE_PROMOTION(int16_t, int8_t, int16_t);
 REGISTER_TYPE_PROMOTION(uint16_t, int8_t, int32_t);
-REGISTER_TYPE_PROMOTION(int32_t,  int8_t, int32_t);
+REGISTER_TYPE_PROMOTION(int32_t, int8_t, int32_t);
 REGISTER_TYPE_PROMOTION(uint32_t, int8_t, int64_t);
-REGISTER_TYPE_PROMOTION(int64_t,  int8_t, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, int8_t, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, int8_t, int64_t);
 
-REGISTER_TYPE_PROMOTION(int16_t,  uint8_t, int16_t);
+REGISTER_TYPE_PROMOTION(int16_t, uint8_t, int16_t);
 REGISTER_TYPE_PROMOTION(uint16_t, uint8_t, uint16_t);
-REGISTER_TYPE_PROMOTION(int32_t,  uint8_t, int32_t);
+REGISTER_TYPE_PROMOTION(int32_t, uint8_t, int32_t);
 REGISTER_TYPE_PROMOTION(uint32_t, uint8_t, uint32_t);
-REGISTER_TYPE_PROMOTION(int64_t,  uint8_t, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, uint8_t, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, uint8_t, uint64_t);
 
 REGISTER_TYPE_PROMOTION(uint16_t, int16_t, int32_t);
-REGISTER_TYPE_PROMOTION(int32_t,  int16_t, int32_t);
+REGISTER_TYPE_PROMOTION(int32_t, int16_t, int32_t);
 REGISTER_TYPE_PROMOTION(uint32_t, int16_t, int64_t);
-REGISTER_TYPE_PROMOTION(int64_t,  int16_t, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, int16_t, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, int16_t, int64_t);
 
-REGISTER_TYPE_PROMOTION(int32_t,  uint16_t, int32_t);
+REGISTER_TYPE_PROMOTION(int32_t, uint16_t, int32_t);
 REGISTER_TYPE_PROMOTION(uint32_t, uint16_t, uint32_t);
-REGISTER_TYPE_PROMOTION(int64_t,  uint16_t, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, uint16_t, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, uint16_t, uint64_t);
 
 REGISTER_TYPE_PROMOTION(uint32_t, int32_t, int64_t);
-REGISTER_TYPE_PROMOTION(int64_t,  int32_t, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, int32_t, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, int32_t, int64_t);
 
-REGISTER_TYPE_PROMOTION(int64_t,  uint32_t, int64_t);
+REGISTER_TYPE_PROMOTION(int64_t, uint32_t, int64_t);
 REGISTER_TYPE_PROMOTION(uint64_t, uint32_t, uint64_t);
 
 REGISTER_TYPE_PROMOTION(uint64_t, int64_t, int64_t);
@@ -311,13 +313,11 @@ struct arithm_meta;
 //    static constexpr int num_outputs;
 // };
 
-
 /************************************************************/
 /*                                                          */
 /* Section for registering implementations of for AritihmOp */
 /*                                                          */
 /************************************************************/
-
 
 #define REGISTER_UNARY_IMPL_BACKEND(OP, EXPRESSION, BACKEND)                        \
   template <>                                                                       \
@@ -419,7 +419,6 @@ struct arithm_meta<ArithmeticOp::max, Backend> {
   static constexpr int num_outputs = 1;
 };
 
-
 template <typename Backend>
 struct arithm_meta<ArithmeticOp::clamp, Backend> {
   template <typename T, typename Min, typename Max>
@@ -438,17 +437,16 @@ struct arithm_meta<ArithmeticOp::clamp, Backend> {
   static constexpr int num_outputs = 1;
 };
 
-
 // Specialization for mul and bool so we use && instead of * so the compiler is happy
 template <>
 DALI_HOST_DEV constexpr binary_result_t<bool, bool>
-  arithm_meta<ArithmeticOp::mul, CPUBackend>::impl<bool, bool>(bool l, bool r) {
+arithm_meta<ArithmeticOp::mul, CPUBackend>::impl<bool, bool>(bool l, bool r) {
   return l && r;
 }
 
 template <>
 DALI_HOST_DEV constexpr binary_result_t<bool, bool>
-  arithm_meta<ArithmeticOp::mul, GPUBackend>::impl<bool, bool>(bool l, bool r) {
+arithm_meta<ArithmeticOp::mul, GPUBackend>::impl<bool, bool>(bool l, bool r) {
   return l && r;
 }
 
@@ -494,10 +492,8 @@ REGISTER_BINARY_IMPL(ArithmeticOp::div, /);
   REGISTER_BINARY_BITWISE_IMPL_BACKEND(OP, EXPRESSION, CPUBackend); \
   REGISTER_BINARY_BITWISE_IMPL_BACKEND(OP, EXPRESSION, GPUBackend)
 
-
-
 REGISTER_BINARY_BITWISE_IMPL(ArithmeticOp::bit_and, &);
-REGISTER_BINARY_BITWISE_IMPL(ArithmeticOp::bit_or,  |);
+REGISTER_BINARY_BITWISE_IMPL(ArithmeticOp::bit_or, |);
 REGISTER_BINARY_BITWISE_IMPL(ArithmeticOp::bit_xor, ^);
 
 // @TODO(klecki): move it somewhere appropriate
@@ -511,29 +507,28 @@ template <typename T>
 struct to_unsigned;
 
 template <>
-struct to_unsigned<int8_t> : type_wrapper<uint8_t>{};
+struct to_unsigned<int8_t> : type_wrapper<uint8_t> {};
 template <>
-struct to_unsigned<int16_t> : type_wrapper<uint16_t>{};
+struct to_unsigned<int16_t> : type_wrapper<uint16_t> {};
 template <>
-struct to_unsigned<int32_t> : type_wrapper<uint32_t>{};
+struct to_unsigned<int32_t> : type_wrapper<uint32_t> {};
 template <>
-struct to_unsigned<int64_t> : type_wrapper<uint64_t>{};
+struct to_unsigned<int64_t> : type_wrapper<uint64_t> {};
 
 template <typename T>
 using to_unsigned_t = typename to_unsigned<T>::type;
-
 
 template <typename T>
 struct to_signed;
 
 template <>
-struct to_signed<uint8_t> : type_wrapper<int8_t>{};
+struct to_signed<uint8_t> : type_wrapper<int8_t> {};
 template <>
-struct to_signed<uint16_t> : type_wrapper<int16_t>{};
+struct to_signed<uint16_t> : type_wrapper<int16_t> {};
 template <>
-struct to_signed<uint32_t> : type_wrapper<int32_t>{};
+struct to_signed<uint32_t> : type_wrapper<int32_t> {};
 template <>
-struct to_signed<uint64_t> : type_wrapper<int64_t>{};
+struct to_signed<uint64_t> : type_wrapper<int64_t> {};
 
 template <typename T>
 using to_signed_t = typename to_signed<T>::type;
@@ -581,11 +576,11 @@ using to_signed_t = typename to_signed<T>::type;
     }                                                                                         \
   };
 
-REGISTER_SAFE_COMPARE(==, eq,  false, false);
-REGISTER_SAFE_COMPARE(!=, neq, true,  true);
-REGISTER_SAFE_COMPARE(<,  lt,  true,  false);
-REGISTER_SAFE_COMPARE(<=, leq, true,  false);
-REGISTER_SAFE_COMPARE(>,  gt,  false, true);
+REGISTER_SAFE_COMPARE(==, eq, false, false);
+REGISTER_SAFE_COMPARE(!=, neq, true, true);
+REGISTER_SAFE_COMPARE(<, lt, true, false);
+REGISTER_SAFE_COMPARE(<=, leq, true, false);
+REGISTER_SAFE_COMPARE(>, gt, false, true);
 REGISTER_SAFE_COMPARE(>=, geq, false, true);
 
 #define REGISTER_COMPARISON_IMPL_BACKEND(OP, EXPRESSION, NAME, BACKEND)             \
@@ -609,17 +604,16 @@ REGISTER_SAFE_COMPARE(>=, geq, false, true);
     static constexpr int num_outputs = 1;                                           \
   }
 
-#define REGISTER_COMPARISON_IMPL(OP, EXPRESSION, NAME)          \
+#define REGISTER_COMPARISON_IMPL(OP, EXPRESSION, NAME)                \
   REGISTER_COMPARISON_IMPL_BACKEND(OP, EXPRESSION, NAME, CPUBackend); \
   REGISTER_COMPARISON_IMPL_BACKEND(OP, EXPRESSION, NAME, GPUBackend)
 
-REGISTER_COMPARISON_IMPL(ArithmeticOp::eq,  ==, eq);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::eq, ==, eq);
 REGISTER_COMPARISON_IMPL(ArithmeticOp::neq, !=, neq);
-REGISTER_COMPARISON_IMPL(ArithmeticOp::lt,  <,  lt);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::lt, <, lt);
 REGISTER_COMPARISON_IMPL(ArithmeticOp::leq, <=, leq);
-REGISTER_COMPARISON_IMPL(ArithmeticOp::gt,  >,  gt);
+REGISTER_COMPARISON_IMPL(ArithmeticOp::gt, >, gt);
 REGISTER_COMPARISON_IMPL(ArithmeticOp::geq, >=, geq);
-
 
 template <typename Backend>
 struct arithm_meta<ArithmeticOp::fdiv, Backend> {
@@ -648,15 +642,15 @@ struct arithm_meta<ArithmeticOp::mod, CPUBackend> {
   using result_t = binary_result_t<L, R>;
 
   template <typename L, typename R>
-  static constexpr std::enable_if_t<
-      std::is_integral<L>::value && std::is_integral<R>::value, result_t<L, R>>
+  static constexpr std::enable_if_t<std::is_integral<L>::value && std::is_integral<R>::value,
+                                    result_t<L, R>>
   impl(L l, R r) {
     return l % r;
   }
 
   template <typename L, typename R>
-  static constexpr std::enable_if_t<
-      !std::is_integral<L>::value || !std::is_integral<R>::value, result_t<L, R>>
+  static constexpr std::enable_if_t<!std::is_integral<L>::value || !std::is_integral<R>::value,
+                                    result_t<L, R>>
   impl(L l, R r) {
     using L_promotion = std::conditional_t<std::is_same<float16, L>::value, float, L>;
     using R_promotion = std::conditional_t<std::is_same<float16, R>::value, float, R>;
@@ -709,7 +703,6 @@ struct arithm_meta<ArithmeticOp::mod, GPUBackend> {
   static constexpr int num_outputs = 1;
 };
 
-
 inline std::string to_string(ArithmeticOp op) {
   std::string result;
   VALUE_SWITCH(op, op_static,
@@ -732,29 +725,18 @@ DLL_PUBLIC DALIDataType BinaryTypePromotion(DALIDataType left, DALIDataType righ
  */
 DLL_PUBLIC DALIDataType TypePromotion(ArithmeticOp op, span<DALIDataType> types);
 
-
 inline ArithmeticOp NameToOp(const std::string &op_name) {
   static std::map<std::string, ArithmeticOp> token_to_op = {
-      {"plus",   ArithmeticOp::plus},
-      {"minus",  ArithmeticOp::minus},
-      {"add",    ArithmeticOp::add},
-      {"sub",    ArithmeticOp::sub},
-      {"mul",    ArithmeticOp::mul},
-      {"div",    ArithmeticOp::div},
-      {"fdiv",   ArithmeticOp::fdiv},
-      {"mod",    ArithmeticOp::mod},
-      {"min",    ArithmeticOp::min},
-      {"max",    ArithmeticOp::max},
-      {"eq",     ArithmeticOp::eq},
-      {"neq",    ArithmeticOp::neq},
-      {"lt",     ArithmeticOp::lt},
-      {"leq",    ArithmeticOp::leq},
-      {"gt",     ArithmeticOp::gt},
-      {"geq",    ArithmeticOp::geq},
-      {"bitand", ArithmeticOp::bit_and},
-      {"bitor",  ArithmeticOp::bit_or},
-      {"bitxor", ArithmeticOp::bit_xor},
-      {"clamp", ArithmeticOp::clamp},
+      {"plus", ArithmeticOp::plus},      {"minus", ArithmeticOp::minus},
+      {"add", ArithmeticOp::add},        {"sub", ArithmeticOp::sub},
+      {"mul", ArithmeticOp::mul},        {"div", ArithmeticOp::div},
+      {"fdiv", ArithmeticOp::fdiv},      {"mod", ArithmeticOp::mod},
+      {"min", ArithmeticOp::min},        {"max", ArithmeticOp::max},
+      {"eq", ArithmeticOp::eq},          {"neq", ArithmeticOp::neq},
+      {"lt", ArithmeticOp::lt},          {"leq", ArithmeticOp::leq},
+      {"gt", ArithmeticOp::gt},          {"geq", ArithmeticOp::geq},
+      {"bitand", ArithmeticOp::bit_and}, {"bitor", ArithmeticOp::bit_or},
+      {"bitxor", ArithmeticOp::bit_xor}, {"clamp", ArithmeticOp::clamp},
   };
   auto it = token_to_op.find(op_name);
   DALI_ENFORCE(it != token_to_op.end(), "No implementation for op \"" + op_name + "\".");

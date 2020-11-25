@@ -22,11 +22,9 @@ namespace dali {
 
 class DALIMeta {
  public:
-  DALIMeta() {
-  }
+  DALIMeta() {}
 
-  explicit DALIMeta(const TensorLayout &layout) : layout_(layout) {
-  }
+  explicit DALIMeta(const TensorLayout &layout) : layout_(layout) {}
 
   inline const TensorLayout &GetLayout() const {
     return layout_;
@@ -59,6 +57,5 @@ class DALIMeta {
 };
 
 }  // namespace dali
-
 
 #endif  // DALI_PIPELINE_DATA_META_H_

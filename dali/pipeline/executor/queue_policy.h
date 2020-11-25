@@ -51,7 +51,6 @@ namespace dali {
 //   bool IsStopSignaled();
 // };
 
-
 // Each stage requires ready buffers from previous stage and free buffers from current stage
 struct UniformQueuePolicy {
   static const int kInvalidIdx = -1;
@@ -63,10 +62,9 @@ struct UniformQueuePolicy {
   }
 
   void InitializeQueues(const StageQueues &stage_queue_depths) {
-    DALI_ENFORCE(
-        stage_queue_depths[OpType::CPU] == stage_queue_depths[OpType::MIXED] &&
-            stage_queue_depths[OpType::MIXED] == stage_queue_depths[OpType::GPU],
-        "This policy does not support splited queues");
+    DALI_ENFORCE(stage_queue_depths[OpType::CPU] == stage_queue_depths[OpType::MIXED] &&
+                     stage_queue_depths[OpType::MIXED] == stage_queue_depths[OpType::GPU],
+                 "This policy does not support splited queues");
 
     // All buffers start off as free
     for (int i = 0; i < stage_queue_depths[OpType::CPU]; ++i) {
@@ -112,8 +110,7 @@ struct UniformQueuePolicy {
   }
 
   bool AreValid(QueueIdxs idxs) {
-    return idxs[OpType::CPU] != kInvalidIdx &&
-           idxs[OpType::MIXED] != kInvalidIdx &&
+    return idxs[OpType::CPU] != kInvalidIdx && idxs[OpType::MIXED] != kInvalidIdx &&
            idxs[OpType::GPU] != kInvalidIdx;
   }
 
@@ -130,9 +127,7 @@ struct UniformQueuePolicy {
     // Block until the work for a batch has been issued.
     // Move the queue id from ready to in_use
     std::unique_lock<std::mutex> lock(ready_mutex_);
-    ready_cond_.wait(lock, [this]() {
-      return !ready_queue_.empty() || ready_stop_;
-    });
+    ready_cond_.wait(lock, [this]() { return !ready_queue_.empty() || ready_stop_; });
     if (ready_stop_) {
       return OutputIdxs{kInvalidIdx};
     }
@@ -163,7 +158,7 @@ struct UniformQueuePolicy {
     free_cond_.notify_all();
   }
 
-  std::mutex& GetReadyMutex() {
+  std::mutex &GetReadyMutex() {
     return ready_mutex_;
   }
 
@@ -222,7 +217,7 @@ struct SeparateQueuePolicy {
 
   static StageQueues GetQueueSizes(QueueSizes init_sizes) {
     StageQueues result;
-     // For non-uniform case we buffer for CPU x GPU pair.
+    // For non-uniform case we buffer for CPU x GPU pair.
     result[OpType::CPU] = init_sizes.cpu_size;
     // Mixed and GPU are bound together due to being outputs
     result[OpType::MIXED] = init_sizes.gpu_size;
@@ -295,11 +290,9 @@ struct SeparateQueuePolicy {
   }
 
   bool AreValid(QueueIdxs idxs) {
-    return idxs[OpType::CPU] != kInvalidIdx &&
-           idxs[OpType::MIXED] != kInvalidIdx &&
+    return idxs[OpType::CPU] != kInvalidIdx && idxs[OpType::MIXED] != kInvalidIdx &&
            idxs[OpType::GPU] != kInvalidIdx;
   }
-
 
   void QueueOutputIdxs(QueueIdxs idxs, cudaStream_t gpu_op_stream) {
     {
@@ -313,9 +306,8 @@ struct SeparateQueuePolicy {
     // Block until the work for a batch has been issued.
     // Move the queue id from ready to in_use
     std::unique_lock<std::mutex> ready_lock(ready_output_mutex_);
-    ready_output_cv_.wait(ready_lock, [this]() {
-      return !ready_output_queue_.empty() || ready_stop_;
-    });
+    ready_output_cv_.wait(ready_lock,
+                          [this]() { return !ready_output_queue_.empty() || ready_stop_; });
     if (ready_stop_) {
       return OutputIdxs{kInvalidIdx, kInvalidIdx};
     }
@@ -350,7 +342,7 @@ struct SeparateQueuePolicy {
     }
   }
 
-  std::mutex& GetReadyMutex() {
+  std::mutex &GetReadyMutex() {
     return ready_output_mutex_;
   }
 
@@ -434,12 +426,11 @@ namespace detail {
 
 // void (CUDART_CB *cudaStreamCallback_t)(cudaStream_t stream, cudaError_t status, void *userData);
 void release_callback(cudaStream_t stream, cudaError_t status, void *userData) {
-  auto command = static_cast<ReleaseCommand*>(userData);
+  auto command = static_cast<ReleaseCommand *>(userData);
   command->policy->ReleaseStageIdx(command->stage, command->idx);
 }
 
 }  // namespace detail
-
 
 }  // namespace dali
 

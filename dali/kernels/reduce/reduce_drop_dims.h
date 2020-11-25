@@ -19,10 +19,10 @@
 #include <cassert>
 #include <cstdint>
 #include <stdexcept>
-#include "dali/core/util.h"
 #include "dali/core/cuda_utils.h"
-#include "dali/core/host_dev.h"
 #include "dali/core/fast_div.h"
+#include "dali/core/host_dev.h"
+#include "dali/core/util.h"
 
 namespace dali {
 namespace kernels {
@@ -134,20 +134,19 @@ struct DropDims {
    * ```
    */
   template <typename Indices>
-  static int simplify(int64_t *out_shape, unsigned &out_mask,
-                      const Indices &in_shape, uint64_t axis_mask) {
+  static int simplify(int64_t *out_shape, unsigned &out_mask, const Indices &in_shape,
+                      uint64_t axis_mask) {
     int dims = size(in_shape);
     int d = 0;
     out_shape[0] = in_shape[0];
     bool prev = axis_mask & 1;
     out_mask = prev ? 1u : 0u;
     for (int i = 1; i < dims; i++) {
-      if (in_shape[i] == 1)
-        continue;
+      if (in_shape[i] == 1) continue;
       bool flag = (axis_mask >> i) & 1;
       if (flag != prev) {
         d++;
-        if (d > 2*kMaxDims)
+        if (d > 2 * kMaxDims)
           throw std::out_of_range("Maximum number of dimension groups exceeded");
         out_shape[d] = in_shape[i];
         out_mask |= (flag ? 1u : 0u) << d;
@@ -157,8 +156,7 @@ struct DropDims {
       prev = flag;
     }
     d++;
-    if (d > 2*kMaxDims)
-      throw std::out_of_range("Maximum number of dimension groups exceeded");
+    if (d > 2 * kMaxDims) throw std::out_of_range("Maximum number of dimension groups exceeded");
 
     return d;
   }
@@ -173,7 +171,7 @@ struct DropDims {
       start = -1;
       return;
     }
-    int64_t shape[2*kMaxDims];
+    int64_t shape[2 * kMaxDims];
     unsigned axis_mask;
     int d = simplify(shape, axis_mask, in_shape, reduced_axes);
 
@@ -189,8 +187,8 @@ struct DropDims {
     int nmod = 0;
     int ndiv = 0;
 
-    int64_t volumes[2*kMaxDims];
-    int64_t kept_volumes[2*kMaxDims];
+    int64_t volumes[2 * kMaxDims];
+    int64_t kept_volumes[2 * kMaxDims];
     int64_t vol_total = 1, vol_kept = 1;
     int reduced_dims = 0;
     int kept_dims = 0;
@@ -232,27 +230,23 @@ struct DropDims {
 
     int mod_ofs = nmod < ndiv || (nmod == ndiv && mod_first) ? 1 : 0;
 
-    if (ndiv > kMaxDims)
-      throw std::out_of_range("Maximum number of dimension groups exceeded");
+    if (ndiv > kMaxDims) throw std::out_of_range("Maximum number of dimension groups exceeded");
 
     if (nmod + mod_ofs > kMaxDims)
       throw std::out_of_range("Maximum number of dimension groups exceeded");
 
-    if (mod_ofs || !nmod)
-      mod(kMaxDims - 1, 1);  // pad with no-op mod
+    if (mod_ofs || !nmod) mod(kMaxDims - 1, 1);  // pad with no-op mod
 
-    for (int i = ndiv-1; i >= 0; i--) {
+    for (int i = ndiv - 1; i >= 0; i--) {
       div(kMaxDims - ndiv + i, div(i));
       mul(kMaxDims - ndiv + i, mul(i));
     }
-    for (int i = nmod-1; i >= 0; i--) {
+    for (int i = nmod - 1; i >= 0; i--) {
       mod(kMaxDims - nmod + i - mod_ofs, mod(i));
     }
 
     // start index - even if starting with div/mul, odd if starting with mod
-    start = mod_first
-              ? 2 * (kMaxDims - nmod - mod_ofs) + 1
-              : 2 * (kMaxDims - ndiv);
+    start = mod_first ? 2 * (kMaxDims - nmod - mod_ofs) + 1 : 2 * (kMaxDims - ndiv);
   }
 
   DALI_HOST_DEV int64_t reindex(int64_t index) const {
@@ -285,26 +279,25 @@ struct DropDims {
       case -1:
         return 0;  // special case - reduced down to a scalar!
 
-    // Warning: intentional fall-through!
-    #define REINDEX_CASE(idx)\
-      case 2*idx:\
-        if (idx < kMaxDims)\
-          out += static_cast<uint64_t>(index) / div(idx) * mul(idx);\
-      case 2*idx+1:\
-        if (idx < kMaxDims) {\
-          if (mod(idx) == 1) {\
-            index = 0;\
-            break;\
-          }\
-          index = static_cast<uint64_t>(index) % mod(idx);\
-        }
+// Warning: intentional fall-through!
+#define REINDEX_CASE(idx)                                                          \
+  case 2 * idx:                                                                    \
+    if (idx < kMaxDims) out += static_cast<uint64_t>(index) / div(idx) * mul(idx); \
+  case 2 * idx + 1:                                                                \
+    if (idx < kMaxDims) {                                                          \
+      if (mod(idx) == 1) {                                                         \
+        index = 0;                                                                 \
+        break;                                                                     \
+      }                                                                            \
+      index = static_cast<uint64_t>(index) % mod(idx);                             \
+    }
 
-      REINDEX_CASE(0)
-      REINDEX_CASE(1)
-      REINDEX_CASE(2)
-      REINDEX_CASE(3)
-      REINDEX_CASE(4)
-      static_assert(max_dims <= 5, "Add more switch cases for max_dims > 5");
+        REINDEX_CASE(0)
+        REINDEX_CASE(1)
+        REINDEX_CASE(2)
+        REINDEX_CASE(3)
+        REINDEX_CASE(4)
+        static_assert(max_dims <= 5, "Add more switch cases for max_dims > 5");
     }
 
     out += index;

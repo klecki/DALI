@@ -16,27 +16,25 @@
 #define DALI_PIPELINE_OPERATOR_BUILTIN_MAKE_CONTIGUOUS_H_
 
 #include <algorithm>
-#include <vector>
 #include <utility>
+#include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/operator/common.h"
 #include "dali/core/common.h"
+#include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/operator.h"
 
 // Found by benchmarking coalesced vs non coalesced on diff size images
 #define COALESCE_THRESHOLD 8192
 
 namespace dali {
 
-template<typename Backend>
+template <typename Backend>
 class MakeContiguousBase : public Operator<Backend> {
  public:
-  inline explicit MakeContiguousBase(const OpSpec &spec) :
-      Operator<Backend>(spec) {
+  inline explicit MakeContiguousBase(const OpSpec &spec) : Operator<Backend>(spec) {
     std::vector<int> hints;
     GetSingleOrRepeatedArg(spec, hints, "bytes_per_sample_hint", spec.NumOutput());
-    if (!hints.empty())
-      bytes_per_sample_hint = hints[0];
+    if (!hints.empty()) bytes_per_sample_hint = hints[0];
   }
 
   virtual inline ~MakeContiguousBase() = default;
@@ -64,8 +62,8 @@ class MakeContiguousBase : public Operator<Backend> {
 
 class MakeContiguousMixed : public MakeContiguousBase<MixedBackend> {
  public:
-  inline explicit MakeContiguousMixed(const OpSpec &spec) :
-      MakeContiguousBase<MixedBackend>(spec) {}
+  inline explicit MakeContiguousMixed(const OpSpec &spec)
+      : MakeContiguousBase<MixedBackend>(spec) {}
   using Operator<MixedBackend>::Run;
 
   void Run(MixedWorkspace &ws) override;
@@ -75,8 +73,7 @@ class MakeContiguousMixed : public MakeContiguousBase<MixedBackend> {
 
 class MakeContiguousCPU : public MakeContiguousBase<CPUBackend> {
  public:
-  inline explicit MakeContiguousCPU(const OpSpec &spec) :
-      MakeContiguousBase<CPUBackend>(spec) {}
+  inline explicit MakeContiguousCPU(const OpSpec &spec) : MakeContiguousBase<CPUBackend>(spec) {}
 
   using Operator<CPUBackend>::RunImpl;
   void RunImpl(HostWorkspace &ws) override;

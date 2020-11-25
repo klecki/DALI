@@ -16,19 +16,19 @@
 #define DALI_OPERATORS_READER_LOADER_FILE_LABEL_LOADER_H_
 
 #include <dirent.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <sys/stat.h>
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <algorithm>
 
 #include "dali/core/common.h"
-#include "dali/operators/reader/loader/loader.h"
 #include "dali/operators/reader/loader/filesystem.h"
+#include "dali/operators/reader/loader/loader.h"
 #include "dali/util/file.h"
 
 namespace dali {
@@ -40,79 +40,75 @@ struct ImageLabelWrapper {
 
 class DLL_PUBLIC FileLabelLoader : public Loader<CPUBackend, ImageLabelWrapper> {
  public:
-  explicit inline FileLabelLoader(
-    const OpSpec& spec,
-    bool shuffle_after_epoch = false)
-    : Loader<CPUBackend, ImageLabelWrapper>(spec),
-      shuffle_after_epoch_(shuffle_after_epoch),
-      current_index_(0),
-      current_epoch_(0) {
+  explicit inline FileLabelLoader(const OpSpec &spec, bool shuffle_after_epoch = false)
+      : Loader<CPUBackend, ImageLabelWrapper>(spec),
+        shuffle_after_epoch_(shuffle_after_epoch),
+        current_index_(0),
+        current_epoch_(0) {
+    vector<string> files;
+    vector<int> labels;
 
-      vector<string> files;
-      vector<int> labels;
+    has_files_arg_ = spec.TryGetRepeatedArgument(files, "files");
+    has_labels_arg_ = spec.TryGetRepeatedArgument(labels, "labels");
+    has_file_list_arg_ = spec.TryGetArgument(file_list_, "file_list");
+    has_file_root_arg_ = spec.TryGetArgument(file_root_, "file_root");
 
-      has_files_arg_ = spec.TryGetRepeatedArgument(files, "files");
-      has_labels_arg_ = spec.TryGetRepeatedArgument(labels, "labels");
-      has_file_list_arg_ = spec.TryGetArgument(file_list_, "file_list");
-      has_file_root_arg_ = spec.TryGetArgument(file_root_, "file_root");
+    DALI_ENFORCE(has_file_root_arg_ || has_files_arg_ || has_file_list_arg_,
+                 "``file_root`` argument is required when not using ``files`` or ``file_list``.");
 
-      DALI_ENFORCE(has_file_root_arg_ || has_files_arg_ || has_file_list_arg_,
-        "``file_root`` argument is required when not using ``files`` or ``file_list``.");
+    DALI_ENFORCE(has_files_arg_ + has_file_list_arg_ <= 1,
+                 "File paths can be provided through ``files`` or ``file_list`` but not both.");
 
-      DALI_ENFORCE(has_files_arg_ + has_file_list_arg_ <= 1,
-        "File paths can be provided through ``files`` or ``file_list`` but not both.");
+    DALI_ENFORCE(has_files_arg_ || !has_labels_arg_,
+                 "The argument ``labels`` is valid only when file paths "
+                 "are provided as ``files`` argument.");
 
-      DALI_ENFORCE(has_files_arg_ || !has_labels_arg_,
-        "The argument ``labels`` is valid only when file paths "
-        "are provided as ``files`` argument.");
-
-      if (has_file_list_arg_) {
-        DALI_ENFORCE(!file_list_.empty(), "``file_list`` argument cannot be empty");
-        if (!has_file_root_arg_) {
-          auto idx = file_list_.rfind(filesystem::dir_sep);
-          if (idx != string::npos) {
-            file_root_ = file_list_.substr(0, idx);
-          }
+    if (has_file_list_arg_) {
+      DALI_ENFORCE(!file_list_.empty(), "``file_list`` argument cannot be empty");
+      if (!has_file_root_arg_) {
+        auto idx = file_list_.rfind(filesystem::dir_sep);
+        if (idx != string::npos) {
+          file_root_ = file_list_.substr(0, idx);
         }
       }
+    }
 
-      if (has_files_arg_) {
-        DALI_ENFORCE(files.size() > 0, "``files`` specified an empty list.");
-        if (has_labels_arg_) {
-          DALI_ENFORCE(files.size() == labels.size(), make_string("Provided ", labels.size(),
-            " labels for ", files.size(), " files."));
-
-          for (int i = 0, n = files.size(); i < n; i++)
-            image_label_pairs_.emplace_back(std::move(files[i]), labels[i]);
-        } else {
-            for (int i = 0, n = files.size(); i < n; i++)
-              image_label_pairs_.emplace_back(std::move(files[i]), i);
-        }
-      }
-
-      /*
-      * Those options are mutually exclusive as `shuffle_after_epoch` will make every shard looks differently
-      * after each epoch so coexistence with `stick_to_shard` doesn't make any sense
-      * Still when `shuffle_after_epoch` we will set `stick_to_shard` internally in the FileLabelLoader so all
-      * DALI instances will do shuffling after each epoch
-      */
-      if (shuffle_after_epoch_ || stick_to_shard_)
+    if (has_files_arg_) {
+      DALI_ENFORCE(files.size() > 0, "``files`` specified an empty list.");
+      if (has_labels_arg_) {
         DALI_ENFORCE(
-          !shuffle_after_epoch_ || !stick_to_shard_,
-          "shuffle_after_epoch and stick_to_shard cannot be both true");
-      if (shuffle_after_epoch_ || shuffle_)
-        DALI_ENFORCE(
-          !shuffle_after_epoch_ || !shuffle_,
-          "shuffle_after_epoch and random_shuffle cannot be both true");
-      /*
-       * Imply `stick_to_shard` from  `shuffle_after_epoch`
-       */
-      if (shuffle_after_epoch_) {
-        stick_to_shard_ = true;
+            files.size() == labels.size(),
+            make_string("Provided ", labels.size(), " labels for ", files.size(), " files."));
+
+        for (int i = 0, n = files.size(); i < n; i++)
+          image_label_pairs_.emplace_back(std::move(files[i]), labels[i]);
+      } else {
+        for (int i = 0, n = files.size(); i < n; i++)
+          image_label_pairs_.emplace_back(std::move(files[i]), i);
       }
+    }
+
+    /*
+     * Those options are mutually exclusive as `shuffle_after_epoch` will make every shard looks
+     * differently after each epoch so coexistence with `stick_to_shard` doesn't make any sense
+     * Still when `shuffle_after_epoch` we will set `stick_to_shard` internally in the
+     * FileLabelLoader so all DALI instances will do shuffling after each epoch
+     */
+    if (shuffle_after_epoch_ || stick_to_shard_)
+      DALI_ENFORCE(!shuffle_after_epoch_ || !stick_to_shard_,
+                   "shuffle_after_epoch and stick_to_shard cannot be both true");
+    if (shuffle_after_epoch_ || shuffle_)
+      DALI_ENFORCE(!shuffle_after_epoch_ || !shuffle_,
+                   "shuffle_after_epoch and random_shuffle cannot be both true");
+    /*
+     * Imply `stick_to_shard` from  `shuffle_after_epoch`
+     */
+    if (shuffle_after_epoch_) {
+      stick_to_shard_ = true;
+    }
     if (!dont_use_mmap_) {
-      mmap_reserver = FileStream::FileStreamMappinReserver(
-                                  static_cast<unsigned int>(initial_buffer_fill_));
+      mmap_reserver =
+          FileStream::FileStreamMappinReserver(static_cast<unsigned int>(initial_buffer_fill_));
     }
     copy_read_data_ = dont_use_mmap_ || !mmap_reserver.CanShareMappedData();
   }
@@ -134,31 +130,34 @@ class DLL_PUBLIC FileLabelLoader : public Loader<CPUBackend, ImageLabelWrapper> 
 
         vector<char> line_buf(16 << 10);  // 16 kB should be more than enough for a line
         char *line = line_buf.data();
-        for  (int n = 1; s.getline(line, line_buf.size()); n++) {
+        for (int n = 1; s.getline(line, line_buf.size()); n++) {
           // parse the line backwards:
           // - skip trailing whitespace
           // - consume digits
           // - skip whitespace between label and
           int i = strlen(line) - 1;
 
-          for (; i >= 0 && isspace(line[i]); i--) {}  // skip trailing spaces
+          for (; i >= 0 && isspace(line[i]); i--) {
+          }  // skip trailing spaces
 
           int label_end = i + 1;
 
           if (i < 0)  // empty line - skip
             continue;
 
-          for (; i >= 0 && isdigit(line[i]); i--) {}  // skip
+          for (; i >= 0 && isdigit(line[i]); i--) {
+          }  // skip
 
           int label_start = i + 1;
 
-          for (; i >= 0 && isspace(line[i]); i--) {}
+          for (; i >= 0 && isspace(line[i]); i--) {
+          }
 
           int name_end = i + 1;
-          DALI_ENFORCE(name_end > 0 && name_end < label_start &&
-                       label_start >= 2 && label_end > label_start,
-                       make_string("Incorrect format of the list file \"",  file_list_, "\":", n,
-                       " expected file name followed by a label; got: ", line));
+          DALI_ENFORCE(
+              name_end > 0 && name_end < label_start && label_start >= 2 && label_end > label_start,
+              make_string("Incorrect format of the list file \"", file_list_, "\":", n,
+                          " expected file name followed by a label; got: ", line));
 
           line[label_end] = 0;
           line[name_end] = 0;
@@ -201,8 +200,8 @@ class DLL_PUBLIC FileLabelLoader : public Loader<CPUBackend, ImageLabelWrapper> 
   string file_root_, file_list_;
   vector<std::pair<string, int>> image_label_pairs_;
 
-  bool has_files_arg_     = false;
-  bool has_labels_arg_    = false;
+  bool has_files_arg_ = false;
+  bool has_labels_arg_ = false;
   bool has_file_list_arg_ = false;
   bool has_file_root_arg_ = false;
 

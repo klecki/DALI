@@ -16,19 +16,19 @@
 #define DALI_OPERATORS_READER_LOADER_FILE_LOADER_H_
 
 #include <dirent.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <sys/stat.h>
 
+#include <algorithm>
 #include <fstream>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <algorithm>
 
 #include "dali/core/common.h"
-#include "dali/operators/reader/loader/loader.h"
 #include "dali/operators/reader/loader/filesystem.h"
+#include "dali/operators/reader/loader/loader.h"
 #include "dali/util/file.h"
 
 namespace dali {
@@ -40,17 +40,14 @@ struct ImageFileWrapper {
   std::string meta;
 };
 
-class FileLoader : public Loader< CPUBackend, ImageFileWrapper > {
+class FileLoader : public Loader<CPUBackend, ImageFileWrapper> {
  public:
-  explicit inline FileLoader(
-    const OpSpec& spec,
-    bool shuffle_after_epoch = false)
-    : Loader<CPUBackend, ImageFileWrapper >(spec),
-      file_filter_(spec.GetArgument<string>("file_filter")),
-      shuffle_after_epoch_(shuffle_after_epoch),
-      current_index_(0),
-      current_epoch_(0) {
-
+  explicit inline FileLoader(const OpSpec& spec, bool shuffle_after_epoch = false)
+      : Loader<CPUBackend, ImageFileWrapper>(spec),
+        file_filter_(spec.GetArgument<string>("file_filter")),
+        shuffle_after_epoch_(shuffle_after_epoch),
+        current_index_(0),
+        current_epoch_(0) {
     vector<string> files;
 
     has_files_arg_ = spec.TryGetRepeatedArgument(files, "files");
@@ -58,10 +55,10 @@ class FileLoader : public Loader< CPUBackend, ImageFileWrapper > {
     has_file_root_arg_ = spec.TryGetArgument(file_root_, "file_root");
 
     DALI_ENFORCE(has_file_root_arg_ || has_files_arg_ || has_file_list_arg_,
-      "``file_root`` argument is required when not using ``files`` or ``file_list``.");
+                 "``file_root`` argument is required when not using ``files`` or ``file_list``.");
 
     DALI_ENFORCE(has_files_arg_ + has_file_list_arg_ <= 1,
-      "File paths can be provided through ``files`` or ``file_list`` but not both.");
+                 "File paths can be provided through ``files`` or ``file_list`` but not both.");
 
     if (has_file_list_arg_) {
       DALI_ENFORCE(!file_list_.empty(), "``file_list`` argument cannot be empty");
@@ -79,34 +76,32 @@ class FileLoader : public Loader< CPUBackend, ImageFileWrapper > {
     }
 
     /*
-    * Those options are mutually exclusive as `shuffle_after_epoch` will make every shard looks differently
-    * after each epoch so coexistence with `stick_to_shard` doesn't make any sense
-    * Still when `shuffle_after_epoch` we will set `stick_to_shard` internally in the FileLoader so all
-    * DALI instances will do shuffling after each epoch
-    */
+     * Those options are mutually exclusive as `shuffle_after_epoch` will make every shard looks
+     * differently after each epoch so coexistence with `stick_to_shard` doesn't make any sense
+     * Still when `shuffle_after_epoch` we will set `stick_to_shard` internally in the FileLoader so
+     * all DALI instances will do shuffling after each epoch
+     */
     if (shuffle_after_epoch_ || stick_to_shard_)
-      DALI_ENFORCE(
-        !shuffle_after_epoch_ || !stick_to_shard_,
-        "shuffle_after_epoch and stick_to_shard cannot be both true");
+      DALI_ENFORCE(!shuffle_after_epoch_ || !stick_to_shard_,
+                   "shuffle_after_epoch and stick_to_shard cannot be both true");
     if (shuffle_after_epoch_ || shuffle_)
-      DALI_ENFORCE(
-        !shuffle_after_epoch_ || !shuffle_,
-        "shuffle_after_epoch and random_shuffle cannot be both true");
+      DALI_ENFORCE(!shuffle_after_epoch_ || !shuffle_,
+                   "shuffle_after_epoch and random_shuffle cannot be both true");
     /*
-      * Imply `stick_to_shard` from  `shuffle_after_epoch`
-      */
+     * Imply `stick_to_shard` from  `shuffle_after_epoch`
+     */
     if (shuffle_after_epoch_) {
       stick_to_shard_ = true;
     }
 
     if (!dont_use_mmap_) {
-      mmap_reserver = FileStream::FileStreamMappinReserver(
-                                  static_cast<unsigned int>(initial_buffer_fill_));
+      mmap_reserver =
+          FileStream::FileStreamMappinReserver(static_cast<unsigned int>(initial_buffer_fill_));
     }
     copy_read_data_ = dont_use_mmap_ || !mmap_reserver.CanShareMappedData();
   }
 
-  void PrepareEmpty(ImageFileWrapper &tensor) override;
+  void PrepareEmpty(ImageFileWrapper& tensor) override;
   void ReadSample(ImageFileWrapper& tensor) override;
 
  protected:
@@ -122,7 +117,7 @@ class FileLoader : public Loader< CPUBackend, ImageFileWrapper > {
         DALI_ENFORCE(s.is_open(), "Cannot open: " + file_list_);
 
         vector<char> line_buf(16 << 10);  // 16 kB should be more than enough for a line
-        char *line = line_buf.data();
+        char* line = line_buf.data();
         while (s.getline(line, line_buf.size())) {
           if (line[0])  // skip empty lines
             images_.emplace_back(line);
@@ -156,13 +151,13 @@ class FileLoader : public Loader< CPUBackend, ImageFileWrapper > {
     }
   }
 
-  using Loader<CPUBackend, ImageFileWrapper >::shard_id_;
-  using Loader<CPUBackend, ImageFileWrapper >::num_shards_;
+  using Loader<CPUBackend, ImageFileWrapper>::shard_id_;
+  using Loader<CPUBackend, ImageFileWrapper>::num_shards_;
 
   string file_list_, file_root_, file_filter_;
   vector<std::string> images_;
 
-  bool has_files_arg_     = false;
+  bool has_files_arg_ = false;
   bool has_file_list_arg_ = false;
   bool has_file_root_arg_ = false;
 

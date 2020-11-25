@@ -17,8 +17,8 @@
 
 #include <utility>
 #include "dali/core/convert.h"
-#include "dali/kernels/kernel.h"
 #include "dali/kernels/imgproc/roi.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -30,19 +30,18 @@ constexpr size_t kNchannels = 3;
 
 }  // namespace hsv
 
-
 template <class OutputType, class InputType>
 class HsvCpu {
   // TODO(mszolucha): implement float16
   static_assert(!std::is_same<OutputType, float16>::value &&
-                !std::is_same<InputType, float16>::value, "float16 not implemented yet");
+                    !std::is_same<InputType, float16>::value,
+                "float16 not implemented yet");
 
  public:
   using Roi = ::dali::kernels::Roi<hsv::kNdims - 1>;
 
-  KernelRequirements
-  Setup(KernelContext &context, const InTensorCPU<InputType, hsv::kNdims> &in, float hue,
-        float saturation, float value, const Roi *roi = nullptr) {
+  KernelRequirements Setup(KernelContext &context, const InTensorCPU<InputType, hsv::kNdims> &in,
+                           float hue, float saturation, float value, const Roi *roi = nullptr) {
     DALI_ENFORCE(!roi || all_coords(roi->hi >= roi->lo), "Region of interest is invalid");
     auto adjusted_roi = AdjustRoi(roi, in.shape);
     KernelRequirements req;
@@ -50,7 +49,6 @@ class HsvCpu {
     req.output_shapes = {std::move(out_shape)};
     return req;
   }
-
 
   void Run(KernelContext &context, const OutTensorCPU<OutputType, hsv::kNdims> &out,
            const InTensorCPU<InputType, hsv::kNdims> &in, float hue, float saturation, float value,

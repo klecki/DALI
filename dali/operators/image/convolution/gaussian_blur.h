@@ -18,10 +18,10 @@
 #include <memory>
 #include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/util/operator_impl_utils.h"
 #include "dali/operators/image/convolution/gaussian_blur_params.h"
 #include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/operator.h"
+#include "dali/pipeline/util/operator_impl_utils.h"
 
 namespace dali {
 

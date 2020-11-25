@@ -22,8 +22,8 @@
 #include "dali/core/error_handling.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/kernels/scratch.h"
-#include "dali/operators/image/crop/crop_attr.h"
 #include "dali/operators/generic/slice/slice_base.h"
+#include "dali/operators/image/crop/crop_attr.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
 
@@ -32,9 +32,7 @@ namespace dali {
 template <typename Backend>
 class Crop : public SliceBase<Backend> {
  public:
-  explicit inline Crop(const OpSpec &spec) :
-    SliceBase<Backend>(spec),
-    crop_attr_(spec) {}
+  explicit inline Crop(const OpSpec &spec) : SliceBase<Backend>(spec), crop_attr_(spec) {}
 
  protected:
   void ProcessCroppingAttrs(const workspace_t<Backend> &ws) override {
@@ -42,8 +40,8 @@ class Crop : public SliceBase<Backend> {
     const TensorLayout in_layout = input.GetLayout();
     DALI_ENFORCE(in_layout.ndim() == input.shape().sample_dim());
     DALI_ENFORCE(ImageLayoutInfo::HasChannel(in_layout) &&
-      (ImageLayoutInfo::IsImage(in_layout) || VideoLayoutInfo::IsVideo(in_layout)),
-      "Unexpected data layout");
+                     (ImageLayoutInfo::IsImage(in_layout) || VideoLayoutInfo::IsVideo(in_layout)),
+                 "Unexpected data layout");
 
     crop_attr_.ProcessArguments(ws);
   }

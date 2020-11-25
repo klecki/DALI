@@ -15,8 +15,8 @@
 #ifndef DALI_KERNELS_SIGNAL_FFT_FFT_CPU_H_
 #define DALI_KERNELS_SIGNAL_FFT_FFT_CPU_H_
 
-#include <memory>
 #include <complex>
+#include <memory>
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
@@ -34,13 +34,12 @@ struct FftArgs {
   int transform_axis = -1;
   int nfft = -1;
 
-  inline bool operator==(const FftArgs& oth) const {
-    return spectrum_type == oth.spectrum_type &&
-           transform_axis == oth.transform_axis &&
+  inline bool operator==(const FftArgs &oth) const {
+    return spectrum_type == oth.spectrum_type && transform_axis == oth.transform_axis &&
            nfft == oth.nfft;
   }
 
-  inline bool operator!=(const FftArgs& oth) const {
+  inline bool operator!=(const FftArgs &oth) const {
     return !operator==(oth);
   }
 };
@@ -51,11 +50,10 @@ template <typename OutputType = complexf, typename InputType = float, int Dims =
 class DLL_PUBLIC FftImpl {
  public:
   static_assert(std::is_same<InputType, float>::value,
-    "Data types other than float are not yet supported");
+                "Data types other than float are not yet supported");
 
-  static_assert(std::is_same<OutputType, float>::value
-             || std::is_same<OutputType, complexf>::value,
-    "Data types other than float are not yet supported");
+  static_assert(std::is_same<OutputType, float>::value || std::is_same<OutputType, complexf>::value,
+                "Data types other than float are not yet supported");
 
   DLL_PUBLIC virtual ~FftImpl() = default;
 
@@ -63,10 +61,8 @@ class DLL_PUBLIC FftImpl {
                                               const InTensorCPU<InputType, Dims> &in,
                                               const FftArgs &args) = 0;
 
-  DLL_PUBLIC virtual void Run(KernelContext &context,
-                              const OutTensorCPU<OutputType, Dims> &out,
-                              const InTensorCPU<InputType, Dims> &in,
-                              const FftArgs &args) = 0;
+  DLL_PUBLIC virtual void Run(KernelContext &context, const OutTensorCPU<OutputType, Dims> &out,
+                              const InTensorCPU<InputType, Dims> &in, const FftArgs &args) = 0;
 };
 
 }  // namespace impl
@@ -104,26 +100,24 @@ class DLL_PUBLIC FftImpl {
  * @param args.transform_axis Axis along which the FFT transformation will be calculated
  *
  */
-template <typename OutputType = std::complex<float>,  typename InputType = float, int Dims = 2>
+template <typename OutputType = std::complex<float>, typename InputType = float, int Dims = 2>
 class DLL_PUBLIC Fft1DCpu {
  public:
   static_assert(std::is_same<InputType, float>::value,
-    "Data types other than float are not yet supported");
+                "Data types other than float are not yet supported");
 
-  static_assert(std::is_same<OutputType, float>::value
-             || std::is_same<OutputType, std::complex<float>>::value,
-    "Data types other than float are not yet supported");
+  static_assert(std::is_same<OutputType, float>::value ||
+                    std::is_same<OutputType, std::complex<float>>::value,
+                "Data types other than float are not yet supported");
 
   DLL_PUBLIC ~Fft1DCpu();
 
   DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
-                                      const InTensorCPU<InputType, Dims> &in,
-                                      const FftArgs &args);
+                                      const InTensorCPU<InputType, Dims> &in, const FftArgs &args);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutTensorCPU<OutputType, Dims> &out,
-                      const InTensorCPU<InputType, Dims> &in,
-                      const FftArgs &args);
+  DLL_PUBLIC void Run(KernelContext &context, const OutTensorCPU<OutputType, Dims> &out,
+                      const InTensorCPU<InputType, Dims> &in, const FftArgs &args);
+
  private:
   using Impl = impl::FftImpl<OutputType, InputType, Dims>;
   std::unique_ptr<Impl> impl_;

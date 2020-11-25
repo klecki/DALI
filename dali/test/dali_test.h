@@ -20,11 +20,11 @@
 
 #include <cstring>
 #include <fstream>
+#include <numeric>
 #include <random>
 #include <string>
 #include <utility>
 #include <vector>
-#include <numeric>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -72,13 +72,11 @@ class DALITest : public ::testing::Test {
     return std::uniform_real_distribution<>(a, b)(rand_gen_);
   }
 
-  void DecodeImage(const unsigned char *data, int data_size, int c,
-                   DALIImageType img_type, Tensor<CPUBackend> *out,
-                   CropWindowGenerator crop_window_generator = {}) const {
+  void DecodeImage(const unsigned char *data, int data_size, int c, DALIImageType img_type,
+                   Tensor<CPUBackend> *out, CropWindowGenerator crop_window_generator = {}) const {
     cv::Mat input(1, data_size, CV_8UC1, const_cast<unsigned char *>(data));
 
-    cv::Mat tmp = cv::imdecode(
-        input, c == 1 ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR);
+    cv::Mat tmp = cv::imdecode(input, c == 1 ? cv::IMREAD_GRAYSCALE : cv::IMREAD_COLOR);
 
     if (crop_window_generator) {
       cv::Mat cropped;
@@ -102,17 +100,14 @@ class DALITest : public ::testing::Test {
     }
 
     DALI_ENFORCE(out, "There's no output Tensor to write into");
-    std::memcpy(out->mutable_data<unsigned char>(),
-                out_img.ptr(),
+    std::memcpy(out->mutable_data<unsigned char>(), out_img.ptr(),
                 static_cast<size_t>(out_img.rows) * out_img.cols * c);
   }
 
   inline void DecodeImages(DALIImageType type, const ImgSetDescr &imgs,
-                           vector<vector<uint8>> *images,
-                           vector<DimPair> *image_dims) {
+                           vector<vector<uint8>> *images, vector<DimPair> *image_dims) {
     c_ = IsColor(type) ? 3 : 1;
-    const int flag =
-        IsColor(type) ? cv::IMREAD_COLOR: cv::IMREAD_GRAYSCALE;
+    const int flag = IsColor(type) ? cv::IMREAD_COLOR : cv::IMREAD_GRAYSCALE;
     const auto cType = IsColor(type) ? CV_8UC3 : CV_8UC1;
     const auto &encoded = imgs.data_;
     const auto &encoded_sizes = imgs.sizes_;
@@ -153,26 +148,24 @@ class DALITest : public ::testing::Test {
     TensorListShape<> shape(n, kImageDim);
     for (int i = 0; i < n; ++i) {
       shape.set_tensor_shape(i,
-          {image_dims[i % images.size()].h, image_dims[i % images.size()].w, c});
+                             {image_dims[i % images.size()].h, image_dims[i % images.size()].w, c});
     }
     tl->template mutable_data<uint8>();
     tl->Resize(shape);
     for (int i = 0; i < n; ++i) {
-      std::memcpy(tl->template mutable_tensor<uint8>(i),
-                  images[i % images.size()].data(), volume(tl->tensor_shape(i)));
+      std::memcpy(tl->template mutable_tensor<uint8>(i), images[i % images.size()].data(),
+                  volume(tl->tensor_shape(i)));
     }
   }
 
-  inline void MakeImageBatch(int n, TensorList<CPUBackend> *tl,
-                             DALIImageType type = DALI_RGB) {
+  inline void MakeImageBatch(int n, TensorList<CPUBackend> *tl, DALIImageType type = DALI_RGB) {
     if (images_.empty()) DecodeJPEGS(type);
 
     MakeDecodedBatch(n, tl, images_, image_dims_, c_);
   }
 
   // Make a batch (in TensorList) of arbitrary raw data
-  inline void MakeEncodedBatch(TensorList<CPUBackend> *tl, int n,
-                               const ImgSetDescr &imgs) {
+  inline void MakeEncodedBatch(TensorList<CPUBackend> *tl, int n, const ImgSetDescr &imgs) {
     const auto &data = imgs.data_;
     const auto &data_sizes = imgs.sizes_;
     const auto nImgs = imgs.nImages();
@@ -186,15 +179,13 @@ class DALITest : public ::testing::Test {
     tl->Resize(shape);
 
     for (int i = 0; i < n; ++i) {
-      std::memcpy(tl->template mutable_tensor<uint8>(i), data[i % nImgs],
-                  data_sizes[i % nImgs]);
+      std::memcpy(tl->template mutable_tensor<uint8>(i), data[i % nImgs], data_sizes[i % nImgs]);
       tl->SetSourceInfo(i, imgs.filenames_[i % nImgs]);
     }
   }
 
   // Make a batch (of vector<Tensor>) of arbitrary raw data
-  inline void MakeEncodedBatch(vector<Tensor<CPUBackend>> *t, int n,
-                               const ImgSetDescr &imgs) {
+  inline void MakeEncodedBatch(vector<Tensor<CPUBackend>> *t, int n, const ImgSetDescr &imgs) {
     const auto &data = imgs.data_;
     const auto &data_sizes = imgs.sizes_;
     const auto nImgs = data.size();
@@ -208,8 +199,7 @@ class DALITest : public ::testing::Test {
       ti.template mutable_data<uint8>();
       ti.SetSourceInfo(imgs.filenames_[i % nImgs]);
 
-      std::memcpy(ti.raw_mutable_data(), data[i % nImgs],
-                  data_sizes[i % nImgs]);
+      std::memcpy(ti.raw_mutable_data(), data[i % nImgs], data_sizes[i % nImgs]);
     }
   }
 
@@ -247,8 +237,7 @@ class DALITest : public ::testing::Test {
     }
   }
 
-  inline void MakeBBoxesBatch(TensorList<CPUBackend> *tl, int n,
-                              bool ltrb = true) {
+  inline void MakeBBoxesBatch(TensorList<CPUBackend> *tl, int n, bool ltrb = true) {
     static std::uniform_int_distribution<> rint(0, 10);
 
     TensorListShape<> shape(n, kBBoxDim);
@@ -264,8 +253,8 @@ class DALITest : public ::testing::Test {
   }
 
   inline void MakeBBoxesAndLabelsBatch(TensorList<CPUBackend> *boxes,
-                                       TensorList<CPUBackend> *labels,
-                                       unsigned int n, bool ltrb = true) {
+                                       TensorList<CPUBackend> *labels, unsigned int n,
+                                       bool ltrb = true) {
     static std::uniform_int_distribution<> rint(0, 10);
 
     TensorListShape<> boxes_shape(n, kBBoxDim), labels_shape(n, kLabelDim);
@@ -279,10 +268,8 @@ class DALITest : public ::testing::Test {
     labels->Resize(labels_shape);
 
     for (size_t i = 0; i < n; ++i) {
-      MakeRandomBoxes(boxes->template mutable_tensor<float>(i),
-                      boxes_shape[i][0], ltrb);
-      MakeRandomLabels(labels->template mutable_tensor<int>(i),
-                       labels_shape[i][0]);
+      MakeRandomBoxes(boxes->template mutable_tensor<float>(i), boxes_shape[i][0], ltrb);
+      MakeRandomLabels(labels->template mutable_tensor<int>(i), labels_shape[i][0]);
     }
   }
 
@@ -302,8 +289,7 @@ class DALITest : public ::testing::Test {
   }
 
   template <typename T>
-  void MeanStdDevColorNorm(const vector<T> &diff, double *mean,
-                           double *std) const {
+  void MeanStdDevColorNorm(const vector<T> &diff, double *mean, double *std) const {
     MeanStdDev(diff, mean, std);
     *mean /= (255. / 100.);  // normalizing to the color range and use percents
   }
@@ -366,7 +352,9 @@ class DALITest : public ::testing::Test {
   }
 
  protected:
-  int GetNumColorComp() const { return c_; }
+  int GetNumColorComp() const {
+    return c_;
+  }
 
   std::mt19937 rand_gen_;
   vector<string> jpeg_names_, png_names_, tiff_names_;

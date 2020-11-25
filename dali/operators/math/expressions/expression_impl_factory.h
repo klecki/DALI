@@ -33,17 +33,15 @@
 
 namespace dali {
 
-#define ALLOWED_UN_OPS \
-  (ArithmeticOp::plus, ArithmeticOp::minus)
+#define ALLOWED_UN_OPS (ArithmeticOp::plus, ArithmeticOp::minus)
 
 #define ALLOWED_BIN_OPS                                                                            \
   (ArithmeticOp::add, ArithmeticOp::sub, ArithmeticOp::mul, ArithmeticOp::div, ArithmeticOp::fdiv, \
-  ArithmeticOp::mod, ArithmeticOp::min, ArithmeticOp::max, ArithmeticOp::eq, ArithmeticOp::neq,    \
-  ArithmeticOp::lt, ArithmeticOp::leq, ArithmeticOp::gt, ArithmeticOp::geq,                        \
-  ArithmeticOp::bit_and, ArithmeticOp::bit_or, ArithmeticOp::bit_xor)
+   ArithmeticOp::mod, ArithmeticOp::min, ArithmeticOp::max, ArithmeticOp::eq, ArithmeticOp::neq,   \
+   ArithmeticOp::lt, ArithmeticOp::leq, ArithmeticOp::gt, ArithmeticOp::geq,                       \
+   ArithmeticOp::bit_and, ArithmeticOp::bit_or, ArithmeticOp::bit_xor)
 
-#define ALLOWED_TERNARY_OPS \
-  (ArithmeticOp::clamp)
+#define ALLOWED_TERNARY_OPS (ArithmeticOp::clamp)
 
 namespace expression_detail {
 
@@ -51,7 +49,7 @@ namespace expression_detail {
  * @brief Pass through as a pointer to T or return the pointed value based on `as_ptr`
  */
 template <bool as_ptr, typename T>
-DALI_HOST_DEV std::enable_if_t<as_ptr, const T*> Pass(const T* ptr) {
+DALI_HOST_DEV std::enable_if_t<as_ptr, const T *> Pass(const T *ptr) {
   return ptr;
 }
 
@@ -59,7 +57,7 @@ DALI_HOST_DEV std::enable_if_t<as_ptr, const T*> Pass(const T* ptr) {
  * @brief Pass through as a pointer to T or return the pointed value based on `as_ptr`
  */
 template <bool as_ptr, typename T>
-DALI_HOST_DEV std::enable_if_t<!as_ptr, T> Pass(const T* ptr) {
+DALI_HOST_DEV std::enable_if_t<!as_ptr, T> Pass(const T *ptr) {
   return *ptr;
 }
 
@@ -68,17 +66,16 @@ DALI_HOST_DEV std::enable_if_t<!as_ptr, T> Pass(const T* ptr) {
  *        based on `as_ptr`
  */
 template <bool as_ptr, typename T>
-DALI_HOST_DEV std::enable_if_t<as_ptr, const void*> Pass(const void* ptr, DALIDataType) {
+DALI_HOST_DEV std::enable_if_t<as_ptr, const void *> Pass(const void *ptr, DALIDataType) {
   return ptr;
 }
-
 
 /**
  * @brief Pass through as a `const void *` or return the pointed value cast from `type_id` to T
  *        based on `as_ptr`
  */
 template <bool as_ptr, typename T>
-DALI_HOST_DEV std::enable_if_t<!as_ptr, T> Pass(const void* ptr, DALIDataType type_id) {
+DALI_HOST_DEV std::enable_if_t<!as_ptr, T> Pass(const void *ptr, DALIDataType type_id) {
   T result;
   TYPE_SWITCH(type_id, type2id, AccessType, ARITHMETIC_ALLOWED_TYPES, (
     const auto *access = reinterpret_cast<const AccessType*>(ptr);
@@ -88,7 +85,7 @@ DALI_HOST_DEV std::enable_if_t<!as_ptr, T> Pass(const void* ptr, DALIDataType ty
 }
 
 template <typename T>
-DALI_HOST_DEV T Access(const T* ptr, int64_t idx) {
+DALI_HOST_DEV T Access(const T *ptr, int64_t idx) {
   return ptr[idx];
 }
 
@@ -98,7 +95,7 @@ DALI_HOST_DEV T Access(T value, int64_t) {
 }
 
 template <typename T>
-DALI_HOST_DEV T Access(const void* ptr, int64_t idx, DALIDataType type_id) {
+DALI_HOST_DEV T Access(const void *ptr, int64_t idx, DALIDataType type_id) {
   T result;
   TYPE_SWITCH(type_id, type2id, AccessType, ARITHMETIC_ALLOWED_TYPES, (
     const auto *access = reinterpret_cast<const AccessType*>(ptr);
@@ -113,7 +110,7 @@ DALI_HOST_DEV T Access(T value, int64_t, DALIDataType) {
 }
 
 template <bool as_ptr, typename T>
-using param_t = std::conditional_t<as_ptr, const void*, T>;
+using param_t = std::conditional_t<as_ptr, const void *, T>;
 
 }  // namespace expression_detail
 

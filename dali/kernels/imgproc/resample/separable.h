@@ -37,11 +37,11 @@ struct SeparableResamplingFilter {
 
   using Params = span<const ResamplingParamsND<spatial_ndim> >;
 
-  virtual KernelRequirements
-  Setup(KernelContext &context, const Input &in, const Params &params) = 0;
+  virtual KernelRequirements Setup(KernelContext &context, const Input &in,
+                                   const Params &params) = 0;
 
-  virtual void
-  Run(KernelContext &context, const Output &out, const Input &in, const Params &params) = 0;
+  virtual void Run(KernelContext &context, const Output &out, const Input &in,
+                   const Params &params) = 0;
 
   using Ptr = std::unique_ptr<SeparableResamplingFilter>;
 

@@ -18,11 +18,11 @@
 #include <gtest/gtest.h>
 #include <random>
 #include <vector>
-#include "dali/kernels/kernel.h"
-#include "dali/test/test_tensors.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/test/tensor_test_utils.h"
+#include "dali/kernels/kernel.h"
 #include "dali/kernels/test/kernel_test_utils.h"
+#include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
@@ -54,14 +54,12 @@ struct KernelPoCFixture : Base {
   InList<StorageBackend, Input2, 3> i2;
   OutList<StorageBackend, Output, 3> o1, o2;
 
-
   void Initialize() {
     std::mt19937_64 rng;
 
     std::vector<TensorShape<3>> shapes;
     auto size_dist = uniform_distribution(128, 256);
-    for (int i = 0; i < 3; i++)
-      shapes.push_back({ i+1, size_dist(rng), size_dist(rng)});
+    for (int i = 0; i < 3; i++) shapes.push_back({i + 1, size_dist(rng), size_dist(rng)});
     list_shape = shapes;
 
     tl1.reshape(list_shape);
@@ -84,7 +82,7 @@ struct KernelPoCFixture : Base {
       ptrdiff_t elements = ref.tensor_shape(sample).num_elements();
       for (ptrdiff_t i = 0; i < elements; i++) {
         ref.tensor_data(sample)[i] =
-          i1_cpu.tensor_data(sample)[i] * a + i2_cpu.tensor_data(sample)[i];
+            i1_cpu.tensor_data(sample)[i] * a + i2_cpu.tensor_data(sample)[i];
       }
     }
   }
@@ -105,7 +103,7 @@ struct KernelPoCFixture : Base {
     // use uniform call with argument tuples
     tlo2.reshape(req.output_shapes[0]);
     o2 = tlo2.template get<StorageBackend, 3>();
-    kernels::kernel::Run(kernel, ctx, std::tie(o2), std::tie(i1, i2), std::make_tuple(a) );
+    kernels::kernel::Run(kernel, ctx, std::tie(o2), std::tie(i1, i2), std::make_tuple(a));
   }
 
   void Verify() {

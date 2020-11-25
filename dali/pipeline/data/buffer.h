@@ -179,7 +179,7 @@ class DLL_PUBLIC Buffer {
    * @brief Returns the TypeInfo object that keeps track of the
    * datatype of the underlying storage.
    */
-  inline const TypeInfo &type() const {
+  inline const TypeInfo& type() const {
     return type_;
   }
 
@@ -267,7 +267,7 @@ class DLL_PUBLIC Buffer {
     size_ = 0;
     shares_data_ = false;
     num_bytes_ = 0;
-    device_ =  CPU_ONLY_DEVICE_ID;
+    device_ = CPU_ONLY_DEVICE_ID;
   }
 
   /**
@@ -309,7 +309,7 @@ class DLL_PUBLIC Buffer {
   }
 
   // Helper to resize the underlying allocation
-  inline void ResizeHelper(Index new_size, const TypeInfo &new_type) {
+  inline void ResizeHelper(Index new_size, const TypeInfo& new_type) {
     DALI_ENFORCE(new_size >= 0, "Input size less than zero not supported.");
 
     // If we use NoType the result will always be 0
@@ -324,8 +324,7 @@ class DLL_PUBLIC Buffer {
     size_ = new_size;
     type_ = new_type;
 
-    if (shares_data_)
-      return;
+    if (shares_data_) return;
 
     if (new_size == 0) {
       if (std::is_same<Backend, GPUBackend>::value && device_ == CPU_ONLY_DEVICE_ID) {
@@ -371,11 +370,10 @@ DLL_PUBLIC double Buffer<Backend>::growth_factor_ = 1.0;
 
 template <typename Backend>
 DLL_PUBLIC double Buffer<Backend>::shrink_threshold_ =
-  std::is_same<Backend, CPUBackend>::value ? 0.9 : 0;
+    std::is_same<Backend, CPUBackend>::value ? 0.9 : 0;
 
 template <typename Backend>
 DLL_PUBLIC constexpr double Buffer<Backend>::kMaxGrowthFactor;
-
 
 // Macro so we don't have to list these in all
 // classes that derive from Buffer
@@ -390,7 +388,6 @@ DLL_PUBLIC constexpr double Buffer<Backend>::kMaxGrowthFactor;
   using Buffer<Backend>::num_bytes_;   \
   using Buffer<Backend>::device_;      \
   using Buffer<Backend>::pinned_
-
 
 }  // namespace dali
 

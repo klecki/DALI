@@ -19,9 +19,8 @@ namespace dali {
 namespace kernels {
 
 template <typename T>
-bool is_flipped(const T* lhs, const T* rhs,
-                size_t seq_length, size_t depth, size_t height, size_t width,
-                size_t channels, bool flip_z, bool flip_y, bool flip_x) {
+bool is_flipped(const T* lhs, const T* rhs, size_t seq_length, size_t depth, size_t height,
+                size_t width, size_t channels, bool flip_z, bool flip_y, bool flip_x) {
   for (size_t f = 0; f < seq_length; ++f) {
     for (size_t z = 0; z < depth; ++z) {
       for (size_t y = 0; y < height; ++y) {

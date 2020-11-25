@@ -16,17 +16,17 @@
 #define DALI_OPERATORS_IMAGE_REMAP_WARP_PARAM_PROVIDER_H_
 
 #include <cassert>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "dali/core/static_switch.h"
 #include "dali/core/tensor_view.h"
 #include "dali/kernels/alloc.h"
-#include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/data/views.h"
+#include "dali/kernels/common/copy.h"
 #include "dali/kernels/imgproc/sampler.h"
 #include "dali/kernels/scratch.h"
-#include "dali/kernels/common/copy.h"
+#include "dali/pipeline/data/views.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -43,17 +43,16 @@ class InterpTypeProvider {
       auto &tensor_vector = ws.ArgumentInput("interp_type");
       int n = tensor_vector.shape().num_samples();
       DALI_ENFORCE(n == 1 || n == num_samples,
-        "interp_type must be a single value or contain one value per sample");
+                   "interp_type must be a single value or contain one value per sample");
       interp_types_.resize(n);
-      for (int i = 0; i < n; i++)
-        interp_types_[i] = tensor_vector[i].data<DALIInterpType>()[0];
+      for (int i = 0; i < n; i++) interp_types_[i] = tensor_vector[i].data<DALIInterpType>()[0];
     } else {
       interp_types_.resize(1, spec.template GetArgument<DALIInterpType>("interp_type"));
     }
 
     for (size_t i = 0; i < interp_types_.size(); i++) {
       DALI_ENFORCE(interp_types_[i] == DALI_INTERP_NN || interp_types_[i] == DALI_INTERP_LINEAR,
-        "Only nearest and linear interpolation is supported");
+                   "Only nearest and linear interpolation is supported");
     }
   }
 
@@ -67,6 +66,7 @@ class BorderTypeProvider {
   BorderType Border() const {
     return border_;
   }
+
  protected:
   void SetBorder(const OpSpec &spec) {
     float fborder;
@@ -80,8 +80,7 @@ class BorderTypeProvider {
 };
 
 template <>
-inline void BorderTypeProvider<kernels::BorderClamp>::SetBorder(const OpSpec &spec) {
-}
+inline void BorderTypeProvider<kernels::BorderClamp>::SetBorder(const OpSpec &spec) {}
 
 /** @brief Provides warp parameters
  *
@@ -136,8 +135,7 @@ class WarpParamProvider : public InterpTypeProvider, public BorderTypeProvider<B
     // Step 3: If the operator must infer the output size based
     // on the params, then this size inference must obviously
     // follow SetParams.
-    if (infer_size)
-      InferSize();
+    if (infer_size) InferSize();
     // Step 4: Adjust parameters after shape inference
     AdjustParams();
 
@@ -212,19 +210,18 @@ class WarpParamProvider : public InterpTypeProvider, public BorderTypeProvider<B
     params_cpu_ = {};
   }
 
-  virtual void SetParams() {
-  }
+  virtual void SetParams() {}
 
-  virtual void AdjustParams() {
-  }
+  virtual void AdjustParams() {}
 
   virtual void ValidateOutputSizes() {}
 
   virtual void GetUniformOutputSize(SpatialShape &out_size) const {
     assert(HasExplicitSize() && !HasExplicitPerSampleSize());
     std::vector<float> out_size_f = spec_->template GetArgument<std::vector<float>>("size");
-    DALI_ENFORCE(static_cast<int>(out_size_f.size()) == spatial_ndim,
-      "output_size must specify same number of dimensions as the input (excluding channels)");
+    DALI_ENFORCE(
+        static_cast<int>(out_size_f.size()) == spatial_ndim,
+        "output_size must specify same number of dimensions as the input (excluding channels)");
     for (int d = 0; d < spatial_ndim; d++) {
       float s = out_size_f[d];
       DALI_ENFORCE(s > 0, "Output size must be positive");
@@ -239,22 +236,19 @@ class WarpParamProvider : public InterpTypeProvider, public BorderTypeProvider<B
     const int N = num_samples_;
 
     DALI_ENFORCE(is_uniform(shape), "Output sizes must be passed as uniform Tensor List.");
-    DALI_ENFORCE(
-        (shape.num_samples() == N && shape[0] == TensorShape<>(spatial_ndim)) ||
-            (shape.num_samples() == 1 && (shape[0] == TensorShape<>(N, spatial_ndim) ||
-                                          shape[0] == TensorShape<>(N * spatial_ndim))),
-        "Output sizes must either be a batch of `dim`-sized tensors, flat array of size "
-        "num_samples*dim or one 2D tensor of shape {num_samples, dim}.");
+    DALI_ENFORCE((shape.num_samples() == N && shape[0] == TensorShape<>(spatial_ndim)) ||
+                     (shape.num_samples() == 1 && (shape[0] == TensorShape<>(N, spatial_ndim) ||
+                                                   shape[0] == TensorShape<>(N * spatial_ndim))),
+                 "Output sizes must either be a batch of `dim`-sized tensors, flat array of size "
+                 "num_samples*dim or one 2D tensor of shape {num_samples, dim}.");
 
     out_sizes.resize(N);
     if (shape.num_samples() == N) {
       for (int i = 0; i < N; i++)
-        for (int d = 0; d < spatial_ndim; d++)
-          out_sizes[i][d] = shape_list.data[i][d];
+        for (int d = 0; d < spatial_ndim; d++) out_sizes[i][d] = shape_list.data[i][d];
     } else {
       for (int i = 0; i < N; i++)
-        for (int d = 0; d < spatial_ndim; d++)
-          out_sizes[i][d] = shape_list.data[0][i*N + d];
+        for (int d = 0; d < spatial_ndim; d++) out_sizes[i][d] = shape_list.data[0][i * N + d];
     }
   }
 
@@ -277,8 +271,7 @@ class WarpParamProvider : public InterpTypeProvider, public BorderTypeProvider<B
       SpatialShape out_shape;
       GetUniformOutputSize(out_shape);
       out_sizes_.resize(num_samples_);
-      for (auto &s : out_sizes_)
-        s = out_shape;
+      for (auto &s : out_sizes_) s = out_shape;
     }
   }
 

@@ -20,11 +20,11 @@
 #include <utility>
 #include "dali/core/tensor_view.h"
 #include "dali/kernels/kernel_req.h"
-#include "dali/kernels/scratch.h"
 #include "dali/kernels/reduce/online_reducer.h"
 #include "dali/kernels/reduce/reduce_test.h"
-#include "dali/test/test_tensors.h"
+#include "dali/kernels/scratch.h"
 #include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
@@ -40,13 +40,10 @@ struct ReductionKernelTest {
   ScratchpadAllocator sa;
   std::mt19937_64 rng{12345};
 
-
   template <typename... Args>
-  KernelRequirements Setup(
-      const TensorListShape<> &in_shape,
-      const TensorListShape<> &ref_out_shape,
-      span<const int> axes, bool keep_dims, bool batch,
-      Args &&...args) {
+  KernelRequirements Setup(const TensorListShape<> &in_shape,
+                           const TensorListShape<> &ref_out_shape, span<const int> axes,
+                           bool keep_dims, bool batch, Args &&...args) {
     in.reshape(in_shape);
     ref.reshape(ref_out_shape);
     auto req = kernel.Setup(ctx, in_shape, axes, keep_dims, batch, std::forward<Args>(args)...);
@@ -81,10 +78,8 @@ struct ReductionKernelTest {
   }
 };
 
-
 }  // namespace testing
 }  // namespace kernels
 }  // namespace dali
-
 
 #endif  // DALI_KERNELS_REDUCE_REDUCE_GPU_TEST_H_

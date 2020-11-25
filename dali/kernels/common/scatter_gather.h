@@ -18,9 +18,9 @@
 #include <cuda_runtime.h>
 #include <cstdint>
 #include <vector>
-#include "dali/kernels/alloc.h"
-#include "dali/core/span.h"
 #include "dali/core/api_helper.h"
+#include "dali/core/span.h"
+#include "dali/kernels/alloc.h"
 
 namespace dali {
 namespace kernels {
@@ -40,12 +40,12 @@ DLL_PUBLIC size_t Coalesce(span<CopyRange> ranges);
  */
 class DLL_PUBLIC ScatterGatherGPU {
  public:
-  static constexpr size_t kDefaultBlockSize = 64<<10;
+  static constexpr size_t kDefaultBlockSize = 64 << 10;
 
   ScatterGatherGPU() = default;
 
   ScatterGatherGPU(size_t max_size_per_block, size_t estimated_num_blocks)
-  : max_size_per_block_(max_size_per_block) {
+      : max_size_per_block_(max_size_per_block) {
     blocks_.reserve(estimated_num_blocks);
     ReserveGPUBlocks();
   }
@@ -53,9 +53,8 @@ class DLL_PUBLIC ScatterGatherGPU {
   explicit ScatterGatherGPU(size_t max_size_per_block) : ScatterGatherGPU(max_size_per_block, 0) {}
 
   ScatterGatherGPU(size_t max_size_per_block, size_t total_size, size_t num_ranges)
-  : ScatterGatherGPU(
-      max_size_per_block,
-      (total_size + num_ranges * (max_size_per_block - 1)) / max_size_per_block) {
+      : ScatterGatherGPU(max_size_per_block, (total_size + num_ranges * (max_size_per_block - 1)) /
+                                                 max_size_per_block) {
     ranges_.reserve(num_ranges);
   }
 
@@ -72,18 +71,14 @@ class DLL_PUBLIC ScatterGatherGPU {
    */
   void AddCopy(void *dst, const void *src, size_t size) {
     if (size > 0) {
-      ranges_.push_back({
-        static_cast<const char*>(src),
-        static_cast<char*>(dst),
-        size
-      });
+      ranges_.push_back({static_cast<const char *>(src), static_cast<char *>(dst), size});
     }
   }
 
   enum class Method {
     Default = 0,  // Uses scatter-gather kernel, unless there are 2 or fewer single effective copy
                   // ranges, in that cases cudaMemcpyAsync is used
-    Memcpy = 1,  // Always use cudaMemcpyAsync
+    Memcpy = 1,   // Always use cudaMemcpyAsync
     Kernel = 2,   // Always use scatter-gather kernel
   };
 
@@ -94,9 +89,8 @@ class DLL_PUBLIC ScatterGatherGPU {
    * @param method     - see ScatterGatherGPU::CopyMethod
    * @param memcpyKind - determines the cudaMemcpyKind when using cudaMemcpy
    */
-  DLL_PUBLIC void
-  Run(cudaStream_t stream, bool reset = true, Method method = Method::Default,
-      cudaMemcpyKind memcpyKind = cudaMemcpyDefault);
+  DLL_PUBLIC void Run(cudaStream_t stream, bool reset = true, Method method = Method::Default,
+                      cudaMemcpyKind memcpyKind = cudaMemcpyDefault);
 
   using CopyRange = detail::CopyRange;
 

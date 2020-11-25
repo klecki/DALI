@@ -26,8 +26,8 @@
 #include "dali/kernels/scratch.h"
 #include "dali/pipeline/operator/operator.h"
 
-#define PAD_SUPPORTED_TYPES (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, \
-                             uint64_t, int64_t, float, float16)
+#define PAD_SUPPORTED_TYPES \
+  (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float, float16)
 #define PAD_SUPPORTED_NDIMS (1, 2, 3, 4, 5)
 
 namespace dali {
@@ -36,8 +36,7 @@ template <typename Backend>
 class Pad : public Operator<Backend> {
  public:
   inline explicit Pad(const OpSpec &spec)
-      : Operator<Backend>(spec)
-      , fill_value_(spec.GetArgument<float>("fill_value")) {
+      : Operator<Backend>(spec), fill_value_(spec.GetArgument<float>("fill_value")) {
     bool has_axis_names = spec.HasArgument("axis_names");
     bool has_axes = spec.HasArgument("axes");
     if (has_axis_names && has_axes) {
@@ -73,7 +72,7 @@ class Pad : public Operator<Backend> {
 
     for (auto axis : axes_) {
       DALI_ENFORCE(axis >= 0 && axis < ndim,
-        make_string("specified axis is out of bounds. axis=", axis, ", ndim=", ndim));
+                   make_string("specified axis is out of bounds. axis=", axis, ", ndim=", ndim));
     }
 
     // If no axes are provided, use all
@@ -82,10 +81,8 @@ class Pad : public Operator<Backend> {
       std::iota(axes_.begin(), axes_.end(), 0);
     }
 
-    if (spec.ArgumentDefined("shape"))
-      GetShapeArgument(shape_, spec, "shape", ws);
-    if (spec.ArgumentDefined("align"))
-      GetShapeArgument(align_, spec, "align", ws);
+    if (spec.ArgumentDefined("shape")) GetShapeArgument(shape_, spec, "shape", ws);
+    if (spec.ArgumentDefined("align")) GetShapeArgument(align_, spec, "align", ws);
 
     if (shape_.empty())
       shape_ = uniform_list_shape(nsamples, TensorShape<>(std::vector<int64_t>(axes_.size(), -1)));
@@ -97,7 +94,8 @@ class Pad : public Operator<Backend> {
         }
       }
       auto shape = shape_.tensor_shape_span(i);
-      DALI_ENFORCE(static_cast<int>(axes_.size()) == shape.size(),
+      DALI_ENFORCE(
+          static_cast<int>(axes_.size()) == shape.size(),
           make_string(
               "If explicit shape is provided, there should be a value per axis to be padded. "
               "Expected ",
@@ -107,13 +105,12 @@ class Pad : public Operator<Backend> {
 
   static inline int64_t aligned_extent(int64_t extent, int alignment) {
     int64_t remainder = extent % alignment;
-    if (remainder > 0)
-      extent += alignment - remainder;
+    if (remainder > 0) extent += alignment - remainder;
     return extent;
   }
 
   template <typename Args>
-  std::vector<Args>& FillArgs(TensorListShape<> in_shape, TensorLayout in_layout) {
+  std::vector<Args> &FillArgs(TensorListShape<> in_shape, TensorLayout in_layout) {
     int nsamples = in_shape.num_samples();
     int ndim = in_shape.sample_dim();
     int naxes = axes_.size();
@@ -132,7 +129,7 @@ class Pad : public Operator<Backend> {
       kernel_sample_args_ = std::vector<Args>();
     }
 
-    auto &kernel_sample_args = any_cast<std::vector<Args>&>(kernel_sample_args_);
+    auto &kernel_sample_args = any_cast<std::vector<Args> &>(kernel_sample_args_);
     kernel_sample_args.clear();
     kernel_sample_args.resize(nsamples);
 

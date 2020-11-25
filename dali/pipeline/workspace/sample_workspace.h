@@ -17,15 +17,15 @@
 
 #include <cuda_runtime_api.h>
 
+#include <memory>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/pipeline/workspace/device_workspace.h"
 #include "dali/pipeline/data/tensor.h"
 #include "dali/pipeline/data/tensor_list.h"
+#include "dali/pipeline/workspace/device_workspace.h"
 #include "dali/pipeline/workspace/host_workspace.h"
 #include "dali/pipeline/workspace/mixed_workspace.h"
 

@@ -27,7 +27,7 @@ template <bool inclusive_end>
 DALI_HOST_DEV DALI_FORCEINLINE bool is_out_of_bounds(int64_t idx, int64_t data_extent) {
   if (inclusive_end)  // check idx is within [0, data_extent]
     return static_cast<uint64_t>(idx) > static_cast<uint64_t>(data_extent);
-  else                // check idx is within [0, data_extent)
+  else  // check idx is within [0, data_extent)
     return static_cast<uint64_t>(idx) >= static_cast<uint64_t>(data_extent);
 }
 
@@ -74,7 +74,7 @@ void ApplySliceBoundsPolicy(OutOfBoundsPolicy policy, const TensorShape<Dims> &i
     case OutOfBoundsPolicy::TrimToShape:
       for (int d = 0; d < input_shape.size(); d++) {
         auto slice_start = clamp<int64_t>(slice_anchor[d], 0, input_shape[d]);
-        auto slice_end   = clamp<int64_t>(slice_anchor[d] + slice_shape[d], 0, input_shape[d]);
+        auto slice_end = clamp<int64_t>(slice_anchor[d] + slice_shape[d], 0, input_shape[d]);
         assert(slice_end >= slice_start);
         slice_anchor[d] = slice_start;
         slice_shape[d] = slice_end - slice_start;
@@ -93,7 +93,7 @@ void ApplySliceBoundsPolicy(OutOfBoundsPolicy policy, const TensorShape<Dims> &i
               "}"));
         }
       }
-    break;
+      break;
   }
 }
 

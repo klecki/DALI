@@ -15,14 +15,14 @@
 #ifndef DALI_KERNELS_SLICE_SLICE_CPU_H_
 #define DALI_KERNELS_SLICE_SLICE_CPU_H_
 
-#include <utility>
 #include <tuple>
+#include <utility>
 #include <vector>
-#include "dali/kernels/slice/slice_kernel_utils.h"
 #include "dali/core/common.h"
 #include "dali/core/convert.h"
 #include "dali/core/error_handling.h"
 #include "dali/kernels/kernel.h"
+#include "dali/kernels/slice/slice_kernel_utils.h"
 
 namespace dali {
 namespace kernels {
@@ -33,14 +33,10 @@ namespace detail {
  * @brief Optimized special case for the last two dimensions whith channel-last configuration
  */
 template <typename OutputType, typename InputType, bool OutOfBounds, bool NeedPad>
-void SliceKernelImplChannelLast(OutputType *output,
-                                const InputType *input,
-                                const int64_t* in_strides,
-                                const int64_t* out_strides,
-                                const int64_t* anchor,
-                                const int64_t* in_shape,
-                                const int64_t* out_shape,
-                                const OutputType *fill_values,
+void SliceKernelImplChannelLast(OutputType *output, const InputType *input,
+                                const int64_t *in_strides, const int64_t *out_strides,
+                                const int64_t *anchor, const int64_t *in_shape,
+                                const int64_t *out_shape, const OutputType *fill_values,
                                 int channel_dim,  // negative if no channel dim or already processed
                                 std::integral_constant<bool, OutOfBounds>,
                                 std::integral_constant<bool, NeedPad>) {
@@ -70,14 +66,12 @@ void SliceKernelImplChannelLast(OutputType *output,
     }
 
     // If the anchor is positive, advance the input pointer
-    if (anchor[d] > 0)
-      input += anchor[d] * in_strides[d];
+    if (anchor[d] > 0) input += anchor[d] * in_strides[d];
 
     bool channel_dim_unchanged = in_nchannels == out_nchannels && anchor[channel_dim] == 0;
     if (channel_dim_unchanged) {
       auto n = copy_pixels * out_nchannels;
-      for (int64_t i = 0; i < n; i++)
-        output[i] = input[i];
+      for (int64_t i = 0; i < n; i++) output[i] = input[i];
       output += n;
     } else {
       // Calculate number of channels to pad on the left, right and the number of channels to be
@@ -89,14 +83,12 @@ void SliceKernelImplChannelLast(OutputType *output,
       // Copy pixels with potential padding on the channel dimension
       for (int64_t i = 0; i < copy_pixels; i++) {
         int64_t out_c = 0;
-        for (; out_c < pad_channels_before; out_c++)
-          output[out_c] = fill_values[out_c];
+        for (; out_c < pad_channels_before; out_c++) output[out_c] = fill_values[out_c];
 
         for (int64_t in_c = 0; in_c < copy_channels; in_c++, out_c++)
           output[out_c] = input[anchor_channel_in + in_c];
 
-        for (; out_c < out_nchannels; out_c++)
-          output[out_c] = fill_values[out_c];
+        for (; out_c < out_nchannels; out_c++) output[out_c] = fill_values[out_c];
 
         output += out_nchannels;
         input += in_nchannels;
@@ -122,24 +114,17 @@ void SliceKernelImplChannelLast(OutputType *output,
 }
 
 template <typename OutputType, typename InputType, bool OutOfBounds, bool NeedPad>
-void SliceKernelImpl(OutputType *output,
-                     const InputType *input,
-                     const int64_t* in_strides,
-                     const int64_t* out_strides,
-                     const int64_t* anchor,
-                     const int64_t* in_shape,
-                     const int64_t* out_shape,
-                     const OutputType *fill_values,
+void SliceKernelImpl(OutputType *output, const InputType *input, const int64_t *in_strides,
+                     const int64_t *out_strides, const int64_t *anchor, const int64_t *in_shape,
+                     const int64_t *out_shape, const OutputType *fill_values,
                      int channel_dim,  // negative if no channel dim or already processed
-                     std::integral_constant<int, 1>,
-                     std::integral_constant<bool, OutOfBounds>,
+                     std::integral_constant<int, 1>, std::integral_constant<bool, OutOfBounds>,
                      std::integral_constant<bool, NeedPad>) {
   constexpr int d = 0;
   if (OutOfBounds) {
     for (int i = 0; i < out_shape[d]; i++) {
       output[i] = *fill_values;
-      if (d == channel_dim)
-        fill_values++;
+      if (d == channel_dim) fill_values++;
     }
   } else {
     int in_idx = anchor[d];
@@ -149,38 +134,30 @@ void SliceKernelImpl(OutputType *output,
       // out of bounds (left side)
       for (; in_idx < 0 && out_idx < out_shape[d]; in_idx++, out_idx++) {
         output[out_idx] = *fill_values;
-        if (d == channel_dim)
-          fill_values++;
+        if (d == channel_dim) fill_values++;
       }
     }
 
     // within input bounds
     for (; in_idx < in_shape[d] && out_idx < out_shape[d]; in_idx++, out_idx++) {
       output[out_idx] = clamp<OutputType>(input[in_idx]);
-      if (NeedPad && d == channel_dim)
-        fill_values++;
+      if (NeedPad && d == channel_dim) fill_values++;
     }
 
     if (NeedPad) {
       // out of bounds (right side)
       for (; out_idx < out_shape[d]; in_idx++, out_idx++) {
         output[out_idx] = *fill_values;
-        if (d == channel_dim)
-          fill_values++;
+        if (d == channel_dim) fill_values++;
       }
     }
   }
 }
 
 template <typename OutputType, typename InputType, bool OutOfBounds, bool NeedPad, int DimsLeft>
-void SliceKernelImpl(OutputType *output,
-                     const InputType *input,
-                     const int64_t* in_strides,
-                     const int64_t* out_strides,
-                     const int64_t* anchor,
-                     const int64_t* in_shape,
-                     const int64_t* out_shape,
-                     const OutputType *fill_values,
+void SliceKernelImpl(OutputType *output, const InputType *input, const int64_t *in_strides,
+                     const int64_t *out_strides, const int64_t *anchor, const int64_t *in_shape,
+                     const int64_t *out_shape, const OutputType *fill_values,
                      int channel_dim,  // negative if no channel dim or already processed
                      std::integral_constant<int, DimsLeft>,
                      std::integral_constant<bool, OutOfBounds>,
@@ -198,88 +175,70 @@ void SliceKernelImpl(OutputType *output,
   int in_idx = anchor[d];
   int out_idx = 0;
 
-  if (anchor[d] > 0 && anchor[d] < in_shape[d])
-    input += anchor[d] * in_strides[d];
+  if (anchor[d] > 0 && anchor[d] < in_shape[d]) input += anchor[d] * in_strides[d];
 
   if (NeedPad) {
     // out of bounds (left side)
     for (; in_idx < 0 && out_idx < out_shape[d]; in_idx++, out_idx++) {
-      SliceKernelImpl(output, input, in_strides + 1, out_strides + 1, anchor + 1, in_shape + 1,
-                      out_shape + 1, fill_values, channel_dim - 1,
-                      std::integral_constant<int, DimsLeft - 1>(),
-                      std::integral_constant<bool, true>(),
-                      std::integral_constant<bool, NeedPad>());
+      SliceKernelImpl(
+          output, input, in_strides + 1, out_strides + 1, anchor + 1, in_shape + 1, out_shape + 1,
+          fill_values, channel_dim - 1, std::integral_constant<int, DimsLeft - 1>(),
+          std::integral_constant<bool, true>(), std::integral_constant<bool, NeedPad>());
       output += out_strides[d];
-      if (d == channel_dim)
-        fill_values++;
+      if (d == channel_dim) fill_values++;
     }
   }
 
   // within input bounds
   for (; in_idx < in_shape[d] && out_idx < out_shape[d]; in_idx++, out_idx++) {
-    SliceKernelImpl(output, input, in_strides + 1, out_strides + 1, anchor + 1, in_shape + 1,
-                    out_shape + 1, fill_values, channel_dim - 1,
-                    std::integral_constant<int, DimsLeft - 1>(),
-                    std::integral_constant<bool, OutOfBounds>(),
-                    std::integral_constant<bool, NeedPad>());
+    SliceKernelImpl(
+        output, input, in_strides + 1, out_strides + 1, anchor + 1, in_shape + 1, out_shape + 1,
+        fill_values, channel_dim - 1, std::integral_constant<int, DimsLeft - 1>(),
+        std::integral_constant<bool, OutOfBounds>(), std::integral_constant<bool, NeedPad>());
     output += out_strides[d];
-    if (!OutOfBounds)
-      input += in_strides[d];
-    if (NeedPad && d == channel_dim)
-      fill_values++;
+    if (!OutOfBounds) input += in_strides[d];
+    if (NeedPad && d == channel_dim) fill_values++;
   }
 
   if (NeedPad) {
     // out of bounds (right side)
     for (; out_idx < out_shape[d]; in_idx++, out_idx++) {
-      SliceKernelImpl(output, input, in_strides + 1, out_strides + 1, anchor + 1, in_shape + 1,
-                      out_shape + 1, fill_values, channel_dim - 1,
-                      std::integral_constant<int, DimsLeft - 1>(),
-                      std::integral_constant<bool, true>(),
-                      std::integral_constant<bool, NeedPad>());
+      SliceKernelImpl(
+          output, input, in_strides + 1, out_strides + 1, anchor + 1, in_shape + 1, out_shape + 1,
+          fill_values, channel_dim - 1, std::integral_constant<int, DimsLeft - 1>(),
+          std::integral_constant<bool, true>(), std::integral_constant<bool, NeedPad>());
       output += out_strides[d];
-      if (d == channel_dim)
-        fill_values++;
+      if (d == channel_dim) fill_values++;
     }
   }
 }
 
 }  // namespace detail
 
-
 template <typename OutputType, typename InputType, int Dims>
-void SliceKernel(OutputType *output,
-                 const InputType *input,
-                 const TensorShape<Dims> &in_strides,
-                 const TensorShape<Dims> &out_strides,
-                 const TensorShape<Dims> &anchor,
-                 const TensorShape<Dims> &in_shape,
-                 const TensorShape<Dims> &out_shape,
+void SliceKernel(OutputType *output, const InputType *input, const TensorShape<Dims> &in_strides,
+                 const TensorShape<Dims> &out_strides, const TensorShape<Dims> &anchor,
+                 const TensorShape<Dims> &in_shape, const TensorShape<Dims> &out_shape,
                  const OutputType *fill_values,
                  int channel_dim = -1) {  // negative if no channel dim or already processed
   bool need_pad = NeedPad(Dims, anchor.data(), in_shape.data(), out_shape.data());
   if (need_pad) {
     detail::SliceKernelImpl(
         output, input, in_strides.data(), out_strides.data(), anchor.data(), in_shape.data(),
-        out_shape.data(), fill_values, channel_dim,
-        std::integral_constant<int, Dims>(),
-        std::integral_constant<bool, false>(),
-        std::integral_constant<bool, true>());
+        out_shape.data(), fill_values, channel_dim, std::integral_constant<int, Dims>(),
+        std::integral_constant<bool, false>(), std::integral_constant<bool, true>());
   } else {
     detail::SliceKernelImpl(
         output, input, in_strides.data(), out_strides.data(), anchor.data(), in_shape.data(),
-        out_shape.data(), fill_values, channel_dim,
-        std::integral_constant<int, Dims>(),
-        std::integral_constant<bool, false>(),
-        std::integral_constant<bool, false>());
+        out_shape.data(), fill_values, channel_dim, std::integral_constant<int, Dims>(),
+        std::integral_constant<bool, false>(), std::integral_constant<bool, false>());
   }
 }
 
 template <typename OutputType, typename InputType, int Dims>
 class SliceCPU {
  public:
-  KernelRequirements Setup(KernelContext &context,
-                           const InTensorCPU<InputType, Dims> &in,
+  KernelRequirements Setup(KernelContext &context, const InTensorCPU<InputType, Dims> &in,
                            const SliceArgs<OutputType, Dims> &slice_args) {
     KernelRequirements req;
     auto shape = GetOutputShape(in.shape, slice_args);
@@ -287,10 +246,8 @@ class SliceCPU {
     return req;
   }
 
-  void Run(KernelContext &context,
-           OutTensorCPU<OutputType, Dims> &out,
-           const InTensorCPU<InputType, Dims> &in,
-           const SliceArgs<OutputType, Dims> &slice_args) {
+  void Run(KernelContext &context, OutTensorCPU<OutputType, Dims> &out,
+           const InTensorCPU<InputType, Dims> &in, const SliceArgs<OutputType, Dims> &slice_args) {
     const auto &in_shape = in.shape;
     const auto &out_shape = out.shape;
     const auto &anchor = slice_args.anchor;
@@ -302,20 +259,19 @@ class SliceCPU {
     // fill values should not be empty. It should be left default if not used
     assert(!slice_args.fill_values.empty());
     int channel_dim = -1;  // channel dim is only used if a multi-channel fill_values is provided
-    const OutputType* fill_values = slice_args.fill_values.data();
+    const OutputType *fill_values = slice_args.fill_values.data();
     int fill_values_size = slice_args.fill_values.size();
     if (fill_values_size > 1) {
       channel_dim = slice_args.channel_dim;
-      DALI_ENFORCE(channel_dim >= 0 && channel_dim < Dims,
-        "Channels dimension needs to be specified if multi-channel fill_values is provided");
+      DALI_ENFORCE(
+          channel_dim >= 0 && channel_dim < Dims,
+          "Channels dimension needs to be specified if multi-channel fill_values is provided");
       DALI_ENFORCE(fill_values_size == out_shape[channel_dim],
-        "Multi-channel fill value does not match the number of channels in the input");
+                   "Multi-channel fill value does not match the number of channels in the input");
     }
 
-    SliceKernel(out_ptr, in_ptr,
-                in_strides, out_strides,
-                anchor, in_shape, out_shape,
-                fill_values, channel_dim);
+    SliceKernel(out_ptr, in_ptr, in_strides, out_strides, anchor, in_shape, out_shape, fill_values,
+                channel_dim);
   }
 };
 

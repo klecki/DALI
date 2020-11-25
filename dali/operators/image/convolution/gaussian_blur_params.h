@@ -99,8 +99,7 @@ class GaussianWindows {
 
   void PrepareWindows(const GaussianBlurParams<axes> &params) {
     bool changed = previous != params;
-    if (!changed)
-      return;
+    if (!changed) return;
 
     // Reallocate if necessary and fill the windows
     bool is_uniform = params.IsUniform();

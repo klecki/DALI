@@ -29,8 +29,7 @@ inline cv::Matx<float, 2, 3> AffineToCV(const AffineMapping2D &mapping) {
 
   cv::Matx<float, 2, 3> cv_transform;
   for (int i = 0; i < 2; i++)
-    for (int j = 0; j < 3; j++)
-      cv_transform(i, j) = tmp(i, j);
+    for (int j = 0; j < 3; j++) cv_transform(i, j) = tmp(i, j);
   return cv_transform;
 }
 

@@ -23,10 +23,10 @@ namespace kernels {
 
 template <int dim>
 struct AffineMapping {
-  mat<dim, dim+1> transform;
+  mat<dim, dim + 1> transform;
   AffineMapping() = default;
   DALI_HOST_DEV
-  constexpr AffineMapping(const mat<dim, dim+1> &m) : transform(m) {}  // NOLINT
+  constexpr AffineMapping(const mat<dim, dim + 1> &m) : transform(m) {}  // NOLINT
 
   DALI_HOST_DEV
   inline vec<dim> operator()(const vec<dim> &v) const {
@@ -35,7 +35,8 @@ struct AffineMapping {
 
   DALI_HOST_DEV
   AffineMapping inv() const {
-    return AffineMapping<dim>(affine_mat_inv(transform));;
+    return AffineMapping<dim>(affine_mat_inv(transform));
+    ;
   }
 };
 

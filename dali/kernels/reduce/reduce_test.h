@@ -19,8 +19,8 @@
 #include <utility>
 #include "dali/core/span.h"
 #include "dali/core/tensor_view.h"
-#include "dali/kernels/reduce/online_reducer.h"
 #include "dali/kernels/common/utils.h"
+#include "dali/kernels/reduce/online_reducer.h"
 
 namespace dali {
 namespace kernels {
@@ -35,8 +35,7 @@ Out RefReduce(const T *in, int64_t n, int64_t stride, const Reduction &R) {
     default: {
       if (n <= 128) {
         Out acc = R.template neutral<Out>();
-        for (int64_t idx = 0; idx < n; idx++)
-          R(acc, in[idx * stride]);
+        for (int64_t idx = 0; idx < n; idx++) R(acc, in[idx * stride]);
         return acc;
       }
       int64_t a = n / 2;
@@ -48,16 +47,14 @@ Out RefReduce(const T *in, int64_t n, int64_t stride, const Reduction &R) {
   }
 }
 
-
 template <typename Out, typename Reduction, typename T>
 Out RefReduce(span<T> in, const Reduction &R) {
   return RefReduce<Out>(in.data(), in.size(), 1, R);
 }
 
-
 template <typename OnlineReducer, typename In>
 void RefReduceStrided(OnlineReducer &R, const In *in, const int64_t *in_stride,
-               const int64_t *in_extent, int dim) {
+                      const int64_t *in_extent, int dim) {
   if (dim == 0) {
     R.add(*in);
   } else if (dim == 1) {
@@ -69,17 +66,15 @@ void RefReduceStrided(OnlineReducer &R, const In *in, const int64_t *in_stride,
     }
   } else {
     for (int64_t i = 0; i < in_extent[0]; i++) {
-      RefReduceStrided(R, in, in_stride+1, in_extent+1, dim - 1);
+      RefReduceStrided(R, in, in_stride + 1, in_extent + 1, dim - 1);
       in += in_stride[0];
     }
   }
 }
 
-
 template <typename Reduction, typename Out, typename In>
-void RefReduceAxes(Out *out, const In *in,
-                   const int64_t *reduced_stride, const int64_t *reduced_extent,
-                   int reduced_dim,
+void RefReduceAxes(Out *out, const In *in, const int64_t *reduced_stride,
+                   const int64_t *reduced_extent, int reduced_dim,
                    const int64_t *non_reduced_stride, const int64_t *non_reduced_extent,
                    int non_reduced_dim, Reduction R = {}) {
   if (non_reduced_dim == 0) {
@@ -92,18 +87,16 @@ void RefReduceAxes(Out *out, const In *in,
     // traverse remaining non-reduced dimensions
 
     // output stride is a plain product of remaining inner extents
-    int64_t out_stride = non_reduced_dim > 1
-      ? volume(make_span(non_reduced_extent + 1, non_reduced_dim - 1))
-      : 1;
+    int64_t out_stride =
+        non_reduced_dim > 1 ? volume(make_span(non_reduced_extent + 1, non_reduced_dim - 1)) : 1;
     for (int64_t i = 0; i < non_reduced_extent[0]; i++) {
-      RefReduceAxes(out, in, reduced_stride, reduced_extent, reduced_dim,
-                    non_reduced_stride + 1, non_reduced_extent + 1, non_reduced_dim - 1, R);
+      RefReduceAxes(out, in, reduced_stride, reduced_extent, reduced_dim, non_reduced_stride + 1,
+                    non_reduced_extent + 1, non_reduced_dim - 1, R);
       in += non_reduced_stride[0];
       out += out_stride;
     }
   }
 }
-
 
 template <typename Out, typename In, typename Reduction>
 void RefReduce(const TensorView<StorageCPU, Out> &out, const TensorView<StorageCPU, In> &in,
@@ -137,14 +130,13 @@ void RefReduce(const TensorView<StorageCPU, Out> &out, const TensorView<StorageC
     }
   }
 
-  RefReduceAxes(out.data, in.data,
-    reduced_strides.data(), reduced_extents.data(), reduced_extents.size(),
-    non_reduced_strides.data(), non_reduced_extents.data(), non_reduced_extents.size(), R);
+  RefReduceAxes(out.data, in.data, reduced_strides.data(), reduced_extents.data(),
+                reduced_extents.size(), non_reduced_strides.data(), non_reduced_extents.data(),
+                non_reduced_extents.size(), R);
 }
 
 template <typename Out, typename In, typename Reduction>
-void RefReduce(const TensorListView<StorageCPU, Out> &out,
-               const TensorListView<StorageCPU, In> &in,
+void RefReduce(const TensorListView<StorageCPU, Out> &out, const TensorListView<StorageCPU, In> &in,
                span<const int> axes, bool keep_dims, bool batch, Reduction R = {}) {
   if (batch && in.num_samples() > 1) {
     assert(out.shape.num_samples() == 1);

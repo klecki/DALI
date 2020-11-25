@@ -18,15 +18,15 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include "dali/core/format.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/format.h"
 #include "dali/core/geom/mat.h"
 #include "dali/core/static_switch.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/pipeline/data/types.h"
 #include "dali/pipeline/operator/op_spec.h"
-#include "dali/pipeline/workspace/workspace.h"
 #include "dali/pipeline/operator/operator.h"
+#include "dali/pipeline/workspace/workspace.h"
 
 #define TRANSFORM_INPUT_TYPES (float)
 
@@ -47,14 +47,16 @@ void ReadArgConstant(std::vector<T> &out, const string &arg_name, const OpSpec &
 }
 
 template <typename T>
-void ReadArgInput(std::vector<T> &out, const std::string &arg_name,
-                  const OpSpec &spec, const workspace_t<CPUBackend> &ws) {
-  const auto& arg_in = ws.ArgumentInput(arg_name);
+void ReadArgInput(std::vector<T> &out, const std::string &arg_name, const OpSpec &spec,
+                  const workspace_t<CPUBackend> &ws) {
+  const auto &arg_in = ws.ArgumentInput(arg_name);
   auto arg_in_view = view<const float>(arg_in);
-  DALI_ENFORCE(is_uniform(arg_in_view.shape) && volume(arg_in_view.shape[0]) == 1,
-    make_string("``", arg_name, "`` must be a scalar or a 1D tensor with a single element"));
+  DALI_ENFORCE(
+      is_uniform(arg_in_view.shape) && volume(arg_in_view.shape[0]) == 1,
+      make_string("``", arg_name, "`` must be a scalar or a 1D tensor with a single element"));
   if (arg_in_view.shape.sample_dim() > 0) {
-    DALI_WARN_ONCE("Warning: \"", arg_name, "\""
+    DALI_WARN_ONCE("Warning: \"", arg_name,
+                   "\""
                    " expected a scalar but received a 1D tensor with a single "
                    "element. Please use a scalar instead.");
   }
@@ -67,14 +69,14 @@ void ReadArgInput(std::vector<T> &out, const std::string &arg_name,
 }
 
 template <typename T>
-void ReadArgInput(std::vector<std::vector<T>> &out, const std::string &arg_name,
-                  const OpSpec &spec, const workspace_t<CPUBackend> &ws) {
-  const auto& arg_in = ws.ArgumentInput(arg_name);
+void ReadArgInput(std::vector<std::vector<T>> &out, const std::string &arg_name, const OpSpec &spec,
+                  const workspace_t<CPUBackend> &ws) {
+  const auto &arg_in = ws.ArgumentInput(arg_name);
   auto arg_in_view = view<const float>(arg_in);
-  DALI_ENFORCE(is_uniform(arg_in_view.shape),
-    make_string("All samples in argument ``", arg_name, "`` should have the same shape"));
+  DALI_ENFORCE(is_uniform(arg_in_view.shape), make_string("All samples in argument ``", arg_name,
+                                                          "`` should have the same shape"));
   DALI_ENFORCE(arg_in_view.shape.sample_dim() == 1,
-    make_string("``", arg_name, "`` must be a 1D tensor"));
+               make_string("``", arg_name, "`` must be a 1D tensor"));
 
   auto nsamples = arg_in_view.size();
   out.resize(nsamples);
@@ -97,25 +99,30 @@ void ReadArgInput(std::vector<std::vector<T>> &out, const std::string &arg_name,
 template <typename Backend, typename TransformImpl>
 class TransformBaseOp : public Operator<Backend> {
  public:
-  explicit TransformBaseOp(const OpSpec &spec) :
-      Operator<Backend>(spec),
-      reverse_order_(spec.GetArgument<bool>("reverse_order")) {
+  explicit TransformBaseOp(const OpSpec &spec)
+      : Operator<Backend>(spec), reverse_order_(spec.GetArgument<bool>("reverse_order")) {
     matrix_data_.set_pinned(false);
     matrix_data_.set_type(TypeTable::GetTypeInfo(dtype_));
   }
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
-  TransformImpl &This() noexcept { return static_cast<TransformImpl&>(*this); }
-  const TransformImpl &This() const noexcept { return static_cast<const TransformImpl&>(*this); }
+  TransformImpl &This() noexcept {
+    return static_cast<TransformImpl &>(*this);
+  }
+  const TransformImpl &This() const noexcept {
+    return static_cast<const TransformImpl &>(*this);
+  }
 
  protected:
   void CheckInputShape(const workspace_t<CPUBackend> &ws) {
     if (has_input_) {
       auto in_t_ndim = input_transform_ndim(ws);
       DALI_ENFORCE(in_t_ndim == ndim_,
-        make_string("The input describes a ", in_t_ndim,
-                    "D transform but other arguments suggest a ", ndim_, "D transform"));
+                   make_string("The input describes a ", in_t_ndim,
+                               "D transform but other arguments suggest a ", ndim_, "D transform"));
     }
   }
 
@@ -125,15 +132,14 @@ class TransformBaseOp : public Operator<Backend> {
       auto &input = ws.template InputRef<Backend>(0);
       const auto &shape = input.shape();
       DALI_ENFORCE(is_uniform(shape), "All matrices must have the same shape.");
-      DALI_ENFORCE(input.type().id() == dtype_,
-        make_string("Unexpected input data type. Expected ", dtype_, ", got: ", input.type().id()));
+      DALI_ENFORCE(input.type().id() == dtype_, make_string("Unexpected input data type. Expected ",
+                                                            dtype_, ", got: ", input.type().id()));
 
-      DALI_ENFORCE(shape.sample_dim() == 2 &&
-                   shape.size() > 0 &&
-                   shape[0][1] == (shape[0][0] + 1),
-        make_string(
-          "The input, if provided, is expected to be a 2D tensor with dimensions "
-          "(ndim, ndim+1) representing an affine transform. Got: ", shape));
+      DALI_ENFORCE(
+          shape.sample_dim() == 2 && shape.size() > 0 && shape[0][1] == (shape[0][0] + 1),
+          make_string("The input, if provided, is expected to be a 2D tensor with dimensions "
+                      "(ndim, ndim+1) representing an affine transform. Got: ",
+                      shape));
       nsamples_ = shape.num_samples();
     } else {
       nsamples_ = spec_.template GetArgument<int>("batch_size");
@@ -144,7 +150,7 @@ class TransformBaseOp : public Operator<Backend> {
 
     output_descs.resize(1);  // only one output
     output_descs[0].type = TypeTable::GetTypeInfo(dtype_);
-    output_descs[0].shape = uniform_list_shape(nsamples_, {ndim_, ndim_+1});
+    output_descs[0].shape = uniform_list_shape(nsamples_, {ndim_, ndim_ + 1});
     return true;
   }
 
@@ -196,7 +202,7 @@ class TransformBaseOp : public Operator<Backend> {
   int input_transform_ndim(const workspace_t<Backend> &ws) const {
     assert(has_input_);
     auto &input = ws.template InputRef<Backend>(0);
-    const auto& shape = input.shape();
+    const auto &shape = input.shape();
     int ndims = shape[0][0];
     assert(shape[0][1] == ndims + 1);
     return ndims;
@@ -205,15 +211,21 @@ class TransformBaseOp : public Operator<Backend> {
   template <typename ArgType>
   class Argument {
    public:
-    Argument(const std::string &arg_name, const OpSpec &spec) :
-        arg_name_(arg_name),
-        has_arg_const_(spec.HasArgument(arg_name)),
-        has_arg_input_(spec.HasTensorArgument(arg_name)) {
+    Argument(const std::string &arg_name, const OpSpec &spec)
+        : arg_name_(arg_name),
+          has_arg_const_(spec.HasArgument(arg_name)),
+          has_arg_input_(spec.HasTensorArgument(arg_name)) {
       assert(!(has_arg_const_ && has_arg_input_));
     }
-    bool IsDefined() const { return has_arg_const_ || has_arg_input_; }
-    bool IsConstant() const { return has_arg_const_; }
-    bool IsArgInput() const { return has_arg_input_; }
+    bool IsDefined() const {
+      return has_arg_const_ || has_arg_input_;
+    }
+    bool IsConstant() const {
+      return has_arg_const_;
+    }
+    bool IsArgInput() const {
+      return has_arg_input_;
+    }
 
     void Read(const OpSpec &spec, const workspace_t<CPUBackend> &ws, int repeat = 0) {
       if (has_arg_input_) {
@@ -227,19 +239,31 @@ class TransformBaseOp : public Operator<Backend> {
       }
     }
 
-    const std::string& name() const { return arg_name_; }
+    const std::string &name() const {
+      return arg_name_;
+    }
 
-    ArgType& operator[](size_t idx) { return data_[idx]; }
-    const ArgType& operator[](size_t idx) const { return data_[idx]; }
+    ArgType &operator[](size_t idx) {
+      return data_[idx];
+    }
+    const ArgType &operator[](size_t idx) const {
+      return data_[idx];
+    }
 
     void resize(size_t new_sz) {
       assert(new_sz >= 0);
       data_.resize(new_sz);
     }
-    span<const ArgType> data() const { return make_cspan(data_); }
-    span<ArgType> data() { return make_span(data_); }
+    span<const ArgType> data() const {
+      return make_cspan(data_);
+    }
+    span<ArgType> data() {
+      return make_span(data_);
+    }
 
-    size_t size() const { return data_.size(); }
+    size_t size() const {
+      return data_.size();
+    }
 
    private:
     std::string arg_name_;
@@ -260,7 +284,7 @@ class TransformBaseOp : public Operator<Backend> {
   }
 
   template <typename T, int mat_dim>
-  void ApplyTransform(T *transform_out, const T* transform_in, const affine_mat_t<T, mat_dim> &M) {
+  void ApplyTransform(T *transform_out, const T *transform_in, const affine_mat_t<T, mat_dim> &M) {
     constexpr int ndim = mat_dim - 1;
     auto mat_in = affine_mat_t<T, mat_dim>::identity();
     for (int i = 0, k = 0; i < ndim; i++) {
@@ -290,8 +314,6 @@ class TransformBaseOp : public Operator<Backend> {
 
   using Operator<Backend>::spec_;
 };
-
-
 
 }  // namespace dali
 

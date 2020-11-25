@@ -60,8 +60,6 @@
 #include "dali/kernels/imgproc/convolution/cutlass/threadblock/default_conv_mma.h"
 #include "dali/kernels/imgproc/convolution/cutlass/threadblock/predicated_tile_iterator.h"
 
-
-
 #if defined(CUTLASS_ARCH_WMMA_ENABLED)
 #include "cutlass/epilogue/threadblock/default_epilogue_wmma_tensor_op.h"
 #endif  // CUTLASS_ARCH_WMMA_ENABLED

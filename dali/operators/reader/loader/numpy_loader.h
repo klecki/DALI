@@ -16,27 +16,27 @@
 #define DALI_OPERATORS_READER_LOADER_NUMPY_LOADER_H_
 
 #include <dirent.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <sys/stat.h>
 
+#include <algorithm>
 #include <fstream>
+#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <algorithm>
-#include <memory>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/data/types.h"
 #include "dali/operators/reader/loader/file_loader.h"
+#include "dali/pipeline/data/types.h"
 #include "dali/util/file.h"
 
 namespace dali {
 
-TypeInfo TypeFromNumpyStr(const std::string &format);
+TypeInfo TypeFromNumpyStr(const std::string& format);
 
-class NumpyParseTarget{
+class NumpyParseTarget {
  public:
   std::vector<int64_t> shape;
   TypeInfo type_info;
@@ -51,14 +51,12 @@ class NumpyParseTarget{
   }
 };
 
-DLL_PUBLIC void ParseHeaderMetadata(NumpyParseTarget& target, const std::string &header);
+DLL_PUBLIC void ParseHeaderMetadata(NumpyParseTarget& target, const std::string& header);
 
 class NumpyLoader : public FileLoader {
  public:
-  explicit inline NumpyLoader(
-    const OpSpec& spec,
-    bool shuffle_after_epoch = false)
-    : FileLoader(spec, shuffle_after_epoch) {}
+  explicit inline NumpyLoader(const OpSpec& spec, bool shuffle_after_epoch = false)
+      : FileLoader(spec, shuffle_after_epoch) {}
 
   // we want to make it possible to override this function as well
   void ReadSample(ImageFileWrapper& tensor) override;

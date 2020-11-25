@@ -16,18 +16,18 @@
 #define DALI_KERNELS_SLICE_SLICE_KERNEL_TEST_H_
 
 #include <gtest/gtest.h>
-#include <vector>
 #include <string>
+#include <vector>
+#include "dali/kernels/slice/slice_kernel_utils.h"
 #include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
-#include "dali/kernels/slice/slice_kernel_utils.h"
 
 namespace dali {
 namespace kernels {
 
-template <typename InputType_, typename OutputType_, int Dims_, int NumSamples_,
-          int DimSize_, typename ParamsGenerator_, int DimSize0_ = DimSize_,
-          int DimSize1_ = DimSize_, int DimSize2_ = DimSize_>
+template <typename InputType_, typename OutputType_, int Dims_, int NumSamples_, int DimSize_,
+          typename ParamsGenerator_, int DimSize0_ = DimSize_, int DimSize1_ = DimSize_,
+          int DimSize2_ = DimSize_>
 struct SliceTestArgs {
   using InputType = InputType_;
   using OutputType = OutputType_;
@@ -91,11 +91,11 @@ class SliceTest : public ::testing::Test {
       const auto in_shape = in.tensor_shape(i);
       const auto out_shape = out.tensor_shape(i);
       const auto& anchor = slice_args[i].anchor;
-      const auto *in_tensor = in.tensor_data(i);
-      auto *out_tensor = out.tensor_data(i);
+      const auto* in_tensor = in.tensor_data(i);
+      auto* out_tensor = out.tensor_data(i);
 
       int channel_dim = slice_args[i].channel_dim;
-      auto *fill_values = slice_args[i].fill_values.data();
+      auto* fill_values = slice_args[i].fill_values.data();
       int fill_values_size = slice_args[i].fill_values.size();
       if (fill_values_size > 1) {
         ASSERT_GE(channel_dim, 0);
@@ -116,8 +116,7 @@ class SliceTest : public ::testing::Test {
           int i_d = idx / out_strides[d];
           idx = idx % out_strides[d];
 
-          if (d == channel_dim)
-            i_c = i_d;
+          if (d == channel_dim) i_c = i_d;
           out_of_bounds |= anchor[d] + i_d < 0;
           out_of_bounds |= anchor[d] + i_d >= in_shape[d];
           if (!out_of_bounds) {
@@ -207,7 +206,7 @@ struct ArgsGen_BiggerThanInputSlice {
 };
 
 template <typename OutputType, int Dims>
-struct ArgsGen_LeftSideOutOfBounds{
+struct ArgsGen_LeftSideOutOfBounds {
   SliceArgs<OutputType, Dims> Get(const TensorShape<Dims>& input_shape) {
     SliceArgs<OutputType, Dims> args;
     for (int d = 0; d < Dims; d++) {
@@ -219,7 +218,7 @@ struct ArgsGen_LeftSideOutOfBounds{
 };
 
 template <typename OutputType, int Dims>
-struct ArgsGen_RightSideOutOfBounds{
+struct ArgsGen_RightSideOutOfBounds {
   SliceArgs<OutputType, Dims> Get(const TensorShape<Dims>& input_shape) {
     SliceArgs<OutputType, Dims> args;
     for (int d = 0; d < Dims; d++) {
@@ -231,7 +230,7 @@ struct ArgsGen_RightSideOutOfBounds{
 };
 
 template <typename OutputType, int Dims>
-struct ArgsGen_CompletelyOutOfBounds{
+struct ArgsGen_CompletelyOutOfBounds {
   SliceArgs<OutputType, Dims> Get(const TensorShape<Dims>& input_shape) {
     SliceArgs<OutputType, Dims> args;
     for (int d = 0; d < Dims; d++) {
@@ -273,7 +272,6 @@ struct ArgsGen_MultiChannelPad {
     return args;
   }
 };
-
 
 template <typename OutputType, int Dims = 3>
 struct ArgsGen_MultiChannelPad_ChFirst {
@@ -400,19 +398,21 @@ using SLICE_TEST_TYPES = ::testing::Types<
     SliceTestArgs<int, int, 3, 1, 20, ArgsGen_MultiChannelPad<int, 3>, 20, 20, 3>,
     SliceTestArgs<int, int, 3, 1, 20, ArgsGen_MultiChannelPad_ChFirst<int, 3>, 3, 20, 20>,
     SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadAlsoChDim<int, 3>, 20, 20, 3>,
-    SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadAlsoChDim_MultiChannelFillValues<int, 3>, 20, 20, 3>,  // NOLINT
+    SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadAlsoChDim_MultiChannelFillValues<int, 3>, 20, 20,
+                  3>,  // NOLINT
     SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadOnlyChDim<int, 3>, 20, 20, 3>,
     SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadAlsoChDim_ChFirst<int, 3>, 3, 20, 20>,
-    SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadAlsoChDim_ChFirst_MultiChannelFillValues<int, 3>, 3, 20, 20>,  // NOLINT
+    SliceTestArgs<int, int, 3, 1, 20, ArgsGen_PadAlsoChDim_ChFirst_MultiChannelFillValues<int, 3>,
+                  3, 20, 20>,  // NOLINT
     SliceTestArgs<int, int, 3, 10, 20, ArgsGen_PadAlsoChDim_ChFirst<int, 3>, 3, 20, 20>,
-    SliceTestArgs<int, int, 3, 10, 20, ArgsGen_PadAlsoChDim_ChFirst_MultiChannelFillValues<int, 3>, 3, 20, 20>  // NOLINT
->;
+    SliceTestArgs<int, int, 3, 10, 20, ArgsGen_PadAlsoChDim_ChFirst_MultiChannelFillValues<int, 3>,
+                  3, 20, 20>  // NOLINT
+    >;
 
-using SLICE_TEST_TYPES_CPU_ONLY = ::testing::Types<
-    SliceTestArgs<int, float16, 3, 1, 2, ArgsGen_WholeTensor<float16, 3>>,
-    SliceTestArgs<float16, int, 3, 1, 2, ArgsGen_WholeTensor<int, 3>>,
-    SliceTestArgs<float16, float16, 3, 1, 2, ArgsGen_WholeTensor<float16, 3>>
->;
+using SLICE_TEST_TYPES_CPU_ONLY =
+    ::testing::Types<SliceTestArgs<int, float16, 3, 1, 2, ArgsGen_WholeTensor<float16, 3>>,
+                     SliceTestArgs<float16, int, 3, 1, 2, ArgsGen_WholeTensor<int, 3>>,
+                     SliceTestArgs<float16, float16, 3, 1, 2, ArgsGen_WholeTensor<float16, 3>>>;
 
 }  // namespace kernels
 }  // namespace dali

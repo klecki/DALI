@@ -16,14 +16,15 @@
 #define DALI_OPERATORS_READER_LOADER_VIDEO_LOADER_H_
 
 extern "C" {
-#include <libavformat/avformat.h>
-#include <libavcodec/avcodec.h>
 #include <dirent.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <libavcodec/avcodec.h>
+#include <libavformat/avformat.h>
+#include <sys/stat.h>
 }
 
 #include <algorithm>
+#include <list>
 #include <memory>
 #include <random>
 #include <string>
@@ -31,19 +32,18 @@ extern "C" {
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <list>
 
 #include "dali/core/common.h"
 #include "dali/operators/reader/loader/loader.h"
 #include "dali/operators/reader/nvdecoder/nvdecoder.h"
 #include "dali/operators/reader/nvdecoder/sequencewrapper.h"
 
-template<typename T>
+template <typename T>
 using av_unique_ptr = std::unique_ptr<T, std::function<void(T*)>>;
-template<typename T>
+template <typename T>
 av_unique_ptr<T> make_unique_av(T* raw_ptr, void (*deleter)(T**)) {
-    // libav resource free functions take the address of a pointer.
-    return av_unique_ptr<T>(raw_ptr, [=] (T* data) {deleter(&data);});
+  // libav resource free functions take the address of a pointer.
+  return av_unique_ptr<T>(raw_ptr, [=](T* data) { deleter(&data); });
 }
 
 namespace dali {
@@ -58,7 +58,7 @@ struct file_meta {
   int label;
   float start_time;
   float end_time;
-  bool operator< (const file_meta& right) {
+  bool operator<(const file_meta& right) {
     return video_file < right.video_file;
   }
 };
@@ -66,12 +66,13 @@ struct file_meta {
 namespace filesystem {
 
 std::vector<dali::file_meta> get_file_label_pair(const std::string& path,
-    const std::vector<std::string>& filenames, const std::string& file_list);
+                                                 const std::vector<std::string>& filenames,
+                                                 const std::string& file_list);
 
 }  // namespace filesystem
 
 struct VideoFileDesc {
-  FILE *file_stream = nullptr;
+  FILE* file_stream = nullptr;
   uint64_t file_position = 0;
   std::string filename;
   ~VideoFileDesc() {
@@ -106,7 +107,9 @@ struct VideoFile {
   av_unique_ptr<AVFormatContext> fmt_ctx_;
 
   VideoFileDesc file_desc;
-  bool empty() const noexcept { return file_desc.filename.empty(); }
+  bool empty() const noexcept {
+    return file_desc.filename.empty();
+  }
 };
 
 struct VideoLoaderStats {
@@ -140,34 +143,31 @@ struct sequence_meta {
   int width;
 };
 
-
 class VideoLoader : public Loader<GPUBackend, SequenceWrapper> {
  public:
-  explicit inline VideoLoader(const OpSpec& spec,
-    const std::vector<std::string>& filenames)
-    : Loader<GPUBackend, SequenceWrapper>(spec),
-      file_root_(spec.GetArgument<std::string>("file_root")),
-      file_list_(spec.GetArgument<std::string>("file_list")),
-      count_(spec.GetArgument<int>("sequence_length")),
-      step_(spec.GetArgument<int>("step")),
-      stride_(spec.GetArgument<int>("stride")),
-      max_height_(0),
-      max_width_(0),
-      additional_decode_surfaces_(spec.GetArgument<int>("additional_decode_surfaces")),
-      image_type_(spec.GetArgument<DALIImageType>("image_type")),
-      dtype_(spec.GetArgument<DALIDataType>("dtype")),
-      normalized_(spec.GetArgument<bool>("normalized")),
-      filenames_(filenames),
-      device_id_(spec.GetArgument<int>("device_id")),
-      codec_id_(0),
-      skip_vfr_check_(spec.GetArgument<bool>("skip_vfr_check")),
-      file_list_frame_num_(spec.GetArgument<bool>("file_list_frame_num")),
-      stats_({0, 0, 0, 0, 0}),
-      current_frame_idx_(-1),
-      stop_(false) {
+  explicit inline VideoLoader(const OpSpec& spec, const std::vector<std::string>& filenames)
+      : Loader<GPUBackend, SequenceWrapper>(spec),
+        file_root_(spec.GetArgument<std::string>("file_root")),
+        file_list_(spec.GetArgument<std::string>("file_list")),
+        count_(spec.GetArgument<int>("sequence_length")),
+        step_(spec.GetArgument<int>("step")),
+        stride_(spec.GetArgument<int>("stride")),
+        max_height_(0),
+        max_width_(0),
+        additional_decode_surfaces_(spec.GetArgument<int>("additional_decode_surfaces")),
+        image_type_(spec.GetArgument<DALIImageType>("image_type")),
+        dtype_(spec.GetArgument<DALIDataType>("dtype")),
+        normalized_(spec.GetArgument<bool>("normalized")),
+        filenames_(filenames),
+        device_id_(spec.GetArgument<int>("device_id")),
+        codec_id_(0),
+        skip_vfr_check_(spec.GetArgument<bool>("skip_vfr_check")),
+        file_list_frame_num_(spec.GetArgument<bool>("file_list_frame_num")),
+        stats_({0, 0, 0, 0, 0}),
+        current_frame_idx_(-1),
+        stop_(false) {
     DALI_ENFORCE(stride_ > 0, "Stride should be > 0");
-    if (step_ < 0)
-      step_ = count_ * stride_;
+    if (step_ < 0) step_ = count_ * stride_;
 
     file_info_ = filesystem::get_file_label_pair(file_root_, filenames_, file_list_);
     DALI_ENFORCE(!file_info_.empty(), "No files were read.");
@@ -175,9 +175,9 @@ class VideoLoader : public Loader<GPUBackend, SequenceWrapper> {
     auto ret = cuvidInitChecked(0);
 
     DALI_ENFORCE(ret,
-      "Failed to load libnvcuvid.so, needed by the VideoReader operator. "
-      "If you are running in a Docker container, please refer "
-      "to https://github.com/NVIDIA/nvidia-docker/wiki/Usage");
+                 "Failed to load libnvcuvid.so, needed by the VideoReader operator. "
+                 "If you are running in a Docker container, please refer "
+                 "to https://github.com/NVIDIA/nvidia-docker/wiki/Usage");
   }
 
   ~VideoLoader() noexcept override {
@@ -195,10 +195,10 @@ class VideoLoader : public Loader<GPUBackend, SequenceWrapper> {
     }
   }
 
-  void PrepareEmpty(SequenceWrapper &tensor) override;
-  void ReadSample(SequenceWrapper &tensor) override;
+  void PrepareEmpty(SequenceWrapper& tensor) override;
+  void ReadSample(SequenceWrapper& tensor) override;
 
-  VideoFile& get_or_open_file(const std::string &filename);
+  VideoFile& get_or_open_file(const std::string& filename);
   void seek(VideoFile& file, int frame);
   void read_file();
   void push_sequence_to_read(std::string filename, int frame, int count);
@@ -232,19 +232,25 @@ class VideoLoader : public Loader<GPUBackend, SequenceWrapper> {
             end_frame = file.frame_count_ + end;
           }
 
-          DALI_ENFORCE(start_frame <= end_frame, "Start frame number should be lesser or equal "
-                       "to end frame number for a file " + file_info_[i].video_file);
-          DALI_ENFORCE(start_frame <= file.frame_count_, "Start frame number is greater than "
-                       "total number of frames for file " + file_info_[i].video_file);
-          DALI_ENFORCE(end_frame <= file.frame_count_, "End frame number is greater than "
-                       "total number of frames for file " + file_info_[i].video_file);
+          DALI_ENFORCE(start_frame <= end_frame,
+                       "Start frame number should be lesser or equal "
+                       "to end frame number for a file " +
+                           file_info_[i].video_file);
+          DALI_ENFORCE(start_frame <= file.frame_count_,
+                       "Start frame number is greater than "
+                       "total number of frames for file " +
+                           file_info_[i].video_file);
+          DALI_ENFORCE(end_frame <= file.frame_count_,
+                       "End frame number is greater than "
+                       "total number of frames for file " +
+                           file_info_[i].video_file);
         } else {
           auto frame_rate = av_inv_q(file.frame_base_);
           if (start >= 0) {
             start_frame = static_cast<int>(std::ceil(start * av_q2d(frame_rate)));
           } else {
-            start_frame = file.frame_count_ +
-                          static_cast<int>(std::ceil(start * av_q2d(frame_rate)));
+            start_frame =
+                file.frame_count_ + static_cast<int>(std::ceil(start * av_q2d(frame_rate)));
           }
           if (end > 0) {
             end_frame = static_cast<int>(std::floor(end * av_q2d(frame_rate)));
@@ -252,36 +258,37 @@ class VideoLoader : public Loader<GPUBackend, SequenceWrapper> {
             end_frame = file.frame_count_ + static_cast<int>(std::floor(end * av_q2d(frame_rate)));
           }
 
-          DALI_ENFORCE(start_frame <= end_frame, "Start time number should be lesser or equal "
-                       "to end time for a file " + file_info_[i].video_file);
-          DALI_ENFORCE(start_frame <= file.frame_count_, "Start time is greater than video "
-                       "duration for file " + file_info_[i].video_file);
-          DALI_ENFORCE(end_frame <= file.frame_count_, "End time is greater than video duration "
-                       "for file " + file_info_[i].video_file);
+          DALI_ENFORCE(start_frame <= end_frame,
+                       "Start time number should be lesser or equal "
+                       "to end time for a file " +
+                           file_info_[i].video_file);
+          DALI_ENFORCE(start_frame <= file.frame_count_,
+                       "Start time is greater than video "
+                       "duration for file " +
+                           file_info_[i].video_file);
+          DALI_ENFORCE(end_frame <= file.frame_count_,
+                       "End time is greater than video duration "
+                       "for file " +
+                           file_info_[i].video_file);
         }
       }
 
       for (int s = start_frame; s < end_frame && s + total_count <= end_frame; s += step_) {
-        frame_starts_.emplace_back(sequence_meta{i, s, file_info_[i].label,
-                                   codecpar(stream)->height, codecpar(stream)->width});
+        frame_starts_.emplace_back(sequence_meta{
+            i, s, file_info_[i].label, codecpar(stream)->height, codecpar(stream)->width});
       }
     }
-    DALI_ENFORCE(!frame_starts_.empty(), "There are no valid sequences in the provided "
+    DALI_ENFORCE(!frame_starts_.empty(),
+                 "There are no valid sequences in the provided "
                  "dataset, check the length of the available videos and the requested sequence "
                  "length.");
-
 
     const auto& file = get_or_open_file(file_info_[0].video_file);
     auto stream = file.fmt_ctx_->streams[file.vid_stream_idx_];
 
-    vid_decoder_ = std::make_unique<NvDecoder>(device_id_,
-                                               codecpar(stream),
-                                               image_type_,
-                                               dtype_,
-                                               normalized_,
-                                               ALIGN16(max_height_),
-                                               ALIGN16(max_width_),
-                                               additional_decode_surfaces_);
+    vid_decoder_ = std::make_unique<NvDecoder>(device_id_, codecpar(stream), image_type_, dtype_,
+                                               normalized_, ALIGN16(max_height_),
+                                               ALIGN16(max_width_), additional_decode_surfaces_);
 
     if (shuffle_) {
       // TODO(spanev) decide of a policy for multi-gpu here and SequenceLoader
