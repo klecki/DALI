@@ -22,28 +22,28 @@ namespace dali {
 template <typename OutputType, typename InputType>
 inline static OutputType Y(InputType r, InputType g, InputType b) {
   return ConvertSatNorm<OutputType>(
-    static_cast<InputType>(0.257f * r + 0.504f * g + 0.098f * b + 16.0f));
+      static_cast<InputType>(0.257f * r + 0.504f * g + 0.098f * b + 16.0f));
 }
 
 template <typename OutputType, typename InputType>
 inline static OutputType Cb(InputType r, InputType g, InputType b) {
-  return (r == g && g == b) ? ConvertNorm<OutputType>(0.5f) :
-    ConvertSatNorm<OutputType>(
-      static_cast<InputType>(-0.148f * r - 0.291f * g + 0.439f * b + 128.0f));
+  return (r == g && g == b) ? ConvertNorm<OutputType>(0.5f)
+                            : ConvertSatNorm<OutputType>(static_cast<InputType>(
+                                  -0.148f * r - 0.291f * g + 0.439f * b + 128.0f));
 }
 
 template <typename OutputType, typename InputType>
 inline static OutputType Cr(InputType r, InputType g, InputType b) {
-  return (r == g && g == b) ? ConvertNorm<OutputType>(0.5f) :
-    ConvertSatNorm<OutputType>(
-      static_cast<InputType>(0.439f * r - 0.368f * g - 0.071f * b + 128.0f));
+  return (r == g && g == b) ? ConvertNorm<OutputType>(0.5f)
+                            : ConvertSatNorm<OutputType>(static_cast<InputType>(
+                                  0.439f * r - 0.368f * g - 0.071f * b + 128.0f));
 }
 
 template <typename OutputType, typename InputType>
 inline static OutputType GrayScale(InputType r, InputType g, InputType b) {
-  return (r == g && g == b) ? ConvertNorm<OutputType>(r) :
-    ConvertSatNorm<OutputType>(
-      static_cast<InputType>(0.299f * r + 0.587f * g + 0.114f * b));
+  return (r == g && g == b) ? ConvertNorm<OutputType>(r)
+                            : ConvertSatNorm<OutputType>(
+                                  static_cast<InputType>(0.299f * r + 0.587f * g + 0.114f * b));
 }
 
 }  // namespace dali

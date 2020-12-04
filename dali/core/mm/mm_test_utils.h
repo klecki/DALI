@@ -20,16 +20,16 @@
 #include <cstring>
 #include <unordered_map>
 #include <unordered_set>
-#include "dali/core/mm/memory_resource.h"
-#include "dali/core/mm/malloc_resource.h"
 #include "dali/core/mm/detail/util.h"
+#include "dali/core/mm/malloc_resource.h"
+#include "dali/core/mm/memory_resource.h"
 
 namespace dali {
 namespace mm {
 namespace test {
 
-template <bool owning, bool security_check,
-          typename Base, typename Upstream, typename... ExtraParams>
+template <bool owning, bool security_check, typename Base, typename Upstream,
+          typename... ExtraParams>
 class test_resource_wrapper : public Base {
   using sentinel_t = uint32_t;
   void *do_allocate(ExtraParams... extra, size_t bytes, size_t alignment) override {
@@ -43,13 +43,14 @@ class test_resource_wrapper : public Base {
       ret = upstream_->allocate(extra..., bytes, alignment);
     }
     freed_.erase(ret);  // in case of address reuse
-    if (ret) {  // nullptr can be returned on success if 0 bytes were requested
-      auto it_ins = allocated_.insert({ret, { bytes, alignment }});
+    if (ret) {          // nullptr can be returned on success if 0 bytes were requested
+      auto it_ins = allocated_.insert({ret, {bytes, alignment}});
       if (!it_ins.second) {
         ASSERT_TRUE(!security_check && (bytes == 0 || it_ins.first->second.bytes == 0))
-          << "The allocator returned the same address twice for non-empty allocations.", ret;
+            << "The allocator returned the same address twice for non-empty allocations.",
+            ret;
       }
-      it_ins.first->second = { bytes, alignment };
+      it_ins.first->second = {bytes, alignment};
     }
     return ret;
   }
@@ -58,7 +59,7 @@ class test_resource_wrapper : public Base {
     ASSERT_EQ(freed_.count(ptr), 0u) << "Double free of " << ptr;
     auto it = allocated_.find(ptr);
     ASSERT_NE(it, allocated_.end())
-      << "The address " << ptr << " was not allocated by this allocator";
+        << "The address " << ptr << " was not allocated by this allocator";
     ASSERT_EQ(it->second.bytes, bytes) << "Different size freed than allocated";
     ASSERT_EQ(it->second.alignment, alignment) << "Diffrent alignment freed than allocated";
     if (security_check) {
@@ -80,7 +81,7 @@ class test_resource_wrapper : public Base {
   bool simulate_oom_ = false;
 
   bool do_is_equal(const Base &other) const noexcept override {
-    if (auto *oth = dynamic_cast<const test_resource_wrapper*>(&other))
+    if (auto *oth = dynamic_cast<const test_resource_wrapper *>(&other))
       return *upstream_ == *oth->upstream_;
     else
       return false;
@@ -117,7 +118,6 @@ class test_resource_wrapper : public Base {
     freed_.clear();
   }
 
-
   void check_leaks() const {
     if (allocated_.empty())
       return;
@@ -125,21 +125,21 @@ class test_resource_wrapper : public Base {
     std::stringstream ss;
     ss << "Leaked blocks:\n";
     for (auto &alloc : allocated_) {
-      ss << alloc.first << " :  " << alloc.second.bytes
-         << " bytes, aligned to " << alloc.second.alignment << "\n";
+      ss << alloc.first << " :  " << alloc.second.bytes << " bytes, aligned to "
+         << alloc.second.alignment << "\n";
     }
     GTEST_FAIL() << ss.str();
   }
 };
 
 struct test_host_resource
-: public test_resource_wrapper<false, true, memory_resource, memory_resource> {
+    : public test_resource_wrapper<false, true, memory_resource, memory_resource> {
   test_host_resource() : test_resource_wrapper(&malloc_memory_resource::instance()) {}
 };
 
 template <typename Upstream>
-using test_stream_resource = test_resource_wrapper<
-    false, true, stream_memory_resource, Upstream, cudaStream_t>;
+using test_stream_resource =
+    test_resource_wrapper<false, true, stream_memory_resource, Upstream, cudaStream_t>;
 
 template <typename T>
 void Fill(void *ptr, size_t bytes, T fill_pattern) {
@@ -147,7 +147,7 @@ void Fill(void *ptr, size_t bytes, T fill_pattern) {
   size_t sz = sizeof(T);
   while (sz < bytes) {
     size_t next_sz = std::min(2 * sz, bytes);
-    memcpy(static_cast<char*>(ptr) + sz, ptr, next_sz - sz);
+    memcpy(static_cast<char *>(ptr) + sz, ptr, next_sz - sz);
     sz = next_sz;
   }
 }
@@ -156,9 +156,9 @@ template <typename T>
 void CheckFill(const void *ptr, size_t bytes, T fill_pattern) {
   size_t offset = 0;
   for (; offset + sizeof(T) <= bytes; offset += sizeof(T)) {
-    ASSERT_EQ(std::memcmp(static_cast<const char*>(ptr) + offset, &fill_pattern, sizeof(T)), 0);
+    ASSERT_EQ(std::memcmp(static_cast<const char *>(ptr) + offset, &fill_pattern, sizeof(T)), 0);
   }
-  ASSERT_EQ(std::memcmp(static_cast<const char*>(ptr) + offset, &fill_pattern, bytes - offset), 0);
+  ASSERT_EQ(std::memcmp(static_cast<const char *>(ptr) + offset, &fill_pattern, bytes - offset), 0);
 }
 
 }  // namespace test

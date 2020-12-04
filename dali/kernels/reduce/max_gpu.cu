@@ -20,8 +20,7 @@ namespace dali {
 namespace kernels {
 
 template <typename Out, typename In>
-class MaxGPU<Out, In>::Impl : public reduce_impl::MaxImplGPU<Out, In> {
-};
+class MaxGPU<Out, In>::Impl : public reduce_impl::MaxImplGPU<Out, In> {};
 
 template <typename Out, typename In>
 MaxGPU<Out, In>::MaxGPU() {}
@@ -30,9 +29,8 @@ template <typename Out, typename In>
 MaxGPU<Out, In>::~MaxGPU() {}
 
 template <typename Out, typename In>
-KernelRequirements MaxGPU<Out, In>::Setup(
-    KernelContext &ctx,
-    const TensorListShape<> &in_shape, span<const int> axes, bool keep_dims, bool reduce_batch) {
+KernelRequirements MaxGPU<Out, In>::Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
+                                          span<const int> axes, bool keep_dims, bool reduce_batch) {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }

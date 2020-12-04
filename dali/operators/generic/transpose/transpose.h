@@ -18,8 +18,8 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
-#include <vector>
 #include <utility>
+#include <vector>
 
 #include "dali/core/permute.h"
 #include "dali/pipeline/operator/operator.h"
@@ -36,22 +36,21 @@ class Transpose : public Operator<Backend> {
         output_layout_arg_(spec.GetArgument<TensorLayout>("output_layout")) {
     if (spec.HasArgument("output_layout")) {
       DALI_ENFORCE(!output_layout_arg_.empty(),
-        "Providing an empty output layout is not supported");
+                   "Providing an empty output layout is not supported");
     }
 
-    auto check_permutation =
-      [](std::vector<int> perm) {
-        std::sort(perm.begin(), perm.end());
-        for (int i = 0; i < static_cast<int>(perm.size()); ++i) {
-          if (perm[i] != i) {
-            return false;
-          }
+    auto check_permutation = [](std::vector<int> perm) {
+      std::sort(perm.begin(), perm.end());
+      for (int i = 0; i < static_cast<int>(perm.size()); ++i) {
+        if (perm[i] != i) {
+          return false;
         }
-        return true;
-      };
+      }
+      return true;
+    };
 
     DALI_ENFORCE(check_permutation(perm_),
-      "Invalid permutation: sorted `perm` is not equal to [0, ..., n-1].");
+                 "Invalid permutation: sorted `perm` is not equal to [0, ..., n-1].");
   }
 
   DISABLE_COPY_MOVE_ASSIGN(Transpose);
@@ -71,8 +70,7 @@ class Transpose : public Operator<Backend> {
     }
   }
 
-  bool SetupImpl(std::vector<OutputDesc> &output_desc,
-                 const workspace_t<Backend> &ws) override {
+  bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     const auto &input = ws.template InputRef<Backend>(0);
     SetOutputLayout(input);
 
@@ -80,7 +78,7 @@ class Transpose : public Operator<Backend> {
     int dim = input_shape.sample_dim();
     int pdim = perm_.size();
     DALI_ENFORCE(dim == pdim, make_string("Input has different dimensionality (", dim,
-        ") than the length of the permutation (", pdim, ")"));
+                                          ") than the length of the permutation (", pdim, ")"));
 
     output_desc.resize(1);
     permute_dims(output_desc[0].shape, input_shape, make_span(perm_));

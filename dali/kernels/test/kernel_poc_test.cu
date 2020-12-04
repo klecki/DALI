@@ -20,8 +20,8 @@ namespace kernels {
 
 // Performs elementwise MAD (multiply-add).
 template <typename Input1, typename Input2, typename Output>
-__global__ void
-ElementwiseMAD(size_t n, Output *o, const Input1 *i1, const Input2 *i2, float alpha) {
+__global__ void ElementwiseMAD(size_t n, Output *o, const Input1 *i1, const Input2 *i2,
+                               float alpha) {
   size_t idx = threadIdx.x + blockIdx.x * blockDim.x;
   if (idx < n)
     o[idx] = i1[idx] * alpha + i2[idx];
@@ -30,22 +30,15 @@ ElementwiseMAD(size_t n, Output *o, const Input1 *i1, const Input2 *i2, float al
 // Performs elementwise MAD (multiply-add).
 template <typename Input1, typename Input2, typename Output>
 struct MADKernelGPU {
-  KernelRequirements Setup(
-      KernelContext &context,
-      const InListGPU<Input1, 3> &i1,
-      const InListGPU<Input2, 3> &i2,
-      float A) {
+  KernelRequirements Setup(KernelContext &context, const InListGPU<Input1, 3> &i1,
+                           const InListGPU<Input2, 3> &i2, float A) {
     KernelRequirements req;
-    req.output_shapes = { i1.shape };
+    req.output_shapes = {i1.shape};
     return req;
   }
 
-  void Run(
-      KernelContext &context,
-      const OutListGPU<Output, 3> &o,
-      const InListGPU<Input1, 3> &i1,
-      const InListGPU<Input2, 3> &i2,
-      float A) {
+  void Run(KernelContext &context, const OutListGPU<Output, 3> &o, const InListGPU<Input1, 3> &i1,
+           const InListGPU<Input2, 3> &i2, float A) {
     {
       auto n = i1.num_elements();
       assert(i2.num_elements() == n);
@@ -66,16 +59,11 @@ struct MADKernelGPU {
 };
 
 template <typename Kernel_>
-class KernelPoC_GPU : public ::testing::Test, public KernelPoCFixture<StorageGPU, Kernel_> {
-};
+class KernelPoC_GPU : public ::testing::Test, public KernelPoCFixture<StorageGPU, Kernel_> {};
 
-
-using PoC_MAD_GPU = ::testing::Types<
-  MADKernelGPU<float, float, float>,
-  MADKernelGPU<int,   float, float>,
-  MADKernelGPU<float, int,   float>,
-  MADKernelGPU<int,   int,   int>
->;
+using PoC_MAD_GPU =
+    ::testing::Types<MADKernelGPU<float, float, float>, MADKernelGPU<int, float, float>,
+                     MADKernelGPU<float, int, float>, MADKernelGPU<int, int, int>>;
 
 TYPED_TEST_SUITE(KernelPoC_GPU, PoC_MAD_GPU);
 

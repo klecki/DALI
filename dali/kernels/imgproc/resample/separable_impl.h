@@ -16,10 +16,10 @@
 #define DALI_KERNELS_IMGPROC_RESAMPLE_SEPARABLE_IMPL_H_
 
 #include <cuda_runtime.h>
-#include "dali/kernels/imgproc/resample/separable.h"
-#include "dali/kernels/imgproc/resample/resampling_setup.h"
-#include "dali/kernels/imgproc/resample/resampling_batch.h"
 #include "dali/kernels/common/copy.h"
+#include "dali/kernels/imgproc/resample/resampling_batch.h"
+#include "dali/kernels/imgproc/resample/resampling_setup.h"
+#include "dali/kernels/imgproc/resample/separable.h"
 
 namespace dali {
 namespace kernels {
@@ -33,16 +33,15 @@ namespace resampling {
  * The filter allocates memory only in `Setup` - and even there, it won't reallocate
  * if subsequent calls do not exceed previous number of samples.
  */
-template <typename OutputElement, typename InputElement,
-          int _spatial_ndim,
-          typename Interface = SeparableResamplingFilter<OutputElement, InputElement, _spatial_ndim>
-          >
+template <typename OutputElement, typename InputElement, int _spatial_ndim,
+          typename Interface =
+              SeparableResamplingFilter<OutputElement, InputElement, _spatial_ndim> >
 struct SeparableResamplingGPUImpl : Interface {
-  using typename Interface::Params;
-  using typename Interface::Input;
-  using typename Interface::Output;
   using Interface::spatial_ndim;
   using Interface::tensor_ndim;
+  using typename Interface::Input;
+  using typename Interface::Output;
+  using typename Interface::Params;
 
   using ResamplingSetup = BatchResamplingSetup<spatial_ndim>;
   using SampleDesc = typename ResamplingSetup::SampleDesc;
@@ -67,11 +66,11 @@ struct SeparableResamplingGPUImpl : Interface {
 
   size_t GetTmpMemSize() const {
     // temporary buffers for more than 3D can be reused in a page-flipping fashion
-    size_t max[2] = { 0, 0 };
+    size_t max[2] = {0, 0};
     for (int i = 0; i < setup.num_tmp_buffers; i++) {
       size_t s = setup.intermediate_sizes[i];
-      if (s > max[i&1])
-        max[i&1] = s;
+      if (s > max[i & 1])
+        max[i & 1] = s;
     }
     return max[0] + max[1];
   }
@@ -92,7 +91,7 @@ struct SeparableResamplingGPUImpl : Interface {
     setup.SetupBatch(in.shape, params);
     // this will allocate and calculate offsets
     for (int i = 0; i < num_tmp_buffers; i++) {
-      intermediate[i] = { nullptr, setup.intermediate_shapes[i] };
+      intermediate[i] = {nullptr, setup.intermediate_shapes[i]};
     }
 
     KernelRequirements req;
@@ -114,109 +113,84 @@ struct SeparableResamplingGPUImpl : Interface {
     se.add<IntermediateElement>(AllocType::GPU, GetTmpMemSize());
 
     req.scratch_sizes = se.sizes;
-    req.output_shapes = { setup.output_shape };
+    req.output_shapes = {setup.output_shape};
     return req;
   }
 
   template <typename PassOutputElement, typename PassInputElement>
-  void RunPass(
-      int which_pass,
-      const SampleDesc *descs_gpu,
-      const InTensorGPU<BlockDesc, 1> &block2sample,
-      cudaStream_t stream) {
+  void RunPass(int which_pass, const SampleDesc *descs_gpu,
+               const InTensorGPU<BlockDesc, 1> &block2sample, cudaStream_t stream) {
     BatchedSeparableResample<spatial_ndim, PassOutputElement, PassInputElement>(
-        which_pass,
-        descs_gpu, block2sample.data, block2sample.shape[0],
-        setup.block_dim,
-        stream);
+        which_pass, descs_gpu, block2sample.data, block2sample.shape[0], setup.block_dim, stream);
   }
 
   /**
    * @remarks This function shall not allocate memory by ano other means
    *          than through `context.scratchpad`
    */
-  virtual void
-  Run(KernelContext &context, const Output &out, const Input &in, const Params &params) {
+  virtual void Run(KernelContext &context, const Output &out, const Input &in,
+                   const Params &params) {
     cudaStream_t stream = context.gpu.stream;
 
-    SampleDesc *descs_gpu = context.scratchpad->Allocate<SampleDesc>(
-        AllocType::GPU, setup.sample_descs.size());
+    SampleDesc *descs_gpu =
+        context.scratchpad->Allocate<SampleDesc>(AllocType::GPU, setup.sample_descs.size());
 
     int blocks_in_all_passes = 0;
     for (auto x : setup.total_blocks)
       blocks_in_all_passes += x;
 
     OutTensorCPU<BlockDesc, 1> sample_lookup_cpu = {
-      context.scratchpad->Allocate<BlockDesc>(AllocType::Host, blocks_in_all_passes),
-      { blocks_in_all_passes }
-    };
+        context.scratchpad->Allocate<BlockDesc>(AllocType::Host, blocks_in_all_passes),
+        {blocks_in_all_passes}};
     OutTensorGPU<BlockDesc, 1> sample_lookup_gpu = {
-      context.scratchpad->Allocate<BlockDesc>(AllocType::GPU, blocks_in_all_passes),
-      { blocks_in_all_passes }
-    };
+        context.scratchpad->Allocate<BlockDesc>(AllocType::GPU, blocks_in_all_passes),
+        {blocks_in_all_passes}};
     setup.InitializeSampleLookup(sample_lookup_cpu);
     copy(sample_lookup_gpu, sample_lookup_cpu, stream);  // NOLINT (it thinks it's std::copy)
-
 
     InTensorGPU<BlockDesc, 1> pass_lookup[spatial_ndim];
 
     size_t pass_lookup_offset = 0;
     for (int pass = 0; pass < spatial_ndim; pass++) {
       pass_lookup[pass] = make_tensor_gpu<1>(sample_lookup_gpu.data + pass_lookup_offset,
-                                             { setup.total_blocks[pass] });
+                                             {setup.total_blocks[pass]});
       pass_lookup_offset += setup.total_blocks[pass];
     }
 
-    auto *tmp_mem = context.scratchpad->Allocate<IntermediateElement>(
-          AllocType::GPU, GetTmpMemSize());
+    auto *tmp_mem =
+        context.scratchpad->Allocate<IntermediateElement>(AllocType::GPU, GetTmpMemSize());
 
     size_t odd_offset = GetOddTmpOffset();
     for (int t = 0; t < setup.num_tmp_buffers; t++) {
-      size_t offset = t&1 ? odd_offset : 0;
+      size_t offset = t & 1 ? odd_offset : 0;
       intermediate[t].set_contiguous_data(tmp_mem + offset);
     }
 
-    for (int i = 0; i <in.num_samples(); i++) {
+    for (int i = 0; i < in.num_samples(); i++) {
       std::array<IntermediateElement *, num_tmp_buffers> tmp_buffers;
       for (int t = 0; t < setup.num_tmp_buffers; t++)
         tmp_buffers[t] = intermediate[t].tensor_data(i);
 
-      setup.sample_descs[i].set_base_pointers(
-        in.tensor_data(i),
-        tmp_buffers,
-        out.tensor_data(i));
+      setup.sample_descs[i].set_base_pointers(in.tensor_data(i), tmp_buffers, out.tensor_data(i));
     }
 
-    cudaMemcpyAsync(
-        descs_gpu,
-        setup.sample_descs.data(),
-        setup.sample_descs.size()*sizeof(SampleDesc),
-        cudaMemcpyHostToDevice,
-        stream);
+    cudaMemcpyAsync(descs_gpu, setup.sample_descs.data(),
+                    setup.sample_descs.size() * sizeof(SampleDesc), cudaMemcpyHostToDevice, stream);
 
     RunPasses(descs_gpu, pass_lookup, stream, std::integral_constant<int, spatial_ndim>());
   }
 
-  void RunPasses(SampleDesc *descs_gpu,
-                 const InTensorGPU<BlockDesc, 1> *pass_lookup,
-                 cudaStream_t stream,
-                 std::integral_constant<int, 2>) {
-    RunPass<IntermediateElement, InputElement>(
-      0, descs_gpu, pass_lookup[0], stream);
-    RunPass<OutputElement, IntermediateElement>(
-      1, descs_gpu, pass_lookup[1], stream);
+  void RunPasses(SampleDesc *descs_gpu, const InTensorGPU<BlockDesc, 1> *pass_lookup,
+                 cudaStream_t stream, std::integral_constant<int, 2>) {
+    RunPass<IntermediateElement, InputElement>(0, descs_gpu, pass_lookup[0], stream);
+    RunPass<OutputElement, IntermediateElement>(1, descs_gpu, pass_lookup[1], stream);
   }
 
-  void RunPasses(SampleDesc *descs_gpu,
-                 const InTensorGPU<BlockDesc, 1> *pass_lookup,
-                 cudaStream_t stream,
-                 std::integral_constant<int, 3>) {
-    RunPass<IntermediateElement, InputElement>(
-      0, descs_gpu, pass_lookup[0], stream);
-    RunPass<IntermediateElement, IntermediateElement>(
-      1, descs_gpu, pass_lookup[1], stream);
-    RunPass<OutputElement, IntermediateElement>(
-      2, descs_gpu, pass_lookup[2], stream);
+  void RunPasses(SampleDesc *descs_gpu, const InTensorGPU<BlockDesc, 1> *pass_lookup,
+                 cudaStream_t stream, std::integral_constant<int, 3>) {
+    RunPass<IntermediateElement, InputElement>(0, descs_gpu, pass_lookup[0], stream);
+    RunPass<IntermediateElement, IntermediateElement>(1, descs_gpu, pass_lookup[1], stream);
+    RunPass<OutputElement, IntermediateElement>(2, descs_gpu, pass_lookup[2], stream);
   }
 };
 

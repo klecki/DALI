@@ -19,7 +19,8 @@ namespace dali {
 namespace kernels {
 namespace audio {
 
-enum class MelScaleFormula {
+enum class MelScaleFormula
+{
   Slaney,
   HTK
 };
@@ -51,14 +52,9 @@ struct MelFilterBankArgs {
   bool normalize = true;
 
   bool operator==(const MelFilterBankArgs &oth) const {
-    return sample_rate == oth.sample_rate
-        && freq_low  == oth.freq_low
-        && freq_high  == oth.freq_high
-        && nfilter == oth.nfilter
-        && axis == oth.axis
-        && nfft == oth.nfft
-        && mel_formula == oth.mel_formula
-        && normalize == oth.normalize;
+    return sample_rate == oth.sample_rate && freq_low == oth.freq_low &&
+           freq_high == oth.freq_high && nfilter == oth.nfilter && axis == oth.axis &&
+           nfft == oth.nfft && mel_formula == oth.mel_formula && normalize == oth.normalize;
   }
 
   bool operator!=(const MelFilterBankArgs &oth) const {

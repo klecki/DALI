@@ -18,9 +18,9 @@
 #include <memory>
 #include "dali/core/common.h"
 #include "dali/core/host_dev.h"
-#include "dali/kernels/kernel.h"
 #include "dali/kernels/audio/mel_scale/mel_filter_bank_args.h"
 #include "dali/kernels/audio/mel_scale/mel_scale.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -35,12 +35,10 @@ class DLL_PUBLIC MelFilterBankGpu {
   DLL_PUBLIC MelFilterBankGpu();
   DLL_PUBLIC ~MelFilterBankGpu();
 
-  DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
-                                      const InListGPU<T, Dims> &in,
+  DLL_PUBLIC KernelRequirements Setup(KernelContext &context, const InListGPU<T, Dims> &in,
                                       const MelFilterBankArgs &args);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      OutListGPU<T, Dims> &out,
+  DLL_PUBLIC void Run(KernelContext &context, OutListGPU<T, Dims> &out,
                       const InListGPU<T, Dims> &in);
 
  private:

@@ -17,26 +17,25 @@
 #include <opencv2/imgproc.hpp>
 #include <string>
 #include <vector>
-#include "dali/kernels/imgproc/warp_gpu.h"
+#include "dali/core/geom/transform.h"
+#include "dali/kernels/alloc.h"
 #include "dali/kernels/imgproc/warp/affine.h"
-#include "dali/test/tensor_test_utils.h"
+#include "dali/kernels/imgproc/warp_gpu.h"
+#include "dali/kernels/scratch.h"
+#include "dali/test/dali_test_config.h"
 #include "dali/test/dump_diff.h"
 #include "dali/test/mat2tensor.h"
+#include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
-#include "dali/kernels/scratch.h"
-#include "dali/kernels/alloc.h"
-#include "dali/test/dali_test_config.h"
-#include "dali/core/geom/transform.h"
 
 namespace dali {
 namespace kernels {
 
-
 class WarpPrivateTest {
  public:
   template <typename Mapping, int ndim, typename Out, typename In, typename Border>
-  static kernels::warp::WarpSetup<ndim, Out, In> &
-  GetSetup(kernels::WarpGPU<Mapping, ndim, Out, In, Border> &kernel) {
+  static kernels::warp::WarpSetup<ndim, Out, In> &GetSetup(
+      kernels::WarpGPU<Mapping, ndim, Out, In, Border> &kernel) {
     return kernel.setup;
   }
 };
@@ -47,10 +46,7 @@ TEST(WarpGPU, check_kernel) {
 }
 
 void WarpGPU_Affine_Transpose(bool force_variable) {
-  AffineMapping2D mapping_cpu = mat2x3{{
-    { 0, 1, 0 },
-    { 1, 0, 0 }
-  }};
+  AffineMapping2D mapping_cpu = mat2x3{{{0, 1, 0}, {1, 0, 0}}};
 
   cv::Mat cv_img = cv::imread(testing::dali_extra_path() + "/db/imgproc/alley.png");
   auto cpu_img = view_as_tensor<uint8_t>(cv_img);
@@ -67,11 +63,11 @@ void WarpGPU_Affine_Transpose(bool force_variable) {
   ScratchpadAllocator scratch_alloc;
 
   auto mapping_gpu = memory::alloc_unique<AffineMapping2D>(AllocType::GPU, 1);
-  TensorShape<2> out_shape = { img_tensor.shape[1], img_tensor.shape[0] };
+  TensorShape<2> out_shape = {img_tensor.shape[1], img_tensor.shape[0]};
   KernelContext ctx = {};
   auto out_shapes_hw = make_span<1>(&out_shape);
-  auto mappings = make_tensor_gpu<1>(mapping_gpu.get(), { 1 });
-  copy(mappings, make_tensor_cpu<1>(&mapping_cpu, { 1 }));
+  auto mappings = make_tensor_gpu<1>(mapping_gpu.get(), {1});
+  copy(mappings, make_tensor_cpu<1>(&mapping_cpu, {1}));
 
   auto interp = DALI_INTERP_NN;
   KernelRequirements req;
@@ -107,7 +103,7 @@ void WarpGPU_Affine_Transpose(bool force_variable) {
           if (errors++ < 100) {
             printed++;
             EXPECT_EQ(*cpu_out(y, x, c), *cpu_img(x, y, c))
-              << "@ x = " << x << " y = " << y << " c = " << c;
+                << "@ x = " << x << " y = " << y << " c = " << c;
           }
         }
       }
@@ -151,8 +147,8 @@ TEST(WarpGPU, Affine_RotateScale_Single) {
   vec2 center(cv_img.cols * 0.5f, cv_img.rows * 0.5f);
 
   int scale = 10;
-  auto tr = translation(center) * rotation2D(-M_PI/4) *
-            translation(-center) * scaling(vec2(1.0f/scale, 1.0f/scale));
+  auto tr = translation(center) * rotation2D(-M_PI / 4) * translation(-center) *
+            scaling(vec2(1.0f / scale, 1.0f / scale));
   AffineMapping2D mapping_cpu = sub<2, 3>(tr, 0, 0);
 
   TensorListView<StorageGPU, uint8_t, 3> in_list;
@@ -165,11 +161,11 @@ TEST(WarpGPU, Affine_RotateScale_Single) {
   ScratchpadAllocator scratch_alloc;
 
   auto mapping_gpu = memory::alloc_unique<AffineMapping2D>(AllocType::GPU, 1);
-  TensorShape<2> out_shape = { img_tensor.shape[0] * scale, img_tensor.shape[1] * scale };
+  TensorShape<2> out_shape = {img_tensor.shape[0] * scale, img_tensor.shape[1] * scale};
   KernelContext ctx = {};
   auto out_shapes_hw = make_span<1>(&out_shape);
-  auto mappings = make_tensor_gpu<1>(mapping_gpu.get(), { 1 });
-  copy(mappings, make_tensor_cpu<1>(&mapping_cpu, { 1 }));
+  auto mappings = make_tensor_gpu<1>(mapping_gpu.get(), {1});
+  copy(mappings, make_tensor_cpu<1>(&mapping_cpu, {1}));
 
   auto interp = DALI_INTERP_LINEAR;
   auto &setup = WarpPrivateTest::GetSetup(warp);
@@ -194,16 +190,14 @@ TEST(WarpGPU, Affine_RotateScale_Single) {
   cv::Matx<float, 2, 3> cv_transform = AffineToCV(mapping_cpu);
 
   cv::Mat cv_ref;
-  cv::warpAffine(cv_img, cv_ref,
-                 cv_transform, cv::Size(out_shape[1], out_shape[0]),
-                 cv::INTER_LINEAR|cv::WARP_INVERSE_MAP,
-                 cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255, 255));
+  cv::warpAffine(cv_img, cv_ref, cv_transform, cv::Size(out_shape[1], out_shape[0]),
+                 cv::INTER_LINEAR | cv::WARP_INVERSE_MAP, cv::BORDER_CONSTANT,
+                 cv::Scalar(255, 255, 255, 255));
   auto ref_img = view_as_tensor<uint8_t>(cv_ref);
   Check(cpu_out, ref_img, EqualEps(8));
   if (HasFailure())
     testing::DumpDiff("WarpAffine_RotateScale", cv_out, cv_ref);
 }
-
 
 TEST(WarpGPU, Affine_RotateScale_Uniform) {
   cv::Mat cv_img = cv::imread(testing::dali_extra_path() + "/db/imgproc/dots.png");
@@ -223,8 +217,8 @@ TEST(WarpGPU, Affine_RotateScale_Uniform) {
     in_list.shape.set_tensor_shape(i, img_tensor.shape);
     in_list.data[i] = img_tensor.data;
 
-    auto tr = translation(center) * rotation2D(-2*M_PI * i / samples) *
-              translation(-center) * scaling(vec2(1.0f/scale, 1.0f/scale));
+    auto tr = translation(center) * rotation2D(-2 * M_PI * i / samples) * translation(-center) *
+              scaling(vec2(1.0f / scale, 1.0f / scale));
     mapping_cpu[i] = sub<2, 3>(tr, 0, 0);
   }
 
@@ -233,17 +227,17 @@ TEST(WarpGPU, Affine_RotateScale_Uniform) {
   ScratchpadAllocator scratch_alloc;
 
   auto mapping_gpu = memory::alloc_unique<AffineMapping2D>(AllocType::GPU, samples);
-  TensorShape<2> out_shape = { img_tensor.shape[0] * scale, img_tensor.shape[1] * scale };
+  TensorShape<2> out_shape = {img_tensor.shape[0] * scale, img_tensor.shape[1] * scale};
   KernelContext ctx = {};
   std::vector<TensorShape<2>> out_shapes_hw(samples);
   for (int i = 0; i < samples; i++)
     out_shapes_hw[i] = out_shape;
-  auto mappings = make_tensor_gpu<1>(mapping_gpu.get(), { samples });
-  copy(mappings, make_tensor_cpu<1>(mapping_cpu.data(), { samples }));
+  auto mappings = make_tensor_gpu<1>(mapping_gpu.get(), {samples});
+  copy(mappings, make_tensor_cpu<1>(mapping_cpu.data(), {samples}));
 
   auto interp = DALI_INTERP_LINEAR;
-  KernelRequirements req = warp.Setup(
-    ctx, in_list, mappings, make_span(out_shapes_hw), {&interp, 1}, 255);
+  KernelRequirements req =
+      warp.Setup(ctx, in_list, mappings, make_span(out_shapes_hw), {&interp, 1}, 255);
 
   scratch_alloc.Reserve(req.scratch_sizes);
   TestTensorList<uint8_t, 3> out;
@@ -264,10 +258,9 @@ TEST(WarpGPU, Affine_RotateScale_Uniform) {
     cv::Matx<float, 2, 3> cv_transform = AffineToCV(mapping_cpu[i]);
 
     cv::Mat cv_ref;
-    cv::warpAffine(cv_img, cv_ref,
-                  cv_transform, cv::Size(out_shape[1], out_shape[0]),
-                  cv::INTER_LINEAR|cv::WARP_INVERSE_MAP,
-                  cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255, 255));
+    cv::warpAffine(cv_img, cv_ref, cv_transform, cv::Size(out_shape[1], out_shape[0]),
+                   cv::INTER_LINEAR | cv::WARP_INVERSE_MAP, cv::BORDER_CONSTANT,
+                   cv::Scalar(255, 255, 255, 255));
     auto ref_img = view_as_tensor<uint8_t>(cv_ref);
     Check(cpu_out, ref_img, EqualEps(8));
     if (HasFailure()) {

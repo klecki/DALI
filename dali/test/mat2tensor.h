@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_TEST_MAT2TENSOR_H_
 #define DALI_TEST_MAT2TENSOR_H_
 
@@ -55,24 +54,23 @@ void enforce_type(const cv::Mat &mat) {
 template <typename T, int ndim = 3>
 TensorView<StorageCPU, T, ndim> view_as_tensor(const cv::Mat &mat) {
   static_assert(std::is_const<T>::value,
-    "Cannot create a non-const view of a const cv::Mat (Missing `const T`?)");
+                "Cannot create a non-const view of a const cv::Mat (Missing `const T`?)");
 
   enforce_type<T>(mat);
-  return { mat.ptr<T>(0), tensor_shape<ndim>(mat) };
+  return {mat.ptr<T>(0), tensor_shape<ndim>(mat)};
 }
 
 template <typename T, int ndim = 3>
 TensorView<StorageCPU, T, ndim> view_as_tensor(cv::Mat &mat) {
   enforce_type<T>(mat);
-  return { mat.ptr<T>(0), tensor_shape<ndim>(mat) };
+  return {mat.ptr<T>(0), tensor_shape<ndim>(mat)};
 }
 
-
-template<AllocType AType = AllocType::GPU, typename T = uint8_t, int ndims = 3>
-std::pair<TensorView<AllocBackend<AType>, T, ndims>, memory::KernelUniquePtr<T>>
-copy_as_tensor(const cv::Mat &mat) {
+template <AllocType AType = AllocType::GPU, typename T = uint8_t, int ndims = 3>
+std::pair<TensorView<AllocBackend<AType>, T, ndims>, memory::KernelUniquePtr<T>> copy_as_tensor(
+    const cv::Mat &mat) {
   static_assert(AType == AllocType::GPU || AType == AllocType::Unified,
-          "Allocation type has to be GPU-specific");
+                "Allocation type has to be GPU-specific");
   auto tvin = kernels::view_as_tensor<const T, ndims>(mat);
   return copy<AType>(tvin);
 }

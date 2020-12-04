@@ -12,24 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/imgproc/flip_gpu.cuh"
 #include <gtest/gtest.h>
 #include <random>
 #include <vector>
+#include "dali/kernels/imgproc/flip_gpu.cuh"
 #include "dali/kernels/imgproc/flip_test.h"
-#include "dali/test/test_tensors.h"
 #include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
 
-class FlipGpuTest: public testing::TestWithParam<std::array<Index, sample_ndim>> {
+class FlipGpuTest : public testing::TestWithParam<std::array<Index, sample_ndim>> {
  public:
   FlipGpuTest()
-  : tensor_shape_(GetParam())
-  , volume_(volume(tensor_shape_))
-  , shape_({tensor_shape_, tensor_shape_, tensor_shape_, tensor_shape_,
-           tensor_shape_, tensor_shape_, tensor_shape_, tensor_shape_}) {}
+      : tensor_shape_(GetParam()),
+        volume_(volume(tensor_shape_)),
+        shape_({tensor_shape_, tensor_shape_, tensor_shape_, tensor_shape_, tensor_shape_,
+                tensor_shape_, tensor_shape_, tensor_shape_}) {}
 
   void SetUp() final {
     ttl_in_.reshape(shape_);
@@ -58,18 +58,16 @@ TEST_P(FlipGpuTest, ImplTest) {
   ttl_out_.reshape(reqs.output_shapes[0].to_static<sample_ndim>());
   auto out_view = ttl_out_.gpu();
   for (int i = 0; i < in_view.num_samples(); ++i) {
-    detail::gpu::FlipImpl(
-        out_view.tensor_data(i), in_view.tensor_data(i),
-        tensor_shape_, flip_z_[i], flip_y_[i], flip_z_[i], nullptr);
+    detail::gpu::FlipImpl(out_view.tensor_data(i), in_view.tensor_data(i), tensor_shape_,
+                          flip_z_[i], flip_y_[i], flip_z_[i], nullptr);
   }
   kernel.Run(ctx, out_view, in_view, flip_z_, flip_y_, flip_x_);
   auto out_view_cpu = ttl_out_.cpu(nullptr);
   auto in_view_cpu = ttl_in_.cpu(nullptr);
   for (int i = 0; i < out_view_cpu.num_samples(); ++i) {
-    ASSERT_TRUE(is_flipped(out_view_cpu.tensor_data(i),
-                           in_view_cpu.tensor_data(i),
-                           shape_[i][0], shape_[i][1], shape_[i][2], shape_[i][3], shape_[i][4],
-                           flip_z_[i], flip_y_[i], flip_x_[i]));
+    ASSERT_TRUE(is_flipped(out_view_cpu.tensor_data(i), in_view_cpu.tensor_data(i), shape_[i][0],
+                           shape_[i][1], shape_[i][2], shape_[i][3], shape_[i][4], flip_z_[i],
+                           flip_y_[i], flip_x_[i]));
   }
 }
 
@@ -85,19 +83,17 @@ TEST_P(FlipGpuTest, KernelTest) {
   auto out_view_cpu = ttl_out_.cpu(nullptr);
   auto in_view_cpu = ttl_in_.cpu(nullptr);
   for (int i = 0; i < out_view_cpu.num_samples(); ++i) {
-    ASSERT_TRUE(is_flipped(out_view_cpu.tensor_data(i),
-                           in_view_cpu.tensor_data(i),
-                           shape_[i][0], shape_[i][1], shape_[i][2], shape_[i][3], shape_[i][4],
-                           flip_z_[i], flip_y_[i], flip_x_[i]));
+    ASSERT_TRUE(is_flipped(out_view_cpu.tensor_data(i), in_view_cpu.tensor_data(i), shape_[i][0],
+                           shape_[i][1], shape_[i][2], shape_[i][3], shape_[i][4], flip_z_[i],
+                           flip_y_[i], flip_x_[i]));
   }
 }
 
 INSTANTIATE_TEST_SUITE_P(FlipGpuTest, FlipGpuTest,
-    ::testing::ValuesIn({
-        std::array<Index, sample_ndim>{4, 1, 2, 2, 10},
-        std::array<Index, sample_ndim>{4, 1, 2, 2, 2},
-        std::array<Index, sample_ndim>{1, 4, 9, 18, 3},
-        std::array<Index, sample_ndim>{1, 3, 18, 9, 4}}));
+                         ::testing::ValuesIn({std::array<Index, sample_ndim>{4, 1, 2, 2, 10},
+                                              std::array<Index, sample_ndim>{4, 1, 2, 2, 2},
+                                              std::array<Index, sample_ndim>{1, 4, 9, 18, 3},
+                                              std::array<Index, sample_ndim>{1, 3, 18, 9, 4}}));
 
 }  // namespace kernels
 }  // namespace dali

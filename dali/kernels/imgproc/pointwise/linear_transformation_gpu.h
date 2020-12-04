@@ -16,19 +16,19 @@
 #define DALI_KERNELS_IMGPROC_POINTWISE_LINEAR_TRANSFORMATION_GPU_H_
 
 #include <vector>
-#include "dali/core/format.h"
 #include "dali/core/convert.h"
+#include "dali/core/format.h"
 #include "dali/core/geom/box.h"
 #include "dali/kernels/common/block_setup.h"
-#include "dali/kernels/imgproc/surface.h"
 #include "dali/kernels/imgproc/roi.h"
+#include "dali/kernels/imgproc/surface.h"
 
 namespace dali {
 namespace kernels {
 namespace lin_trans {
 
-template <typename OutputType, typename InputType,
-        int channels_out, int channels_in, int spatial_ndims>
+template <typename OutputType, typename InputType, int channels_out, int channels_in,
+          int spatial_ndims>
 struct SampleDescriptor {
   const InputType *in;
   OutputType *out;
@@ -41,25 +41,30 @@ struct SampleDescriptor {
   Roi<spatial_ndims> roi;
 };
 
-
-template <typename OutputType, typename InputType,
-        int channels_out, int channels_in, int spatial_ndims>
-void __global__ LinearTransformationKernel(
-        const lin_trans::SampleDescriptor<OutputType, InputType,
-                channels_out, channels_in, spatial_ndims> *samples,
-        const BlockDesc<spatial_ndims> *blocks) {
+template <typename OutputType, typename InputType, int channels_out, int channels_in,
+          int spatial_ndims>
+void __global__
+LinearTransformationKernel(const lin_trans::SampleDescriptor<OutputType, InputType, channels_out,
+                                                             channels_in, spatial_ndims> *samples,
+                           const BlockDesc<spatial_ndims> *blocks) {
   const auto &block = blocks[blockIdx.x];
   const auto &sample = samples[block.sample_idx];
 
-  const Surface2D<const InputType> in = {
-          sample.in, sample.in_size.x, sample.in_size.y, channels_in,
-          sample.in_strides.x, sample.in_strides.y, 1
-  };
+  const Surface2D<const InputType> in = {sample.in,
+                                         sample.in_size.x,
+                                         sample.in_size.y,
+                                         channels_in,
+                                         sample.in_strides.x,
+                                         sample.in_strides.y,
+                                         1};
 
-  const Surface2D<OutputType> out = {
-          sample.out, sample.out_size.x, sample.out_size.y, channels_out,
-          sample.out_strides.x, sample.out_strides.y, 1
-  };
+  const Surface2D<OutputType> out = {sample.out,
+                                     sample.out_size.x,
+                                     sample.out_size.y,
+                                     channels_out,
+                                     sample.out_strides.x,
+                                     sample.out_strides.y,
+                                     1};
 
   auto in_roi = crop(in, sample.roi);
 
@@ -79,16 +84,16 @@ void __global__ LinearTransformationKernel(
 
 }  // namespace lin_trans
 
-template <typename OutputType, typename InputType,
-        int channels_out, int channels_in, int spatial_ndims>
+template <typename OutputType, typename InputType, int channels_out, int channels_in,
+          int spatial_ndims>
 class LinearTransformationGpu {
  private:
   static constexpr auto ndims_ = spatial_ndims + 1;
   using Mat = ::dali::mat<channels_out, channels_in, float>;
   using Vec = ::dali::vec<channels_out, float>;
   using BlockDesc = kernels::BlockDesc<spatial_ndims>;
-  using SampleDescriptor = lin_trans::SampleDescriptor<OutputType, InputType,
-          channels_out, channels_in, spatial_ndims>;
+  using SampleDescriptor =
+      lin_trans::SampleDescriptor<OutputType, InputType, channels_out, channels_in, spatial_ndims>;
 
   std::vector<SampleDescriptor> sample_descriptors_;
 
@@ -97,13 +102,11 @@ class LinearTransformationGpu {
 
  public:
   BlockSetup<spatial_ndims, spatial_ndims /* Assumed, that the channel dim is the last dim */>
-          block_setup_;
+      block_setup_;
 
-
-  KernelRequirements
-  Setup(KernelContext &context, const InListGPU<InputType, ndims_> &in,
-        span<const Mat> tmatrices, span<const Vec> tvectors = {},
-        span<const Roi<spatial_ndims>> rois = {}) {
+  KernelRequirements Setup(KernelContext &context, const InListGPU<InputType, ndims_> &in,
+                           span<const Mat> tmatrices, span<const Vec> tvectors = {},
+                           span<const Roi<spatial_ndims>> rois = {}) {
     DALI_ENFORCE(rois.empty() || rois.size() == in.num_samples(),
                  "Provide ROIs either for all or none input tensors");
     for (int i = 0; i < in.size(); i++) {
@@ -134,7 +137,6 @@ class LinearTransformationGpu {
     return req;
   }
 
-
   void Run(KernelContext &context, const OutListGPU<OutputType, ndims_> &out,
            const InListGPU<InputType, ndims_> &in, span<const Mat> tmatrices,
            span<const Vec> tvectors = {}, span<const Roi<spatial_ndims>> rois = {}) {
@@ -144,17 +146,16 @@ class LinearTransformationGpu {
     BlockDesc *blocks_gpu;
 
     std::tie(samples_gpu, blocks_gpu) = context.scratchpad->ToContiguousGPU(
-            context.gpu.stream, sample_descriptors_, block_setup_.Blocks());
+        context.gpu.stream, sample_descriptors_, block_setup_.Blocks());
 
     dim3 grid_dim = block_setup_.GridDim();
     dim3 block_dim = block_setup_.BlockDim();
     auto stream = context.gpu.stream;
     // @autoformat:off
-    lin_trans::LinearTransformationKernel
-            <<<grid_dim, block_dim, 0, stream>>>(samples_gpu, blocks_gpu);
+    lin_trans::LinearTransformationKernel<<<grid_dim, block_dim, 0, stream>>>(samples_gpu,
+                                                                              blocks_gpu);
     // @autoformat:on
   }
-
 
  private:
   void CreateSampleDescriptors(const OutListGPU<OutputType, ndims_> &out,
@@ -172,11 +173,11 @@ class LinearTransformationGpu {
       sample.out = out[i].data;
 
       auto get_size = [](const TensorShape<ndims_> &ts) {
-          ivec<spatial_ndims> ret;
-          for (int i = ret.size() - 1, j = 0; i >= 0; i--, j++) {
-            ret[j] = ts[i];
-          }
-          return ret;
+        ivec<spatial_ndims> ret;
+        for (int i = ret.size() - 1, j = 0; i >= 0; i--, j++) {
+          ret[j] = ts[i];
+        }
+        return ret;
       };
 
       sample.in_size = get_size(in.tensor_shape(i));
@@ -188,7 +189,6 @@ class LinearTransformationGpu {
       sample.roi = adjusted_rois[i];
     }
   }
-
 
   void gen_default_values(size_t nsamples) {
     default_vecs_ = std::vector<Vec>(nsamples, Vec(0));

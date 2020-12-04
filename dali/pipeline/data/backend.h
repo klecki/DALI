@@ -25,22 +25,21 @@ namespace dali {
 
 // Called by "DALIInit" to set up polymorphic pointers
 // to user-defined memory allocators
-void InitializeBackends(const OpSpec &cpu_allocator,
-    const OpSpec &pinned_cpu_allocator,
-    const OpSpec &gpu_allocator);
+void InitializeBackends(const OpSpec &cpu_allocator, const OpSpec &pinned_cpu_allocator,
+                        const OpSpec &gpu_allocator);
 
-DLL_PUBLIC void SetCPUAllocator(const OpSpec& allocator);
-DLL_PUBLIC void SetPinnedCPUAllocator(const OpSpec& allocator);
-DLL_PUBLIC void SetGPUAllocator(const OpSpec& allocator);
+DLL_PUBLIC void SetCPUAllocator(const OpSpec &allocator);
+DLL_PUBLIC void SetPinnedCPUAllocator(const OpSpec &allocator);
+DLL_PUBLIC void SetGPUAllocator(const OpSpec &allocator);
 DLL_PUBLIC void SetGPUAllocator(std::unique_ptr<GPUAllocator> allocator);
 
-GPUAllocator& GetGPUAllocator();
+GPUAllocator &GetGPUAllocator();
 /**
  * @brief Provides access to GPU allocator and other GPU meta-data.
  */
 class DLL_PUBLIC GPUBackend final {
  public:
-  DLL_PUBLIC static void* New(size_t bytes, bool);
+  DLL_PUBLIC static void *New(size_t bytes, bool);
   DLL_PUBLIC static void Delete(void *ptr, size_t bytes, bool);
 };
 
@@ -55,7 +54,7 @@ class DLL_PUBLIC MixedBackend final {};
  */
 class DLL_PUBLIC CPUBackend final {
  public:
-  DLL_PUBLIC static void* New(size_t bytes, bool pinned);
+  DLL_PUBLIC static void *New(size_t bytes, bool pinned);
   DLL_PUBLIC static void Delete(void *ptr, size_t bytes, bool pinned);
 };
 

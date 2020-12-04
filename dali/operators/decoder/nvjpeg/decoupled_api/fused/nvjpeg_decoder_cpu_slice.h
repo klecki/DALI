@@ -24,15 +24,13 @@ namespace dali {
 class nvJPEGDecoderCPUStageSlice : public nvJPEGDecoderCPUStage {
  public:
   explicit nvJPEGDecoderCPUStageSlice(const OpSpec& spec)
-    : nvJPEGDecoderCPUStage(spec)
-    , slice_attr_(spec)
-  {}
+      : nvJPEGDecoderCPUStage(spec), slice_attr_(spec) {}
 
   DISABLE_COPY_MOVE_ASSIGN(nvJPEGDecoderCPUStageSlice);
 
  protected:
   using Operator<CPUBackend>::RunImpl;
-  void RunImpl(SampleWorkspace &ws) override {
+  void RunImpl(SampleWorkspace& ws) override {
     slice_attr_.ProcessArguments(ws);
     nvJPEGDecoderCPUStage::RunImpl(ws);
   }

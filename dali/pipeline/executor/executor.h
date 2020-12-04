@@ -18,16 +18,17 @@
 #include <atomic>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <queue>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
-#include <mutex>
 
 #include "dali/core/common.h"
-#include "dali/core/nvtx.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/nvtx.h"
+#include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/executor/queue_metadata.h"
 #include "dali/pipeline/executor/queue_policy.h"
 #include "dali/pipeline/executor/workspace_policy.h"
@@ -42,7 +43,6 @@
 #include "dali/pipeline/workspace/host_workspace.h"
 #include "dali/pipeline/workspace/mixed_workspace.h"
 #include "dali/pipeline/workspace/workspace_data_factory.h"
-#include "dali/pipeline/data/backend.h"
 
 namespace dali {
 
@@ -139,16 +139,16 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
   DISABLE_COPY_MOVE_ASSIGN(Executor);
 
  protected:
-  template<typename T>
+  template <typename T>
   inline void GetMaxSizesCont(T &in, size_t &max_out_size, size_t &max_reserved_size) {
     auto out_size = in.nbytes();
     auto reserved_size = in.capacity();
     max_out_size = std::max<size_t>(std::ceil((out_size * 1.0) / in.ntensor()), max_out_size);
-    max_reserved_size = std::max<size_t>(std::ceil((reserved_size * 1.0) / in.ntensor()),
-                                         max_reserved_size);
+    max_reserved_size =
+        std::max<size_t>(std::ceil((reserved_size * 1.0) / in.ntensor()), max_reserved_size);
   }
 
-  template<typename T>
+  template <typename T>
   inline void GetMaxSizesNonCont(T &in, size_t &max_out_size, size_t &max_reserved_size) {
     for (size_t j = 0; j < in.ntensor(); ++j) {
       max_out_size = std::max(in[j].nbytes(), max_out_size);
@@ -156,13 +156,13 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
     }
   }
 
-  template<typename backend>
+  template <typename backend>
   inline void GetMaxSizes(TensorList<backend> &in, size_t &max_out_size,
                           size_t &max_reserved_size) {
     GetMaxSizesCont(in, max_out_size, max_reserved_size);
   }
 
-  template<typename backend>
+  template <typename backend>
   inline void GetMaxSizes(TensorVector<backend> &in, size_t &max_out_size,
                           size_t &max_reserved_size) {
     if (in.IsContiguous()) {
@@ -176,36 +176,36 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
   inline void FillStats(ExecutorMetaMap &memory_stats, W &ws, std::string op_name,
                         std::mutex &write_mutex) {
     if (enable_memory_stats_) {
-        size_t out_size = 0;
-        size_t max_out_size = 0;
-        size_t reserved_size = 0;
-        size_t max_reserved_size = 0;
-        std::lock_guard<std::mutex> lck(write_mutex);
-        auto &stats = memory_stats[op_name];
-        stats.resize(ws.NumOutput(), {0, 0});
+      size_t out_size = 0;
+      size_t max_out_size = 0;
+      size_t reserved_size = 0;
+      size_t max_reserved_size = 0;
+      std::lock_guard<std::mutex> lck(write_mutex);
+      auto &stats = memory_stats[op_name];
+      stats.resize(ws.NumOutput(), {0, 0});
 
-        for (int i = 0; i < ws.NumOutput(); ++i) {
-          out_size = 0;
-          max_out_size = 0;
-          reserved_size = 0;
-          max_reserved_size = 0;
-          if (ws.template OutputIsType<CPUBackend>(i)) {
-            auto &out = ws.template OutputRef<CPUBackend>(i);
-            out_size = out.nbytes();
-            reserved_size = out.capacity();
-            GetMaxSizes(out, max_out_size, max_reserved_size);
-          } else {
-            auto &out = ws.template OutputRef<GPUBackend>(i);
-            out_size = out.nbytes();
-            reserved_size = out.capacity();
-            GetMaxSizes(out, max_out_size, max_reserved_size);
-          }
-          stats[i].real_size = std::max(out_size, stats[i].real_size);
-          stats[i].max_real_size = std::max(max_out_size, stats[i].max_real_size);
-          stats[i].reserved = std::max(reserved_size, stats[i].reserved);
-          stats[i].max_reserved = std::max(max_reserved_size, stats[i].max_reserved);
+      for (int i = 0; i < ws.NumOutput(); ++i) {
+        out_size = 0;
+        max_out_size = 0;
+        reserved_size = 0;
+        max_reserved_size = 0;
+        if (ws.template OutputIsType<CPUBackend>(i)) {
+          auto &out = ws.template OutputRef<CPUBackend>(i);
+          out_size = out.nbytes();
+          reserved_size = out.capacity();
+          GetMaxSizes(out, max_out_size, max_reserved_size);
+        } else {
+          auto &out = ws.template OutputRef<GPUBackend>(i);
+          out_size = out.nbytes();
+          reserved_size = out.capacity();
+          GetMaxSizes(out, max_out_size, max_reserved_size);
         }
+        stats[i].real_size = std::max(out_size, stats[i].real_size);
+        stats[i].max_real_size = std::max(max_out_size, stats[i].max_real_size);
+        stats[i].reserved = std::max(reserved_size, stats[i].reserved);
+        stats[i].max_reserved = std::max(max_reserved_size, stats[i].max_reserved);
       }
+    }
   }
 
   void HandleError(const std::string &stage, const OpNode &op_node, const std::string &message) {
@@ -230,7 +230,7 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
     }
   }
 
-  void HandleError(const std::string& message = "Unknown exception") {
+  void HandleError(const std::string &message = "Unknown exception") {
     exec_error_ = true;
     ShutdownQueue();
     std::lock_guard<std::mutex> errors_lock(errors_mutex_);
@@ -263,7 +263,9 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
       }
     }
 
-    inline cudaEvent_t GetEvent(int idx) { return events_[idx]; }
+    inline cudaEvent_t GetEvent(int idx) {
+      return events_[idx];
+    }
 
     inline bool empty() const {
       return events_.empty();
@@ -307,7 +309,6 @@ class DLL_PUBLIC Executor : public ExecutorBase, public WorkspacePolicy, public 
   // two sets of locks doing similar things in each stage,
   // it simplifies the software for now so we leave it
   // unless it becomes an issue in the future.
-
 
   StageQueues stage_queue_depths_;
 
@@ -490,7 +491,8 @@ void Executor<WorkspacePolicy, QueuePolicy>::Build(OpGraph *graph, vector<string
 template <typename WorkspacePolicy, typename QueuePolicy>
 void Executor<WorkspacePolicy, QueuePolicy>::RunCPU() {
   if (device_id_ < 0) {
-    DALI_ENFORCE(device_id_ == CPU_ONLY_DEVICE_ID, "Wrong device_id provided, it should be >= 0, "
+    DALI_ENFORCE(device_id_ == CPU_ONLY_DEVICE_ID,
+                 "Wrong device_id provided, it should be >= 0, "
                  "or equal to CPU_ONLY_DEVICE_ID.");
     DALI_ENFORCE(graph_->NumOp(OpType::GPU) == 0 && graph_->NumOp(OpType::MIXED) == 0,
                  "Cannot run a pipeline with Mixed/GPU ops in CPU-only mode. Please provide "
@@ -518,9 +520,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunCPU() {
     try {
       RunHelper(op_node, ws);
       FillStats(cpu_memory_stats_, ws, "CPU_" + op_node.instance_name, cpu_memory_stats_mutex_);
-    } catch (std::exception &e) {
-      HandleError("CPU", op_node, e.what());
-    } catch (...) {
+    } catch (std::exception &e) { HandleError("CPU", op_node, e.what()); } catch (...) {
       HandleError();
     }
   }
@@ -555,26 +555,23 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunMixed() {
 
   CUDA_CALL(cudaEventSynchronize(mixed_stage_event_));
 
-    for (int i = 0; i < graph_->NumOp(OpType::MIXED) && !exec_error_; ++i) {
-      OpNode &op_node = graph_->Node(OpType::MIXED, i);
-      try {
-        typename WorkspacePolicy::template ws_t<OpType::MIXED> ws =
-            WorkspacePolicy::template GetWorkspace<OpType::MIXED>(mixed_idxs, *graph_, i);
-        DomainTimeRange tr("[DALI][Mixed op] " + op_node.instance_name,
-            DomainTimeRange::kOrange);
-        RunHelper(op_node, ws);
-        FillStats(mixed_memory_stats_, ws,  "MIXED_" + op_node.instance_name,
-                  mixed_memory_stats_mutex_);
-        if (ws.has_stream() && ws.has_event()) {
-          CUDA_CALL(cudaEventRecord(ws.event(), ws.stream()));
-        }
-        CUDA_CALL(cudaGetLastError());
-      } catch (std::exception &e) {
-        HandleError("Mixed", op_node, e.what());
-      } catch (...) {
-        HandleError();
+  for (int i = 0; i < graph_->NumOp(OpType::MIXED) && !exec_error_; ++i) {
+    OpNode &op_node = graph_->Node(OpType::MIXED, i);
+    try {
+      typename WorkspacePolicy::template ws_t<OpType::MIXED> ws =
+          WorkspacePolicy::template GetWorkspace<OpType::MIXED>(mixed_idxs, *graph_, i);
+      DomainTimeRange tr("[DALI][Mixed op] " + op_node.instance_name, DomainTimeRange::kOrange);
+      RunHelper(op_node, ws);
+      FillStats(mixed_memory_stats_, ws, "MIXED_" + op_node.instance_name,
+                mixed_memory_stats_mutex_);
+      if (ws.has_stream() && ws.has_event()) {
+        CUDA_CALL(cudaEventRecord(ws.event(), ws.stream()));
       }
+      CUDA_CALL(cudaGetLastError());
+    } catch (std::exception &e) { HandleError("Mixed", op_node, e.what()); } catch (...) {
+      HandleError();
     }
+  }
 
   if (callback_) {
     // Record event that will allow to call the callback after whole run of this pipeline is
@@ -616,31 +613,28 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunGPU() {
   // iterations of a stage of the pipeline.
   CUDA_CALL(cudaEventSynchronize(gpu_stage_event_));
 
-    for (int i = 0; i < graph_->NumOp(OpType::GPU) && !exec_error_; ++i) {
-      OpNode &op_node = graph_->Node(OpType::GPU, i);
-      try {
-        typename WorkspacePolicy::template ws_t<OpType::GPU> ws =
-            WorkspacePolicy::template GetWorkspace<OpType::GPU>(gpu_idxs, *graph_, i);
-        auto parent_events = ws.ParentEvents();
+  for (int i = 0; i < graph_->NumOp(OpType::GPU) && !exec_error_; ++i) {
+    OpNode &op_node = graph_->Node(OpType::GPU, i);
+    try {
+      typename WorkspacePolicy::template ws_t<OpType::GPU> ws =
+          WorkspacePolicy::template GetWorkspace<OpType::GPU>(gpu_idxs, *graph_, i);
+      auto parent_events = ws.ParentEvents();
 
-        for (auto &event : parent_events) {
-          CUDA_CALL(cudaStreamWaitEvent(ws.stream(), event, 0));
-        }
-
-        DomainTimeRange tr("[DALI][GPU op] " + op_node.instance_name,
-            DomainTimeRange::knvGreen);
-        RunHelper(op_node, ws);
-        FillStats(gpu_memory_stats_, ws, "GPU_" + op_node.instance_name, gpu_memory_stats_mutex_);
-        if (ws.has_event()) {
-          CUDA_CALL(cudaEventRecord(ws.event(), ws.stream()));
-        }
-        CUDA_CALL(cudaGetLastError());
-      } catch (std::exception &e) {
-        HandleError("GPU", op_node, e.what());
-      } catch (...) {
-        HandleError();
+      for (auto &event : parent_events) {
+        CUDA_CALL(cudaStreamWaitEvent(ws.stream(), event, 0));
       }
+
+      DomainTimeRange tr("[DALI][GPU op] " + op_node.instance_name, DomainTimeRange::knvGreen);
+      RunHelper(op_node, ws);
+      FillStats(gpu_memory_stats_, ws, "GPU_" + op_node.instance_name, gpu_memory_stats_mutex_);
+      if (ws.has_event()) {
+        CUDA_CALL(cudaEventRecord(ws.event(), ws.stream()));
+      }
+      CUDA_CALL(cudaGetLastError());
+    } catch (std::exception &e) { HandleError("GPU", op_node, e.what()); } catch (...) {
+      HandleError();
     }
+  }
 
   // Update the ready queue to signal that all the work
   // in the `gpu_idxs` set of output buffers has been
@@ -654,8 +648,8 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunGPU() {
 
   // Schedule the call to any callback registered previously
   if (callback_) {
-    CUDA_CALL(cudaStreamWaitEvent(gpu_op_stream_,
-                                  mixed_callback_events_[gpu_idxs[OpType::MIXED]], 0));
+    CUDA_CALL(
+        cudaStreamWaitEvent(gpu_op_stream_, mixed_callback_events_[gpu_idxs[OpType::MIXED]], 0));
     CUDA_CALL(cudaStreamAddCallback(gpu_op_stream_, &detail::gpu_finished_callback,
                                     static_cast<void *>(&callback_), 0));
   }
@@ -733,8 +727,7 @@ template <typename WorkspacePolicy, typename QueuePolicy>
 void Executor<WorkspacePolicy, QueuePolicy>::PruneUnusedGraphNodes() {
   // We want to remove any nodes whose outputs are
   // never used by another node or as an output
-  DALI_ENFORCE(output_names_.size() > 0,
-      "No outputs requested, nothing to execute.");
+  DALI_ENFORCE(output_names_.size() > 0, "No outputs requested, nothing to execute.");
 
   while (true) {
     // We do not edit the graph while we are iterating
@@ -743,9 +736,11 @@ void Executor<WorkspacePolicy, QueuePolicy>::PruneUnusedGraphNodes() {
     for (int i = 0; i < graph_->NumOp(); ++i) {
       OpNode &node = graph_->Node(i);
       // If this node has children, don't prune it
-      if (!node.children.empty()) continue;
+      if (!node.children.empty())
+        continue;
       // Do not prune the node if it has a preserve flag
-      if (!node.op->CanBePruned()) continue;
+      if (!node.op->CanBePruned())
+        continue;
 
       // Note: this is technically a very inefficient
       // way to find the intersection of the node outputs
@@ -759,18 +754,21 @@ void Executor<WorkspacePolicy, QueuePolicy>::PruneUnusedGraphNodes() {
             break;
           }
         }
-        if (found_match) break;
+        if (found_match)
+          break;
       }
 
       // If this node produces an output, don't prune it
-      if (found_match) continue;
+      if (found_match)
+        continue;
 
       // Mark the node for pruning
       to_remove.push_back(node.id);
     }
 
     // No nodes were removed, pruning complete
-    if (to_remove.size() == 0) break;
+    if (to_remove.size() == 0)
+      break;
 
     for (size_t i = 0; i < to_remove.size(); ++i) {
       // Note: After deleting a node, the graph updates
@@ -794,8 +792,8 @@ void Executor<WorkspacePolicy, QueuePolicy>::SetupOutputInfo(const OpGraph &grap
   pipeline_outputs_ = graph.GetOutputs(output_names_);
 
   // If there are GPU outputs from given stages, we have to wait for them
-  auto has_gpu_output = [] (OpType stage_type, const auto &pipeline_outputs,
-                            const OpGraph &graph_to_check) {
+  auto has_gpu_output = [](OpType stage_type, const auto &pipeline_outputs,
+                           const OpGraph &graph_to_check) {
     for (auto tid : pipeline_outputs) {
       const auto &tensor = graph_to_check.Tensor(tid);
       const auto &producer_node = graph_to_check.Node(tensor.producer.node);
@@ -824,7 +822,7 @@ std::vector<int> Executor<WorkspacePolicy, QueuePolicy>::GetTensorQueueSizes(con
   auto output_ids = graph.GetOutputs(output_names_, true);
   for (auto id : output_ids) {
     auto &tensor = graph.Tensor(id);
-    auto parent_type =  graph.Node(tensor.producer.node).op_type;
+    auto parent_type = graph.Node(tensor.producer.node).op_type;
     result[id] = stage_queue_depths_[parent_type];
   }
   return result;
@@ -918,11 +916,10 @@ void Executor<WorkspacePolicy, QueuePolicy>::SetupOutputQueuesForGraph() {
 
 using SimpleExecutor = Executor<AOT_WS_Policy<UniformQueuePolicy>, UniformQueuePolicy>;
 
-
 namespace detail {
 
 void gpu_finished_callback(cudaStream_t stream, cudaError_t status, void *userData) {
-  auto callback = static_cast<ExecutorBase::ExecutorCallback*>(userData);
+  auto callback = static_cast<ExecutorBase::ExecutorCallback *>(userData);
   (*callback)();
 }
 

@@ -40,13 +40,12 @@ template <size_t size, size_t alignment>
 __global__ void Fill(void *data, size_t count, Placeholder<size, alignment> value) {
   auto i = static_cast<size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   if (i < count)
-    static_cast<Placeholder<size, alignment>*>(data)[i] = value;
+    static_cast<Placeholder<size, alignment> *>(data)[i] = value;
 }
 
 template <typename Dst, typename Src>
-void FillTensorList(
-      TensorList<GPUBackend> &dst, const TensorListShape<> &shape, const std::vector<Src> &src,
-      cudaStream_t stream) {
+void FillTensorList(TensorList<GPUBackend> &dst, const TensorListShape<> &shape,
+                    const std::vector<Src> &src, cudaStream_t stream) {
   dst.Resize(shape);
   if (shape.num_samples() == 0)
     return;

@@ -64,13 +64,12 @@ struct SliceFlipNormalizePermutePadProcessedArgs {
   SmallVector<float, 4> mean;
   SmallVector<float, 4> inv_stddev;
   SmallVector<float, 4> fill_values;
-  int channel_dim = - 1;
+  int channel_dim = -1;
 };
 
 template <int Dims, typename Shape>
 SliceFlipNormalizePermutePadProcessedArgs<Dims> ProcessArgs(
-    const SliceFlipNormalizePermutePadArgs<Dims> &args,
-    const Shape &in_shape) {
+    const SliceFlipNormalizePermutePadArgs<Dims> &args, const Shape &in_shape) {
   SliceFlipNormalizePermutePadProcessedArgs<Dims> processed_args;
 
   processed_args.input_offset = 0;
@@ -105,7 +104,7 @@ SliceFlipNormalizePermutePadProcessedArgs<Dims> ProcessArgs(
   int nchannels = 0;
   if (has_channels) {
     DALI_ENFORCE(channel_dim >= 0 && channel_dim < Dims,
-      "Channel dim must be valid for multi-channel normalization arguments");
+                 "Channel dim must be valid for multi-channel normalization arguments");
     processed_args.channel_dim = out_channel_dim;
     nchannels = processed_args.out_shape[out_channel_dim];
   }
@@ -128,7 +127,8 @@ SliceFlipNormalizePermutePadProcessedArgs<Dims> ProcessArgs(
     processed_args.fill_values.resize(per_channel_arg_size, 0.0f);
   }
   DALI_ENFORCE(per_channel_arg_size == 1 || per_channel_arg_size == nchannels,
-    "The number of per-channel arguments should match the number of channels in the output slice");
+               "The number of per-channel arguments should match the number of channels in the "
+               "output slice");
   return processed_args;
 }
 }  // namespace detail

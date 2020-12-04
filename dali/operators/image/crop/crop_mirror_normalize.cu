@@ -14,9 +14,9 @@
 
 #include <utility>
 #include <vector>
-#include "dali/operators/image/crop/crop_mirror_normalize.h"
-#include "dali/kernels/slice/slice_flip_normalize_permute_pad_gpu.h"
 #include "dali/core/static_switch.h"
+#include "dali/kernels/slice/slice_flip_normalize_permute_pad_gpu.h"
+#include "dali/operators/image/crop/crop_mirror_normalize.h"
 #include "dali/pipeline/data/views.h"
 
 namespace dali {
@@ -45,11 +45,11 @@ bool CropMirrorNormalize<GPUBackend>::SetupImpl(std::vector<OutputDesc> &output_
         output_desc[0].shape = req.output_shapes[0];
       ), DALI_FAIL(make_string("Not supported number of dimensions:", ndim));); // NOLINT
     ), DALI_FAIL(make_string("Not supported output type:", output_type_));); // NOLINT
-  ), DALI_FAIL(make_string("Not supported input type:", input_type_));); // NOLINT
+  ), DALI_FAIL(make_string("Not supported input type:", input_type_)););  // NOLINT
   return true;
 }
 
-template<>
+template <>
 void CropMirrorNormalize<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   const auto &input = ws.InputRef<GPUBackend>(0);
   auto &output = ws.OutputRef<GPUBackend>(0);
@@ -68,7 +68,7 @@ void CropMirrorNormalize<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
         kmgr_.Run<Kernel>(0, 0, ctx, out_view, in_view, kernel_sample_args);
       ), DALI_FAIL(make_string("Not supported number of dimensions:", ndim));); // NOLINT
     ), DALI_FAIL(make_string("Not supported output type:", output_type_));); // NOLINT
-  ), DALI_FAIL(make_string("Not supported input type:", input_type_));); // NOLINT
+  ), DALI_FAIL(make_string("Not supported input type:", input_type_)););  // NOLINT
 }
 
 DALI_REGISTER_OPERATOR(CropMirrorNormalize, CropMirrorNormalize<GPUBackend>, GPU);

@@ -15,14 +15,13 @@
 #include <gtest/gtest.h>
 #include <random>
 #include "dali/kernels/common/copy.h"
-#include "dali/test/test_tensors.h"
-#include "dali/test/tensor_test_utils.h"
 #include "dali/kernels/scratch.h"
+#include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 #include "dali/kernels/signal/fft/fft_postprocess.cuh"
 
 namespace dali {
-
 
 template <>
 bool EqualEps::operator()<float2, float2>(const float2 &a, const float2 &b) const {
@@ -35,9 +34,7 @@ void UniformRandomFill(const TensorListView<StorageBackend, float2, ndim> &tlv,
   static_assert(is_cpu_accessible<StorageBackend>::value,
                 "Function available only for CPU-accessible TensorListView backend");
   auto dist = uniform_distribution(lo, hi);
-  auto gen = [&]() {
-    return float2{ dist(rng), dist(rng) };
-  };
+  auto gen = [&]() { return float2{dist(rng), dist(rng)}; };
   Fill(tlv, gen);
 }
 
@@ -97,8 +94,8 @@ class FFTPostprocessTest<FFTPostprocessArgs<Out, In, Convert>> : public ::testin
     out_shape.resize(N);
     for (int i = 0; i < N; i++) {
       int len = dist(rng);
-      in_shape.set_tensor_shape(i, { len, fft });
-      out_shape.set_tensor_shape(i, { fft, len });
+      in_shape.set_tensor_shape(i, {len, fft});
+      out_shape.set_tensor_shape(i, {fft, len});
     }
     TestTensorList<In, 2> in;
     TestTensorList<Out, 2> out, ref;
@@ -148,8 +145,8 @@ class FFTPostprocessTest<FFTPostprocessArgs<Out, In, Convert>> : public ::testin
     for (int i = 0; i < N; i++) {
       int len = dist(rng);
       int ratio = sizeof(In) / sizeof(Out);
-      in_shape.set_tensor_shape(i, { len, fft });
-      out_shape.set_tensor_shape(i, { len, fft * ratio });
+      in_shape.set_tensor_shape(i, {len, fft});
+      out_shape.set_tensor_shape(i, {len, fft * ratio});
     }
     TestTensorList<In, 2> in;
     TestTensorList<Out, 2> out, ref;
@@ -170,7 +167,7 @@ class FFTPostprocessTest<FFTPostprocessArgs<Out, In, Convert>> : public ::testin
           *ref_tv(i, j) = convert(*in_tv(i, j));
     }
 
-    out_gpu = make_tensor_list_gpu(reinterpret_cast<Out*>(in.gpu().data[0]), out_shape);
+    out_gpu = make_tensor_list_gpu(reinterpret_cast<Out *>(in.gpu().data[0]), out_shape);
 
     ConvertTimeMajorSpectrum<Out, In, Convert> tr;
     KernelContext ctx;
@@ -195,7 +192,6 @@ class FFTPostprocessTest<FFTPostprocessArgs<Out, In, Convert>> : public ::testin
         }
     }
 
-
     double eps = std::is_same<Convert, identity>::value ? 0 : 1e-5;
 
     Check(cpu_out, cpu_ref, EqualEps(eps));
@@ -203,15 +199,11 @@ class FFTPostprocessTest<FFTPostprocessArgs<Out, In, Convert>> : public ::testin
 };
 
 using FFTPosprocessTestTypes = ::testing::Types<
-  FFTPostprocessArgs<float, float,   identity>,
-  FFTPostprocessArgs<float2, float2, identity>,
-  FFTPostprocessArgs<float, float2,  norm2>,
-  FFTPostprocessArgs<float, float2,  norm2square>,
-  FFTPostprocessArgs<float, float2,  power_dB>
->;
+    FFTPostprocessArgs<float, float, identity>, FFTPostprocessArgs<float2, float2, identity>,
+    FFTPostprocessArgs<float, float2, norm2>, FFTPostprocessArgs<float, float2, norm2square>,
+    FFTPostprocessArgs<float, float2, power_dB>>;
 
 TYPED_TEST_SUITE(FFTPostprocessTest, FFTPosprocessTestTypes);
-
 
 TYPED_TEST(FFTPostprocessTest, ToFreqMajor) {
   this->ToFreqMajor();

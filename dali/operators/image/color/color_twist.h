@@ -33,34 +33,25 @@ namespace color {
 /**
  * Names of arguments
  */
-const std::string kHue = "hue";                 // NOLINT
-const std::string kSaturation = "saturation";   // NOLINT
-const std::string kValue = "value";             // NOLINT
-const std::string kBrightness = "brightness";   // NOLINT
-const std::string kContrast = "contrast";       // NOLINT
-const std::string kOutputType = "dtype";        // NOLINT
+const std::string kHue = "hue";                // NOLINT
+const std::string kSaturation = "saturation";  // NOLINT
+const std::string kValue = "value";            // NOLINT
+const std::string kBrightness = "brightness";  // NOLINT
+const std::string kContrast = "contrast";      // NOLINT
+const std::string kOutputType = "dtype";       // NOLINT
 
 /**
  * Color space conversion
  */
-const mat3 Rgb2Yiq = {{
-                              {.299f, .587f, .114f},
-                              {.596f, -.274f, -.321f},
-                              {.211f, -.523f, .311f}
-                      }};
+const mat3 Rgb2Yiq = {{{.299f, .587f, .114f}, {.596f, -.274f, -.321f}, {.211f, -.523f, .311f}}};
 
 // Inversion of Rgb2Yiq, but pre-calculated, cause mat<> doesn't do inversion.
-const mat3 Yiq2Rgb = {{
-                              {1, .956f, .621f},
-                              {1, -.272f, -.647f},
-                              {1, -1.107f, 1.705f}
-                      }};
-
+const mat3 Yiq2Rgb = {{{1, .956f, .621f}, {1, -.272f, -.647f}, {1, -1.107f, 1.705f}}};
 
 /**
  * Composes transformation matrix for hue
  */
-inline mat3 hue_mat(float hue /* hue hue hue */ ) {
+inline mat3 hue_mat(float hue /* hue hue hue */) {
   const float h_rad = hue * M_PI / 180;
   mat3 ret = mat3::eye();  // rotation matrix
   // Hue change in YIQ color space is a rotation along the Y axis
@@ -70,7 +61,6 @@ inline mat3 hue_mat(float hue /* hue hue hue */ ) {
   ret(2, 1) = -sin(h_rad);
   return ret;
 }
-
 
 /**
  * Composes transformation matrix for saturation
@@ -86,8 +76,6 @@ inline mat3 sat_mat(float saturation) {
 
 }  // namespace color
 
-
-
 template <typename Backend>
 class ColorTwistBase : public Operator<Backend> {
  public:
@@ -97,16 +85,15 @@ class ColorTwistBase : public Operator<Backend> {
 
  protected:
   explicit ColorTwistBase(const OpSpec &spec)
-          : Operator<Backend>(spec)
-          , output_type_arg_(spec.GetArgument<DALIDataType>(color::kOutputType))
-          , output_type_(DALI_NO_TYPE) {
+      : Operator<Backend>(spec),
+        output_type_arg_(spec.GetArgument<DALIDataType>(color::kOutputType)),
+        output_type_(DALI_NO_TYPE) {
     if (std::is_same<Backend, GPUBackend>::value) {
       kernel_manager_.Resize(1, 1);
     } else {
       kernel_manager_.Resize(num_threads_, batch_size_);
     }
   }
-
 
   bool CanInferOutputs() const override {
     return true;
@@ -144,10 +131,7 @@ class ColorTwistBase : public Operator<Backend> {
     }
 
     auto in_type = ws.template InputRef<Backend>(0).type().id();
-    output_type_ =
-        output_type_arg_ != DALI_NO_TYPE
-        ? output_type_arg_
-        : in_type;
+    output_type_ = output_type_arg_ != DALI_NO_TYPE ? output_type_arg_ : in_type;
 
     if (in_type == DALI_FLOAT16 || in_type == DALI_FLOAT || in_type == DALI_FLOAT64) {
       half_range_ = 0.5f;
@@ -155,7 +139,6 @@ class ColorTwistBase : public Operator<Backend> {
       half_range_ = 128.f;
     }
   }
-
 
   /**
    * @brief Creates transformation matrices based on given args
@@ -169,9 +152,8 @@ class ColorTwistBase : public Operator<Backend> {
     tmatrices_.resize(size);
     toffsets_.resize(size);
     for (size_t i = 0; i < size; i++) {
-      tmatrices_[i] =
-               mat3(brightness_[i]) * mat3(contrast_[i]) *
-               Yiq2Rgb * hue_mat(hue_[i]) * sat_mat(saturation_[i]) * mat3(value_[i]) * Rgb2Yiq;
+      tmatrices_[i] = mat3(brightness_[i]) * mat3(contrast_[i]) * Yiq2Rgb * hue_mat(hue_[i]) *
+                      sat_mat(saturation_[i]) * mat3(value_[i]) * Rgb2Yiq;
       toffsets_[i] = (half_range_ - half_range_ * contrast_[i]) * brightness_[i];
     }
   }
@@ -184,7 +166,6 @@ class ColorTwistBase : public Operator<Backend> {
   DALIDataType output_type_arg_, output_type_;
   kernels::KernelManager kernel_manager_;
 };
-
 
 class ColorTwistCpu : public ColorTwistBase<CPUBackend> {
  public:
@@ -224,7 +205,6 @@ class ColorTwistCpu : public ColorTwistBase<CPUBackend> {
   }
 };
 
-
 class ColorTwistGpu : public ColorTwistBase<GPUBackend> {
  public:
   explicit ColorTwistGpu(const OpSpec &spec) : ColorTwistBase(spec) {}
@@ -245,8 +225,8 @@ class ColorTwistGpu : public ColorTwistBase<GPUBackend> {
     kernels::KernelContext ctx;
     ctx.gpu.stream = ws.stream();
     const auto tvin = view<const InputType, 3>(tl);
-    const auto &reqs = kernel_manager_.Setup<Kernel>(0, ctx, tvin, make_cspan(tmatrices_),
-                                                     make_cspan(toffsets_));
+    const auto &reqs =
+        kernel_manager_.Setup<Kernel>(0, ctx, tvin, make_cspan(tmatrices_), make_cspan(toffsets_));
     return reqs.output_shapes[0];
   }
 };

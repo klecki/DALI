@@ -15,22 +15,17 @@
 #ifndef _DALI_KERNELS_REDUCE_REDUCE_ALL_GPU_IMPL_CUH
 #define _DALI_KERNELS_REDUCE_REDUCE_ALL_GPU_IMPL_CUH
 
-
 #include "dali/core/util.h"
-#include "dali/kernels/reduce/reductions.h"
 #include "dali/kernels/reduce/reduce_common.cuh"
+#include "dali/kernels/reduce/reductions.h"
 
 namespace dali {
 namespace kernels {
 
-template <typename Acc, typename Out, typename In,
-          typename Reduction = reductions::sum,
-          typename Preprocess = dali::identity,
-          typename Postprocess = dali::identity>
-__global__ void ReduceAllKernel(Out *out, const In *in, int64_t n,
-                                Reduction reduce = {},
-                                Preprocess pre = {},
-                                Postprocess post = {}) {
+template <typename Acc, typename Out, typename In, typename Reduction = reductions::sum,
+          typename Preprocess = dali::identity, typename Postprocess = dali::identity>
+__global__ void ReduceAllKernel(Out *out, const In *in, int64_t n, Reduction reduce = {},
+                                Preprocess pre = {}, Postprocess post = {}) {
   // This kernel processes 1024-element blocks laid out as 32x32.
   // Grid is flat 1D and blockIdx.x corresponds to an output bin.
   // First, each thread goes with grid-sized stride over the data and iteratively reduces
@@ -48,14 +43,10 @@ __global__ void ReduceAllKernel(Out *out, const In *in, int64_t n,
     out[blockIdx.x] = ConvertSat<Out>(post(val));
 }
 
-
-template <typename Acc, typename Out, typename In,
-          typename Reduction = reductions::sum,
-          typename Preprocess = dali::identity,
-          typename Postprocess = dali::identity>
+template <typename Acc, typename Out, typename In, typename Reduction = reductions::sum,
+          typename Preprocess = dali::identity, typename Postprocess = dali::identity>
 __global__ void ReduceAllBatchedKernel(Out *out, const In *const *in, const int64_t *in_sizes,
-                                       Reduction reduce = {},
-                                       const Preprocess *pre = nullptr,
+                                       Reduction reduce = {}, const Preprocess *pre = nullptr,
                                        const Postprocess *post = nullptr) {
   // This kernel processes 1024-element blocks laid out as 32x32.
   // Grid is flat 2D and blockIdx.x corresponds to an output bin and blockIdx.y corresponds to
@@ -95,13 +86,10 @@ __global__ void ReduceAllBatchedKernel(Out *out, const In *const *in, const int6
  * @param reduce      the reduction functor
  * @param pp          preprocessing to be applied to each value fetched from `in` before reducing
  */
-template <typename Acc, typename Out, typename In,
-          typename Reduction = reductions::sum,
-          typename Preprocess = dali::identity,
-          typename Postprocess = dali::identity>
+template <typename Acc, typename Out, typename In, typename Reduction = reductions::sum,
+          typename Preprocess = dali::identity, typename Postprocess = dali::identity>
 __global__ void ReduceAllBlockwiseKernel(Out *out, const In *in, int64_t sample_size,
-                                         Reduction reduce = {},
-                                         const Preprocess *pre = nullptr,
+                                         Reduction reduce = {}, const Preprocess *pre = nullptr,
                                          const Postprocess *post = nullptr) {
   // This reduces blocks of size sample_size independently
   const int sample = blockIdx.y;
@@ -119,7 +107,6 @@ __global__ void ReduceAllBlockwiseKernel(Out *out, const In *in, int64_t sample_
   if (BlockReduce(val, reduce))
     out[blockIdx.x + blockIdx.y * gridDim.x] = ConvertSat<Out>(postprocess(val));
 }
-
 
 }  // namespace kernels
 }  // namespace dali

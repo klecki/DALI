@@ -16,10 +16,10 @@
 #include <memory>
 #include <vector>
 #include "dali/core/util.h"
-#include "dali/test/test_tensors.h"
-#include "dali/kernels/signal/window/extract_windows_gpu.cuh"
 #include "dali/kernels/scratch.h"
+#include "dali/kernels/signal/window/extract_windows_gpu.cuh"
 #include "dali/kernels/signal/window/window_functions.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
@@ -32,24 +32,25 @@ TEST(ExtractWindowsGPU, NonBatchedKernel) {
   int windows = 80;
   int stride = windows;
   int step = 10;
-  int length = windows * step - 100;;
+  int length = windows * step - 100;
+  ;
   int center = 5;
   bool reflect = false;
-  cudaMalloc(&in_gpu, sizeof(float)*length);
-  cudaMalloc(&out_gpu, sizeof(float)*windows*outwinlen);
-  std::vector<float> in(length), out(windows*outwinlen);
+  cudaMalloc(&in_gpu, sizeof(float) * length);
+  cudaMalloc(&out_gpu, sizeof(float) * windows * outwinlen);
+  std::vector<float> in(length), out(windows * outwinlen);
 
   for (int i = 0; i < length; i++) {
     in[i] = i + 1000;
   }
 
-  cudaMemcpy(in_gpu, in.data(), sizeof(float)*length, cudaMemcpyHostToDevice);
-  cudaMemset(out_gpu, 0xff, sizeof(float)*windows*outwinlen);
+  cudaMemcpy(in_gpu, in.data(), sizeof(float) * length, cudaMemcpyHostToDevice);
+  cudaMemset(out_gpu, 0xff, sizeof(float) * windows * outwinlen);
   int xblocks = div_ceil(length, 32);
   int yblocks = div_ceil(winlen, 32);
   window::ExtractVerticalWindowsKernel<<<dim3(xblocks, yblocks), dim3(32, 32)>>>(
-    out_gpu, windows, stride, in_gpu, length, nullptr, winlen, outwinlen, center, step, reflect);
-  cudaMemcpy(out.data(), out_gpu, sizeof(float)*winlen*windows, cudaMemcpyDeviceToHost);
+      out_gpu, windows, stride, in_gpu, length, nullptr, winlen, outwinlen, center, step, reflect);
+  cudaMemcpy(out.data(), out_gpu, sizeof(float) * winlen * windows, cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();
 
   for (int w = 0; w < windows; w++) {
@@ -59,12 +60,10 @@ TEST(ExtractWindowsGPU, NonBatchedKernel) {
         idx = boundary::idx_reflect_101(idx, 0, length);
 
       float ref = idx >= 0 && idx < length ? in[idx] : 0;
-      EXPECT_EQ(out[w + i*stride], ref)
-        << "@ window = " << w << ", index = " << i;
+      EXPECT_EQ(out[w + i * stride], ref) << "@ window = " << w << ", index = " << i;
     }
     for (int i = winlen; i < outwinlen; i++) {
-      EXPECT_EQ(out[w + i*stride], 0)
-        << "padding @ window = " << w << ", index = " << i;
+      EXPECT_EQ(out[w + i * stride], 0) << "padding @ window = " << w << ", index = " << i;
     }
   }
 
@@ -72,7 +71,7 @@ TEST(ExtractWindowsGPU, NonBatchedKernel) {
     std::cout << "Debug: Extract window actual output:\n";
     for (int i = 0; i < outwinlen; i++) {
       for (int j = 0; j < windows; j++) {
-        std::cout << out[i*stride+j] << " ";
+        std::cout << out[i * stride + j] << " ";
       }
       std::cout << "\n";
     }
@@ -83,14 +82,9 @@ TEST(ExtractWindowsGPU, NonBatchedKernel) {
   cudaFree(out_gpu);
 }
 
-
-void TestBatchedExtract(
-    ExtractWindowsImplGPU<float, float> *extract,
-    const TensorListShape<1> &lengths,
-    bool concatenate,
-    Padding padding,
-    span<const float> window,
-    int out_win_len = -1) {
+void TestBatchedExtract(ExtractWindowsImplGPU<float, float> *extract,
+                        const TensorListShape<1> &lengths, bool concatenate, Padding padding,
+                        span<const float> window, int out_win_len = -1) {
   bool vertical = extract->IsVertical();
 
   ScratchpadAllocator sa;
@@ -107,17 +101,16 @@ void TestBatchedExtract(
   auto in_cpu = in_list.cpu();
   for (int i = 0; i < N; i++) {
     for (int j = 0; j < lengths[i][0]; j++)
-      in_cpu[i].data[j] = 1000*(i+1)+j;
+      in_cpu[i].data[j] = 1000 * (i + 1) + j;
   }
 
   ExtractWindowsArgs args;
   args.window_length = window.empty() ? 55 : window.size();
-  args.window_center = window.empty() ? 21 : window.size()/2;
+  args.window_center = window.empty() ? 21 : window.size() / 2;
   args.window_step = 2;
   args.padding = padding;
 
   int out_win_len_actual = out_win_len < 0 ? args.window_length : out_win_len;
-
 
   KernelContext ctx;
 
@@ -135,12 +128,12 @@ void TestBatchedExtract(
   memory::KernelUniquePtr<float> gpu_win;
   if (!window.empty()) {
     gpu_win = memory::alloc_unique<float>(AllocType::GPU, window.size());
-    cudaMemcpy(gpu_win.get(), window.data(), sizeof(float)*window.size(), cudaMemcpyHostToDevice);
+    cudaMemcpy(gpu_win.get(), window.data(), sizeof(float) * window.size(), cudaMemcpyHostToDevice);
   }
-  auto window_gpu = make_tensor_gpu<1>(gpu_win.get(), { window.size() });
+  auto window_gpu = make_tensor_gpu<1>(gpu_win.get(), {window.size()});
   out.reshape(req.output_shapes[0].to_static<2>());
   auto out_gpu = out.gpu(0);
-  cudaMemset(out_gpu.data[0], 0xff, sizeof(float)*out_gpu.shape.num_elements());
+  cudaMemset(out_gpu.data[0], 0xff, sizeof(float) * out_gpu.shape.num_elements());
   extract->Run(ctx, out_gpu, in_gpu, window_gpu);
   auto out_cpu = out.cpu();
 
@@ -159,8 +152,8 @@ void TestBatchedExtract(
     ptrdiff_t window_stride = vertical ? 1 : out_cpu.shape[out_sample][1];
 
     for (int w = 0; w < nwnd; w++, ofs += window_stride) {
-        int i = 0;
-        for (; i < args.window_length; i++) {
+      int i = 0;
+      for (; i < args.window_length; i++) {
         ptrdiff_t idx = w * args.window_step + i - args.window_center;
         if (args.padding == Padding::Reflect) {
           idx = boundary::idx_reflect_101(idx, length);
@@ -168,26 +161,19 @@ void TestBatchedExtract(
         float ref = idx >= 0 && idx < length ? in_cpu.data[sample][idx] : 0;
         if (!window.empty())
           ref *= window[i];
-        ASSERT_EQ(out_cpu.data[out_sample][ofs + i*sample_stride], ref)
-          << "@ sample = " << sample
-          << ", window = " << w << ", index = " << i;
+        ASSERT_EQ(out_cpu.data[out_sample][ofs + i * sample_stride], ref)
+            << "@ sample = " << sample << ", window = " << w << ", index = " << i;
       }
       for (; i < out_win_len_actual; i++) {
-        ASSERT_EQ(out_cpu.data[out_sample][ofs + i*sample_stride], 0)
-          << "padding @ sample = " << sample
-          << ", window = " << w << ", index = " << i;
+        ASSERT_EQ(out_cpu.data[out_sample][ofs + i * sample_stride], 0)
+            << "padding @ sample = " << sample << ", window = " << w << ", index = " << i;
       }
     }
   }
 }
 
-void TestBatchedExtract(
-    const TensorListShape<1> &lengths,
-    bool concatenate,
-    Padding padding,
-    bool vertical,
-    span<const float> window,
-    int out_win_len = -1) {
+void TestBatchedExtract(const TensorListShape<1> &lengths, bool concatenate, Padding padding,
+                        bool vertical, span<const float> window, int out_win_len = -1) {
   std::unique_ptr<ExtractWindowsImplGPU<float, float>> extract;
   if (vertical)
     extract = std::make_unique<ExtractVerticalWindowsImplGPU<float, float>>();
@@ -197,26 +183,22 @@ void TestBatchedExtract(
   TestBatchedExtract(extract.get(), lengths, concatenate, padding, window, out_win_len);
 }
 
-void TestBatchedExtract(
-    bool concatenate,
-    Padding padding,
-    bool vertical,
-    span<const float> window,
-    int out_win_len = -1) {
+void TestBatchedExtract(bool concatenate, Padding padding, bool vertical, span<const float> window,
+                        int out_win_len = -1) {
   std::unique_ptr<ExtractWindowsImplGPU<float, float>> extract;
   if (vertical)
     extract = std::make_unique<ExtractVerticalWindowsImplGPU<float, float>>();
   else
     extract = std::make_unique<ExtractHorizontalWindowsImplGPU<float, float>>();
 
-  TensorListShape<1> lengths = {{ 5, 305, 157 }};
+  TensorListShape<1> lengths = {{5, 305, 157}};
   TestBatchedExtract(extract.get(), lengths, concatenate, padding, window, out_win_len);
 
   if (vertical)
     extract = std::make_unique<ExtractVerticalWindowsImplGPU<float, float>>();
   else
     extract = std::make_unique<ExtractHorizontalWindowsImplGPU<float, float>>();
-  lengths = {{ 137, 203, 150, 12 }};
+  lengths = {{137, 203, 150, 12}};
   TestBatchedExtract(extract.get(), lengths, concatenate, padding, window, out_win_len);
 }
 
@@ -282,10 +264,10 @@ TEST(ExtractHorizontalWindowsGPU, SizeSweep) {
   int max_size = 2048;
   std::vector<TensorShape<1>> lengths;
   int step = 1;
-  for (int s = 1; s <= max_size; s+=step) {
-    if ((s&255) == 0) {
+  for (int s = 1; s <= max_size; s += step) {
+    if ((s & 255) == 0) {
       if (step > 1)  // add 2^n-1
-        lengths.push_back({s-1});
+        lengths.push_back({s - 1});
       step += step;
     }
     lengths.push_back({s});

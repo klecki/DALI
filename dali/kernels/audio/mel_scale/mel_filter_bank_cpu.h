@@ -20,8 +20,8 @@
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
 #include "dali/core/util.h"
-#include "dali/kernels/kernel.h"
 #include "dali/kernels/audio/mel_scale/mel_filter_bank_args.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -36,14 +36,11 @@ class DLL_PUBLIC MelFilterBankCpu {
   DLL_PUBLIC MelFilterBankCpu();
   DLL_PUBLIC ~MelFilterBankCpu();
 
-  DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
-                                      const InTensorCPU<T, Dims> &in,
+  DLL_PUBLIC KernelRequirements Setup(KernelContext &context, const InTensorCPU<T, Dims> &in,
                                       const MelFilterBankArgs &args);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutTensorCPU<T, Dims> &out,
-                      const InTensorCPU<T, Dims> &in,
-                      const MelFilterBankArgs &args);
+  DLL_PUBLIC void Run(KernelContext &context, const OutTensorCPU<T, Dims> &out,
+                      const InTensorCPU<T, Dims> &in, const MelFilterBankArgs &args);
 
  private:
   class Impl;

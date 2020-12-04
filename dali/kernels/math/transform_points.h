@@ -28,8 +28,8 @@ class TransformPointsCPU {
   KernelRequirements Setup(KernelContext &ctx, const TensorShape<> &in_shape) {
     KernelRequirements req;
     TensorShape<> out_shape = in_shape;
-    out_shape[in_shape.size()-1] = out_pt_dim;
-    req.output_shapes = { TensorListShape<>{{ out_shape }} };
+    out_shape[in_shape.size() - 1] = out_pt_dim;
+    req.output_shapes = {TensorListShape<>{{out_shape}}};
     return req;
   }
 
@@ -55,7 +55,6 @@ class TransformPointsCPU {
     }
   }
 };
-
 
 }  // namespace kernels
 }  // namespace dali

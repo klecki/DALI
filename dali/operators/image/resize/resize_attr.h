@@ -16,12 +16,12 @@
 #define DALI_OPERATORS_IMAGE_RESIZE_RESIZE_ATTR_H_
 
 #include <vector>
-#include "dali/core/small_vector.h"
 #include "dali/core/format.h"
+#include "dali/core/small_vector.h"
 #include "dali/core/tensor_layout.h"
 #include "dali/core/tensor_shape.h"
-#include "dali/pipeline/operator/op_spec.h"
 #include "dali/operators/image/resize/resize_mode.h"
+#include "dali/pipeline/operator/op_spec.h"
 
 namespace dali {
 
@@ -31,7 +31,9 @@ struct ResizeParams {
     src_lo.resize(ndim);
     src_hi.resize(ndim);
   }
-  int size() const { return dst_size.size(); }
+  int size() const {
+    return dst_size.size();
+  }
   SmallVector<int, 6> dst_size;
   SmallVector<float, 6> src_lo, src_hi;
 };
@@ -42,8 +44,7 @@ class DLL_PUBLIC ResizeAttr {
                            const TensorListShape<> &input_shape);
 
   void PrepareResizeParams(const OpSpec &spec, const ArgumentWorkspace &ws,
-                           const TensorListShape<> &input_shape,
-                           TensorLayout input_layout) {
+                           const TensorListShape<> &input_shape, TensorLayout input_layout) {
     SetLayout(input_layout);
     PrepareResizeParams(spec, ws, input_shape);
   }
@@ -108,16 +109,12 @@ class DLL_PUBLIC ResizeAttr {
 
   void AdjustOutputSize(float *out_size, const float *in_size);
 
-  void CalculateInputRoI(SmallVector<float, 3> &in_lo,
-                         SmallVector<float, 3> &in_hi,
-                         const TensorListShape<> &input_shape,
-                         int sample_idx) const;
+  void CalculateInputRoI(SmallVector<float, 3> &in_lo, SmallVector<float, 3> &in_hi,
+                         const TensorListShape<> &input_shape, int sample_idx) const;
 
   // pass sizes by value - the function will modify them internally
-  void CalculateSampleParams(ResizeParams &params,
-                             SmallVector<float, 3> requested_size,
-                             SmallVector<float, 3> in_lo,
-                             SmallVector<float, 3> in_hi,
+  void CalculateSampleParams(ResizeParams &params, SmallVector<float, 3> requested_size,
+                             SmallVector<float, 3> in_lo, SmallVector<float, 3> in_hi,
                              bool adjust_roi);
 };
 

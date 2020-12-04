@@ -18,8 +18,8 @@
 #include <vector>
 #include "dali/core/common.h"
 #include "dali/kernels/imgproc/resample/params.h"
-#include "dali/pipeline/operator/op_spec.h"
 #include "dali/operators/image/resize/resize_attr.h"
+#include "dali/pipeline/operator/op_spec.h"
 
 namespace dali {
 

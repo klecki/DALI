@@ -15,8 +15,8 @@
 #ifndef DALI_IMAGE_JPEG_H_
 #define DALI_IMAGE_JPEG_H_
 
-#include <utility>
 #include <memory>
+#include <utility>
 
 #include "dali/core/common.h"
 #include "dali/image/generic_image.h"
@@ -25,15 +25,14 @@ namespace dali {
 
 class JpegImage final : public GenericImage {
  public:
-  JpegImage(const uint8_t *encoded_buffer,
-            size_t length,
-            DALIImageType image_type);
+  JpegImage(const uint8_t *encoded_buffer, size_t length, DALIImageType image_type);
 
   ~JpegImage() override = default;
 
  protected:
-  std::pair<std::shared_ptr<uint8_t>, Shape>
-  DecodeImpl(DALIImageType image_type, const uint8_t *encoded_buffer, size_t length) const override;
+  std::pair<std::shared_ptr<uint8_t>, Shape> DecodeImpl(DALIImageType image_type,
+                                                        const uint8_t *encoded_buffer,
+                                                        size_t length) const override;
 
   Shape PeekShapeImpl(const uint8_t *encoded_buffer, size_t length) const override;
 };

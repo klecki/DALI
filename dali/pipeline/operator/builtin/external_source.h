@@ -16,16 +16,16 @@
 #define DALI_PIPELINE_OPERATOR_BUILTIN_EXTERNAL_SOURCE_H_
 
 #include <atomic>
-#include <string>
-#include <vector>
-#include <memory>
-#include <list>
-#include <mutex>
 #include <condition_variable>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <string>
 #include <utility>
+#include <vector>
 
-#include "dali/core/nvtx.h"
 #include "dali/core/cuda_event.h"
+#include "dali/core/nvtx.h"
 #include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/util/worker_thread.h"
 
@@ -38,18 +38,19 @@ struct CudaEventWrapper : CUDAEvent {
 };
 
 /**
- * CachingList differs from std::List by the ability to recycle empty elements. When allocating memory
- * is expensive it is better to store already allocated but no longer needed element in the list of the free
- * elements, than to free the memory and allocate it again later. CachingList supports the following operations:
+ * CachingList differs from std::List by the ability to recycle empty elements. When allocating
+ * memory is expensive it is better to store already allocated but no longer needed element in the
+ * list of the free elements, than to free the memory and allocate it again later. CachingList
+ * supports the following operations:
  * - GetEmpty moves an empty element of type T, either allocate it or use one from the free list
  * - PopFront moves the element from the front and removes it from the full list, the behavior
  * is undefined when the list is empty
  * - Recycle moves passed element to the free list
  * - PushBack moves element to the full list
  * - IsEmpty checks if the full list is empty
- * All functions operate on one element list as transferring elements between list is a very low cost
- * operation, which doesn't involve any memory allocation, while adding an element to the list requires
- * allocation of the memory for the storage in the list.
+ * All functions operate on one element list as transferring elements between list is a very low
+ * cost operation, which doesn't involve any memory allocation, while adding an element to the list
+ * requires allocation of the memory for the storage in the list.
  */
 template <typename T>
 class CachingList {
@@ -107,12 +108,12 @@ class ExternalSource : public Operator<Backend> {
   using uptr_cuda_event_type = std::unique_ptr<detail::CudaEventWrapper>;
 
  public:
-  inline explicit ExternalSource(const OpSpec &spec) :
-    Operator<Backend>(spec),
-    blocking_(spec.GetArgument<bool>("blocking")),
-    no_copy_(spec.GetArgument<bool>("no_copy")),
-    device_id_(spec.GetArgument<int>("device_id")),
-    sync_worker_(device_id_, false) {
+  inline explicit ExternalSource(const OpSpec &spec)
+      : Operator<Backend>(spec),
+        blocking_(spec.GetArgument<bool>("blocking")),
+        no_copy_(spec.GetArgument<bool>("no_copy")),
+        device_id_(spec.GetArgument<int>("device_id")),
+        sync_worker_(device_id_, false) {
     output_name_ = spec.Output(0);
     sync_worker_.WaitForInit();
   }
@@ -129,7 +130,7 @@ class ExternalSource : public Operator<Backend> {
   /**
    * @brief Sets the data that should be passed out of the op on the next iteration.
    */
-  template<typename SrcBackend>
+  template <typename SrcBackend>
   inline void SetDataSource(const TensorList<SrcBackend> &tl, cudaStream_t stream = 0,
                             bool sync = false, bool use_copy_kernel = false) {
     DeviceGuard g(device_id_);
@@ -148,7 +149,7 @@ class ExternalSource : public Operator<Backend> {
     DomainTimeRange tr("[DALI][ExternalSource] SetDataSource", DomainTimeRange::kViolet);
     TensorVector<SrcBackend> tv(vect_of_tensors.size());
     for (size_t i = 0; i < tv.size(); ++i) {
-      tv[i].ShareData(const_cast<Tensor<SrcBackend>*>(&vect_of_tensors[i]));
+      tv[i].ShareData(const_cast<Tensor<SrcBackend> *>(&vect_of_tensors[i]));
     }
     SetDataSourceHelper(tv, stream, sync, use_copy_kernel);
   }
@@ -156,7 +157,7 @@ class ExternalSource : public Operator<Backend> {
   /**
    * @brief Sets the data that should be passed out of the op on the next iteration.
    */
-  template<typename SrcBackend>
+  template <typename SrcBackend>
   inline void SetDataSource(const TensorVector<SrcBackend> &tv, cudaStream_t stream = 0,
                             bool sync = false, bool use_copy_kernel = false) {
     DeviceGuard g(device_id_);
@@ -170,7 +171,7 @@ class ExternalSource : public Operator<Backend> {
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     std::unique_lock<std::mutex> busy_lock(busy_m_);
     if (blocking_) {
-      cv_.wait(busy_lock, [&data = state_] {return !data.empty(); });
+      cv_.wait(busy_lock, [&data = state_] { return !data.empty(); });
     } else {
       if (state_.empty()) {
         DALI_FAIL("No data was provided to the ExternalSource. Make sure to feed it properly.");
@@ -214,9 +215,8 @@ class ExternalSource : public Operator<Backend> {
 
   // pass cuda_event by pointer to allow default, nullptr value, with the
   // reference it is not that easy
-  template<typename DataType>
-  void RecycleBuffer(DataType &data,
-                     std::list<uptr_cuda_event_type> *cuda_event = nullptr,
+  template <typename DataType>
+  void RecycleBuffer(DataType &data, std::list<uptr_cuda_event_type> *cuda_event = nullptr,
                      std::list<uptr_cuda_event_type> *copy_to_gpu = nullptr) {
     // No need to synchronize on copy_to_gpu - it was already synchronized before
     std::lock_guard<std::mutex> busy_lock(busy_m_);
@@ -226,16 +226,15 @@ class ExternalSource : public Operator<Backend> {
     }
   }
 
-  template<typename SrcBackend, template<typename> class SourceDataType>
-  inline std::enable_if_t<!std::is_same<SrcBackend, Backend>::value>
-  ShareUserData(const SourceDataType<SrcBackend> &t, cudaStream_t /*stream = 0*/,
-                bool /* use_copy_kernel */) {
-    DALI_FAIL(make_string("no_copy is supported only for the same data source device type "
-                          "as operator. Received: ",
-                          std::is_same<SrcBackend, CPUBackend>::value? "CPU" : "GPU",
-                          " input for ",
-                          std::is_same<Backend, CPUBackend>::value? "CPU" : "GPU",
-                          " operator."));
+  template <typename SrcBackend, template <typename> class SourceDataType>
+  inline std::enable_if_t<!std::is_same<SrcBackend, Backend>::value> ShareUserData(
+      const SourceDataType<SrcBackend> &t, cudaStream_t /*stream = 0*/,
+      bool /* use_copy_kernel */) {
+    DALI_FAIL(
+        make_string("no_copy is supported only for the same data source device type "
+                    "as operator. Received: ",
+                    std::is_same<SrcBackend, CPUBackend>::value ? "CPU" : "GPU", " input for ",
+                    std::is_same<Backend, CPUBackend>::value ? "CPU" : "GPU", " operator."));
   }
 
   template <typename SrcBackend, template <typename> class SourceDataType>
@@ -247,11 +246,11 @@ class ExternalSource : public Operator<Backend> {
     state_.push_back({});
     auto tv_elm = tv_data_.GetEmpty();
     // set pinned if needed
-    if (batch.is_pinned() !=  tv_elm.front()->is_pinned()) {
+    if (batch.is_pinned() != tv_elm.front()->is_pinned()) {
       tv_elm.front()->Reset();
       tv_elm.front()->set_pinned(batch.is_pinned());
     }
-    tv_elm.front()->ShareData(const_cast<SourceDataType<CPUBackend>*>(&batch));
+    tv_elm.front()->ShareData(const_cast<SourceDataType<CPUBackend> *>(&batch));
     tv_data_.PushBack(tv_elm);
   }
 
@@ -275,7 +274,7 @@ class ExternalSource : public Operator<Backend> {
     std::lock_guard<std::mutex> busy_lock(busy_m_);
     auto tl_elm = tl_data_.GetEmpty();
     if (batch.IsContiguous()) {
-      batch.ShareWith(const_cast<TensorList<Backend>*>(tl_elm.front().get()));
+      batch.ShareWith(const_cast<TensorList<Backend> *>(tl_elm.front().get()));
       zero_copy_noncontiguous_gpu_input_ = true;
       state_.push_back({});
     } else {
@@ -288,9 +287,10 @@ class ExternalSource : public Operator<Backend> {
       copy_to_storage_events_.PushBack(copy_to_storage_event);
 
       if (zero_copy_noncontiguous_gpu_input_) {
-        DALI_WARN("ExternalSource operator should not mix contiguous and noncontiguous inputs. "
-                  "In such a case the internal memory used to gather data in a contiguous chunk "
-                  "of memory would be trashed.");
+        DALI_WARN(
+            "ExternalSource operator should not mix contiguous and noncontiguous inputs. "
+            "In such a case the internal memory used to gather data in a contiguous chunk "
+            "of memory would be trashed.");
       }
       state_.push_back({true});
     }
@@ -305,22 +305,22 @@ class ExternalSource : public Operator<Backend> {
     std::lock_guard<std::mutex> busy_lock(busy_m_);
     state_.push_back({});
     auto tl_elm = tl_data_.GetEmpty();
-    tl_elm.front()->ShareData(const_cast<TensorList<Backend>*>(&batch));
+    tl_elm.front()->ShareData(const_cast<TensorList<Backend> *>(&batch));
     tl_data_.PushBack(tl_elm);
     zero_copy_noncontiguous_gpu_input_ = true;
   }
 
-  template<typename SrcBackend, template<typename> class SourceDataType, typename B = Backend>
-  inline std::enable_if_t<std::is_same<B, CPUBackend>::value>
-  CopyUserData(const SourceDataType<SrcBackend> &batch,
-               cudaStream_t stream, bool /* sync */, bool /* use_copy_kernel */) {
+  template <typename SrcBackend, template <typename> class SourceDataType, typename B = Backend>
+  inline std::enable_if_t<std::is_same<B, CPUBackend>::value> CopyUserData(
+      const SourceDataType<SrcBackend> &batch, cudaStream_t stream, bool /* sync */,
+      bool /* use_copy_kernel */) {
     std::list<uptr_tv_type> tv_elm;
     {
       std::lock_guard<std::mutex> busy_lock(busy_m_);
       tv_elm = tv_data_.GetEmpty();
     }
     // set pinned if needed
-    if (batch.is_pinned() !=  tv_elm.front()->is_pinned()) {
+    if (batch.is_pinned() != tv_elm.front()->is_pinned()) {
       tv_elm.front()->Reset();
       tv_elm.front()->set_pinned(batch.is_pinned());
     }
@@ -337,10 +337,10 @@ class ExternalSource : public Operator<Backend> {
     }
   }
 
-  template<typename SrcBackend, template<typename> class SourceDataType, typename B = Backend>
-  inline std::enable_if_t<std::is_same<B, GPUBackend>::value>
-  CopyUserData(const SourceDataType<SrcBackend> &batch,
-               cudaStream_t stream, bool sync, bool use_copy_kernel) {
+  template <typename SrcBackend, template <typename> class SourceDataType, typename B = Backend>
+  inline std::enable_if_t<std::is_same<B, GPUBackend>::value> CopyUserData(
+      const SourceDataType<SrcBackend> &batch, cudaStream_t stream, bool sync,
+      bool use_copy_kernel) {
     std::list<uptr_cuda_event_type> copy_to_storage_event;
     std::list<uptr_tl_type> tl_elm;
     {
@@ -371,19 +371,20 @@ class ExternalSource : public Operator<Backend> {
     }
   }
 
-  template<typename SrcBackend, template<typename> class SourceDataType>
+  template <typename SrcBackend, template <typename> class SourceDataType>
   inline void SetDataSourceHelper(const SourceDataType<SrcBackend> &batch, cudaStream_t stream = 0,
                                   bool sync = false, bool use_copy_kernel = false) {
     bool is_gpu_src = std::is_same<SrcBackend, GPUBackend>::value;
     bool is_gpu_dst = std::is_same<Backend, GPUBackend>::value;
     if (is_gpu_src && !is_gpu_dst) {
-      DALI_WARN("Warning: Loading GPU-originated data into CPU "
-                "ExternalSource operator is discouraged and might be inefficient.");
+      DALI_WARN(
+          "Warning: Loading GPU-originated data into CPU "
+          "ExternalSource operator is discouraged and might be inefficient.");
     }
-    DALI_ENFORCE(OperatorBase::batch_size_ == static_cast<int>(batch.ntensor()),
-                 make_string("Data list provided to ExternalSource needs to have batch_size = ",
-                             OperatorBase::batch_size_, " length, found ", batch.ntensor(),
-                             " samples."));
+    DALI_ENFORCE(
+        OperatorBase::batch_size_ == static_cast<int>(batch.ntensor()),
+        make_string("Data list provided to ExternalSource needs to have batch_size = ",
+                    OperatorBase::batch_size_, " length, found ", batch.ntensor(), " samples."));
     // Note: If we create a GPU source, we will need to figure
     // out what stream we want to do this copy in. CPU we can
     // pass anything as it is ignored.
@@ -416,7 +417,7 @@ class ExternalSource : public Operator<Backend> {
     bool copied_shared_data = false;
   };
 
-  std::list<ExternalSourceState > state_;
+  std::list<ExternalSourceState> state_;
 
   /*
    * indicates that user provide noncontiguous GPU input with zero copy option so DALI needs

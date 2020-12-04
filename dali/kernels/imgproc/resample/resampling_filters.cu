@@ -18,12 +18,12 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-#include <vector>
 #include <utility>
+#include <vector>
+#include "dali/core/span.h"
+#include "dali/kernels/alloc.h"
 #include "dali/kernels/imgproc/resample/resampling_filters.cuh"
 #include "dali/kernels/imgproc/resample/resampling_windows.h"
-#include "dali/kernels/alloc.h"
-#include "dali/core/span.h"
 
 namespace dali {
 namespace kernels {
@@ -36,26 +36,27 @@ inline void InitFilter(ResamplingFilter &filter, Function F) {
 
 void InitGaussianFilter(ResamplingFilter filter) {
   InitFilter(filter, [&](int i) {
-    float x = 4 * (i - (filter.num_coeffs-1)*0.5f) / (filter.num_coeffs-1);
-    return expf(-x*x);
+    float x = 4 * (i - (filter.num_coeffs - 1) * 0.5f) / (filter.num_coeffs - 1);
+    return expf(-x * x);
   });
 }
 
 void InitLanczosFilter(ResamplingFilter filter, float a) {
   InitFilter(filter, [&](int i) {
-    float x = 2 * a * (i - (filter.num_coeffs-1)*0.5f) / (filter.num_coeffs-1);
+    float x = 2 * a * (i - (filter.num_coeffs - 1) * 0.5f) / (filter.num_coeffs - 1);
     return LanczosWindow(x, a);
   });
 }
 
 void InitCubicFilter(ResamplingFilter filter) {
   InitFilter(filter, [&](int i) {
-    float x = 4 * (i - (filter.num_coeffs-1)*0.5f) / (filter.num_coeffs-1);
+    float x = 4 * (i - (filter.num_coeffs - 1) * 0.5f) / (filter.num_coeffs - 1);
     return CubicWindow(x);
   });
 }
 
-enum FilterIdx {
+enum FilterIdx
+{
   Idx_Triangular = 0,
   Idx_Gaussian,
   Idx_Lanczos3,
@@ -68,7 +69,7 @@ void InitFilters(ResamplingFilters &filters, AllocType alloc) {
   const int triangular_size = 3;
   const int gaussian_size = 65;
   const int cubic_size = 129;
-  const int lanczos_size = (2*lanczos_a*lanczos_resolution + 1);
+  const int lanczos_size = (2 * lanczos_a * lanczos_resolution + 1);
   const int total_size = triangular_size + gaussian_size + cubic_size + lanczos_size;
 
   filters.filter_data =
@@ -76,16 +77,17 @@ void InitFilters(ResamplingFilters &filters, AllocType alloc) {
 
   auto add_filter = [&](int size) {
     float *base = filters.filters.empty()
-        ? filters.filter_data.get()
-        : filters.filters.back().coeffs + filters.filters.back().num_coeffs;
-    filters.filters.push_back({ base, size, 1, (size - 1) * 0.5f});
+                      ? filters.filter_data.get()
+                      : filters.filters.back().coeffs + filters.filters.back().num_coeffs;
+    filters.filters.push_back({base, size, 1, (size - 1) * 0.5f});
   };
   add_filter(triangular_size);
   add_filter(gaussian_size);
   add_filter(lanczos_size);
   add_filter(cubic_size);
   assert(filters.filters.back().coeffs + filters.filters.back().num_coeffs -
-         filters.filter_data.get() <= total_size);
+             filters.filter_data.get() <=
+         total_size);
 
   auto *tri_coeffs = filters.filters[Idx_Triangular].coeffs;
   tri_coeffs[0] = 0;
@@ -101,9 +103,9 @@ void InitFilters(ResamplingFilters &filters, AllocType alloc) {
 
   if (alloc == AllocType::GPU) {
     auto filter_data_gpu = memory::alloc_unique<float>(AllocType::GPU, total_size);
-    cudaMemcpy(filter_data_gpu.get(), filters.filter_data.get(),
-               total_size * sizeof(float), cudaMemcpyHostToDevice);
-    ptrdiff_t  diff = filter_data_gpu.get() - filters.filter_data.get();
+    cudaMemcpy(filter_data_gpu.get(), filters.filter_data.get(), total_size * sizeof(float),
+               cudaMemcpyHostToDevice);
+    ptrdiff_t diff = filter_data_gpu.get() - filters.filter_data.get();
     filters.filter_data = std::move(filter_data_gpu);
     for (auto &f : filters.filters)
       f.coeffs += diff;
@@ -116,7 +118,7 @@ ResamplingFilter ResamplingFilters::Cubic() const noexcept {
 
 ResamplingFilter ResamplingFilters::Gaussian(float sigma) const noexcept {
   auto flt = filters[Idx_Gaussian];
-  flt.rescale(std::max(1.0f, static_cast<float>(4*M_SQRT2)*sigma));
+  flt.rescale(std::max(1.0f, static_cast<float>(4 * M_SQRT2) * sigma));
   return flt;
 }
 
@@ -128,10 +130,9 @@ ResamplingFilter ResamplingFilters::Lanczos3(float radius) const noexcept {
 
 ResamplingFilter ResamplingFilters::Triangular(float radius) const noexcept {
   auto flt = filters[Idx_Triangular];
-  flt.rescale(std::max(1.0f, 2*radius));
+  flt.rescale(std::max(1.0f, 2 * radius));
   return flt;
 }
-
 
 static std::vector<std::weak_ptr<ResamplingFilters>> filters;
 static std::shared_ptr<ResamplingFilters> cpu_filters;
@@ -157,7 +158,6 @@ std::shared_ptr<ResamplingFilters> GetResamplingFilters() {
   }
   return ptr;
 }
-
 
 std::shared_ptr<ResamplingFilters> GetResamplingFiltersCPU() {
   static std::once_flag once;

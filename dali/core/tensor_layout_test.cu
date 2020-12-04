@@ -29,13 +29,13 @@ DEVICE_TEST(TensorLayout_Dev, Construction, 1, 1) {
 
   TensorLayout from_literal = "NHWC";
   DEV_EXPECT_EQ(from_literal.ndim(), 4);
-  for (int i = 0; i <= 4; i ++)
+  for (int i = 0; i <= 4; i++)
     DEV_EXPECT_EQ(from_literal.c_str()[i], "NHWC"[i]);
 
   const char *cstr = "CHW";
   TensorLayout from_cstr = cstr;
   DEV_EXPECT_EQ(from_cstr.ndim(), 3);
-  for (int i = 0; i <= 3; i ++)
+  for (int i = 0; i <= 3; i++)
     DEV_EXPECT_EQ(from_cstr.c_str()[i], "CHW"[i]);
 }
 
@@ -59,13 +59,13 @@ DEVICE_TEST(TensorLayout_Dev, MaxLength, 1, 1) {
 DEVICE_TEST(TensorLayout_Dev, Equality, 1, 1) {
   DEV_EXPECT_TRUE(TensorLayout("NHWC") == TensorLayout("NHWC"));
   DEV_EXPECT_TRUE(TensorLayout("HWC") != TensorLayout("CHW"));
-  DEV_EXPECT_TRUE(TensorLayout("asdf") == "asdf");                // NOLINT
-  DEV_EXPECT_TRUE("fadd" != TensorLayout("fads"));                // NOLINT
+  DEV_EXPECT_TRUE(TensorLayout("asdf") == "asdf");  // NOLINT
+  DEV_EXPECT_TRUE("fadd" != TensorLayout("fads"));  // NOLINT
 
   DEV_EXPECT_FALSE(TensorLayout("NHWC") != TensorLayout("NHWC"));
   DEV_EXPECT_FALSE(TensorLayout("HWC") == TensorLayout("CHW"));
-  DEV_EXPECT_FALSE(TensorLayout("asdf") != "asdf");               // NOLINT
-  DEV_EXPECT_FALSE("fadd" == TensorLayout("fads"));               // NOLINT
+  DEV_EXPECT_FALSE(TensorLayout("asdf") != "asdf");  // NOLINT
+  DEV_EXPECT_FALSE("fadd" == TensorLayout("fads"));  // NOLINT
 
   DEV_EXPECT_FALSE("" == TensorLayout("asdf"));
   DEV_EXPECT_FALSE("asdf" == TensorLayout(""));
@@ -82,7 +82,7 @@ DEVICE_TEST(TensorLayout_Dev, ImageLayout, 1, 1) {
   TensorLayout nchw = "NCHW";
   TensorLayout ncdhw = "NCDHW";
   TensorLayout ndhwc = "NDHWC";
-  TensorLayout layouts[] = { nhwc, chw, nchw, ncdhw, ndhwc };
+  TensorLayout layouts[] = {nhwc, chw, nchw, ncdhw, ndhwc};
 
   DEV_EXPECT_FALSE(ImageLayoutInfo::IsChannelFirst(nhwc));
   DEV_EXPECT_FALSE(ImageLayoutInfo::IsChannelFirst(ndhwc));
@@ -136,7 +136,6 @@ DEVICE_TEST(TensorLayout_Dev, Skip, 1, 1) {
   DEV_EXPECT_EQ(TensorLayout("a").skip('a'), TensorLayout());
   DEV_EXPECT_EQ(TensorLayout("through").skip('h'), TensorLayout("trough"));
 }
-
 
 DEVICE_TEST(TensorLayout_Dev, Sub, 1, 1) {
   DEV_EXPECT_EQ(TensorLayout("NHWC").sub(1), TensorLayout("HWC"));

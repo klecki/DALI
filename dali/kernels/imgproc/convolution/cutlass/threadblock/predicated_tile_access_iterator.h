@@ -277,9 +277,7 @@ class PositionPredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear
       int thread_id,
       /// Initial offset of threadblock
       TensorCoord const &threadblock_offset)
-      : params_(params),
-        extent_(extent),
-        is_residue_tile_(true) {
+      : params_(params), extent_(extent), is_residue_tile_(true) {
     TensorCoord residue_extent;
     if (kAdvanceRank) {
       Index residue_size = (extent_[kAdvanceRank] - threadblock_offset.strided()) % Shape::kStrided;
@@ -307,7 +305,6 @@ class PositionPredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear
 
     // Per-thread offset in logical coordinates of tensor
     thread_offset_ = threadblock_offset + ThreadMap::initial_offset(thread_id);
-
 
     compute_predicates_(residue_extent, false);
 
@@ -387,7 +384,6 @@ class PositionPredicatedTileAccessIterator<Shape_, Element_, layout::PitchLinear
     // Enter here only if (iteration_stride_ == ThreadMap::Iteration::kStrided)
     // which means we enter the next tile.
     iteration_strided_ = 0;
-
 
     return *this;
   }
@@ -488,9 +484,10 @@ class PositionPredicatedTileAccessIterator<Shape_, Element_, layout::ColumnMajor
   using Pointer = Element *;
   using NonConstPointer = typename platform::remove_const<Element>::type *;
 
-  using UnderlyingIterator = PositionPredicatedTileAccessIterator<
-      layout::PitchLinearShape<Shape::kRow, Shape::kColumn>, Element,
-      layout::PitchLinear, (kAdvanceRank == 0 ? 0 : 1), ThreadMap, AccessType>;
+  using UnderlyingIterator =
+      PositionPredicatedTileAccessIterator<layout::PitchLinearShape<Shape::kRow, Shape::kColumn>,
+                                           Element, layout::PitchLinear,
+                                           (kAdvanceRank == 0 ? 0 : 1), ThreadMap, AccessType>;
 
   /// Predicate vector stores mask to guard accesses
   using Mask = typename UnderlyingIterator::Mask;

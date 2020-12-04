@@ -66,7 +66,7 @@ std::enable_if_t<(LevelsLeft > 1)> TransposeImplStatic(T *dst, const T *src, int
   auto src_level_stride = src_stride[perm[level]];
   for (int64_t i = 0; i < size[level]; i++) {
     TransposeImplStatic<LevelsLeft - 1, MaxLevels>(dst, src, max_levels, dst_stride, src_stride,
-                                                      size, perm);
+                                                   size, perm);
     dst += dst_level_stride;
     src += src_level_stride;
   }

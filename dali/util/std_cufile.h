@@ -16,15 +16,14 @@
 #define DALI_UTIL_STD_CUFILE_H_
 
 #include <cstdio>
-#include <string>
 #include <memory>
+#include <string>
 
 #include "dali/core/common.h"
-#include "dali/core/format.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/format.h"
 #include "dali/util/cufile.h"
 #include "dali/util/cufile_helper.h"
-
 
 namespace dali {
 
@@ -33,7 +32,7 @@ class StdCUFileStream : public CUFileStream {
   explicit StdCUFileStream(const std::string& path);
   void Close() override;
   shared_ptr<void> Get(size_t n_bytes) override;
-  size_t ReadGPU(uint8_t * buffer, size_t n_bytes, size_t offset = 0) override;
+  size_t ReadGPU(uint8_t* buffer, size_t n_bytes, size_t offset = 0) override;
   size_t Read(uint8_t* cpu_buffer, size_t n_bytes) override;
   size_t Pos() const;
   void Seek(int64 pos) override;

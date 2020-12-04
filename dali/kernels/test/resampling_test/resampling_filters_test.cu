@@ -28,12 +28,12 @@ TEST(ResamplingFilters, GetFilters) {
   EXPECT_EQ(filters, filters2);
 }
 
-__global__ void GetFilterValues(float *out, ResamplingFilter filter,
-                                int n, float start, float step) {
-  int i = threadIdx.x + blockIdx.x*blockDim.x;
+__global__ void GetFilterValues(float *out, ResamplingFilter filter, int n, float start,
+                                float step) {
+  int i = threadIdx.x + blockIdx.x * blockDim.x;
   if (i >= n)
     return;
-  out[i] = filter((i+start+filter.anchor)*filter.scale*step);
+  out[i] = filter((i + start + filter.anchor) * filter.scale * step);
 }
 
 // DISABLED: this 'test' is only for eyeballing the filters; it hardly tests anything,
@@ -48,7 +48,6 @@ TEST(ResamplingFilters, DISABLED_PrintFilters) {
   }
 }
 
-
 TEST(ResamplingFilters, TestTriangular) {
   auto filters = GetResamplingFilters();
   ASSERT_NE(filters, nullptr);
@@ -58,7 +57,7 @@ TEST(ResamplingFilters, TestTriangular) {
   auto mem = memory::alloc_unique<float>(AllocType::GPU, size);
   GetFilterValues<<<1, size>>>(mem.get(), f, size, -f.anchor, 1.0f);
   std::vector<float> host(size);
-  cudaMemcpy(host.data(), mem.get(), size*sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(host.data(), mem.get(), size * sizeof(float), cudaMemcpyDeviceToHost);
   for (int i = 0; i < size; i++) {
     float x = (i - f.anchor) * f.scale;
     float ref = std::max(0.0f, 1.0f - fabsf(x));
@@ -81,13 +80,15 @@ TEST(ResamplingFilters, Gaussian) {
   auto mem = memory::alloc_unique<float>(AllocType::GPU, size);
   GetFilterValues<<<1, size>>>(mem.get(), flt, size, -radius, 1);
   std::vector<float> host(size);
-  cudaMemcpy(host.data(), mem.get(), size*sizeof(float), cudaMemcpyDeviceToHost);
-  for (int i = 0; i < size-1; i++) {
+  cudaMemcpy(host.data(), mem.get(), size * sizeof(float), cudaMemcpyDeviceToHost);
+  for (int i = 0; i < size - 1; i++) {
     float x = (i - radius);
-    float ref = expf(-x*x / (2 * sigma*sigma));
+    float ref = expf(-x * x / (2 * sigma * sigma));
     float cpu = flt_host((x + flt.anchor) * flt.scale);
-    EXPECT_NEAR(host[i], ref, 1e-3f) << "@ i = " << i << " x = " << x;;
-    EXPECT_NEAR(host[i], cpu, 1e-6f) << "@ i = " << i << " x = " << x;;
+    EXPECT_NEAR(host[i], ref, 1e-3f) << "@ i = " << i << " x = " << x;
+    ;
+    EXPECT_NEAR(host[i], cpu, 1e-6f) << "@ i = " << i << " x = " << x;
+    ;
   }
 }
 
@@ -95,23 +96,24 @@ TEST(ResamplingFilters, Lanczos3) {
   auto filters = GetResamplingFilters();
   auto host_filters = GetResamplingFiltersCPU();
   ASSERT_NE(filters, nullptr);
-  int radius = 3*64;
+  int radius = 3 * 64;
   auto flt = filters->Lanczos3();
   auto flt_host = host_filters->Lanczos3();
   ASSERT_EQ(flt.anchor, flt_host.anchor);
   ASSERT_EQ(flt.scale, flt_host.scale);
   ASSERT_EQ(flt.num_coeffs, flt_host.num_coeffs);
-  int size = 2*radius+1;
+  int size = 2 * radius + 1;
   auto mem = memory::alloc_unique<float>(AllocType::GPU, size);
   GetFilterValues<<<1, size>>>(mem.get(), flt, size, -3.0f, 3.0f / radius);
   std::vector<float> host(size);
-  cudaMemcpy(host.data(), mem.get(), size*sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(host.data(), mem.get(), size * sizeof(float), cudaMemcpyDeviceToHost);
   for (int i = 0; i < size; i++) {
     float x = 3.0f * (i - radius) / radius;
     float ref = sinc(x) * sinc(x / 3);
     float cpu = flt_host((x + flt.anchor) * flt.scale);
     EXPECT_NEAR(host[i], ref, 1e-3f) << "@ i = " << i << " x = " << x;
-    EXPECT_NEAR(host[i], cpu, 1e-6f) << "@ i = " << i << " x = " << x;;
+    EXPECT_NEAR(host[i], cpu, 1e-6f) << "@ i = " << i << " x = " << x;
+    ;
   }
 }
 
@@ -125,17 +127,18 @@ TEST(ResamplingFilters, Cubic) {
   ASSERT_EQ(flt.anchor, flt_host.anchor);
   ASSERT_EQ(flt.scale, flt_host.scale);
   ASSERT_EQ(flt.num_coeffs, flt_host.num_coeffs);
-  int size = 2*radius+1;
+  int size = 2 * radius + 1;
   auto mem = memory::alloc_unique<float>(AllocType::GPU, size);
   GetFilterValues<<<1, size>>>(mem.get(), flt, size, -2.0f, 2.0f / radius);
   std::vector<float> host(size);
-  cudaMemcpy(host.data(), mem.get(), size*sizeof(float), cudaMemcpyDeviceToHost);
+  cudaMemcpy(host.data(), mem.get(), size * sizeof(float), cudaMemcpyDeviceToHost);
   for (int i = 0; i < size; i++) {
     float x = 2.0f * (i - radius) / radius;
     float ref = CubicWindow(x);
     float cpu = flt_host((x + flt.anchor) * flt.scale);
     EXPECT_NEAR(host[i], ref, 1e-3f) << "@ i = " << i << " x = " << x;
-    EXPECT_NEAR(host[i], cpu, 1e-6f) << "@ i = " << i << " x = " << x;;
+    EXPECT_NEAR(host[i], cpu, 1e-6f) << "@ i = " << i << " x = " << x;
+    ;
   }
 }
 

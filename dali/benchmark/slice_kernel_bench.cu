@@ -15,10 +15,10 @@
 #include <benchmark/benchmark.h>
 #include <vector>
 #include "dali/benchmark/dali_bench.h"
+#include "dali/kernels/scratch.h"
 #include "dali/kernels/slice/slice_gpu.cuh"
 #include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
-#include "dali/kernels/scratch.h"
 
 namespace dali {
 
@@ -31,8 +31,7 @@ class SliceBenchGPU : public DALIBenchmark {
   kernels::TestTensorList<InputType, Dims> test_data;
   kernels::TestTensorList<OutputType, Dims> out_data;
 
-  void Setup(const TensorShape<Dims> &in_shape,
-             const TensorShape<Dims> &out_shape,
+  void Setup(const TensorShape<Dims> &in_shape, const TensorShape<Dims> &out_shape,
              int batch_size = 1) {
     test_data.reshape(uniform_list_shape<Dims>(batch_size, in_shape));
     InputType num = 0;
@@ -41,7 +40,7 @@ class SliceBenchGPU : public DALIBenchmark {
     out_data.reshape(uniform_list_shape<Dims>(batch_size, out_shape));
   }
 
-  void RunGPU(benchmark::State& st) {
+  void RunGPU(benchmark::State &st) {
     int H = st.range(0);
     int W = st.range(1);
     int C = st.range(2);
@@ -83,8 +82,7 @@ class SliceBenchGPU : public DALIBenchmark {
 
       kernel.Run(ctx, out_tv, in_tv, args_vec);
       cudaStreamSynchronize(ctx.gpu.stream);
-      st.counters["FPS"] = benchmark::Counter(st.iterations() + 1,
-        benchmark::Counter::kIsRate);
+      st.counters["FPS"] = benchmark::Counter(st.iterations() + 1, benchmark::Counter::kIsRate);
     }
   }
 };
@@ -99,14 +97,15 @@ static void SliceKernelArgs_GPU_OnlySlice(benchmark::internal::Benchmark *b) {
   }
 }
 
-BENCHMARK_DEFINE_F(SliceBenchGPU, Slice_GPU_OnlySlice)(benchmark::State& st) {
+BENCHMARK_DEFINE_F(SliceBenchGPU, Slice_GPU_OnlySlice)(benchmark::State &st) {
   this->RunGPU(st);
 }
 
-BENCHMARK_REGISTER_F(SliceBenchGPU, Slice_GPU_OnlySlice)->Iterations(1000)
-->Unit(benchmark::kMicrosecond)
-->UseRealTime()
-->Apply(SliceKernelArgs_GPU_OnlySlice);
+BENCHMARK_REGISTER_F(SliceBenchGPU, Slice_GPU_OnlySlice)
+    ->Iterations(1000)
+    ->Unit(benchmark::kMicrosecond)
+    ->UseRealTime()
+    ->Apply(SliceKernelArgs_GPU_OnlySlice);
 
 static void SliceKernelArgs_GPU_OnlyPad(benchmark::internal::Benchmark *b) {
   for (int H = 1000; H >= 500; H /= 2) {
@@ -120,14 +119,15 @@ static void SliceKernelArgs_GPU_OnlyPad(benchmark::internal::Benchmark *b) {
   }
 }
 
-BENCHMARK_DEFINE_F(SliceBenchGPU, Slice_GPU_OnlyPad)(benchmark::State& st) {
+BENCHMARK_DEFINE_F(SliceBenchGPU, Slice_GPU_OnlyPad)(benchmark::State &st) {
   this->RunGPU(st);
 }
 
-BENCHMARK_REGISTER_F(SliceBenchGPU, Slice_GPU_OnlyPad)->Iterations(1000)
-->Unit(benchmark::kMicrosecond)
-->UseRealTime()
-->Apply(SliceKernelArgs_GPU_OnlyPad);
+BENCHMARK_REGISTER_F(SliceBenchGPU, Slice_GPU_OnlyPad)
+    ->Iterations(1000)
+    ->Unit(benchmark::kMicrosecond)
+    ->UseRealTime()
+    ->Apply(SliceKernelArgs_GPU_OnlyPad);
 
 static void SliceKernelArgs_GPU_SliceAndPad(benchmark::internal::Benchmark *b) {
   for (int H = 1000; H >= 500; H /= 2) {
@@ -141,14 +141,14 @@ static void SliceKernelArgs_GPU_SliceAndPad(benchmark::internal::Benchmark *b) {
   }
 }
 
-BENCHMARK_DEFINE_F(SliceBenchGPU, Slice_GPU_SliceAndPad)(benchmark::State& st) {
+BENCHMARK_DEFINE_F(SliceBenchGPU, Slice_GPU_SliceAndPad)(benchmark::State &st) {
   this->RunGPU(st);
 }
 
-BENCHMARK_REGISTER_F(SliceBenchGPU, Slice_GPU_SliceAndPad)->Iterations(1000)
-->Unit(benchmark::kMicrosecond)
-->UseRealTime()
-->Apply(SliceKernelArgs_GPU_SliceAndPad);
-
+BENCHMARK_REGISTER_F(SliceBenchGPU, Slice_GPU_SliceAndPad)
+    ->Iterations(1000)
+    ->Unit(benchmark::kMicrosecond)
+    ->UseRealTime()
+    ->Apply(SliceKernelArgs_GPU_SliceAndPad);
 
 }  // namespace dali

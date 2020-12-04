@@ -20,12 +20,12 @@
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
+#include "dali/core/static_switch.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/core/tensor_view.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
 #include "dali/util/crop_window.h"
-#include "dali/core/static_switch.h"
 
 #define SLICE_ARGS_TYPES (int32_t, int64_t, float)
 
@@ -34,10 +34,10 @@ namespace dali {
 class SliceAttr {
  public:
   explicit inline SliceAttr(const OpSpec &spec)
-      : batch_size__(spec.GetArgument<int>("batch_size"))
-      , normalized_anchor_(spec.GetArgument<bool>("normalized_anchor"))
-      , normalized_shape_(spec.GetArgument<bool>("normalized_shape"))
-      , crop_window_generators_(batch_size__) {
+      : batch_size__(spec.GetArgument<int>("batch_size")),
+        normalized_anchor_(spec.GetArgument<bool>("normalized_anchor")),
+        normalized_shape_(spec.GetArgument<bool>("normalized_shape")),
+        crop_window_generators_(batch_size__) {
     const bool has_axes_arg = spec.HasArgument("axes");
     const bool has_axis_names_arg = spec.HasArgument("axis_names");
     // Process `axis_names` if provided, or if neither `axis_names` nor `axes` are
@@ -54,7 +54,7 @@ class SliceAttr {
   template <typename Backend>
   void ProcessArguments(const workspace_t<Backend> &ws) {
     DALI_ENFORCE(ws.NumInput() == 3,
-      "Expected 3 inputs. Received: " + std::to_string(ws.NumInput()));
+                 "Expected 3 inputs. Received: " + std::to_string(ws.NumInput()));
     // slice args are CPU inputs
     const auto &crop_anchor = ws.template InputRef<CPUBackend>(1);
     const auto &crop_shape = ws.template InputRef<CPUBackend>(2);
@@ -76,12 +76,12 @@ class SliceAttr {
 
   void ProcessArguments(const SampleWorkspace &ws) {
     DALI_ENFORCE(ws.NumInput() == 3,
-      "Expected 3 inputs. Received: " + std::to_string(ws.NumInput()));
+                 "Expected 3 inputs. Received: " + std::to_string(ws.NumInput()));
     const auto &crop_anchor = ws.Input<CPUBackend>(1);
     const auto &crop_shape = ws.Input<CPUBackend>(2);
     DALI_ENFORCE(crop_anchor.type().id() == crop_shape.type().id(),
-                  make_string("Anchor and shape should have the same type. Got: ",
-                              crop_anchor.type().id(), " and ", crop_shape.type().id()));
+                 make_string("Anchor and shape should have the same type. Got: ",
+                             crop_anchor.type().id(), " and ", crop_shape.type().id()));
     auto args_dtype = crop_anchor.type().id();
     VerifyArgsShape(crop_anchor.shape(), crop_shape.shape());
     TYPE_SWITCH(args_dtype, type2id, ArgsType, SLICE_ARGS_TYPES, (
@@ -91,18 +91,16 @@ class SliceAttr {
     ), DALI_FAIL(make_string("Unsupported type of anchor and shape arguments: ", args_dtype)));  // NOLINT
   }
 
-  const CropWindowGenerator& GetCropWindowGenerator(std::size_t data_idx) const {
+  const CropWindowGenerator &GetCropWindowGenerator(std::size_t data_idx) const {
     DALI_ENFORCE(data_idx < crop_window_generators_.size());
     return crop_window_generators_[data_idx];
   }
 
  private:
   template <typename T>
-  void ProcessArgumentsHelper(int data_idx,
-                              const T *slice_anchor_data,
-                              const T *slice_shape_data) {
+  void ProcessArgumentsHelper(int data_idx, const T *slice_anchor_data, const T *slice_shape_data) {
     bool normalized_anchor = normalized_anchor_;
-    bool normalized_shape  = normalized_shape_;
+    bool normalized_shape = normalized_shape_;
     // If integer anchor and shape were provided, assume absolute coordinates silently
     if (!std::is_floating_point<T>::value) {
       normalized_anchor = false;
@@ -111,53 +109,53 @@ class SliceAttr {
     assert(std::is_floating_point<T>::value || (!normalized_anchor && !normalized_shape));
 
     crop_window_generators_[data_idx] =
-      [this, slice_anchor_data, slice_shape_data, normalized_anchor, normalized_shape]
-      (const TensorShape<> &shape, const TensorLayout& shape_layout) {
-        CropWindow slice;
-        slice.anchor = std::vector<int64_t>(shape.size(), 0);
-        slice.shape = shape;
+        [this, slice_anchor_data, slice_shape_data, normalized_anchor, normalized_shape](
+            const TensorShape<> &shape, const TensorLayout &shape_layout) {
+          CropWindow slice;
+          slice.anchor = std::vector<int64_t>(shape.size(), 0);
+          slice.shape = shape;
 
-        auto axes = axes_;
-        if (!axis_names_.empty()) {
-          axes = GetDimIndices(shape_layout, axis_names_).to_vector();
-        }
-
-        for (size_t i = 0; i < axes.size(); i++) {
-          auto dim = axes[i];
-          double anchor_val = slice_anchor_data[i];
-          double shape_val = slice_shape_data[i];
-          int64_t slice_end;
-          // special case - minimize the floating point error by multiplying only once after sum
-          if (normalized_anchor && normalized_shape) {
-            slice_end = std::llround((anchor_val + shape_val) * shape[dim]);
-            anchor_val *= shape[dim];
-            shape_val *= shape[dim];
-          } else {
-            if (normalized_anchor) {
-              anchor_val *= shape[dim];
-            }
-            if (normalized_shape) {
-              shape_val *= shape[dim];
-            }
-            slice_end = std::llround(anchor_val + shape_val);
+          auto axes = axes_;
+          if (!axis_names_.empty()) {
+            axes = GetDimIndices(shape_layout, axis_names_).to_vector();
           }
-          slice.anchor[dim] = std::llround(anchor_val);
-          slice.shape[dim] = slice_end - slice.anchor[dim];
-        }
 
-        return slice;
-      };
+          for (size_t i = 0; i < axes.size(); i++) {
+            auto dim = axes[i];
+            double anchor_val = slice_anchor_data[i];
+            double shape_val = slice_shape_data[i];
+            int64_t slice_end;
+            // special case - minimize the floating point error by multiplying only once after sum
+            if (normalized_anchor && normalized_shape) {
+              slice_end = std::llround((anchor_val + shape_val) * shape[dim]);
+              anchor_val *= shape[dim];
+              shape_val *= shape[dim];
+            } else {
+              if (normalized_anchor) {
+                anchor_val *= shape[dim];
+              }
+              if (normalized_shape) {
+                shape_val *= shape[dim];
+              }
+              slice_end = std::llround(anchor_val + shape_val);
+            }
+            slice.anchor[dim] = std::llround(anchor_val);
+            slice.shape[dim] = slice_end - slice.anchor[dim];
+          }
+
+          return slice;
+        };
   }
 
-  void VerifyArgsShape(const TensorShape<>& crop_anchor_shape,
-                       const TensorShape<>& crop_shape_shape) {
+  void VerifyArgsShape(const TensorShape<> &crop_anchor_shape,
+                       const TensorShape<> &crop_shape_shape) {
     DALI_ENFORCE(crop_anchor_shape == crop_shape_shape);
     DALI_ENFORCE(crop_anchor_shape.sample_dim() <= 1,
                  "Anchor and shape must be 1D tensors or scalars");
     size_t args_size = volume(crop_anchor_shape);
     auto axes_size = !axis_names_.empty() ? axis_names_.size() : axes_.size();
     DALI_ENFORCE(args_size == axes_size,
-      make_string("Unexpected number of arguments ", args_size, " vs ", axes_size));
+                 make_string("Unexpected number of arguments ", args_size, " vs ", axes_size));
   }
 
  private:

@@ -46,16 +46,15 @@ typedef struct {
   bool try_recover_truncated_jpeg;
 } MemSourceMgr;
 
-void SetSrc(j_decompress_ptr cinfo, const void *data,
-            uint64 datasize, bool try_recover_truncated_jpeg);
+void SetSrc(j_decompress_ptr cinfo, const void *data, uint64 datasize,
+            bool try_recover_truncated_jpeg);
 
 // JPEG destination: we will store all the data in a buffer "buffer" of total
 // size "bufsize", if the buffer overflows, we will be in trouble.
 void SetDest(j_compress_ptr cinfo, void *buffer, int bufsize);
 // Same as above, except that buffer is only used as a temporary structure and
 // is emptied into "destination" as soon as it fills up.
-void SetDest(j_compress_ptr cinfo, void *buffer, int bufsize,
-             std::string *destination);
+void SetDest(j_compress_ptr cinfo, void *buffer, int bufsize, std::string *destination);
 
 }  // namespace jpeg
 }  // namespace dali

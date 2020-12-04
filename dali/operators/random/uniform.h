@@ -18,19 +18,19 @@
 #include <random>
 #include <vector>
 
-#include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
 class Uniform : public Operator<CPUBackend> {
  public:
-  inline explicit Uniform(const OpSpec &spec) :
-          Operator<CPUBackend>(spec),
-          rng_(spec.GetArgument<int64_t>("seed")),
-          discrete_mode_(spec.HasArgument("values")) {
+  inline explicit Uniform(const OpSpec &spec)
+      : Operator<CPUBackend>(spec),
+        rng_(spec.GetArgument<int64_t>("seed")),
+        discrete_mode_(spec.HasArgument("values")) {
     DALI_ENFORCE(!(spec.HasArgument("range") && spec.HasArgument("values")),
-            "`range` and `set` arguments are mutually exclusive");
+                 "`range` and `set` arguments are mutually exclusive");
 
     if (discrete_mode_) {
       set_ = spec.GetRepeatedArgument<float>("values");

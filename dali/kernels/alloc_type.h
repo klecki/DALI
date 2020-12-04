@@ -20,7 +20,8 @@
 namespace dali {
 namespace kernels {
 
-enum class AllocType : uint8_t {
+enum class AllocType : uint8_t
+{
   Host = 0,
   Pinned,
   GPU,

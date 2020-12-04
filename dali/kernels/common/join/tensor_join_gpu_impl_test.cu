@@ -16,17 +16,17 @@
 #include <iostream>
 #include <random>
 #include <vector>
-#include "dali/kernels/common/join/tensor_join_gpu.h"
-#include "dali/kernels/common/join/tensor_join_cpu.h"
-#include "dali/kernels/common/join/tensor_join_gpu_impl.cuh"
-#include "dali/kernels/kernel_manager.h"
-#include "dali/core/dev_buffer.h"
 #include "dali/core/cuda_event.h"
 #include "dali/core/cuda_stream.h"
-#include "dali/test/test_tensors.h"
-#include "dali/test/tensor_test_utils.h"
-#include "dali/core/tensor_shape_print.h"
+#include "dali/core/dev_buffer.h"
 #include "dali/core/geom/mat.h"
+#include "dali/core/tensor_shape_print.h"
+#include "dali/kernels/common/join/tensor_join_cpu.h"
+#include "dali/kernels/common/join/tensor_join_gpu.h"
+#include "dali/kernels/common/join/tensor_join_gpu_impl.cuh"
+#include "dali/kernels/kernel_manager.h"
+#include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
@@ -99,9 +99,8 @@ struct TensorJoinGPUTest : public ::testing::Test {
     vector<tensor_join::OutputDesc<T>> output_descs(N);
 
     auto out_tlv = out.gpu(stream);
-    FillDescs(make_span(output_descs), make_span(input_descs),
-              out_tlv, make_cspan(in_gpu_ptrs), axis);
-
+    FillDescs(make_span(output_descs), make_span(input_descs), out_tlv, make_cspan(in_gpu_ptrs),
+              axis);
 
     CUDAEvent start = CUDAEvent::CreateWithFlags(0);
     CUDAEvent end = CUDAEvent::CreateWithFlags(0);
@@ -115,15 +114,15 @@ struct TensorJoinGPUTest : public ::testing::Test {
     dim3 block(32 * 8);
     CUDA_CALL(cudaEventRecord(start, stream));
 
-    tensor_join::JoinTensorsKernel<<<grid, block, 0, stream>>>(
-        gpu_output_descs.data(), gpu_input_descs.data(), njoin);
+    tensor_join::JoinTensorsKernel<<<grid, block, 0, stream>>>(gpu_output_descs.data(),
+                                                               gpu_input_descs.data(), njoin);
 
     CUDA_CALL(cudaEventRecord(end, stream));
     CUDA_CALL(cudaStreamSynchronize(stream));
 
     float time = 0;
     CUDA_CALL(cudaEventElapsedTime(&time, start, end));
-    time *= 1e+6;  // to nanoseconds
+    time *= 1e+6;                                           // to nanoseconds
     int64_t size = 2 * out_tlv.num_elements() * sizeof(T);  // 2x because in+out
     std::cerr << "Throughput: " << size / time << " GB/s\n";
   }
@@ -164,7 +163,6 @@ struct TensorJoinGPUTest : public ::testing::Test {
     }
   }
 
-
   void GenerateListPointers(cudaStream_t stream) {
     in_cpu_tls.resize(njoin);
     in_gpu_tls.resize(njoin);
@@ -178,7 +176,6 @@ struct TensorJoinGPUTest : public ::testing::Test {
       in_gpu_ptrs[t] = &in_gpu_tls[t];
     }
   }
-
 
   void GenerateShapes() {
     auto outer_extent_dist = uniform_distribution(1, max_outer_extent);
@@ -205,11 +202,9 @@ struct TensorJoinGPUTest : public ::testing::Test {
       }
     }
 
-    tensor_join::JoinedShape(out_shape,
-                             [&](int i) { return &in_shapes[i]; }, in_shapes.size(),
-                             axis, new_axis);
+    tensor_join::JoinedShape(
+        out_shape, [&](int i) { return &in_shapes[i]; }, in_shapes.size(), axis, new_axis);
   }
-
 
   int N = 10, ndim = 3, njoin = 256, axis = 1, max_outer_extent = 100, max_inner_extent = 100;
   bool new_axis = true;
@@ -225,7 +220,6 @@ struct TensorJoinGPUTest : public ::testing::Test {
   vector<const InListCPU<T> *> in_cpu_ptrs;
   vector<const InListGPU<T> *> in_gpu_ptrs;
 };
-
 
 using TensorJoinTypes = ::testing::Types<uint16_t, float, int64_t>;
 TYPED_TEST_SUITE(TensorJoinGPUTest, TensorJoinTypes);
@@ -265,7 +259,6 @@ TYPED_TEST(TensorJoinGPUTest, RawConcatInterleave4) {
   this->TestRawKernel();
 }
 
-
 TYPED_TEST(TensorJoinGPUTest, RawConcatInterleave7) {
   this->max_outer_extent = 300;
   this->max_inner_extent = 10;
@@ -274,7 +267,6 @@ TYPED_TEST(TensorJoinGPUTest, RawConcatInterleave7) {
   this->new_axis = false;
   this->TestRawKernel();
 }
-
 
 TYPED_TEST(TensorJoinGPUTest, RawConcatInterleave15) {
   this->max_outer_extent = 200;
@@ -303,7 +295,6 @@ TYPED_TEST(TensorJoinGPUTest, RawStackInterleave2) {
   this->new_axis = true;
   this->TestRawKernel();
 }
-
 
 TYPED_TEST(TensorJoinGPUTest, RawStackInterleave3) {
   this->max_outer_extent = 800;
@@ -350,7 +341,6 @@ TYPED_TEST(TensorJoinGPUTest, RawStackInterleaveMany) {
   this->TestRawKernel();
 }
 
-
 TYPED_TEST(TensorJoinGPUTest, ConcatOuter) {
   this->max_outer_extent = 1;
   this->max_inner_extent = 500;
@@ -361,7 +351,6 @@ TYPED_TEST(TensorJoinGPUTest, ConcatOuter) {
   this->TestFullKernel();
 }
 
-
 TYPED_TEST(TensorJoinGPUTest, ConcatMiddle) {
   this->max_outer_extent = 100;
   this->max_inner_extent = 100;
@@ -371,7 +360,6 @@ TYPED_TEST(TensorJoinGPUTest, ConcatMiddle) {
   this->TestFullKernel();
 }
 
-
 TYPED_TEST(TensorJoinGPUTest, ConcatInner) {
   this->max_outer_extent = 1;
   this->max_inner_extent = 400;
@@ -380,7 +368,6 @@ TYPED_TEST(TensorJoinGPUTest, ConcatInner) {
   this->new_axis = false;
   this->TestFullKernel();
 }
-
 
 TYPED_TEST(TensorJoinGPUTest, ConcatInterleave) {
   this->max_outer_extent = 200;
@@ -401,7 +388,6 @@ TYPED_TEST(TensorJoinGPUTest, StackOuter) {
   this->new_axis = true;
   this->TestFullKernel();
 }
-
 
 TYPED_TEST(TensorJoinGPUTest, StackMiddle) {
   this->max_outer_extent = 400;

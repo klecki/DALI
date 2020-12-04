@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <vector>
 #include <memory>
-#include "dali/operators/generic/slice/slice_base.h"
+#include <vector>
 #include "dali/kernels/slice/slice_gpu.cuh"
+#include "dali/operators/generic/slice/slice_base.h"
 
 namespace dali {
 
@@ -28,7 +28,9 @@ class SliceBaseGpu : public OpImplBase<GPUBackend> {
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<GPUBackend> &ws) override;
   void RunImpl(workspace_t<GPUBackend> &ws) override;
 
-  std::vector<SliceArgs>& Args() { return args_; }
+  std::vector<SliceArgs> &Args() {
+    return args_;
+  }
 
  private:
   std::vector<SliceArgs> args_;

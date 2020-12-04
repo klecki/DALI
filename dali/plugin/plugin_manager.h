@@ -22,13 +22,13 @@ namespace dali {
 
 class DLL_PUBLIC PluginManager {
  public:
-    /**
-     * @brief Load plugin library
-     * @remarks Will invoke dlopen()
-     * @param [in] lib_path path to the plugin library, e.g. "/usr/lib/libcustomplugin.so"
-     * @throws std::runtime_error if the library could not be loaded
-     */
-    static DLL_PUBLIC void LoadLibrary(const std::string& lib_path);
+  /**
+   * @brief Load plugin library
+   * @remarks Will invoke dlopen()
+   * @param [in] lib_path path to the plugin library, e.g. "/usr/lib/libcustomplugin.so"
+   * @throws std::runtime_error if the library could not be loaded
+   */
+  static DLL_PUBLIC void LoadLibrary(const std::string& lib_path);
 };
 
 }  // namespace dali

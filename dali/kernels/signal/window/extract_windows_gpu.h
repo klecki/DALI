@@ -18,8 +18,8 @@
 #include <memory>
 #include "dali/core/convert.h"
 #include "dali/core/host_dev.h"
-#include "dali/kernels/signal/window/extract_windows_args.h"
 #include "dali/kernels/kernel.h"
+#include "dali/kernels/signal/window/extract_windows_args.h"
 
 namespace dali {
 namespace kernels {
@@ -59,8 +59,8 @@ struct ExtractWindowsImplGPU;
  *
  * The output windows are stored as columns - there's a row of first samples from all windows,
  * then second samples, etc - a layout typically used in spectrograms.
- * If the `ExtractWindowsBatchedArgs::concatenate` is true, then the output rows are concatenated and
- * the output TensorList contains just one tensor.
+ * If the `ExtractWindowsBatchedArgs::concatenate` is true, then the output rows are concatenated
+ * and the output TensorList contains just one tensor.
  *
  * The signed input values of non-float type are normalized to -1..1 range
  *
@@ -76,32 +76,22 @@ template <typename Dst, typename Src>
 class DLL_PUBLIC ExtractWindowsGPU {
  public:
   static_assert(std::is_same<Dst, float>::value, "Output type must be float");
-  static_assert(
-    std::is_same<Src, float>::value ||
-    std::is_same<Src, int8_t>::value ||
-    std::is_same<Src, int16_t>::value, "Input type must be float, int8_t or int16_t");
+  static_assert(std::is_same<Src, float>::value || std::is_same<Src, int8_t>::value ||
+                    std::is_same<Src, int16_t>::value,
+                "Input type must be float, int8_t or int16_t");
 
-  DLL_PUBLIC KernelRequirements Setup(
-      KernelContext &context,
-      const InListGPU<Src, 1> &input,
-      const InTensorGPU<float, 1> &window,
-      const ExtractWindowsBatchedArgs &args);
+  DLL_PUBLIC KernelRequirements Setup(KernelContext &context, const InListGPU<Src, 1> &input,
+                                      const InTensorGPU<float, 1> &window,
+                                      const ExtractWindowsBatchedArgs &args);
 
-  DLL_PUBLIC KernelRequirements Setup(
-      KernelContext &context,
-      const TensorListShape<1> &input_shape,
-      const ExtractWindowsBatchedArgs &args);
+  DLL_PUBLIC KernelRequirements Setup(KernelContext &context, const TensorListShape<1> &input_shape,
+                                      const ExtractWindowsBatchedArgs &args);
 
-  DLL_PUBLIC KernelRequirements Setup(
-      KernelContext &context,
-      span<const int64_t> input_shape,
-      const ExtractWindowsBatchedArgs &args);
+  DLL_PUBLIC KernelRequirements Setup(KernelContext &context, span<const int64_t> input_shape,
+                                      const ExtractWindowsBatchedArgs &args);
 
-
-  DLL_PUBLIC void Run(KernelContext &ctx,
-      const OutListGPU<Dst, 2> &out,
-      const InListGPU<Src, 1> &in,
-      const InTensorGPU<float, 1> &window);
+  DLL_PUBLIC void Run(KernelContext &ctx, const OutListGPU<Dst, 2> &out,
+                      const InListGPU<Src, 1> &in, const InTensorGPU<float, 1> &window);
 
   DLL_PUBLIC ExtractWindowsGPU();
   DLL_PUBLIC ~ExtractWindowsGPU();
@@ -110,7 +100,6 @@ class DLL_PUBLIC ExtractWindowsGPU {
   using Impl = ExtractWindowsImplGPU<Dst, Src>;
   std::unique_ptr<Impl> impl;
 };
-
 
 }  // namespace signal
 }  // namespace kernels

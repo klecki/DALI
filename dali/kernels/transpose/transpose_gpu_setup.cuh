@@ -17,8 +17,8 @@
 
 #include <cuda_runtime.h>
 #include <utility>
-#include "dali/core/tensor_view.h"
 #include "dali/core/fast_div.h"
+#include "dali/core/tensor_view.h"
 #include "dali/kernels/common/utils.h"
 #include "dali/kernels/transpose/transpose_gpu_impl.cuh"
 #include "dali/kernels/transpose/transpose_util.h"
@@ -27,7 +27,8 @@ namespace dali {
 namespace kernels {
 namespace transpose_impl {
 
-enum class TransposeMethod {
+enum class TransposeMethod
+{
   Copy = 0,
   Generic,
   Tiled,
@@ -35,16 +36,13 @@ enum class TransposeMethod {
   Deinterleave
 };
 
-DLL_PUBLIC TransposeMethod GetTransposeMethod(const int64_t *shape,
-                                              const int *perm,
-                                              int ndim,
+DLL_PUBLIC TransposeMethod GetTransposeMethod(const int64_t *shape, const int *perm, int ndim,
                                               int element_size);
 
 template <typename T>
-void InitTiledTranspose(TiledTransposeDesc<T> &desc,
-                        const TensorShape<> &shape, span<const int> perm,
-                        same_as_t<T> *out = nullptr, same_as_t<const T> *in = nullptr,
-                        int grid_x_size = 0) {
+void InitTiledTranspose(TiledTransposeDesc<T> &desc, const TensorShape<> &shape,
+                        span<const int> perm, same_as_t<T> *out = nullptr,
+                        same_as_t<const T> *in = nullptr, int grid_x_size = 0) {
   int ndim = shape.size();
 
   CalcStrides(desc.in_strides, shape);
@@ -58,10 +56,10 @@ void InitTiledTranspose(TiledTransposeDesc<T> &desc,
   }
   int max_lanes = kTiledTransposeMaxVectorSize / sizeof(T);
   int lanes = 1;
-  while (ndim > 0 && perm[ndim-1] == ndim-1) {
-    if (lanes * shape[ndim-1] > max_lanes)
+  while (ndim > 0 && perm[ndim - 1] == ndim - 1) {
+    if (lanes * shape[ndim - 1] > max_lanes)
       break;
-    lanes *= shape[ndim-1];
+    lanes *= shape[ndim - 1];
     ndim--;
   }
   desc.lanes = lanes;
@@ -69,19 +67,19 @@ void InitTiledTranspose(TiledTransposeDesc<T> &desc,
 
   // Make sure that when transposing the last dimension, the last two can be transposed in tiles
   // and loaded and stored in contiguous transactions.
-  if (desc.out_strides[ndim-2] != lanes) {
-    for (int i = 0; i < ndim-2; i++) {
+  if (desc.out_strides[ndim - 2] != lanes) {
+    for (int i = 0; i < ndim - 2; i++) {
       if (desc.out_strides[i] == lanes) {
-        std::rotate(desc.out_strides + i, desc.out_strides + i+1, desc.out_strides + ndim-1);
-        std::rotate(desc.in_strides  + i, desc.in_strides  + i+1, desc.in_strides  + ndim-1);
-        std::rotate(desc.shape       + i, desc.shape       + i+1, desc.shape       + ndim-1);
+        std::rotate(desc.out_strides + i, desc.out_strides + i + 1, desc.out_strides + ndim - 1);
+        std::rotate(desc.in_strides + i, desc.in_strides + i + 1, desc.in_strides + ndim - 1);
+        std::rotate(desc.shape + i, desc.shape + i + 1, desc.shape + ndim - 1);
         break;
       }
     }
   }
 
   SmallVector<int64_t, 6> non_tile_dims;
-  for (int i = 0; i < ndim - 2; i ++) {
+  for (int i = 0; i < ndim - 2; i++) {
     non_tile_dims.push_back(desc.shape[i]);
   }
 
@@ -97,20 +95,18 @@ void InitTiledTranspose(TiledTransposeDesc<T> &desc,
 }
 
 template <typename T>
-void UpdateTiledTranspose(TiledTransposeDesc<T> &desc,
-                          same_as_t<T> *out, same_as_t<const T> *in, int grid_x_size) {
+void UpdateTiledTranspose(TiledTransposeDesc<T> &desc, same_as_t<T> *out, same_as_t<const T> *in,
+                          int grid_x_size) {
   assert(out != nullptr);
-  assert(in  != nullptr);
+  assert(in != nullptr);
   assert(grid_x_size > 0);
   desc.out = out;
   desc.in = in;
   desc.tiles_per_block = grid_x_size ? div_ceil(desc.total_tiles, grid_x_size) : 0;
 }
 
-
 template <typename T>
-void InitDeinterleave(DeinterleaveDesc<T> &desc,
-                      const TensorShape<> &shape, span<const int> perm,
+void InitDeinterleave(DeinterleaveDesc<T> &desc, const TensorShape<> &shape, span<const int> perm,
                       same_as_t<T> *out = nullptr, same_as_t<const T> *in = nullptr) {
   int ndim = shape.size();
 
@@ -131,9 +127,9 @@ void InitDeinterleave(DeinterleaveDesc<T> &desc,
 }
 
 template <typename T>
-void InitGenericTranspose(GenericTransposeDesc<T> &desc,
-                         const TensorShape<> &shape, span<const int> perm,
-                         same_as_t<T> *out = nullptr, same_as_t<const T> *in = nullptr) {
+void InitGenericTranspose(GenericTransposeDesc<T> &desc, const TensorShape<> &shape,
+                          span<const int> perm, same_as_t<T> *out = nullptr,
+                          same_as_t<const T> *in = nullptr) {
   int ndim = shape.size();
 
   TensorShape<> out_shape = permute(shape, perm);

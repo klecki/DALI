@@ -16,8 +16,8 @@
 #define DALI_OPERATORS_DECODER_HOST_FUSED_HOST_DECODER_RANDOM_CROP_H_
 
 #include "dali/core/common.h"
-#include "dali/operators/image/crop/random_crop_attr.h"
 #include "dali/operators/decoder/host/host_decoder.h"
+#include "dali/operators/image/crop/random_crop_attr.h"
 
 namespace dali {
 
@@ -25,10 +25,7 @@ class RandomCropGenerator;
 
 class HostDecoderRandomCrop : public HostDecoder, public RandomCropAttr {
  public:
-  explicit HostDecoderRandomCrop(const OpSpec &spec)
-    : HostDecoder(spec)
-    , RandomCropAttr(spec)
-  {}
+  explicit HostDecoderRandomCrop(const OpSpec &spec) : HostDecoder(spec), RandomCropAttr(spec) {}
 
   inline ~HostDecoderRandomCrop() override = default;
   DISABLE_COPY_MOVE_ASSIGN(HostDecoderRandomCrop);

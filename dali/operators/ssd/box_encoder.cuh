@@ -46,18 +46,15 @@ class BoxEncoder<GPUBackend> : public Operator<GPUBackend> {
     best_box_iou_.Resize({batch_size_ * anchors_count_});
 
     auto means = spec.GetArgument<vector<float>>("means");
-    DALI_ENFORCE(means.size() == BoundingBox::size,
-      "means size must be a list of 4 values.");
+    DALI_ENFORCE(means.size() == BoundingBox::size, "means size must be a list of 4 values.");
 
     means_.Resize({BoundingBox::size});
     auto means_data = means_.mutable_data<float>();
     MemCopy(means_data, means.data(), BoundingBox::size * sizeof(float));
 
     auto stds = spec.GetArgument<vector<float>>("stds");
-    DALI_ENFORCE(stds.size() == BoundingBox::size,
-      "stds size must be a list of 4 values.");
-    DALI_ENFORCE(std::find(stds.begin(), stds.end(), 0) == stds.end(),
-       "stds values must be != 0.");
+    DALI_ENFORCE(stds.size() == BoundingBox::size, "stds size must be a list of 4 values.");
+    DALI_ENFORCE(std::find(stds.begin(), stds.end(), 0) == stds.end(), "stds values must be != 0.");
     stds_.Resize({BoundingBox::size});
     auto stds_data = stds_.mutable_data<float>();
     MemCopy(stds_data, stds.data(), BoundingBox::size * sizeof(float));
@@ -90,21 +87,18 @@ class BoxEncoder<GPUBackend> : public Operator<GPUBackend> {
   Tensor<GPUBackend> stds_;
   float scale_;
 
-  std::pair<int*, float*> ClearBuffers(const cudaStream_t &stream);
+  std::pair<int *, float *> ClearBuffers(const cudaStream_t &stream);
 
   void PrepareAnchors(const vector<float> &anchors);
 
-  void WriteAnchorsToOutput(
-    float4 *out_boxes, int *out_labels, const cudaStream_t &stream);
+  void WriteAnchorsToOutput(float4 *out_boxes, int *out_labels, const cudaStream_t &stream);
 
-  void ClearOutput(
-    float4 *out_boxes, int *out_labels, const cudaStream_t &stream);
+  void ClearOutput(float4 *out_boxes, int *out_labels, const cudaStream_t &stream);
 
   std::pair<TensorListShape<>, TensorListShape<>> CalculateDims(
-    const TensorList<GPUBackend> &boxes_input);
+      const TensorList<GPUBackend> &boxes_input);
 
-  int *CalculateBoxesOffsets(
-    const TensorList<GPUBackend> &boxes_input, const cudaStream_t &stream);
+  int *CalculateBoxesOffsets(const TensorList<GPUBackend> &boxes_input, const cudaStream_t &stream);
 
   static const int kBoxesInId = 0;
   static const int kLabelsInId = 1;

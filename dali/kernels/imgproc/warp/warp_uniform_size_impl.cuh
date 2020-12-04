@@ -15,25 +15,20 @@
 #ifndef DALI_KERNELS_IMGPROC_WARP_UNIFORM_SIZE_IMPL_CUH_
 #define DALI_KERNELS_IMGPROC_WARP_UNIFORM_SIZE_IMPL_CUH_
 
-#include "dali/kernels/imgproc/warp/warp_setup.cuh"
+#include "dali/core/static_switch.h"
 #include "dali/kernels/imgproc/warp/block_warp.cuh"
 #include "dali/kernels/imgproc/warp/mapping_traits.h"
-#include "dali/core/static_switch.h"
+#include "dali/kernels/imgproc/warp/warp_setup.cuh"
 
 namespace dali {
 namespace kernels {
 namespace warp {
 
-template <typename Mapping,
-         int ndim, typename OutputType, typename InputType,
-         typename BorderType>
-__global__ void BatchWarpUniformSize(
-    const SampleDesc<ndim, OutputType, InputType> *samples,
-    ivec<ndim> output_size,
-    ivec<ndim> block_size,
-    int z_blocks_per_sample_shift,
-    const mapping_params_t<Mapping> *mapping,
-    BorderType border) {
+template <typename Mapping, int ndim, typename OutputType, typename InputType, typename BorderType>
+__global__ void BatchWarpUniformSize(const SampleDesc<ndim, OutputType, InputType> *samples,
+                                     ivec<ndim> output_size, ivec<ndim> block_size,
+                                     int z_blocks_per_sample_shift,
+                                     const mapping_params_t<Mapping> *mapping, BorderType border) {
   BlockDesc<ndim> block;
   ivec<ndim> block_idx(0);
   block_idx.x = blockIdx.x;

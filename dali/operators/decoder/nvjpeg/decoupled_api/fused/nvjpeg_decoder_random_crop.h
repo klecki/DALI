@@ -23,9 +23,7 @@ namespace dali {
 class nvJPEGDecoderRandomCrop : public nvJPEGDecoder, public RandomCropAttr {
  public:
   explicit nvJPEGDecoderRandomCrop(const OpSpec& spec)
-    : nvJPEGDecoder(spec)
-    , RandomCropAttr(spec)
-  {}
+      : nvJPEGDecoder(spec), RandomCropAttr(spec) {}
 
   DISABLE_COPY_MOVE_ASSIGN(nvJPEGDecoderRandomCrop);
 

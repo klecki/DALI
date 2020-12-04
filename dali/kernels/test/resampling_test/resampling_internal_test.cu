@@ -12,30 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
 #include <cuda_runtime.h>
-#include <opencv2/imgcodecs.hpp>
+#include <gtest/gtest.h>
 #include <algorithm>
 #include <chrono>
 #include <memory>
+#include <opencv2/imgcodecs.hpp>
 #include <string>
-#include "dali/kernels/alloc.h"
-#include "dali/test/mat2tensor.h"
-#include "dali/kernels/common/copy.h"
-#include "dali/kernels/test/test_data.h"
-#include "dali/core/tensor_view.h"
 #include "dali/core/tensor_shape_print.h"
+#include "dali/core/tensor_view.h"
+#include "dali/kernels/alloc.h"
+#include "dali/kernels/common/copy.h"
 #include "dali/kernels/imgproc/resample/resampling_impl.cuh"
+#include "dali/kernels/test/test_data.h"
+#include "dali/test/mat2tensor.h"
 #include "dali/test/tensor_test_utils.h"
 
 namespace dali {
 namespace kernels {
 
 template <typename Dst, typename Src>
-__global__ void ResampleHorzTestKernel(
-    Dst *out, int out_stride, int out_w,
-    const Src *in, int in_stride, int in_w, int in_h, int channels,
-    ResamplingFilter filter, int support) {
+__global__ void ResampleHorzTestKernel(Dst *out, int out_stride, int out_w, const Src *in,
+                                       int in_stride, int in_w, int in_h, int channels,
+                                       ResamplingFilter filter, int support) {
   float scale = static_cast<float>(in_w) / out_w;
 
   int x0 = blockIdx.x * out_w / gridDim.x;
@@ -44,17 +43,14 @@ __global__ void ResampleHorzTestKernel(
   int y1 = (blockIdx.y + 1) * in_h / gridDim.y;
   vec<1, ptrdiff_t> out_strides(out_stride);
   vec<1, ptrdiff_t> in_strides(in_stride);
-  ResampleHorz(
-    ivec2(x0, y0), ivec2(x1, y1), 0, scale,
-    out, out_strides, in, in_strides, ivec2(in_w, in_h),
-    channels, filter, support);
+  ResampleHorz(ivec2(x0, y0), ivec2(x1, y1), 0, scale, out, out_strides, in, in_strides,
+               ivec2(in_w, in_h), channels, filter, support);
 }
 
 template <typename Dst, typename Src>
-__global__ void ResampleVertTestKernel(
-    Dst *out, int out_stride, int out_h,
-    const Src *in, int in_stride, int in_w, int in_h, int channels,
-    ResamplingFilter filter, int support) {
+__global__ void ResampleVertTestKernel(Dst *out, int out_stride, int out_h, const Src *in,
+                                       int in_stride, int in_w, int in_h, int channels,
+                                       ResamplingFilter filter, int support) {
   float scale = static_cast<float>(in_h) / out_h;
 
   int x0 = blockIdx.x * in_w / gridDim.x;
@@ -63,10 +59,8 @@ __global__ void ResampleVertTestKernel(
   int y1 = (blockIdx.y + 1) * out_h / gridDim.y;
   vec<1, ptrdiff_t> out_strides(out_stride);
   vec<1, ptrdiff_t> in_strides(in_stride);
-  ResampleVert(
-    ivec2(x0, y0), ivec2(x1, y1), 0, scale,
-    out, out_strides, in, in_strides, ivec2(in_w, in_h),
-    channels, filter, support);
+  ResampleVert(ivec2(x0, y0), ivec2(x1, y1), 0, scale, out, out_strides, in, in_strides,
+               ivec2(in_w, in_h), channels, filter, support);
 }
 
 TEST(Resample, HorizontalGaussian) {
@@ -85,8 +79,8 @@ TEST(Resample, HorizontalGaussian) {
   auto gpu_mem_out = memory::alloc_unique<uint8_t>(AllocType::GPU, H * outW * channels);
 
   TensorView<StorageGPU, uint8_t, 3> img_in, img_out;
-  img_in = { gpu_mem_in.get(), img.shape };
-  img_out = { gpu_mem_out.get(), { H, outW, channels } };
+  img_in = {gpu_mem_in.get(), img.shape};
+  img_out = {gpu_mem_out.get(), {H, outW, channels}};
 
   copy(img_in, img);  // NOLINT
 
@@ -94,12 +88,12 @@ TEST(Resample, HorizontalGaussian) {
   ResamplingFilter filter = (*filters)[1];
 
   int radius = 40;
-  filter.rescale(2*radius+1);
+  filter.rescale(2 * radius + 1);
 
   for (int i = 0; i < 100; i++) {
     ResampleHorzTestKernel<<<1, dim3(32, 24), ResampleSharedMemSize>>>(
-      img_out.data, outW*channels, outW, img_in.data, W*channels, W, H, channels,
-      filter, filter.support());
+        img_out.data, outW * channels, outW, img_in.data, W * channels, W, H, channels, filter,
+        filter.support());
     cudaDeviceSynchronize();
   }
 
@@ -109,8 +103,7 @@ TEST(Resample, HorizontalGaussian) {
   auto img_ref_cpu = view_as_tensor<uint8_t, 3>(cv_ref);
   copy(img_out_cpu, img_out);  // NOLINT
   cudaDeviceSynchronize();
-  EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(1))) <<
-  [&]() {
+  EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(1))) << [&]() {
     cv::Mat diff;
     cv::absdiff(out, cv_ref, diff);
     cv::imwrite("resample_horz_dif.png", diff);
@@ -134,8 +127,8 @@ TEST(Resample, VerticalGaussian) {
   auto gpu_mem_out = memory::alloc_unique<uint8_t>(AllocType::GPU, outH * W * channels);
 
   TensorView<StorageGPU, uint8_t, 3> img_in, img_out;
-  img_in = { gpu_mem_in.get(), img.shape };
-  img_out = { gpu_mem_out.get(), { outH, W, channels } };
+  img_in = {gpu_mem_in.get(), img.shape};
+  img_out = {gpu_mem_out.get(), {outH, W, channels}};
 
   copy(img_in, img);  // NOLINT
 
@@ -143,12 +136,12 @@ TEST(Resample, VerticalGaussian) {
   ResamplingFilter filter = (*filters)[1];
 
   int radius = 40;
-  filter.rescale(2*radius+1);
+  filter.rescale(2 * radius + 1);
 
   for (int i = 0; i < 100; i++) {
     ResampleVertTestKernel<<<1, dim3(32, 24), ResampleSharedMemSize>>>(
-      img_out.data, W*channels, outH, img_in.data, W*channels, W, H, channels,
-      filter, filter.support());
+        img_out.data, W * channels, outH, img_in.data, W * channels, W, H, channels, filter,
+        filter.support());
     cudaDeviceSynchronize();
   }
 
@@ -158,8 +151,7 @@ TEST(Resample, VerticalGaussian) {
   auto img_ref_cpu = view_as_tensor<uint8_t, 3>(cv_ref);
   copy(img_out_cpu, img_out);  // NOLINT
   cudaDeviceSynchronize();
-  EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(1))) <<
-  [&]() {
+  EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(1))) << [&]() {
     cv::Mat diff;
     cv::absdiff(out, cv_ref, diff);
     cv::imwrite("resample_vert_dif.png", diff);
@@ -169,7 +161,8 @@ TEST(Resample, VerticalGaussian) {
 
 class ResamplingTest : public ::testing::Test {
  public:
-  enum BlockConfig {
+  enum BlockConfig
+  {
     BlockPerImage = 0,
     BlockPerSpan = 1,
   };
@@ -228,8 +221,8 @@ class ResamplingTest : public ::testing::Test {
     CopyOutputToCPU();
     auto img_ref_cpu = view_as_tensor<uint8_t, 3>(reference_);
     auto img_out_cpu = view_as_tensor<uint8_t, 3>(output_);
-    EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(epsilon))) <<
-    [&]()->std::string {
+    EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(epsilon)))
+        << [&]() -> std::string {
       if (diff_image) {
         if (img_out_cpu.shape == img_ref_cpu.shape) {
           cv::Mat diff;
@@ -256,21 +249,21 @@ class ResamplingTest : public ::testing::Test {
       int H = tmp_out.rows;
       if (hmargin) {
         cv::Rect L(0, 0, hmargin, H);
-        cv::Rect R(W-hmargin, 0, hmargin, H);
+        cv::Rect R(W - hmargin, 0, hmargin, H);
         reference_(L).copyTo(tmp_out(L));
         reference_(R).copyTo(tmp_out(R));
       }
       if (vmargin) {
         cv::Rect T(0, 0, W, vmargin);
-        cv::Rect B(0, H-vmargin, W, vmargin);
+        cv::Rect B(0, H - vmargin, W, vmargin);
         reference_(T).copyTo(tmp_out(T));
         reference_(B).copyTo(tmp_out(B));
       }
     }
     auto img_ref_cpu = view_as_tensor<uint8_t, 3>(reference_);
     auto img_out_cpu = view_as_tensor<uint8_t, 3>(tmp_out);
-    EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(epsilon))) <<
-    [&]()->std::string {
+    EXPECT_NO_FATAL_FAILURE(Check(img_out_cpu, img_ref_cpu, EqualEps(epsilon)))
+        << [&]() -> std::string {
       if (diff_image) {
         if (img_out_cpu.shape == img_ref_cpu.shape) {
           cv::Mat diff;
@@ -311,13 +304,13 @@ class ResamplingTest : public ::testing::Test {
     gpu_mem_tmp_ = memory::alloc_unique<float>(AllocType::GPU, tmpW * tmpH * channels);
     gpu_mem_out_ = memory::alloc_unique<uint8_t>(AllocType::GPU, outW * outH * channels);
 
-    img_in_  = { gpu_mem_in_.get(),  { H,    W,    channels } };
-    img_tmp_ = { gpu_mem_tmp_.get(), { tmpH, tmpW, channels } };
-    img_out_ = { gpu_mem_out_.get(), { outH, outW, channels } };
+    img_in_ = {gpu_mem_in_.get(), {H, W, channels}};
+    img_tmp_ = {gpu_mem_tmp_.get(), {tmpH, tmpW, channels}};
+    img_out_ = {gpu_mem_out_.get(), {outH, outW, channels}};
   }
 
   void Run() {
-    bool per_span = block_config_  == BlockPerSpan;
+    bool per_span = block_config_ == BlockPerSpan;
     int W = img_in_.shape[1];
     int H = img_in_.shape[0];
     int tmpW = img_tmp_.shape[1];
@@ -327,34 +320,34 @@ class ResamplingTest : public ::testing::Test {
     int channels = img_in_.shape[2];
     assert(img_out_.shape[2] == img_in_.shape[2]);
 
-    #if DALI_DEBUG
+#if DALI_DEBUG
     dim3 block(32, 8);
-    #else
+#else
     dim3 block(32, 24);
-    #endif
+#endif
 
     if (vert_first_) {
       assert(img_tmp_.shape == TensorShape<3>(outH, W, channels));
 
       dim3 grid = per_span ? dim3(div_ceil(tmpW, block.x), div_ceil(tmpH, block.y)) : dim3(1);
       ResampleVertTestKernel<<<grid, block, ResampleSharedMemSize>>>(
-        img_tmp_.data, tmpW*channels, tmpH, img_in_.data, W*channels, W, H, channels,
-        flt_y_, flt_y_.support());
+          img_tmp_.data, tmpW * channels, tmpH, img_in_.data, W * channels, W, H, channels, flt_y_,
+          flt_y_.support());
       grid = per_span ? dim3(div_ceil(outW, block.x), div_ceil(outH, block.y)) : dim3(1);
       ResampleHorzTestKernel<<<grid, block, ResampleSharedMemSize>>>(
-        img_out_.data, outW*channels, outW, img_tmp_.data, tmpW*channels, tmpW, tmpH, channels,
-        flt_x_, flt_x_.support());
+          img_out_.data, outW * channels, outW, img_tmp_.data, tmpW * channels, tmpW, tmpH,
+          channels, flt_x_, flt_x_.support());
     } else {
       assert(img_tmp_.shape == TensorShape<3>(H, outW, channels));
 
       dim3 grid = per_span ? dim3(div_ceil(tmpW, block.x), div_ceil(tmpH, block.y)) : dim3(1);
       ResampleHorzTestKernel<<<grid, block, ResampleSharedMemSize>>>(
-        img_tmp_.data, tmpW*channels, tmpW, img_in_.data, W*channels, W, H, channels,
-        flt_x_, flt_x_.support());
+          img_tmp_.data, tmpW * channels, tmpW, img_in_.data, W * channels, W, H, channels, flt_x_,
+          flt_x_.support());
       grid = per_span ? dim3(div_ceil(outW, block.x), div_ceil(outH, block.y)) : dim3(1);
       ResampleVertTestKernel<<<grid, block, ResampleSharedMemSize>>>(
-        img_out_.data, outW*channels, outH, img_tmp_.data, tmpW*channels, tmpW, tmpH, channels,
-        flt_y_, flt_y_.support());
+          img_out_.data, outW * channels, outH, img_tmp_.data, tmpW * channels, tmpW, tmpH,
+          channels, flt_y_, flt_y_.support());
     }
   }
 
@@ -406,7 +399,7 @@ class ResamplingTest : public ::testing::Test {
 
   TensorView<StorageGPU, uint8_t, 3> img_in_, img_out_;
   TensorView<StorageGPU, float, 3> img_tmp_;
-  using deleter = std::function<void(void*)>;
+  using deleter = std::function<void(void *)>;
   std::unique_ptr<uint8_t, deleter> gpu_mem_in_, gpu_mem_out_;
   std::unique_ptr<float, deleter> gpu_mem_tmp_;
   BlockConfig block_config_ = BlockPerImage;
@@ -415,10 +408,10 @@ class ResamplingTest : public ::testing::Test {
 
 TEST_F(ResamplingTest, ResampleGauss) {
   SetSource("imgproc/moire2.png", "imgproc/ref/resampling/resample_out.png");
-  SetOutputSize(InputWidth()-1, InputHeight()-3);
+  SetOutputSize(InputWidth() - 1, InputHeight() - 3);
   auto filters = GetResamplingFilters();
-  float sigmaX = (1/ScaleX() - 0.3f) / sqrt(2);
-  float sigmaY = (1/ScaleY() - 0.3f) / sqrt(2);
+  float sigmaX = (1 / ScaleX() - 0.3f) / sqrt(2);
+  float sigmaY = (1 / ScaleY() - 0.3f) / sqrt(2);
   auto fx = filters->Gaussian(sigmaX);
   auto fy = filters->Gaussian(sigmaY);
   SetFilters(fx, fy);
@@ -430,10 +423,10 @@ TEST_F(ResamplingTest, ResampleGauss) {
 
 TEST_F(ResamplingTest, ResampleVHGauss) {
   SetSource("imgproc/moire2.png", "imgproc/ref/resampling/resample_out.png");
-  SetOutputSize(InputWidth()-1, InputHeight()-3);
+  SetOutputSize(InputWidth() - 1, InputHeight() - 3);
   auto filters = GetResamplingFilters();
-  float sigmaX = (1/ScaleX() - 0.3f) / sqrt(2);
-  float sigmaY = (1/ScaleY() - 0.3f) / sqrt(2);
+  float sigmaX = (1 / ScaleX() - 0.3f) / sqrt(2);
+  float sigmaY = (1 / ScaleY() - 0.3f) / sqrt(2);
   auto fx = filters->Gaussian(sigmaX);
   auto fy = filters->Gaussian(sigmaY);
   SetProcessingOrder(true);

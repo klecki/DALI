@@ -15,8 +15,8 @@
 #ifndef DALI_OPERATORS_GENERIC_FLIP_H_
 #define DALI_OPERATORS_GENERIC_FLIP_H_
 
-#include <vector>
 #include <string>
+#include <vector>
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/operator/operator.h"
@@ -24,7 +24,7 @@
 namespace dali {
 
 template <typename Backend>
-class Flip: public Operator<Backend> {
+class Flip : public Operator<Backend> {
  public:
   explicit Flip(const OpSpec &spec);
 
@@ -35,7 +35,7 @@ class Flip: public Operator<Backend> {
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     output_desc.resize(1);
     auto &input = ws.template InputRef<Backend>(0);
-    output_desc[0].type =  input.type();
+    output_desc[0].type = input.type();
     output_desc[0].shape = input.shape();
     return true;
   }

@@ -66,5 +66,4 @@ __device__ bool BlockReduce(Acc &val, Reduction reduce) {
 }  // namespace kernels
 }  // namespace dali
 
-
 #endif  // DALI_KERNELS_REDUCE_REDUCE_COMMON_CUH_

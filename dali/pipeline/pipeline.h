@@ -25,13 +25,12 @@
 #include <vector>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/executor/executor.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/tensor.h"
 #include "dali/pipeline/data/tensor_list.h"
-#include "dali/pipeline/operator/builtin/external_source.h"
+#include "dali/pipeline/executor/executor.h"
 #include "dali/pipeline/graph/op_graph.h"
-
+#include "dali/pipeline/operator/builtin/external_source.h"
 
 namespace dali {
 
@@ -108,24 +107,21 @@ class DLL_PUBLIC Pipeline {
    * @brief Creates a placeholder for an external input with the given name
    */
   DLL_PUBLIC inline int AddExternalInput(const string &name) {
-    DALI_ENFORCE(!built_, "Alterations to the pipeline after "
-        "\"Build()\" has been called are not allowed");
+    DALI_ENFORCE(!built_,
+                 "Alterations to the pipeline after "
+                 "\"Build()\" has been called are not allowed");
     // Verify that this name is unique and record it
     auto it = edge_names_.find(name);
-    DALI_ENFORCE(it == edge_names_.end(), "External input name '" +
-        name + "' conflicts with existing intermediate result name");
+    DALI_ENFORCE(it == edge_names_.end(), "External input name '" + name +
+                                              "' conflicts with existing intermediate result name");
     EdgeMeta meta;
     meta.has_cpu = true;
     meta.has_gpu = false;
     meta.has_contiguous = false;
-    DALI_ENFORCE(edge_names_.insert({name, meta}).second,
-        "ExternalInput name insertion failure.");
+    DALI_ENFORCE(edge_names_.insert({name, meta}).second, "ExternalInput name insertion failure.");
 
     // Create a spec for an ExternalInput op and add it to our graph
-    OpSpec spec =
-      OpSpec("ExternalSource")
-              .AddArg("device", "cpu")
-              .AddOutput(name, "cpu");
+    OpSpec spec = OpSpec("ExternalSource").AddArg("device", "cpu").AddOutput(name, "cpu");
     auto logical_id = GetNextLogicalId();
     logical_ids_[logical_id];
     PrepareOpSpec(&spec, logical_id);
@@ -156,7 +152,7 @@ class DLL_PUBLIC Pipeline {
    * @param sync If SetExternalInputHelper should be blocking - waits until provided data is copied
    *             to the internal buffer
    */
-  template<typename TL>
+  template <typename TL>
   inline void SetExternalInputHelper(const string &name, const TL &tl, cudaStream_t stream = 0,
                                      bool sync = false, bool use_copy_kernel = false) {
     bool is_cpu_node = true;
@@ -185,7 +181,6 @@ class DLL_PUBLIC Pipeline {
     }
   }
 
-
   /**
    * @brief Sets the external input with the input name to the input data
    * @tparam Backend
@@ -195,14 +190,13 @@ class DLL_PUBLIC Pipeline {
    * @param sync If SetExternalInputHelper should be blocking - waits until provided data is copied
    *             to the internal buffer
    */
-  template<typename Backend>
-  DLL_PUBLIC inline void
-  SetExternalInput(const string &name, const TensorList<Backend> &tl, cudaStream_t stream = 0,
-                   bool sync = false, bool use_copy_kernel = false) {
+  template <typename Backend>
+  DLL_PUBLIC inline void SetExternalInput(const string &name, const TensorList<Backend> &tl,
+                                          cudaStream_t stream = 0, bool sync = false,
+                                          bool use_copy_kernel = false) {
     SetExternalInputHelper(name, tl, stream, sync, use_copy_kernel);
   }
 
-
   /**
    * @brief Sets the external input with the input name to the input data
    * @tparam Backend
@@ -212,10 +206,10 @@ class DLL_PUBLIC Pipeline {
    * @param sync If SetExternalInputHelper should be blocking - waits until provided data is copied
    *             to the internal buffer
    */
-  template<typename Backend>
-  DLL_PUBLIC inline void
-  SetExternalInput(const string &name, const TensorVector<Backend> &tv, cudaStream_t stream = 0,
-                   bool sync = false, bool use_copy_kernel = false) {
+  template <typename Backend>
+  DLL_PUBLIC inline void SetExternalInput(const string &name, const TensorVector<Backend> &tv,
+                                          cudaStream_t stream = 0, bool sync = false,
+                                          bool use_copy_kernel = false) {
     SetExternalInputHelper(name, tv, stream, sync, use_copy_kernel);
   }
 
@@ -231,13 +225,13 @@ class DLL_PUBLIC Pipeline {
    *
    * @return logical_id of added operator, so it can be used for further calls
    */
-  DLL_PUBLIC int AddOperator(const OpSpec &spec, const std::string& inst_name, int logical_id);
+  DLL_PUBLIC int AddOperator(const OpSpec &spec, const std::string &inst_name, int logical_id);
 
   /**
    * @brief Adds an Operator with the input specification to the pipeline. It will be assigned
    * a separate logical_id based on internal state of the pipeline.
    */
-  DLL_PUBLIC int AddOperator(const OpSpec &spec, const std::string& inst_name);
+  DLL_PUBLIC int AddOperator(const OpSpec &spec, const std::string &inst_name);
 
   /**
    * @brief Adds an unnamed Operator with the input specification to the pipeline.
@@ -259,7 +253,7 @@ class DLL_PUBLIC Pipeline {
    * @brief Returns the graph node with Operator
    * with a given name
    */
-  DLL_PUBLIC OpNode * GetOperatorNode(const std::string& name);
+  DLL_PUBLIC OpNode *GetOperatorNode(const std::string &name);
 
   /**
    * @brief Performs some checks on the user-constructed pipeline, setups data
@@ -284,8 +278,9 @@ class DLL_PUBLIC Pipeline {
    */
   DLL_PUBLIC void SetExecutionTypes(bool pipelined_execution = true,
                                     bool separated_execution = false, bool async_execution = true) {
-    DALI_ENFORCE(!built_, "Alterations to the pipeline after "
-        "\"Build()\" has been called are not allowed - cannot change execution type.");
+    DALI_ENFORCE(!built_,
+                 "Alterations to the pipeline after "
+                 "\"Build()\" has been called are not allowed - cannot change execution type.");
     pipelined_execution_ = pipelined_execution;
     separated_execution_ = separated_execution;
     async_execution_ = async_execution;
@@ -309,7 +304,7 @@ class DLL_PUBLIC Pipeline {
    */
   DLL_PUBLIC ExecutorMetaMap GetExecutorMeta() {
     if (executor_) {
-      return  executor_->GetExecutorMeta();
+      return executor_->GetExecutorMeta();
     } else {
       return {};
     }
@@ -397,7 +392,9 @@ class DLL_PUBLIC Pipeline {
   /**
    * @brief Returns the batch size that will be produced by the pipeline.
    */
-  DLL_PUBLIC inline int batch_size() const { return batch_size_; }
+  DLL_PUBLIC inline int batch_size() const {
+    return batch_size_;
+  }
 
   /**
    * @brief Returns the map of (node name, reader meta) for all nodes that return a valid meta
@@ -412,20 +409,25 @@ class DLL_PUBLIC Pipeline {
   /**
    * @brief Returns the number of threads used by the pipeline.
    */
-  DLL_PUBLIC inline int num_threads() const { return num_threads_; }
+  DLL_PUBLIC inline int num_threads() const {
+    return num_threads_;
+  }
 
   /**
    * @brief Returns the GPU device number used by the pipeline
    */
-  DLL_PUBLIC inline int device_id() const { return device_id_; }
+  DLL_PUBLIC inline int device_id() const {
+    return device_id_;
+  }
 
-    /**
+  /**
    * @brief Returns number of outputs.
    */
   DLL_PUBLIC int num_outputs() const;
 
   /**
-   * @brief Returns a string describing the type device type backing the output specified by given id.
+   * @brief Returns a string describing the type device type backing the output specified by given
+   * id.
    */
   DLL_PUBLIC const std::string &output_device(int id) const;
 
@@ -444,9 +446,7 @@ class DLL_PUBLIC Pipeline {
             bool set_affinity, int max_num_stream, int default_cuda_stream_priority,
             QueueSizes prefetch_queue_depth = QueueSizes{2});
 
-  using EdgeMeta = struct {
-    bool has_cpu, has_gpu, has_contiguous;
-  };
+  using EdgeMeta = struct { bool has_cpu, has_gpu, has_contiguous; };
 
   // Return the nearest multiple of 8 that is >= base_ptr_offset
   inline size_t round_up_to_8(size_t base_ptr_offset) {
@@ -473,8 +473,9 @@ class DLL_PUBLIC Pipeline {
       edge.has_gpu = true;
       edge.has_contiguous = true;
     } else {
-      DALI_FAIL("Invalid device argument \"" + device + "\". "
-          "Valid options are \"cpu\", \"gpu\", \"mixed\" or \"support\"");
+      DALI_FAIL("Invalid device argument \"" + device +
+                "\". "
+                "Valid options are \"cpu\", \"gpu\", \"mixed\" or \"support\"");
     }
     return edge;
   }

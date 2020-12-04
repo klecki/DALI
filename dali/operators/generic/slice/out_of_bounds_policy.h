@@ -27,14 +27,15 @@ template <bool inclusive_end>
 DALI_HOST_DEV DALI_FORCEINLINE bool is_out_of_bounds(int64_t idx, int64_t data_extent) {
   if (inclusive_end)  // check idx is within [0, data_extent]
     return static_cast<uint64_t>(idx) > static_cast<uint64_t>(data_extent);
-  else                // check idx is within [0, data_extent)
+  else  // check idx is within [0, data_extent)
     return static_cast<uint64_t>(idx) >= static_cast<uint64_t>(data_extent);
 }
 
 /**
  * @brief Determines what to do if slice parameters point to outside of the input bounds
  */
-enum class OutOfBoundsPolicy {
+enum class OutOfBoundsPolicy
+{
   Error,        // sampling out of bounds will throw an error
   TrimToShape,  // Slice shape will be trimmed to fit the input bounds (potentially empty output)
   Pad,  // Slicing out of bounds will result in padding with zeroes or any other provided value(s)
@@ -74,7 +75,7 @@ void ApplySliceBoundsPolicy(OutOfBoundsPolicy policy, const TensorShape<Dims> &i
     case OutOfBoundsPolicy::TrimToShape:
       for (int d = 0; d < input_shape.size(); d++) {
         auto slice_start = clamp<int64_t>(slice_anchor[d], 0, input_shape[d]);
-        auto slice_end   = clamp<int64_t>(slice_anchor[d] + slice_shape[d], 0, input_shape[d]);
+        auto slice_end = clamp<int64_t>(slice_anchor[d] + slice_shape[d], 0, input_shape[d]);
         assert(slice_end >= slice_start);
         slice_anchor[d] = slice_start;
         slice_shape[d] = slice_end - slice_start;
@@ -93,7 +94,7 @@ void ApplySliceBoundsPolicy(OutOfBoundsPolicy policy, const TensorShape<Dims> &i
               "}"));
         }
       }
-    break;
+      break;
   }
 }
 

@@ -15,35 +15,28 @@
 #ifndef DALI_KERNELS_IMGPROC_WARP_BLOCK_WARP_CUH_
 #define DALI_KERNELS_IMGPROC_WARP_BLOCK_WARP_CUH_
 
-#include "dali/kernels/kernel.h"
 #include "dali/kernels/imgproc/sampler.h"
-#include "dali/kernels/imgproc/warp/warp_setup.cuh"
-#include "dali/kernels/imgproc/warp/mapping_traits.h"
 #include "dali/kernels/imgproc/warp/map_coords.h"
+#include "dali/kernels/imgproc/warp/mapping_traits.h"
+#include "dali/kernels/imgproc/warp/warp_setup.cuh"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
 namespace warp {
 
-
-template <DALIInterpType interp_type, typename Mapping,
-          typename OutputType, typename InputType,
+template <DALIInterpType interp_type, typename Mapping, typename OutputType, typename InputType,
           typename BorderType>
-__device__ void BlockWarp(
-    SampleDesc<2, OutputType, InputType> sample, BlockDesc<2> block,
-    Mapping mapping, BorderType border) {
+__device__ void BlockWarp(SampleDesc<2, OutputType, InputType> sample, BlockDesc<2> block,
+                          Mapping mapping, BorderType border) {
   // Get the data pointers - un-erase type
   OutputType *__restrict__ output_data = sample.output;
   const InputType *__restrict__ input_data = sample.input;
   // Create input and output surfaces
-  const Surface2D<OutputType> out = {
-      output_data, sample.out_size, sample.channels,
-      sample.out_strides, 1
-  };
-  const Surface2D<const InputType> in = {
-      input_data, sample.in_size, sample.channels,
-      sample.in_strides, 1
-  };
+  const Surface2D<OutputType> out = {output_data, sample.out_size, sample.channels,
+                                     sample.out_strides, 1};
+  const Surface2D<const InputType> in = {input_data, sample.in_size, sample.channels,
+                                         sample.in_strides, 1};
   // ...and a sampler
   const auto sampler = make_sampler<interp_type>(in);
 
@@ -56,25 +49,18 @@ __device__ void BlockWarp(
   }
 }
 
-
-template <DALIInterpType interp_type, typename Mapping,
-          typename OutputType, typename InputType,
+template <DALIInterpType interp_type, typename Mapping, typename OutputType, typename InputType,
           typename BorderType>
-__device__ void BlockWarp(
-    SampleDesc<3, OutputType, InputType> sample, BlockDesc<3> block,
-    Mapping mapping, BorderType border) {
+__device__ void BlockWarp(SampleDesc<3, OutputType, InputType> sample, BlockDesc<3> block,
+                          Mapping mapping, BorderType border) {
   // Get the data pointers - un-erase type
   OutputType *__restrict__ output_data = sample.output;
   const InputType *__restrict__ input_data = sample.input;
   // Create input and output surfaces
-  const Surface3D<OutputType> out = {
-      output_data, sample.out_size, sample.channels,
-      sample.out_strides, 1
-  };
-  const Surface3D<const InputType> in = {
-      input_data, sample.in_size, sample.channels,
-      sample.in_strides, 1
-  };
+  const Surface3D<OutputType> out = {output_data, sample.out_size, sample.channels,
+                                     sample.out_strides, 1};
+  const Surface3D<const InputType> in = {input_data, sample.in_size, sample.channels,
+                                         sample.in_strides, 1};
   // ...and a sampler
   const auto sampler = make_sampler<interp_type>(in);
 
@@ -88,7 +74,6 @@ __device__ void BlockWarp(
     }
   }
 }
-
 
 }  // namespace warp
 }  // namespace kernels

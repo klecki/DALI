@@ -16,11 +16,11 @@
 #define DALI_KERNELS_COMMON_JOIN_TENSOR_JOIN_SHAPE_H_
 
 #include <cassert>
+#include "dali/core/error_handling.h"
+#include "dali/core/format.h"
 #include "dali/core/span.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/core/format.h"
-#include "dali/core/error_handling.h"
 
 namespace dali {
 namespace kernels {
@@ -57,7 +57,6 @@ inline TensorShape<> JoinedShape(span<const TensorShape<>> in_shapes, int axis, 
   return new_axis ? ConcatenatedShape(in_shapes, axis) : StackedShape(in_shapes, axis);
 }
 
-
 template <typename GetInListShapeFunc>
 void CheckJoinedShapes(GetInListShapeFunc &&in_shape, int njoin, int axis, bool new_axis) {
   if (njoin < 1)
@@ -65,16 +64,18 @@ void CheckJoinedShapes(GetInListShapeFunc &&in_shape, int njoin, int axis, bool 
   const auto &shape_0 = *in_shape(0);
   int N = shape_0.num_samples();
   int D = shape_0.sample_dim();
-  DALI_ENFORCE(axis >= 0 && axis < D + new_axis, make_string(
-    "Axis index ", axis, " is invalid for ", D, "-D tensor ",
-    (new_axis ? "stacking" : "concatenation"), "."));
+  DALI_ENFORCE(axis >= 0 && axis < D + new_axis,
+               make_string("Axis index ", axis, " is invalid for ", D, "-D tensor ",
+                           (new_axis ? "stacking" : "concatenation"), "."));
 
   for (int t = 1; t < njoin; t++) {
     const auto &shape_t = *in_shape(t);
     if (new_axis) {
-      DALI_ENFORCE(shape_t == shape_0, make_string("Tensor stacking requires that all "
-        "tensors being stacked are of equal shape. The first batch has a shape: ", shape_0,
-        "\nbatch ", t, " has a shape ", shape_t));
+      DALI_ENFORCE(
+          shape_t == shape_0,
+          make_string("Tensor stacking requires that all "
+                      "tensors being stacked are of equal shape. The first batch has a shape: ",
+                      shape_0, "\nbatch ", t, " has a shape ", shape_t));
     } else {
       for (int i = 0; i < N; i++) {
         for (int d = 0; d < D; d++) {
@@ -82,10 +83,14 @@ void CheckJoinedShapes(GetInListShapeFunc &&in_shape, int njoin, int axis, bool 
             continue;
           auto extent = shape_t.tensor_shape_span(i)[d];
           auto ref_extent = shape_0.tensor_shape_span(i)[d];
-          DALI_ENFORCE(extent == ref_extent, make_string("Concatenated tensors can differ in "
-            "size only in the concatenation axis (", axis, ").\nTensor ", i, " in batch ", t,
-            " has a shape ", shape_t[i], " which is not compatible with respective tensor in "
-            "batch 0 of shape ", shape_0[i], ". Mismatch in axis ", d, "."));
+          DALI_ENFORCE(
+              extent == ref_extent,
+              make_string("Concatenated tensors can differ in "
+                          "size only in the concatenation axis (",
+                          axis, ").\nTensor ", i, " in batch ", t, " has a shape ", shape_t[i],
+                          " which is not compatible with respective tensor in "
+                          "batch 0 of shape ",
+                          shape_0[i], ". Mismatch in axis ", d, "."));
         }
       }
     }
@@ -93,8 +98,8 @@ void CheckJoinedShapes(GetInListShapeFunc &&in_shape, int njoin, int axis, bool 
 }
 
 template <int out_ndim, typename GetInListShapeFunc>
-void JoinedShape(TensorListShape<out_ndim> &out,
-                 GetInListShapeFunc &&in_shape, int njoin, int axis, bool new_axis) {
+void JoinedShape(TensorListShape<out_ndim> &out, GetInListShapeFunc &&in_shape, int njoin, int axis,
+                 bool new_axis) {
   if (njoin == 0) {
     out.resize(0, joined_ndim(in_shape(0)->sample_dim(), new_axis));
     return;
@@ -107,7 +112,7 @@ void JoinedShape(TensorListShape<out_ndim> &out,
   out.resize(N, joined_ndim(in_shape(0)->sample_dim(), new_axis));
 
   int64_t in_volume = 0;
-  for (int  t = 0; t < njoin; t++)
+  for (int t = 0; t < njoin; t++)
     in_volume += in_shape(t)->num_elements();
 
   for (int i = 0; i < N; i++) {

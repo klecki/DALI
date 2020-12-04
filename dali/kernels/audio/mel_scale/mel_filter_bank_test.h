@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_KERNELS_AUDIO_MEL_SCALE_MEL_FILTER_BANK_TEST_H_
 #define DALI_KERNELS_AUDIO_MEL_SCALE_MEL_FILTER_BANK_TEST_H_
 
-#include <vector>
 #include <cassert>
-#include "dali/kernels/audio/mel_scale/mel_scale.h"
+#include <vector>
 #include "dali/core/common.h"
+#include "dali/kernels/audio/mel_scale/mel_scale.h"
 #include "dali/kernels/kernel_params.h"
 
 namespace dali {

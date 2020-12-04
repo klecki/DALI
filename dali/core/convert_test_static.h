@@ -48,7 +48,6 @@ static_assert(needs_clamp<int16_t, uint32_t>::value, "Need to clamp negatives to
 static_assert(needs_clamp<int16_t, uint64_t>::value, "Need to clamp negatives to 0");
 static_assert(needs_clamp<int32_t, uint64_t>::value, "Need to clamp negatives to 0");
 
-
 static_assert(!needs_clamp<int8_t, int8_t>::value, "Clamping not required");
 static_assert(!needs_clamp<int8_t, int16_t>::value, "Clamping not required");
 static_assert(!needs_clamp<uint8_t, int16_t>::value, "Clamping not required");
@@ -125,15 +124,15 @@ static_assert(clamp<int32_t>(4.2) == 4, "Unexpected clamp result");
 static_assert(clamp<int32_t>(0x7fffffff) == 0x7fffffff, "Unexpected clamp result");
 static_assert(clamp<int32_t>(0x80000000L) == 0x7fffffff, "Unexpected clamp result");
 static_assert(clamp<int32_t>(0x100000000L) == 0x7fffffff, "Unexpected clamp result");
-static_assert(clamp<int32_t>(-0x80000000LL) == -0x7fffffff-1, "Unexpected clamp result");
-static_assert(clamp<int32_t>(-0x100000000LL) == -0x7fffffff-1, "Unexpected clamp result");
+static_assert(clamp<int32_t>(-0x80000000LL) == -0x7fffffff - 1, "Unexpected clamp result");
+static_assert(clamp<int32_t>(-0x100000000LL) == -0x7fffffff - 1, "Unexpected clamp result");
 static_assert(clamp<int32_t>(1.0e+20f) == 0x7fffffff, "Unexpected clamp result");
 static_assert(clamp<int32_t>(-1.0e+20f) == -0x80000000L, "Unexpected clamp result");
 static_assert(clamp<int32_t>(1.0e+200) == 0x7fffffff, "Unexpected clamp result");
 static_assert(clamp<int32_t>(-1.0e+200) == -0x80000000L, "Unexpected clamp result");
 
 static_assert(clamp<int64_t>(1.0e+200) == 0x7fffffffffffffffLL, "Unexpected clamp result");
-static_assert(clamp<int64_t>(-1.0e+200) == -0x7fffffffffffffffLL-1, "Unexpected clamp result");
+static_assert(clamp<int64_t>(-1.0e+200) == -0x7fffffffffffffffLL - 1, "Unexpected clamp result");
 static_assert(clamp<uint64_t>(1.0e+200) == 0xffffffffffffffffULL, "Unexpected clamp result");
 static_assert(clamp<uint64_t>(-1.0e+200) == 0, "Unexpected clamp result");
 

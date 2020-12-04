@@ -15,8 +15,8 @@
 
 #include "dali/core/static_switch.h"
 #include "dali/operators/math/expressions/arithmetic_meta.h"
-#include "dali/operators/math/expressions/expression_impl_gpu.cuh"
 #include "dali/operators/math/expressions/expression_factory_instances/expression_impl_factory.h"
+#include "dali/operators/math/expressions/expression_impl_gpu.cuh"
 
 namespace dali {
 

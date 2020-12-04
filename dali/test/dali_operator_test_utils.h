@@ -33,20 +33,18 @@ DLL_PUBLIC extern const std::vector<Arguments> kDevices;
 /**
  * Remove const pointer: const T* -> T
  */
-template<typename T>
+template <typename T>
 using remove_cp = std::remove_const_t<std::remove_pointer_t<T>>;
-
 
 /**
  * Assigns pointer to raw data of provided TensorList.
  * @param tl
  * @param destination
  */
-template<typename T, typename Backend>
+template <typename T, typename Backend>
 void pointer_to_data(const TensorList<Backend> &tl, T &destination) {
   static_assert(std::is_pointer<T>::value, "T is not a pointer");
-  static_assert(std::is_fundamental<remove_cp<T>>::value,
-                "T is a pointer to non-fundamental type");
+  static_assert(std::is_fundamental<remove_cp<T>>::value, "T is a pointer to non-fundamental type");
   destination = tl.template data<remove_cp<T>>();
 }
 
@@ -56,8 +54,7 @@ inline std::vector<testing::Arguments> cartesian(std::vector<testing::Arguments>
   return args_vec;
 }
 
-
-template<typename... Ts>
+template <typename... Ts>
 inline std::vector<testing::Arguments> cartesian(std::vector<testing::Arguments> args_vec,
                                                  Ts... args_vecs) {
   std::vector<testing::Arguments> result;
@@ -70,7 +67,6 @@ inline std::vector<testing::Arguments> cartesian(std::vector<testing::Arguments>
   }
   return result;
 }
-
 
 }  // namespace testing
 }  // namespace dali

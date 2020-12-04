@@ -12,114 +12,106 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/transpose/transpose_gpu_impl.cuh"   // NOLINT
-#include "dali/kernels/transpose/transpose_gpu_setup.cuh"  // NOLINT
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <numeric>
 #include <vector>
-#include "dali/core/dev_buffer.h"
-#include "dali/kernels/common/utils.h"
-#include "dali/core/tensor_shape_print.h"
-#include "dali/test/test_tensors.h"
 #include "dali/core/cuda_event.h"
+#include "dali/core/dev_buffer.h"
+#include "dali/core/tensor_shape_print.h"
+#include "dali/kernels/common/utils.h"
+#include "dali/kernels/transpose/transpose_gpu_impl.cuh"   // NOLINT
+#include "dali/kernels/transpose/transpose_gpu_setup.cuh"  // NOLINT
 #include "dali/kernels/transpose/transpose_test.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
 
 using namespace transpose_impl;  // NOLINT
 
-
 TEST(SimplifyPermute, NoSimplification) {
-  int64_t shape[] = { 2, 3, 4, 5 };
-  int perm[] = { 0, 3, 2, 1 };
+  int64_t shape[] = {2, 3, 4, 5};
+  int perm[] = {0, 3, 2, 1};
   TensorShape<> s_shape, ref_shape;
   SmallVector<int, 6> s_perm, ref_perm;
   SimplifyPermute(s_shape, s_perm, shape, perm, 4);
-  ref_shape = { 2, 3, 4, 5 };
-  ref_perm = { 0, 3, 2, 1 };
+  ref_shape = {2, 3, 4, 5};
+  ref_perm = {0, 3, 2, 1};
   EXPECT_EQ(s_shape, ref_shape);
   EXPECT_EQ(s_perm, ref_perm);
 }
 
 TEST(SimplifyPermute, CollapseUnitDims) {
-  int64_t shape[] = { 2, 1, 3, 4, 1, 5 };
-  int perm[] = { 0, 5, 1, 3, 2, 4 };
+  int64_t shape[] = {2, 1, 3, 4, 1, 5};
+  int perm[] = {0, 5, 1, 3, 2, 4};
   TensorShape<> s_shape, ref_shape;
   SmallVector<int, 6> s_perm, ref_perm;
   SimplifyPermute(s_shape, s_perm, shape, perm, 6);
-  ref_shape = { 2, 3, 4, 5 };
-  ref_perm = { 0, 3, 2, 1 };
+  ref_shape = {2, 3, 4, 5};
+  ref_perm = {0, 3, 2, 1};
   EXPECT_EQ(s_shape, ref_shape);
   EXPECT_EQ(s_perm, ref_perm);
 }
 
 TEST(SimplifyPermute, Collapse) {
-  int64_t shape[] = { 2, 1, 3, 4, 1, 5 };
-  int perm[] = { 3, 4, 5, 0, 1, 2 };
+  int64_t shape[] = {2, 1, 3, 4, 1, 5};
+  int perm[] = {3, 4, 5, 0, 1, 2};
   TensorShape<> s_shape, ref_shape;
   SmallVector<int, 6> s_perm, ref_perm;
   SimplifyPermute(s_shape, s_perm, shape, perm, 6);
-  ref_shape = { 6, 20 };
-  ref_perm = { 1, 0 };
+  ref_shape = {6, 20};
+  ref_perm = {1, 0};
   EXPECT_EQ(s_shape, ref_shape);
   EXPECT_EQ(s_perm, ref_perm);
 }
 
 TEST(TransposeGPU, GetTransposeMethod) {
   {
-    TensorShape<> shape = { 640*480, 3 };
-    int perm[] = { 1, 0 };
+    TensorShape<> shape = {640 * 480, 3};
+    int perm[] = {1, 0};
     EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 2, sizeof(int)),
               TransposeMethod::Deinterleave);
   }
   {
-    TensorShape<> shape = { 3, 640*480 };
-    int perm[] = { 1, 0 };  // interleave
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 2, sizeof(int)),
-              TransposeMethod::Interleave);
+    TensorShape<> shape = {3, 640 * 480};
+    int perm[] = {1, 0};  // interleave
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 2, sizeof(int)), TransposeMethod::Interleave);
   }
   {
-    TensorShape<> shape = { 640, 480 };
-    int perm[] = { 1, 0 };  // scalar tiled
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 2, sizeof(int)),
-              TransposeMethod::Tiled);
+    TensorShape<> shape = {640, 480};
+    int perm[] = {1, 0};  // scalar tiled
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 2, sizeof(int)), TransposeMethod::Tiled);
   }
   {
-    TensorShape<> shape = { 20, 640, 480 };
-    int perm[] = { 1, 2, 0 };  // scalar tiled
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)),
-              TransposeMethod::Tiled);
+    TensorShape<> shape = {20, 640, 480};
+    int perm[] = {1, 2, 0};  // scalar tiled
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)), TransposeMethod::Tiled);
   }
   {
-    TensorShape<> shape = { 640, 480, 3 };
-    int perm[] = { 1, 0, 2 };  // vectorized tiled
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)),
-              TransposeMethod::Tiled);
+    TensorShape<> shape = {640, 480, 3};
+    int perm[] = {1, 0, 2};  // vectorized tiled
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)), TransposeMethod::Tiled);
   }
   {
-    TensorShape<> shape = { 640, 3, 480 };
-    int perm[] = { 1, 2, 0 };  // some mess
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)),
-              TransposeMethod::Generic);
+    TensorShape<> shape = {640, 3, 480};
+    int perm[] = {1, 2, 0};  // some mess
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)), TransposeMethod::Generic);
   }
   {
-    TensorShape<> shape = { 640, 480, 50 };
-    int perm[] = { 1, 0, 2 };  // generic stuff
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)),
-              TransposeMethod::Generic);
+    TensorShape<> shape = {640, 480, 50};
+    int perm[] = {1, 0, 2};  // generic stuff
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 3, sizeof(int)), TransposeMethod::Generic);
   }
   {
-    TensorShape<> shape = { 640*480 };
-    int perm[] = { 0 };  // identity
-    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 1, sizeof(int)),
-              TransposeMethod::Copy);
+    TensorShape<> shape = {640 * 480};
+    int perm[] = {0};  // identity
+    EXPECT_EQ(GetTransposeMethod(shape.data(), perm, 1, sizeof(int)), TransposeMethod::Copy);
   }
 }
 
 TEST(TransposeTiled, AllPerm4DInnermost) {
-  TensorShape<> shape = { 19, 57, 37, 53 };  // a bunch of primes, just to make it harder
+  TensorShape<> shape = {19, 57, 37, 53};  // a bunch of primes, just to make it harder
   int size = volume(shape);
   vector<int> in_cpu(size), out_cpu(size), ref(size);
   std::iota(in_cpu.begin(), in_cpu.end(), 0);
@@ -137,9 +129,9 @@ TEST(TransposeTiled, AllPerm4DInnermost) {
     if (perm[3] == 3)
       continue;  // innermost dim must be permuted
 
-    std::cerr << "Testing permutation "
-      << perm[0] << " " << perm[1] << " " << perm[2] << " " << perm[3] << "\n";
-    cudaMemset(out_gpu, 0xff, size*sizeof(int));
+    std::cerr << "Testing permutation " << perm[0] << " " << perm[1] << " " << perm[2] << " "
+              << perm[3] << "\n";
+    cudaMemset(out_gpu, 0xff, size * sizeof(int));
 
     TiledTransposeDesc<int> desc;
     memset(&desc, 0xCC, sizeof(desc));
@@ -153,7 +145,8 @@ TEST(TransposeTiled, AllPerm4DInnermost) {
     float time;
     cudaEventElapsedTime(&time, start, end);
     time *= 1e+6;
-    std::cerr << 2*size*sizeof(int) / time << " GB/s" << "\n";
+    std::cerr << 2 * size * sizeof(int) / time << " GB/s"
+              << "\n";
 
     for (int i = 0; i < size; i++) {
       ASSERT_EQ(out_cpu[i], ref[i]) << " at " << i;
@@ -161,19 +154,18 @@ TEST(TransposeTiled, AllPerm4DInnermost) {
   }
 }
 
-
 TEST(TransposeTiled, BuildDescVectorized) {
-  TensorShape<> shape = { 57, 37, 53, 4 };  // a bunch of primes, just to make it harder
+  TensorShape<> shape = {57, 37, 53, 4};  // a bunch of primes, just to make it harder
   int size = volume(shape);
   vector<int> in_cpu(size), out_cpu(size), ref(size);
   std::iota(in_cpu.begin(), in_cpu.end(), 0);
   DeviceBuffer<int> in_gpu, out_gpu;
   in_gpu.resize(size);
   out_gpu.resize(size);
-  cudaMemset(out_gpu, 0xff, size*sizeof(int));
+  cudaMemset(out_gpu, 0xff, size * sizeof(int));
   copyH2D(in_gpu.data(), in_cpu.data(), size);
 
-  SmallVector<int, 6> perm = { 1, 2, 0, 3 };
+  SmallVector<int, 6> perm = {1, 2, 0, 3};
 
   int grid_size = 1024;
   TiledTransposeDesc<int> desc;
@@ -190,10 +182,9 @@ TEST(TransposeTiled, BuildDescVectorized) {
   }
 }
 
-
 TEST(TransposeDeinterleave, AllPerm4DInnermost) {
   int channels = 3;
-  TensorShape<> shape = { 19, 157, 137, channels };  // small inner dimension
+  TensorShape<> shape = {19, 157, 137, channels};  // small inner dimension
   int size = volume(shape);
   vector<int> in_cpu(size), out_cpu(size), ref(size);
   std::iota(in_cpu.begin(), in_cpu.end(), 0);
@@ -214,9 +205,9 @@ TEST(TransposeDeinterleave, AllPerm4DInnermost) {
     if (perm[3] == 3)
       continue;  // innermost dim must be permuted
 
-    std::cerr << "Testing permutation "
-      << perm[0] << " " << perm[1] << " " << perm[2] << " " << perm[3] << "\n";
-    cudaMemset(out_gpu, 0xff, size*sizeof(int));
+    std::cerr << "Testing permutation " << perm[0] << " " << perm[1] << " " << perm[2] << " "
+              << perm[3] << "\n";
+    cudaMemset(out_gpu, 0xff, size * sizeof(int));
 
     DeinterleaveDesc<int> desc;
     memset(&desc, 0xCC, sizeof(desc));
@@ -230,8 +221,8 @@ TEST(TransposeDeinterleave, AllPerm4DInnermost) {
     float time;
     cudaEventElapsedTime(&time, start, end);
     time *= 1e+6;
-    std::cerr << 2*size*sizeof(int) / time << " GB/s" << "\n";
-
+    std::cerr << 2 * size * sizeof(int) / time << " GB/s"
+              << "\n";
 
     for (int i = 0; i < size; i++) {
       ASSERT_EQ(out_cpu[i], ref[i]) << " at " << i;
@@ -240,7 +231,7 @@ TEST(TransposeDeinterleave, AllPerm4DInnermost) {
 }
 
 TEST(TransposeGeneric, AllPerm4D) {
-  TensorShape<> shape = { 31, 43, 53, 47 };
+  TensorShape<> shape = {31, 43, 53, 47};
   int size = volume(shape);
   vector<int> in_cpu(size), out_cpu(size), ref(size);
   std::iota(in_cpu.begin(), in_cpu.end(), 0);
@@ -254,10 +245,9 @@ TEST(TransposeGeneric, AllPerm4D) {
   ASSERT_LT(grid_size * block_size, size) << "Weak test error: Grid too large to test grid loop";
 
   for (auto &perm : testing::Permutations4) {
-    std::cerr << "Testing permutation "
-      << perm[0] << " " << perm[1] << " " << perm[2] << " " << perm[3] << "  input shape "
-      << shape << "\n";
-    cudaMemset(out_gpu, 0xff, size*sizeof(int));
+    std::cerr << "Testing permutation " << perm[0] << " " << perm[1] << " " << perm[2] << " "
+              << perm[3] << "  input shape " << shape << "\n";
+    cudaMemset(out_gpu, 0xff, size * sizeof(int));
 
     GenericTransposeDesc<int> desc;
     memset(&desc, 0xCC, sizeof(desc));
@@ -289,7 +279,7 @@ TEST(TransposeGeneric, AllPerm4D) {
     std::cerr << " input shape " << simplified_shape << "\n";
 
     memset(&desc, 0xCC, sizeof(desc));
-    cudaMemset(out_gpu, 0xff, size*sizeof(int));
+    cudaMemset(out_gpu, 0xff, size * sizeof(int));
     InitGenericTranspose(desc, simplified_shape, make_span(simplified_perm), out_gpu, in_gpu);
     TransposeGenericSingle<<<grid_size, block_size>>>(desc);
     copyD2H(out_cpu.data(), out_gpu.data(), size);

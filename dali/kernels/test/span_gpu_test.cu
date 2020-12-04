@@ -14,8 +14,8 @@
 
 #include <gtest/gtest.h>
 #include "dali/core/span.h"
-#include "dali/kernels/alloc.h"
 #include "dali/core/util.h"
+#include "dali/kernels/alloc.h"
 
 namespace dali {
 namespace kernels {
@@ -23,7 +23,7 @@ namespace {
 
 template <typename T, span_extent_t extent>
 __global__ void TestSpanKernel(span<T, extent> span) {
-  int x = threadIdx.x + blockIdx.x*blockDim.x;
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
   if (x < span.size()) {
     span[x] += 1 + x;
   }
@@ -60,7 +60,7 @@ TEST(TestGPUSpan, Test1) {
 
   auto gpumem = memory::alloc_unique<int>(AllocType::GPU, N);
   cudaMemcpy(gpumem.get(), array, sizeof(array), cudaMemcpyHostToDevice);
-  span<int> dyn_span = { gpumem.get(), N };
+  span<int> dyn_span = {gpumem.get(), N};
   TestSpanKernel<<<grid, block>>>(dyn_span);
   cudaMemcpy(out, gpumem.get(), sizeof(array), cudaMemcpyDeviceToHost);
   ASSERT_EQ(cudaGetLastError(), cudaSuccess);
@@ -69,7 +69,7 @@ TEST(TestGPUSpan, Test1) {
   }
 
   cudaMemcpy(gpumem.get(), array, sizeof(array), cudaMemcpyHostToDevice);
-  span<int, N> static_span = { gpumem.get() };
+  span<int, N> static_span = {gpumem.get()};
   TestSpanKernel<<<grid, block>>>(static_span);
   cudaMemcpy(out, gpumem.get(), sizeof(array), cudaMemcpyDeviceToHost);
   ASSERT_EQ(cudaGetLastError(), cudaSuccess);

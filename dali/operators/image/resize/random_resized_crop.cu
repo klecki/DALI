@@ -12,27 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include <vector>
 #include <cmath>
+#include <vector>
 
-#include "dali/pipeline/data/views.h"
 #include "dali/operators/image/resize/random_resized_crop.h"
+#include "dali/pipeline/data/views.h"
 #include "dali/util/random_crop_generator.h"
 
 namespace dali {
 
-template<>
+template <>
 void RandomResizedCrop<GPUBackend>::BackendInit() {
   InitializeGPU(spec_.GetArgument<int>("minibatch_size"),
                 spec_.GetArgument<int64_t>("temp_buffer_hint"));
 }
 
-template<>
+template <>
 void RandomResizedCrop<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   auto &input = ws.Input<GPUBackend>(0);
-  DALI_ENFORCE(IsType<uint8>(input.type()),
-      "Expected input data as uint8.");
+  DALI_ENFORCE(IsType<uint8>(input.type()), "Expected input data as uint8.");
 
   auto &output = ws.Output<GPUBackend>(0);
   RunResize(ws, output, input);

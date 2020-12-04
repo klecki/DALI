@@ -31,10 +31,10 @@ void FillCosineTableTypeI(T *table, int64_t input_length, int64_t ndct, bool nor
   int64_t idx = 0;
   for (int64_t k = 0; k < ndct; k++) {
     table[idx++] = 0.5;  // n = 0
-    for (int64_t n = 1; n < input_length-1; n++) {
+    for (int64_t n = 1; n < input_length - 1; n++) {
       table[idx++] = std::cos(phase_mul * k * n);
     }
-    table[idx++] = k % 2 == 0 ?  0.5 : -0.5;  // n = input_length - 1
+    table[idx++] = k % 2 == 0 ? 0.5 : -0.5;  // n = input_length - 1
   }
 }
 
@@ -55,7 +55,6 @@ void FillCosineTableTypeII(T *table, int64_t input_length, int64_t ndct, bool no
   }
 }
 
-
 template <typename T>
 void FillCosineTableTypeIII(T *table, int64_t input_length, int64_t ndct, bool normalize) {
   double phase_mul = M_PI / input_length;
@@ -73,7 +72,6 @@ void FillCosineTableTypeIII(T *table, int64_t input_length, int64_t ndct, bool n
   }
 }
 
-
 template <typename T>
 void FillCosineTableTypeIV(T *table, int64_t input_length, int64_t ndct, bool normalize) {
   double phase_mul = M_PI / input_length;
@@ -85,7 +83,6 @@ void FillCosineTableTypeIV(T *table, int64_t input_length, int64_t ndct, bool no
     }
   }
 }
-
 
 template <typename T>
 void FillCosineTable(T *table, int64_t input_length, DctArgs args) {

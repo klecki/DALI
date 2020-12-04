@@ -15,24 +15,21 @@
 #include <gtest/gtest.h>
 #include <random>
 #include <utility>
-#include "dali/kernels/reduce/mean_stddev_gpu_impl.cuh"
-#include "dali/kernels/scratch.h"
-#include "dali/test/test_tensors.h"
-#include "dali/test/tensor_test_utils.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/kernels/reduce/reduce_test.h"
+#include "dali/kernels/reduce/mean_stddev_gpu_impl.cuh"
 #include "dali/kernels/reduce/reduce_gpu_test.h"
+#include "dali/kernels/reduce/reduce_test.h"
+#include "dali/kernels/scratch.h"
+#include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
 namespace reduce_impl {
 
 template <typename Out, typename In, typename Mean>
-void CenterAndSquare(const OutTensorCPU<Out> &out,
-                     const InTensorCPU<In> &in,
-                     const InTensorCPU<Mean> mean,
-                     TensorShape<> &in_pos,
-                     TensorShape<> &mean_pos,
+void CenterAndSquare(const OutTensorCPU<Out> &out, const InTensorCPU<In> &in,
+                     const InTensorCPU<Mean> mean, TensorShape<> &in_pos, TensorShape<> &mean_pos,
                      int dim = 0) {
   int extent = in.shape[dim];
   int dj = mean.shape[dim] > 1 ? 1 : 0;
@@ -54,8 +51,7 @@ void CenterAndSquare(const OutTensorCPU<Out> &out,
 }
 
 template <typename Out = float, typename In, typename Mean>
-TestTensorList<Out> CenterAndSquare(const InListCPU<In> &in,
-                                    const InListCPU<Mean> &mean) {
+TestTensorList<Out> CenterAndSquare(const InListCPU<In> &in, const InListCPU<Mean> &mean) {
   TestTensorList<Out> out_tl;
   out_tl.reshape(in.shape);
   auto out = out_tl.cpu();
@@ -74,8 +70,7 @@ TestTensorList<Out> CenterAndSquare(const InListCPU<In> &in,
 
 template <typename Out = float, typename In, typename Mean>
 TestTensorList<Out> RefStdDev(const TensorListView<StorageCPU, In> &in,
-                              const TensorListView<StorageCPU, Mean> &mean,
-                              int ddof = 0,
+                              const TensorListView<StorageCPU, Mean> &mean, int ddof = 0,
                               double reg = 0, bool inv = false) {
   SmallVector<int, 6> axes;
   for (int d = 0; d < mean.sample_dim(); d++) {
@@ -105,8 +100,8 @@ TestTensorList<Out> RefStdDev(const TensorListView<StorageCPU, In> &in,
     auto reduced_samples_cpu = reduced_samples.cpu();
 
     for (int i = 0; i < N; i++) {
-      RefReduce(reduced_samples_cpu[i], centered_squared_cpu[i],
-                make_span(axes), true, reductions::sum());
+      RefReduce(reduced_samples_cpu[i], centered_squared_cpu[i], make_span(axes), true,
+                reductions::sum());
     }
 
     TestTensorList<Out> out_tl;
@@ -139,8 +134,7 @@ TestTensorList<Out> RefStdDev(const TensorListView<StorageCPU, In> &in,
 }
 
 template <typename Acc, typename Out, typename In>
-void RefMean(const TensorListView<StorageCPU, Out> &out,
-             const TensorListView<StorageCPU, In> &in,
+void RefMean(const TensorListView<StorageCPU, Out> &out, const TensorListView<StorageCPU, In> &in,
              span<const int> axes, bool keep_dims, bool batch) {
   TestTensorList<Acc> sum;
   TensorListShape<> out_shape;
@@ -175,17 +169,9 @@ void RefMean(const TensorListView<StorageCPU, Out> &out,
 }
 
 TEST(MeanImplGPU, SplitStage) {
-  TensorListShape<> in_shape = {{
-    { 32, 2, 64000 },
-    { 15, 4, 128000 },
-    { 72000, 1, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 1, 2, 1 },
-    { 1, 4, 1 },
-    { 1, 1, 1 }
-  }};
-  int axes[] = { 0, 2 };
+  TensorListShape<> in_shape = {{{32, 2, 64000}, {15, 4, 128000}, {72000, 1, 7}}};
+  TensorListShape<> ref_out_shape = {{{1, 2, 1}, {1, 4, 1}, {1, 1, 1}}};
+  int axes[] = {0, 2};
 
   testing::ReductionKernelTest<MeanImplGPU<float, uint8_t, uint64_t>, float, uint8_t> test;
   for (int iter = 0; iter < 3; iter++) {
@@ -198,18 +184,10 @@ TEST(MeanImplGPU, SplitStage) {
   }
 }
 
-
-
 TEST(MeanImplGPU, BatchMean) {
-  TensorListShape<> in_shape = {{
-    { 32, 3, 64000 },
-    { 15, 3, 128000 },
-    { 72000, 3, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    TensorShape<>{3}
-  }};
-  int axes[] = { 0, 2 };
+  TensorListShape<> in_shape = {{{32, 3, 64000}, {15, 3, 128000}, {72000, 3, 7}}};
+  TensorListShape<> ref_out_shape = {{TensorShape<>{3}}};
+  int axes[] = {0, 2};
 
   testing::ReductionKernelTest<MeanImplGPU<float, uint8_t, uint64_t>, float, uint8_t> test;
   for (int iter = 0; iter < 3; iter++) {
@@ -224,17 +202,9 @@ TEST(MeanImplGPU, BatchMean) {
 }
 
 TEST(StdDevImplGPU, Outer_Inner_SplitStage) {
-  TensorListShape<> in_shape = {{
-    { 32, 2, 64000 },
-    { 15, 4, 128000 },
-    { 72000, 1, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 1, 2, 1 },
-    { 1, 4, 1 },
-    { 1, 1, 1 }
-  }};
-  int axes[] = { 0, 2 };
+  TensorListShape<> in_shape = {{{32, 2, 64000}, {15, 4, 128000}, {72000, 1, 7}}};
+  TensorListShape<> ref_out_shape = {{{1, 2, 1}, {1, 4, 1}, {1, 1, 1}}};
+  int axes[] = {0, 2};
 
   TestTensorList<float> fake_mean;
   fake_mean.reshape(ref_out_shape);
@@ -260,25 +230,16 @@ TEST(StdDevImplGPU, Outer_Inner_SplitStage) {
   }
 }
 
-
 TEST(StdDevImplGPU, Middle_Inner_Sample) {
-  TensorListShape<> in_shape = {{
-    { 4, 32, 1, 6400 },
-    { 3, 15, 2, 12800 },
-    { 2, 7200, 3, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 4, 1, 1, 1 },
-    { 3, 1, 2, 1 },
-    { 2, 1, 3, 1 }
-  }};
-  int axes[] = { 1, 3 };
+  TensorListShape<> in_shape = {{{4, 32, 1, 6400}, {3, 15, 2, 12800}, {2, 7200, 3, 7}}};
+  TensorListShape<> ref_out_shape = {{{4, 1, 1, 1}, {3, 1, 2, 1}, {2, 1, 3, 1}}};
+  int axes[] = {1, 3};
 
   TestTensorList<float> fake_mean;
   fake_mean.reshape(ref_out_shape);
   auto mean_cpu = fake_mean.cpu();
   for (int i = 0, n = mean_cpu.num_elements(); i < n; i++) {
-    mean_cpu.data[0][i] = 10 * (i+1);
+    mean_cpu.data[0][i] = 10 * (i + 1);
   }
 
   testing::ReductionKernelTest<StdDevImplGPU<float, int16_t>, float, int16_t> test;
@@ -295,15 +256,9 @@ TEST(StdDevImplGPU, Middle_Inner_Sample) {
 }
 
 TEST(StdDevImplGPU, Middle_Inner_Batch) {
-  TensorListShape<> in_shape = {{
-    { 2, 32, 3, 6400 },
-    { 2, 15, 3, 12800 },
-    { 2, 7200, 3, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 2, 1, 3, 1 }
-  }};
-  int axes[] = { 1, 3 };
+  TensorListShape<> in_shape = {{{2, 32, 3, 6400}, {2, 15, 3, 12800}, {2, 7200, 3, 7}}};
+  TensorListShape<> ref_out_shape = {{{2, 1, 3, 1}}};
+  int axes[] = {1, 3};
 
   TestTensorList<float> fake_mean;
   fake_mean.reshape(ref_out_shape);
@@ -328,23 +283,16 @@ TEST(StdDevImplGPU, Middle_Inner_Batch) {
   }
 }
 
-
 TEST(InvStdDevImplGPU, Outer_Batch_Regularized) {
-  TensorListShape<> in_shape = {{
-    { 480, 640, 3 },
-    { 720, 1280, 3 },
-    { 1080, 1920, 3 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 1, 1, 3 }
-  }};
-  int axes[] = { 0, 1 };
+  TensorListShape<> in_shape = {{{480, 640, 3}, {720, 1280, 3}, {1080, 1920, 3}}};
+  TensorListShape<> ref_out_shape = {{{1, 1, 3}}};
+  int axes[] = {0, 1};
 
   TestTensorList<float> fake_mean;
   fake_mean.reshape(ref_out_shape);
   auto mean_cpu = fake_mean.cpu();
   for (int i = 0, n = mean_cpu.num_elements(); i < n; i++) {
-    mean_cpu.data[0][i] = 10 * (i+1);
+    mean_cpu.data[0][i] = 10 * (i + 1);
   }
 
   testing::ReductionKernelTest<InvStdDevImplGPU<float, int16_t>, float, int16_t> test;
@@ -359,7 +307,6 @@ TEST(InvStdDevImplGPU, Outer_Batch_Regularized) {
     test.Check(EqualEpsRel(1e-5, 1e-6));
   }
 }
-
 
 }  // namespace reduce_impl
 }  // namespace kernels

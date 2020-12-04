@@ -13,28 +13,26 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include <random>
-#include <vector>
 #include <cmath>
 #include <complex>
-#include "dali/test/test_tensors.h"
-#include "dali/test/tensor_test_utils.h"
+#include <random>
+#include <vector>
+#include "dali/core/boundary.h"
 #include "dali/kernels/scratch.h"
-#include "dali/kernels/signal/window/window_functions.h"
+#include "dali/kernels/signal/fft/fft_postprocess.cuh"
 #include "dali/kernels/signal/fft/fft_test_ref.h"
 #include "dali/kernels/signal/fft/stft_gpu.h"
-#include "dali/kernels/signal/fft/fft_postprocess.cuh"
-#include "dali/core/boundary.h"
+#include "dali/kernels/signal/window/window_functions.h"
+#include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_sound_generator.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
 namespace signal {
 namespace fft {
 
-void RefExtractWindow(float *out,
-                      int window_index, const float *in, int n,
-                      const StftArgs &args) {
+void RefExtractWindow(float *out, int window_index, const float *in, int n, const StftArgs &args) {
   int center = args.padding != Padding::None ? args.window_center : 0;
   if (center == -1)
     center = args.window_length / 2;
@@ -57,20 +55,17 @@ void RefExtractWindow(float *out,
 
 inline void RefPostprocess(span<float> out, span<const complexf> in, FftSpectrumType type) {
   switch (type) {
-    case FFT_SPECTRUM_MAGNITUDE:
-    {
+    case FFT_SPECTRUM_MAGNITUDE: {
       fft_postprocess::norm2 pp;
       for (int i = 0; i < out.size(); i++)
         out[i] = pp(in[i]);
     } break;
-    case FFT_SPECTRUM_POWER:
-    {
+    case FFT_SPECTRUM_POWER: {
       fft_postprocess::norm2square pp;
       for (int i = 0; i < out.size(); i++)
         out[i] = pp(in[i]);
-     } break;
-    case FFT_SPECTRUM_POWER_DECIBELS:
-    {
+    } break;
+    case FFT_SPECTRUM_POWER_DECIBELS: {
       fft_postprocess::power_dB pp;
       for (int i = 0; i < out.size(); i++)
         out[i] = pp(in[i]);
@@ -87,8 +82,8 @@ inline void RefPostprocess(span<complexf> out, span<const complexf> in, FftSpect
 }
 
 template <typename T>
-void RefSpectrum(const OutTensorCPU<T, 2> &ref_out, const float *in, int n,
-                 const StftArgs &args, span<const float> window) {
+void RefSpectrum(const OutTensorCPU<T, 2> &ref_out, const float *in, int n, const StftArgs &args,
+                 span<const float> window) {
   int t_axis = args.time_major_layout ? 0 : 1;
   int f_axis = 1 - t_axis;
   int nout = args.num_windows(n);
@@ -127,8 +122,8 @@ void RefSpectrum(const OutListCPU<T, 2> &ref_out, const InListCPU<float, 1> &in,
 }
 
 template <typename T>
-void RefSpectrum(TestTensorList<T, 2> &ref_out, const InListCPU<float, 1> &in,
-                 const StftArgs &args, span<const float> window) {
+void RefSpectrum(TestTensorList<T, 2> &ref_out, const InListCPU<float, 1> &in, const StftArgs &args,
+                 span<const float> window) {
   int t_axis = args.time_major_layout ? 0 : 1;
   int f_axis = 1 - t_axis;
   TensorListShape<2> ref_shape;
@@ -147,14 +142,14 @@ void RefSpectrum(TestTensorList<T, 2> &ref_out, const InListCPU<float, 1> &in,
 
 TEST(StftGPU, Setup) {
   StftGPU stft;
-  TensorListShape<1> lengths = {{ 100, 1000, 13, 45 }};
+  TensorListShape<1> lengths = {{100, 1000, 13, 45}};
   StftArgs args;
   args.axis = 0;
   args.spectrum_type = FFT_SPECTRUM_COMPLEX;
   args.window_length = 1024;
   args.window_center = 512;
   args.window_step = 512;
-  for (bool time_major : { false, true }) {
+  for (bool time_major : {false, true}) {
     args.time_major_layout = time_major;
 
     KernelContext ctx;
@@ -163,7 +158,7 @@ TEST(StftGPU, Setup) {
     auto &o_shape = req.output_shapes[0];
     ASSERT_EQ(o_shape.num_samples(), 4);
     for (int i = 0; i < 4; i++) {
-      TensorShape<2> ts = { args.num_windows(lengths.shapes[i]), args.window_length / 2 + 1 };
+      TensorShape<2> ts = {args.num_windows(lengths.shapes[i]), args.window_length / 2 + 1};
       if (!time_major)
         std::swap(ts[0], ts[1]);
       EXPECT_EQ(o_shape[i], ts);
@@ -178,8 +173,7 @@ template <typename OutputType, FftSpectrumType spectrum_type, bool time_major>
 struct StftTestParams {};
 
 template <typename OutputType, FftSpectrumType spectrum_type, bool time_major>
-class StftGPUTest<StftTestParams<OutputType, spectrum_type, time_major>>
-: public ::testing::Test {
+class StftGPUTest<StftTestParams<OutputType, spectrum_type, time_major>> : public ::testing::Test {
  public:
   template <typename Kernel>
   void Run() {
@@ -187,12 +181,10 @@ class StftGPUTest<StftTestParams<OutputType, spectrum_type, time_major>>
 
     Kernel stft;
 
-    TensorListShape<1> in_shapes[] = {
-      {{ 1000, 15, 35321, 2048, 11111, 20480 }},
-      {{ 100, 150, 64, 20480, 3213 }},
-      {{ 1, 2, 3, 4, 5, 6, 7, 8 }},
-      {{ 0xffff, 0xfff, 0xff, 99, 77, 66, 55, 44 }}
-    };
+    TensorListShape<1> in_shapes[] = {{{1000, 15, 35321, 2048, 11111, 20480}},
+                                      {{100, 150, 64, 20480, 3213}},
+                                      {{1, 2, 3, 4, 5, 6, 7, 8}},
+                                      {{0xffff, 0xfff, 0xff, 99, 77, 66, 55, 44}}};
 
     for (auto &in_shape : in_shapes) {
       TestTensorList<float, 1> in;
@@ -228,7 +220,7 @@ class StftGPUTest<StftTestParams<OutputType, spectrum_type, time_major>>
       ASSERT_EQ(out_shape.num_samples(), N);
 
       for (int i = 0; i < N; i++) {
-        TensorShape<2> ts = { args.num_windows(lengths[i]), args.window_length / 2 + 1 };
+        TensorShape<2> ts = {args.num_windows(lengths[i]), args.window_length / 2 + 1};
         if (!time_major)
           std::swap(ts[0], ts[1]);
         EXPECT_EQ(out_shape[i], ts);
@@ -256,23 +248,18 @@ class StftGPUTest<StftTestParams<OutputType, spectrum_type, time_major>>
   }
 };
 
-using StftTypes = ::testing::Types<
-  StftTestParams<complexf, FFT_SPECTRUM_COMPLEX, false>,
-  StftTestParams<complexf, FFT_SPECTRUM_COMPLEX, true>,
-  StftTestParams<float, FFT_SPECTRUM_MAGNITUDE, false>,
-  StftTestParams<float, FFT_SPECTRUM_MAGNITUDE, true>,
-  StftTestParams<float, FFT_SPECTRUM_POWER, false>,
-  StftTestParams<float, FFT_SPECTRUM_POWER, true>
->;
+using StftTypes = ::testing::Types<StftTestParams<complexf, FFT_SPECTRUM_COMPLEX, false>,
+                                   StftTestParams<complexf, FFT_SPECTRUM_COMPLEX, true>,
+                                   StftTestParams<float, FFT_SPECTRUM_MAGNITUDE, false>,
+                                   StftTestParams<float, FFT_SPECTRUM_MAGNITUDE, true>,
+                                   StftTestParams<float, FFT_SPECTRUM_POWER, false>,
+                                   StftTestParams<float, FFT_SPECTRUM_POWER, true>>;
 
 TYPED_TEST_SUITE(StftGPUTest, StftTypes);
-
-
 
 TYPED_TEST(StftGPUTest, TestBatched) {
   this->TestBatched();
 }
-
 
 }  // namespace fft
 }  // namespace signal

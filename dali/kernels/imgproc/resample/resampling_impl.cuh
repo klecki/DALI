@@ -16,15 +16,15 @@
 #define DALI_KERNELS_IMGPROC_RESAMPLE_RESAMPLING_IMPL_CUH_
 
 #include <cuda_runtime.h>
+#include "dali/core/convert.h"
 #include "dali/core/geom/vec.h"
 #include "dali/core/static_switch.h"
-#include "dali/core/convert.h"
 #include "dali/kernels/imgproc/resample/resampling_filters.cuh"
 
 namespace dali {
 namespace kernels {
 
-constexpr int ResampleSharedMemSize = 32<<10;
+constexpr int ResampleSharedMemSize = 32 << 10;
 
 namespace {
 
@@ -32,7 +32,7 @@ template <int n>
 using ptrdiff_vec = vec<n, ptrdiff_t>;
 
 namespace resample_shared {
-  extern __shared__ float coeffs[];
+extern __shared__ float coeffs[];
 };
 
 /**
@@ -58,12 +58,11 @@ namespace resample_shared {
  * but requires extra registers for the intermediate sums.
  */
 template <int static_channels = -1, typename Dst, typename Src>
-__device__ void ResampleHorz_Channels(
-    ivec2 lo, ivec2 hi,
-    float src_x0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<1> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<1> in_strides, ivec2 in_shape, int dynamic_channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleHorz_Channels(ivec2 lo, ivec2 hi, float src_x0, float scale,
+                                      Dst *__restrict__ out, ptrdiff_vec<1> out_strides,
+                                      const Src *__restrict__ in, ptrdiff_vec<1> in_strides,
+                                      ivec2 in_shape, int dynamic_channels, ResamplingFilter filter,
+                                      int support) {
   using resample_shared::coeffs;
 
   int out_stride = out_strides.x;
@@ -73,7 +72,6 @@ __device__ void ResampleHorz_Channels(
   src_x0 += 0.5f * scale - 0.5f - filter.anchor;
 
   const float filter_step = filter.scale;
-
 
   const bool huge_kernel = support > 256;
   const int coeff_base = huge_kernel ? 0 : threadIdx.x;
@@ -87,14 +85,15 @@ __device__ void ResampleHorz_Channels(
     float f = (sx0 - sx0f) * filter_step;
     __syncthreads();
     if (huge_kernel) {
-      for (int k = threadIdx.x + blockDim.x*threadIdx.y; k < support; k += blockDim.x*blockDim.y) {
-        float flt = filter(f + k*filter_step);
+      for (int k = threadIdx.x + blockDim.x * threadIdx.y; k < support;
+           k += blockDim.x * blockDim.y) {
+        float flt = filter(f + k * filter_step);
         coeffs[k] = flt;
       }
     } else {
       for (int k = threadIdx.y; k < support; k += blockDim.y) {
-        float flt = filter(f + k*filter_step);
-        coeffs[coeff_base + coeff_stride*k] = flt;
+        float flt = filter(f + k * filter_step);
+        coeffs[coeff_base + coeff_stride * k] = flt;
       }
     }
     __syncthreads();
@@ -108,7 +107,7 @@ __device__ void ResampleHorz_Channels(
     }
     norm = 1.0f / norm;
 
-    for (int i = threadIdx.y + lo.y; i < hi.y; i+=blockDim.y) {
+    for (int i = threadIdx.y + lo.y; i < hi.y; i += blockDim.y) {
       const Src *in_row = &in[i * in_stride];
       Dst *out_row = &out[i * out_stride];
 
@@ -116,9 +115,9 @@ __device__ void ResampleHorz_Channels(
         for (int c = 0; c < channels; c++) {
           float tmp = 0;
 
-          for (int k = 0, coeff_idx=coeff_base; k < support; k++, coeff_idx += coeff_stride) {
+          for (int k = 0, coeff_idx = coeff_base; k < support; k++, coeff_idx += coeff_stride) {
             int x = sx0 + k;
-            int xsample = x < 0 ? 0 : x >= in_w-1 ? in_w-1 : x;
+            int xsample = x < 0 ? 0 : x >= in_w - 1 ? in_w - 1 : x;
             float flt = coeffs[coeff_idx];
             Src px = __ldg(in_row + channels * xsample + c);
             tmp += fmaf(px, flt, tmp);
@@ -128,13 +127,14 @@ __device__ void ResampleHorz_Channels(
         }
 
       } else {
-        float tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
+        float
+            tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
         for (int c = 0; c < channels; c++)
           tmp[c] = 0;
 
-        for (int k = 0, coeff_idx=coeff_base; k < support; k++, coeff_idx += coeff_stride) {
+        for (int k = 0, coeff_idx = coeff_base; k < support; k++, coeff_idx += coeff_stride) {
           int x = sx0 + k;
-          int xsample = x < 0 ? 0 : x >= in_w-1 ? in_w-1 : x;
+          int xsample = x < 0 ? 0 : x >= in_w - 1 ? in_w - 1 : x;
           float flt = coeffs[coeff_idx];
           for (int c = 0; c < channels; c++) {
             Src px = __ldg(in_row + channels * xsample + c);
@@ -148,8 +148,6 @@ __device__ void ResampleHorz_Channels(
     }
   }
 }
-
-
 
 /**
  * @brief Implements horizontal resampling for a custom ROI
@@ -174,12 +172,11 @@ __device__ void ResampleHorz_Channels(
  * but requires extra registers for the intermediate sums.
  */
 template <int static_channels = -1, typename Dst, typename Src>
-__device__ void ResampleHorz_Channels(
-    ivec3 lo, ivec3 hi,
-    float src_x0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<2> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<2> in_strides, ivec3 in_shape, int dynamic_channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleHorz_Channels(ivec3 lo, ivec3 hi, float src_x0, float scale,
+                                      Dst *__restrict__ out, ptrdiff_vec<2> out_strides,
+                                      const Src *__restrict__ in, ptrdiff_vec<2> in_strides,
+                                      ivec3 in_shape, int dynamic_channels, ResamplingFilter filter,
+                                      int support) {
   using resample_shared::coeffs;
 
   int out_stride_y = out_strides.x;  // coordinates are shifted, because
@@ -191,7 +188,6 @@ __device__ void ResampleHorz_Channels(
   src_x0 += 0.5f * scale - 0.5f - filter.anchor;
 
   const float filter_step = filter.scale;
-
 
   const bool huge_kernel = support > 256;
   const int coeff_base = huge_kernel ? 0 : threadIdx.x;
@@ -205,14 +201,15 @@ __device__ void ResampleHorz_Channels(
     float f = (sx0 - sx0f) * filter_step;
     __syncthreads();
     if (huge_kernel) {
-      for (int k = threadIdx.x + blockDim.x*threadIdx.y; k < support; k += blockDim.x*blockDim.y) {
-        float flt = filter(f + k*filter_step);
+      for (int k = threadIdx.x + blockDim.x * threadIdx.y; k < support;
+           k += blockDim.x * blockDim.y) {
+        float flt = filter(f + k * filter_step);
         coeffs[k] = flt;
       }
     } else {
       for (int k = threadIdx.y; k < support; k += blockDim.y) {
-        float flt = filter(f + k*filter_step);
-        coeffs[coeff_base + coeff_stride*k] = flt;
+        float flt = filter(f + k * filter_step);
+        coeffs[coeff_base + coeff_stride * k] = flt;
       }
     }
     __syncthreads();
@@ -238,9 +235,9 @@ __device__ void ResampleHorz_Channels(
           for (int c = 0; c < channels; c++) {
             float tmp = 0;
 
-            for (int k = 0, coeff_idx=coeff_base; k < support; k++, coeff_idx += coeff_stride) {
+            for (int k = 0, coeff_idx = coeff_base; k < support; k++, coeff_idx += coeff_stride) {
               int x = sx0 + k;
-              int xsample = x < 0 ? 0 : x >= in_w-1 ? in_w-1 : x;
+              int xsample = x < 0 ? 0 : x >= in_w - 1 ? in_w - 1 : x;
               float flt = coeffs[coeff_idx];
               Src px = __ldg(in_row + channels * xsample + c);
               tmp = fmaf(px, flt, tmp);
@@ -250,13 +247,14 @@ __device__ void ResampleHorz_Channels(
           }
 
         } else {
-          float tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
+          float tmp[static_channels < 0 ? 1
+                                        : static_channels];  // NOLINT - not a variable length array
           for (int c = 0; c < channels; c++)
             tmp[c] = 0;
 
-          for (int k = 0, coeff_idx=coeff_base; k < support; k++, coeff_idx += coeff_stride) {
+          for (int k = 0, coeff_idx = coeff_base; k < support; k++, coeff_idx += coeff_stride) {
             int x = sx0 + k;
-            int xsample = x < 0 ? 0 : x >= in_w-1 ? in_w-1 : x;
+            int xsample = x < 0 ? 0 : x >= in_w - 1 ? in_w - 1 : x;
             float flt = coeffs[coeff_idx];
             for (int c = 0; c < channels; c++) {
               Src px = __ldg(in_row + channels * xsample + c);
@@ -272,7 +270,6 @@ __device__ void ResampleHorz_Channels(
   }
 }
 
-
 /**
  * @brief Implements vertical resampling
  * @param lo - inclusive lower bound output coordinates
@@ -287,12 +284,11 @@ __device__ void ResampleHorz_Channels(
  * recalculating them for each column, and stored in a shared memory block.
  */
 template <int static_channels = -1, typename Dst, typename Src>
-__device__ void ResampleVert_Channels(
-    ivec2 lo, ivec2 hi,
-    float src_y0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<1> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<1> in_strides, ivec2 in_shape, int dynamic_channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleVert_Channels(ivec2 lo, ivec2 hi, float src_y0, float scale,
+                                      Dst *__restrict__ out, ptrdiff_vec<1> out_strides,
+                                      const Src *__restrict__ in, ptrdiff_vec<1> in_strides,
+                                      ivec2 in_shape, int dynamic_channels, ResamplingFilter filter,
+                                      int support) {
   using resample_shared::coeffs;
 
   int out_stride = out_strides.x;
@@ -304,23 +300,24 @@ __device__ void ResampleVert_Channels(
   const float filter_step = filter.scale;
 
   const bool huge_kernel = support > 256;
-  const int coeff_base = huge_kernel ? 0 : support*threadIdx.y;
+  const int coeff_base = huge_kernel ? 0 : support * threadIdx.y;
   const int channels = static_channels < 0 ? dynamic_channels : static_channels;
 
-  for (int i = lo.y; i < hi.y; i+=blockDim.y) {
+  for (int i = lo.y; i < hi.y; i += blockDim.y) {
     int dy = i + threadIdx.y;
     const float sy0f = dy * scale + src_y0;
     const int sy0 = huge_kernel ? __float2int_rn(sy0f) : __float2int_ru(sy0f);
     float f = (sy0 - sy0f) * filter_step;
     __syncthreads();
     if (huge_kernel) {
-      for (int k = threadIdx.x + blockDim.x*threadIdx.y; k < support; k += blockDim.x*blockDim.y) {
-        float flt = filter(f + k*filter_step);
+      for (int k = threadIdx.x + blockDim.x * threadIdx.y; k < support;
+           k += blockDim.x * blockDim.y) {
+        float flt = filter(f + k * filter_step);
         coeffs[k] = flt;
       }
     } else {
       for (int k = threadIdx.x; k < support; k += blockDim.x) {
-        float flt = filter(f + k*filter_step);
+        float flt = filter(f + k * filter_step);
         coeffs[coeff_base + k] = flt;
       }
     }
@@ -347,7 +344,7 @@ __device__ void ResampleVert_Channels(
 
           for (int k = 0; k < support; k++) {
             int y = sy0 + k;
-            int ysample = y < 0 ? 0 : y >= in_h-1 ? in_h-1 : y;
+            int ysample = y < 0 ? 0 : y >= in_h - 1 ? in_h - 1 : y;
             float flt = coeffs[coeff_base + k];
             Src px = __ldg(in_col + in_stride * ysample + c);
             tmp = fmaf(px, flt, tmp);
@@ -356,13 +353,14 @@ __device__ void ResampleVert_Channels(
           out_col[c] = ConvertSat<Dst>(tmp * norm);
         }
       } else {
-        float tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
+        float
+            tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
         for (int c = 0; c < channels; c++)
           tmp[c] = 0;
 
         for (int k = 0; k < support; k++) {
           int y = sy0 + k;
-          int ysample = y < 0 ? 0 : y >= in_h-1 ? in_h-1 : y;
+          int ysample = y < 0 ? 0 : y >= in_h - 1 ? in_h - 1 : y;
           float flt = coeffs[coeff_base + k];
           for (int c = 0; c < channels; c++) {
             Src px = __ldg(in_col + in_stride * ysample + c);
@@ -391,12 +389,11 @@ __device__ void ResampleVert_Channels(
  * column, and stored in a shared memory block.
  */
 template <int static_channels = -1, typename Dst, typename Src>
-__device__ void ResampleVert_Channels(
-    ivec3 lo, ivec3 hi,
-    float src_y0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<2> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<2> in_strides, ivec3 in_shape, int dynamic_channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleVert_Channels(ivec3 lo, ivec3 hi, float src_y0, float scale,
+                                      Dst *__restrict__ out, ptrdiff_vec<2> out_strides,
+                                      const Src *__restrict__ in, ptrdiff_vec<2> in_strides,
+                                      ivec3 in_shape, int dynamic_channels, ResamplingFilter filter,
+                                      int support) {
   using resample_shared::coeffs;
 
   int out_stride_y = out_strides.x;
@@ -410,23 +407,24 @@ __device__ void ResampleVert_Channels(
   const float filter_step = filter.scale;
 
   const bool huge_kernel = support > 256;
-  const int coeff_base = huge_kernel ? 0 : support*threadIdx.y;
+  const int coeff_base = huge_kernel ? 0 : support * threadIdx.y;
   const int channels = static_channels < 0 ? dynamic_channels : static_channels;
 
-  for (int i = lo.y; i < hi.y; i+=blockDim.y) {
+  for (int i = lo.y; i < hi.y; i += blockDim.y) {
     int dy = i + threadIdx.y;
     const float sy0f = dy * scale + src_y0;
     const int sy0 = huge_kernel ? __float2int_rn(sy0f) : __float2int_ru(sy0f);
     float f = (sy0 - sy0f) * filter_step;
     __syncthreads();
     if (huge_kernel) {
-      for (int k = threadIdx.x + blockDim.x*threadIdx.y; k < support; k += blockDim.x*blockDim.y) {
-        float flt = filter(f + k*filter_step);
+      for (int k = threadIdx.x + blockDim.x * threadIdx.y; k < support;
+           k += blockDim.x * blockDim.y) {
+        float flt = filter(f + k * filter_step);
         coeffs[k] = flt;
       }
     } else {
       for (int k = threadIdx.x; k < support; k += blockDim.x) {
-        float flt = filter(f + k*filter_step);
+        float flt = filter(f + k * filter_step);
         coeffs[coeff_base + k] = flt;
       }
     }
@@ -456,7 +454,7 @@ __device__ void ResampleVert_Channels(
 
             for (int k = 0; k < support; k++) {
               int y = sy0 + k;
-              int ysample = y < 0 ? 0 : y >= in_h-1 ? in_h-1 : y;
+              int ysample = y < 0 ? 0 : y >= in_h - 1 ? in_h - 1 : y;
               float flt = coeffs[coeff_base + k];
               Src px = __ldg(in_col + in_stride_y * ysample + c);
               tmp = fmaf(px, flt, tmp);
@@ -465,13 +463,14 @@ __device__ void ResampleVert_Channels(
             out_col[c] = ConvertSat<Dst>(tmp * norm);
           }
         } else {
-          float tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
+          float tmp[static_channels < 0 ? 1
+                                        : static_channels];  // NOLINT - not a variable length array
           for (int c = 0; c < channels; c++)
             tmp[c] = 0;
 
           for (int k = 0; k < support; k++) {
             int y = sy0 + k;
-            int ysample = y < 0 ? 0 : y >= in_h-1 ? in_h-1 : y;
+            int ysample = y < 0 ? 0 : y >= in_h - 1 ? in_h - 1 : y;
             float flt = coeffs[coeff_base + k];
             for (int c = 0; c < channels; c++) {
               Src px = __ldg(in_col + in_stride_y * ysample + c);
@@ -488,12 +487,11 @@ __device__ void ResampleVert_Channels(
 }
 
 template <int static_channels = -1, typename Dst, typename Src>
-__device__ void ResampleDepth_Channels(
-    ivec2 lo, ivec2 hi,
-    float src_z0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<1> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<1> in_strides, ivec2 in_shape, int dynamic_channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleDepth_Channels(ivec2 lo, ivec2 hi, float src_z0, float scale,
+                                       Dst *__restrict__ out, ptrdiff_vec<1> out_strides,
+                                       const Src *__restrict__ in, ptrdiff_vec<1> in_strides,
+                                       ivec2 in_shape, int dynamic_channels,
+                                       ResamplingFilter filter, int support) {
   // Unreachable code - no assert to avoid excessive register pressure.
 }
 
@@ -507,12 +505,11 @@ __device__ void ResampleDepth_Channels(
  * @tparam static_channels - number of channels, if known at compile time
  */
 template <int static_channels = -1, typename Dst, typename Src>
-__device__ void ResampleDepth_Channels(
-    ivec3 lo, ivec3 hi,
-    float src_z0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<2> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<2> in_strides, ivec3 in_shape, int dynamic_channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleDepth_Channels(ivec3 lo, ivec3 hi, float src_z0, float scale,
+                                       Dst *__restrict__ out, ptrdiff_vec<2> out_strides,
+                                       const Src *__restrict__ in, ptrdiff_vec<2> in_strides,
+                                       ivec3 in_shape, int dynamic_channels,
+                                       ResamplingFilter filter, int support) {
   using resample_shared::coeffs;
 
   ptrdiff_t out_stride_y = out_strides[0];
@@ -526,24 +523,25 @@ __device__ void ResampleDepth_Channels(
   const float filter_step = filter.scale;
 
   const bool huge_kernel = support > 256;
-  const int coeff_base = huge_kernel ? 0 : support*threadIdx.y;
+  const int coeff_base = huge_kernel ? 0 : support * threadIdx.y;
   const int channels = static_channels < 0 ? dynamic_channels : static_channels;
 
   // threadIdx.y is used to traverse Z axis
-  for (int i = lo.z; i < hi.z; i+=blockDim.y) {
+  for (int i = lo.z; i < hi.z; i += blockDim.y) {
     int dz = i + threadIdx.y;
     const float sz0f = dz * scale + src_z0;
     const int sz0 = huge_kernel ? __float2int_rn(sz0f) : __float2int_ru(sz0f);
     float f = (sz0 - sz0f) * filter_step;
     __syncthreads();
     if (huge_kernel) {
-      for (int k = threadIdx.x + blockDim.x*threadIdx.y; k < support; k += blockDim.x*blockDim.y) {
-        float flt = filter(f + k*filter_step);
+      for (int k = threadIdx.x + blockDim.x * threadIdx.y; k < support;
+           k += blockDim.x * blockDim.y) {
+        float flt = filter(f + k * filter_step);
         coeffs[k] = flt;
       }
     } else {
       for (int k = threadIdx.x; k < support; k += blockDim.x) {
-        float flt = filter(f + k*filter_step);
+        float flt = filter(f + k * filter_step);
         coeffs[coeff_base + k] = flt;
       }
     }
@@ -574,7 +572,7 @@ __device__ void ResampleDepth_Channels(
 
             for (int l = 0; l < support; l++) {
               int z = sz0 + l;
-              int zsample = z < 0 ? 0 : z >= in_d-1 ? in_d-1 : z;
+              int zsample = z < 0 ? 0 : z >= in_d - 1 ? in_d - 1 : z;
               float flt = coeffs[coeff_base + l];
               Src px = __ldg(in_col + in_stride_z * zsample + c);
               tmp = fmaf(px, flt, tmp);
@@ -583,13 +581,14 @@ __device__ void ResampleDepth_Channels(
             out_col[c] = ConvertSat<Dst>(tmp * norm);
           }
         } else {
-          float tmp[static_channels < 0 ? 1 : static_channels];  // NOLINT - not a variable length array
+          float tmp[static_channels < 0 ? 1
+                                        : static_channels];  // NOLINT - not a variable length array
           for (int c = 0; c < channels; c++)
             tmp[c] = 0;
 
           for (int l = 0; l < support; l++) {
             int z = sz0 + l;
-            int zsample = z < 0 ? 0 : z >= in_d-1 ? in_d-1 : z;
+            int zsample = z < 0 ? 0 : z >= in_d - 1 ? in_d - 1 : z;
             float flt = coeffs[coeff_base + l];
             for (int c = 0; c < channels; c++) {
               Src px = __ldg(in_col + in_stride_z * zsample + c);
@@ -605,7 +604,6 @@ __device__ void ResampleDepth_Channels(
   }
 }
 
-
 }  // namespace
 
 /**
@@ -620,13 +618,11 @@ __device__ void ResampleDepth_Channels(
  * @param in_shape - shape of the input (x, y[, z]) order
  */
 template <int spatial_ndim, typename Dst, typename Src>
-__device__ void ResampleHorz(
-    ivec<spatial_ndim> lo, ivec<spatial_ndim> hi,
-    float src_x0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<spatial_ndim-1> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<spatial_ndim-1> in_strides,
-    ivec<spatial_ndim> in_shape, int channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleHorz(ivec<spatial_ndim> lo, ivec<spatial_ndim> hi, float src_x0,
+                             float scale, Dst *__restrict__ out,
+                             ptrdiff_vec<spatial_ndim - 1> out_strides, const Src *__restrict__ in,
+                             ptrdiff_vec<spatial_ndim - 1> in_strides, ivec<spatial_ndim> in_shape,
+                             int channels, ResamplingFilter filter, int support) {
   // Specialize over common numbers of channels.
   // Ca. 20% speedup compared to generic code path for
   // three channel image with large kernel.
@@ -657,13 +653,11 @@ __device__ void ResampleHorz(
  * @param in_shape - shape of the input (x, y[, z]) order
  */
 template <int spatial_ndim, typename Dst, typename Src>
-__device__ void ResampleVert(
-    ivec<spatial_ndim> lo, ivec<spatial_ndim> hi,
-    float src_y0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<spatial_ndim-1> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<spatial_ndim-1> in_strides,
-    ivec<spatial_ndim> in_shape, int channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleVert(ivec<spatial_ndim> lo, ivec<spatial_ndim> hi, float src_y0,
+                             float scale, Dst *__restrict__ out,
+                             ptrdiff_vec<spatial_ndim - 1> out_strides, const Src *__restrict__ in,
+                             ptrdiff_vec<spatial_ndim - 1> in_strides, ivec<spatial_ndim> in_shape,
+                             int channels, ResamplingFilter filter, int support) {
   // Specialize over common numbers of channels.
   // Ca. 20% speedup compared to generic code path for
   // three channel image with large kernel.
@@ -694,13 +688,11 @@ __device__ void ResampleVert(
  * @param in_shape - shape of the input (x, y, z)
  */
 template <int spatial_ndim, typename Dst, typename Src>
-__device__ void ResampleDepth(
-    ivec<spatial_ndim> lo, ivec<spatial_ndim> hi,
-    float src_y0, float scale,
-    Dst *__restrict__ out, ptrdiff_vec<spatial_ndim-1> out_strides,
-    const Src *__restrict__ in, ptrdiff_vec<spatial_ndim-1> in_strides,
-    ivec<spatial_ndim> in_shape, int channels,
-    ResamplingFilter filter, int support) {
+__device__ void ResampleDepth(ivec<spatial_ndim> lo, ivec<spatial_ndim> hi, float src_y0,
+                              float scale, Dst *__restrict__ out,
+                              ptrdiff_vec<spatial_ndim - 1> out_strides, const Src *__restrict__ in,
+                              ptrdiff_vec<spatial_ndim - 1> in_strides, ivec<spatial_ndim> in_shape,
+                              int channels, ResamplingFilter filter, int support) {
   // Specialize over common numbers of channels.
   // Ca. 20% speedup compared to generic code path for
   // three channel image with large kernel.

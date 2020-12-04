@@ -17,8 +17,8 @@
 
 #include <string>
 
-#include "dali/operators/reader/parser/parser.h"
 #include "dali/operators/reader/parser/caffe2.pb.h"
+#include "dali/operators/reader/parser/parser.h"
 
 namespace dali {
 
@@ -29,7 +29,8 @@ namespace dali {
 // MULTI_LABEL_WEIGHTED_SPARSE: sparse active label indices with per-label weights
 // for multi-label classification
 // NO_LABEL is an additional value meaning that no label is available
-enum LabelType {
+enum LabelType
+{
   SINGLE_LABEL = 0,
   MULTI_LABEL_SPARSE = 1,
   MULTI_LABEL_DENSE = 2,
@@ -71,14 +72,12 @@ float proto_get_data<float>(const caffe2::TensorProto& proto, const size_t idx) 
 
 // Extract the data contained in a protobuf tensor
 template <typename T>
-void extract_data(const caffe2::TensorProto& proto,
-                  Tensor<CPUBackend>& t) {
+void extract_data(const caffe2::TensorProto& proto, Tensor<CPUBackend>& t) {
   DALI_FAIL("Base method should never be called");
 }
 
 template <>
-void extract_data<int>(const caffe2::TensorProto& proto,
-                       Tensor<CPUBackend>& t) {
+void extract_data<int>(const caffe2::TensorProto& proto, Tensor<CPUBackend>& t) {
   auto size = proto.int32_data_size();
 
   t.Resize({size});
@@ -90,8 +89,7 @@ void extract_data<int>(const caffe2::TensorProto& proto,
 }
 
 template <>
-void extract_data<float>(const caffe2::TensorProto& proto,
-                         Tensor<CPUBackend>& t) {
+void extract_data<float>(const caffe2::TensorProto& proto, Tensor<CPUBackend>& t) {
   auto size = proto.float_data_size();
 
   t.Resize({size});
@@ -103,8 +101,7 @@ void extract_data<float>(const caffe2::TensorProto& proto,
 }
 
 template <>
-void extract_data<int64_t>(const caffe2::TensorProto& proto,
-                           Tensor<CPUBackend>& t) {
+void extract_data<int64_t>(const caffe2::TensorProto& proto, Tensor<CPUBackend>& t) {
   auto size = proto.int64_data_size();
 
   t.Resize({size});
@@ -116,11 +113,8 @@ void extract_data<int64_t>(const caffe2::TensorProto& proto,
 }
 
 template <typename T>
-void ParseLabels(const caffe2::TensorProtos& protos,
-                 const LabelType label_type,
-                 const int num_labels,
-                 SampleWorkspace* ws,
-                 int consumed_inputs) {
+void ParseLabels(const caffe2::TensorProtos& protos, const LabelType label_type,
+                 const int num_labels, SampleWorkspace* ws, int consumed_inputs) {
   auto& label_tensor = ws->Output<CPUBackend>(consumed_inputs);
   switch (label_type) {
     case SINGLE_LABEL: {
@@ -140,10 +134,10 @@ void ParseLabels(const caffe2::TensorProtos& protos,
       const int label_data_size = proto_data_size<T>(label_indices);
 
       T* label_tensor_data = label_tensor.mutable_data<T>();
-      std::memset(label_tensor_data, 0, num_labels*sizeof(T));
+      std::memset(label_tensor_data, 0, num_labels * sizeof(T));
       for (int i = 0; i < label_data_size; ++i) {
-        label_tensor_data[static_cast<int>(proto_get_data<T>(label_indices, i))]
-          = static_cast<T>(1);
+        label_tensor_data[static_cast<int>(proto_get_data<T>(label_indices, i))] =
+            static_cast<T>(1);
       }
       break;
     }
@@ -163,7 +157,7 @@ void ParseLabels(const caffe2::TensorProtos& protos,
       const int label_size = proto_data_size<T>(label_indices);
 
       float* label_tensor_data = label_tensor.mutable_data<float>();
-      std::memset(label_tensor_data, 0, num_labels*sizeof(float));
+      std::memset(label_tensor_data, 0, num_labels * sizeof(float));
       for (int i = 0; i < label_size; ++i) {
         auto idx = static_cast<int>(proto_get_data<T>(label_indices, i));
         label_tensor_data[idx] = proto_get_data<float>(label_weights, i);
@@ -179,20 +173,19 @@ void ParseLabels(const caffe2::TensorProtos& protos,
 class Caffe2Parser : public Parser<Tensor<CPUBackend>> {
  public:
   explicit Caffe2Parser(const OpSpec& spec)
-    : Parser(spec),
-      image_available_(spec.GetArgument<bool>("image_available")),
-      additional_inputs_(spec.GetArgument<int>("additional_inputs")),
-      label_type_(static_cast<LabelType>(spec.GetArgument<int>("label_type"))),
-      num_labels_(spec.GetArgument<int>("num_labels")) {}
+      : Parser(spec),
+        image_available_(spec.GetArgument<bool>("image_available")),
+        additional_inputs_(spec.GetArgument<int>("additional_inputs")),
+        label_type_(static_cast<LabelType>(spec.GetArgument<int>("label_type"))),
+        num_labels_(spec.GetArgument<int>("num_labels")) {}
 
   void Parse(const Tensor<CPUBackend>& data, SampleWorkspace* ws) override {
     caffe2::TensorProtos protos;
     int consumed_inputs = 0;
 
     DALI_ENFORCE(protos.ParseFromArray(data.data<uint8_t>(), data.size()),
-      make_string("Error while parsing Caffe2 file: ", data.GetSourceInfo(),
-                  " (raw data length: ", data.size(), " bytes)."));
-
+                 make_string("Error while parsing Caffe2 file: ", data.GetSourceInfo(),
+                             " (raw data length: ", data.size(), " bytes)."));
 
     if (image_available_) {
       auto& image = ws->Output<CPUBackend>(consumed_inputs);
@@ -211,8 +204,7 @@ class Caffe2Parser : public Parser<Tensor<CPUBackend>> {
         const int W = image_proto.dims(1);
 
         image.Resize({H, W, C});
-        std::memcpy(image.mutable_data<uint8_t>(),
-                    image_proto.byte_data().data(),
+        std::memcpy(image.mutable_data<uint8_t>(), image_proto.byte_data().data(),
                     image_proto.byte_data().size());
       }
       image.SetSourceInfo(data.GetSourceInfo());
@@ -235,9 +227,10 @@ class Caffe2Parser : public Parser<Tensor<CPUBackend>> {
 
     // handle any additional protos defined
     // additional outputs start at Output(0, 1 or 2)
-    auto additional_proto_start = consumed_inputs +
-                                ((label_type_ == MULTI_LABEL_SPARSE ||
--                               label_type_ == MULTI_LABEL_WEIGHTED_SPARSE) ? 1 : 0);
+    auto additional_proto_start =
+        consumed_inputs +
+        ((label_type_ == MULTI_LABEL_SPARSE || -label_type_ == MULTI_LABEL_WEIGHTED_SPARSE) ? 1
+                                                                                            : 0);
     auto additional_proto_end = additional_inputs_ + additional_proto_start;
 
     for (int i = additional_proto_start; i < additional_proto_end; ++i) {
@@ -245,17 +238,17 @@ class Caffe2Parser : public Parser<Tensor<CPUBackend>> {
       auto& output_tensor = ws->Output<CPUBackend>(consumed_inputs);
 
       switch (additional_proto.data_type()) {
-       case caffe2::TensorProto::FLOAT:
-        extract_data<float>(additional_proto, output_tensor);
-        break;
-       case caffe2::TensorProto::INT32:
-        extract_data<int>(additional_proto, output_tensor);
-        break;
-       case caffe2::TensorProto::INT64:
-        extract_data<int64_t>(additional_proto, output_tensor);
-        break;
-       default:
-        DALI_FAIL("Unsupported data type in additional proto");
+        case caffe2::TensorProto::FLOAT:
+          extract_data<float>(additional_proto, output_tensor);
+          break;
+        case caffe2::TensorProto::INT32:
+          extract_data<int>(additional_proto, output_tensor);
+          break;
+        case caffe2::TensorProto::INT64:
+          extract_data<int64_t>(additional_proto, output_tensor);
+          break;
+        default:
+          DALI_FAIL("Unsupported data type in additional proto");
       }
       consumed_inputs++;
     }

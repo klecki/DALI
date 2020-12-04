@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/generic/slice/slice.h"
 #include "dali/kernels/slice/slice_gpu.cuh"
+#include "dali/operators/generic/slice/slice.h"
 
 namespace dali {
 

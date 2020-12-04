@@ -22,30 +22,31 @@ namespace {
 
 // using math from https://msdn.microsoft.com/en-us/library/windows/desktop/dd206750(v=vs.85).aspx
 
-template<typename T>
+template <typename T>
 struct YCbCr {
   T y, cb, cr;
 };
 
 // https://docs.microsoft.com/en-gb/windows/desktop/medfound/recommended-8-bit-yuv-formats-for-video-rendering#converting-8-bit-yuv-to-rgb888
-__constant__ float ycbcr2rgb_mat_norm[9] = {
-  1.164383f,  0.0f,       1.596027f,
-  1.164383f, -0.391762f, -0.812968f,
-  1.164383f,  2.017232f,  0.0f
-};
+__constant__ float ycbcr2rgb_mat_norm[9] = {1.164383f,  0.0f,      1.596027f, 1.164383f, -0.391762f,
+                                            -0.812968f, 1.164383f, 2.017232f, 0.0f};
 
 // not normalized need *255
-__constant__ float ycbcr2rgb_mat[9] = {
-  1.164383f * 255.0f,  0.0f,       1.596027f * 255.0f,
-  1.164383f * 255.0f, -0.391762f * 255.0f, -0.812968f * 255.0f,
-  1.164383f * 255.0f,  2.017232f * 255.0f,  0.0f
-};
+__constant__ float ycbcr2rgb_mat[9] = {1.164383f * 255.0f,
+                                       0.0f,
+                                       1.596027f * 255.0f,
+                                       1.164383f * 255.0f,
+                                       -0.391762f * 255.0f,
+                                       -0.812968f * 255.0f,
+                                       1.164383f * 255.0f,
+                                       2.017232f * 255.0f,
+                                       0.0f};
 
 __device__ float clip(float x, float max) {
   return fminf(fmaxf(x, 0.0f), max);
 }
 
-template<typename T>
+template <typename T>
 __device__ T convert(const float x) {
   return static_cast<T>(x);
 }
@@ -62,43 +63,39 @@ __device__ uint8_t convert<uint8_t>(const float x) {
 }
 #endif
 
-template<typename YCbCr_T, typename RGB_T, bool Normalized = false>
-__device__ void ycbcr2rgb(const YCbCr<YCbCr_T>& ycbcr, RGB_T* rgb,
-                        size_t stride) {
-  auto y = (static_cast<float>(ycbcr.y) - 16.0f/255.0f);
-  auto cb = (static_cast<float>(ycbcr.cb) - 128.0f/255.0f);
-  auto cr = (static_cast<float>(ycbcr.cr) - 128.0f/255.0f);
-
+template <typename YCbCr_T, typename RGB_T, bool Normalized = false>
+__device__ void ycbcr2rgb(const YCbCr<YCbCr_T>& ycbcr, RGB_T* rgb, size_t stride) {
+  auto y = (static_cast<float>(ycbcr.y) - 16.0f / 255.0f);
+  auto cb = (static_cast<float>(ycbcr.cb) - 128.0f / 255.0f);
+  auto cr = (static_cast<float>(ycbcr.cr) - 128.0f / 255.0f);
 
   float r, g, b;
   if (Normalized) {
     auto& m = ycbcr2rgb_mat_norm;
-    r = clip(y*m[0] + cb*m[1] + cr*m[2], 1.0f);
-    g = clip(y*m[3] + cb*m[4] + cr*m[5], 1.0f);
-    b = clip(y*m[6] + cb*m[7] + cr*m[8], 1.0f);
+    r = clip(y * m[0] + cb * m[1] + cr * m[2], 1.0f);
+    g = clip(y * m[3] + cb * m[4] + cr * m[5], 1.0f);
+    b = clip(y * m[6] + cb * m[7] + cr * m[8], 1.0f);
   } else {
     auto& m = ycbcr2rgb_mat;
-    r = clip(y*m[0] + cb*m[1] + cr*m[2], 255.0f);
-    g = clip(y*m[3] + cb*m[4] + cr*m[5], 255.0f);
-    b = clip(y*m[6] + cb*m[7] + cr*m[8], 255.0f);
+    r = clip(y * m[0] + cb * m[1] + cr * m[2], 255.0f);
+    g = clip(y * m[3] + cb * m[4] + cr * m[5], 255.0f);
+    b = clip(y * m[6] + cb * m[7] + cr * m[8], 255.0f);
   }
 
   rgb[0] = convert<RGB_T>(r);
   rgb[stride] = convert<RGB_T>(g);
-  rgb[stride*2] = convert<RGB_T>(b);
+  rgb[stride * 2] = convert<RGB_T>(b);
 }
 
-template<typename T, bool Normalized = false, bool RGB = true>
-__global__ void process_frame_kernel(
-  cudaTextureObject_t luma, cudaTextureObject_t chroma,
-  T* dst, int index,
-  float fx, float fy,
-  int dst_width, int dst_height, int c) {
+template <typename T, bool Normalized = false, bool RGB = true>
+__global__ void process_frame_kernel(cudaTextureObject_t luma, cudaTextureObject_t chroma, T* dst,
+                                     int index, float fx, float fy, int dst_width, int dst_height,
+                                     int c) {
   const int dst_x = blockIdx.x * blockDim.x + threadIdx.x;
   const int dst_y = blockIdx.y * blockDim.y + threadIdx.y;
 
   if (dst_x >= dst_width || dst_y >= dst_height)
-      return;
+    return;
 
   auto src_x = 0.0f;
   // TODO(spanev) something less hacky here, why 4:2:0 fails on this edge?
@@ -122,7 +119,7 @@ __global__ void process_frame_kernel(
     constexpr float scaling = Normalized ? 1.0f : 255.0f;
     out[0] = convert<T>(ycbcr.y * scaling);
     out[stride] = convert<T>(ycbcr.cb * scaling);
-    out[stride*2] = convert<T>(ycbcr.cr * scaling);
+    out[stride * 2] = convert<T>(ycbcr.cr * scaling);
   }
 }
 
@@ -132,12 +129,10 @@ inline constexpr int divUp(int total, int grain) {
 
 }  // namespace
 
-template<typename T>
-void process_frame(
-  cudaTextureObject_t chroma, cudaTextureObject_t luma,
-  SequenceWrapper& output, int index, cudaStream_t stream,
-  uint16_t input_width, uint16_t input_height,
-  bool rgb, bool normalized) {
+template <typename T>
+void process_frame(cudaTextureObject_t chroma, cudaTextureObject_t luma, SequenceWrapper& output,
+                   int index, cudaStream_t stream, uint16_t input_width, uint16_t input_height,
+                   bool rgb, bool normalized) {
   auto scale_width = input_width;
   auto scale_height = input_height;
 
@@ -148,41 +143,36 @@ void process_frame(
   dim3 grid(divUp(output.width, block.x), divUp(output.height, block.y));
 
   int frame_stride = index * output.height * output.width * output.channels;
-  LOG_LINE << "Processing frame " << index
-            << " (frame_stride=" << frame_stride << ")" << std::endl;
+  LOG_LINE << "Processing frame " << index << " (frame_stride=" << frame_stride << ")" << std::endl;
   auto* tensor_out = output.sequence.mutable_data<T>() + frame_stride;
 
   if (normalized) {
     if (rgb) {
-      process_frame_kernel<T, true, true><<<grid, block, 0, stream>>>
-          (luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
+      process_frame_kernel<T, true, true><<<grid, block, 0, stream>>>(
+          luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
     } else {
-      process_frame_kernel<T, true, false><<<grid, block, 0, stream>>>
-          (luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
+      process_frame_kernel<T, true, false><<<grid, block, 0, stream>>>(
+          luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
     }
   } else {
     if (rgb) {
-      process_frame_kernel<T, false, true><<<grid, block, 0, stream>>>
-          (luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
+      process_frame_kernel<T, false, true><<<grid, block, 0, stream>>>(
+          luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
     } else {
-      process_frame_kernel<T, false, false><<<grid, block, 0, stream>>>
-          (luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
+      process_frame_kernel<T, false, false><<<grid, block, 0, stream>>>(
+          luma, chroma, tensor_out, index, fx, fy, output.width, output.height, output.channels);
     }
   }
 }
 
-template
-void process_frame<float>(
-  cudaTextureObject_t chroma, cudaTextureObject_t luma,
-  SequenceWrapper& output, int index, cudaStream_t stream,
-  uint16_t input_width, uint16_t input_height,
-  bool rgb, bool normalized);
+template void process_frame<float>(cudaTextureObject_t chroma, cudaTextureObject_t luma,
+                                   SequenceWrapper& output, int index, cudaStream_t stream,
+                                   uint16_t input_width, uint16_t input_height, bool rgb,
+                                   bool normalized);
 
-template
-void process_frame<uint8_t>(
-  cudaTextureObject_t chroma, cudaTextureObject_t luma,
-  SequenceWrapper& output, int index, cudaStream_t stream,
-  uint16_t input_width, uint16_t input_height,
-  bool rgb, bool normalized);
+template void process_frame<uint8_t>(cudaTextureObject_t chroma, cudaTextureObject_t luma,
+                                     SequenceWrapper& output, int index, cudaStream_t stream,
+                                     uint16_t input_width, uint16_t input_height, bool rgb,
+                                     bool normalized);
 
 }  // namespace dali

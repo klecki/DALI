@@ -18,15 +18,15 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
-#include <functional>
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/util/crop_window.h"
 #include "dali/core/tensor_shape.h"
+#include "dali/util/crop_window.h"
 
 namespace dali {
 
@@ -46,17 +46,15 @@ class Image {
    */
   DLL_PUBLIC std::shared_ptr<uint8_t> GetImage() const;
 
-
   /**
    * Populates given data buffer with decoded image.
    * User is responsible for allocating `dst` buffer.
    */
-  template<typename DstType>
+  template <typename DstType>
   void GetImage(DstType *dst) const {
     DALI_ENFORCE(decoded_image_ && decoded_, "Image hasn't been decoded, call Decode(...)");
     std::memcpy(dst, decoded_image_.get(), volume(shape_) * sizeof(DstType));
   }
-
 
   /**
    * Returns the decoded image dimensions.
@@ -71,28 +69,27 @@ class Image {
    */
   DLL_PUBLIC Shape PeekShape() const;
 
- /**
-  * Sets crop window generator
-  */
-  inline void SetCropWindowGenerator(const CropWindowGenerator& crop_window_generator) {
+  /**
+   * Sets crop window generator
+   */
+  inline void SetCropWindowGenerator(const CropWindowGenerator &crop_window_generator) {
     crop_window_generator_ = crop_window_generator;
   }
 
-  inline void SetCropWindow(const CropWindow& crop_window) {
+  inline void SetCropWindow(const CropWindow &crop_window) {
     if (!crop_window)
       return;
-    crop_window_generator_ = [crop_window](const TensorShape<>& shape,
-                                           const TensorLayout& shape_layout) {
+    crop_window_generator_ = [crop_window](const TensorShape<> &shape,
+                                           const TensorLayout &shape_layout) {
       DALI_ENFORCE(shape_layout == "HW",
-        make_string("Unexpected input shape layout: ", shape_layout, " vs HW"));
+                   make_string("Unexpected input shape layout: ", shape_layout, " vs HW"));
       DALI_ENFORCE(crop_window.IsInRange(shape),
-        "crop_window["
-        + std::to_string(crop_window.anchor[1])
-        + ", " + std::to_string(crop_window.anchor[0])
-        + ", " + std::to_string(crop_window.shape[1])
-        + ", " + std::to_string(crop_window.shape[0]) + "]"
-        + " not valid from image dimensions [0, 0, "
-        + std::to_string(shape[1]) + ", " + std::to_string(shape[0]) + "]");
+                   "crop_window[" + std::to_string(crop_window.anchor[1]) + ", " +
+                       std::to_string(crop_window.anchor[0]) + ", " +
+                       std::to_string(crop_window.shape[1]) + ", " +
+                       std::to_string(crop_window.shape[0]) + "]" +
+                       " not valid from image dimensions [0, 0, " + std::to_string(shape[1]) +
+                       ", " + std::to_string(shape[0]) + "]");
       return crop_window;
     };
   }
@@ -116,8 +113,9 @@ class Image {
    * @param length length of the encoded buffer
    * @return [ptr to decoded image, Shape]
    */
-  virtual std::pair<std::shared_ptr<uint8_t>, Shape>
-  DecodeImpl(DALIImageType image_type, const uint8_t *encoded_buffer, size_t length) const = 0;
+  virtual std::pair<std::shared_ptr<uint8_t>, Shape> DecodeImpl(DALIImageType image_type,
+                                                                const uint8_t *encoded_buffer,
+                                                                size_t length) const = 0;
 
   /**
    * Template method. Reads image dimensions, without decoding the image
@@ -146,7 +144,6 @@ class Image {
   CropWindowGenerator crop_window_generator_;
   std::shared_ptr<uint8_t> decoded_image_ = nullptr;
 };
-
 
 }  // namespace dali
 

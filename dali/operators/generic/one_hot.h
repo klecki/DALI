@@ -15,21 +15,23 @@
 #ifndef DALI_OPERATORS_GENERIC_ONE_HOT_H_
 #define DALI_OPERATORS_GENERIC_ONE_HOT_H_
 
-#include <vector>
 #include <string>
+#include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/kernels/kernel_params.h"
-#include "dali/core/tensor_view.h"
 #include "dali/core/static_switch.h"
+#include "dali/core/tensor_view.h"
+#include "dali/kernels/kernel_params.h"
+#include "dali/pipeline/operator/operator.h"
 
-#define ONE_HOT_TYPES (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float, double)  // NOLINT
+#define ONE_HOT_TYPES                                                               \
+  (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float, \
+   double)  // NOLINT
 
 namespace dali {
 
 namespace detail {
 
-template<typename Out, typename In>
+template <typename Out, typename In>
 void DoOneHot(kernels::OutTensorCPU<Out, DynamicDimensions> output,
               kernels::InTensorCPU<In, DynamicDimensions> input, int num_classes,
               same_as_t<Out> on_value, same_as_t<Out> off_value, int axis) {
@@ -56,7 +58,8 @@ template <typename Backend>
 class OneHot : public Operator<Backend> {
  public:
   explicit OneHot(const OpSpec &spec)
-      : Operator<Backend>(spec), num_classes_(spec.GetArgument<int64_t>("num_classes")),
+      : Operator<Backend>(spec),
+        num_classes_(spec.GetArgument<int64_t>("num_classes")),
         axis_(spec.GetArgument<int>("axis")),
         output_type_(spec.GetArgument<DALIDataType>(arg_names::kDtype)),
         on_value_(spec.GetArgument<float>("on_value")),
@@ -65,7 +68,8 @@ class OneHot : public Operator<Backend> {
       auto axis_name = spec.GetArgument<std::string>("axis_name");
       DALI_ENFORCE(axis_name.length() == 1,
                    make_string("Unsupported axis_name value. It must be a single "
-                               "character, got \"", axis_name, "\" instead."));
+                               "character, got \"",
+                               axis_name, "\" instead."));
       new_axis_name_ = axis_name[0];
     }
   }
@@ -98,7 +102,7 @@ class OneHot : public Operator<Backend> {
 
     output_desc[0].shape.resize(num_samples, output_sample_dim);
 
-    const auto& shape = input.shape();
+    const auto &shape = input.shape();
     for (int i = 0; i < num_samples; i++) {
       output_desc[0].shape.set_tensor_shape(i, determine_shape(shape[i], output_sample_dim));
     }

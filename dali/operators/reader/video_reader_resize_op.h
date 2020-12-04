@@ -18,21 +18,18 @@
 #include <string>
 #include <vector>
 
+#include "dali/operators/image/resize/resampling_attr.h"
+#include "dali/operators/image/resize/resize_attr.h"
+#include "dali/operators/image/resize/resize_base.h"
 #include "dali/operators/reader/loader/video_loader.h"
 #include "dali/operators/reader/reader_op.h"
 #include "dali/operators/reader/video_reader_op.h"
-#include "dali/operators/image/resize/resize_attr.h"
-#include "dali/operators/image/resize/resampling_attr.h"
-#include "dali/operators/image/resize/resize_base.h"
 
 namespace dali {
 
-class VideoReaderResize : public VideoReader,
-                          protected ResizeBase<GPUBackend> {
+class VideoReaderResize : public VideoReader, protected ResizeBase<GPUBackend> {
  public:
-  explicit VideoReaderResize(const OpSpec &spec)
-      : VideoReader(spec),
-        ResizeBase(spec) {
+  explicit VideoReaderResize(const OpSpec &spec) : VideoReader(spec), ResizeBase(spec) {
     ResizeBase::InitializeGPU(spec_.GetArgument<int>("minibatch_size"),
                               spec_.GetArgument<int64_t>("temp_buffer_hint"));
   }
@@ -61,10 +58,8 @@ class VideoReaderResize : public VideoReader,
     single_output.ShareData(raw_output, shape.num_elements() * type.size(), shape, type);
   }
 
-  void ProcessVideo(
-    TensorList<GPUBackend> &video_output,
-    TensorList<GPUBackend> &video_batch,
-    DeviceWorkspace &ws) override {
+  void ProcessVideo(TensorList<GPUBackend> &video_output, TensorList<GPUBackend> &video_batch,
+                    DeviceWorkspace &ws) override {
     TensorListShape<> input_shape(1, sequence_dim);
     for (size_t data_idx = 0; data_idx < video_batch.ntensor(); ++data_idx) {
       TensorList<GPUBackend> input;
@@ -86,6 +81,7 @@ class VideoReaderResize : public VideoReader,
 
   ResizeAttr resize_attr_;
   ResamplingFilterAttr resampling_attr_;
+
  private:
   std::vector<kernels::ResamplingParams2D> resample_params_;
   TensorListShape<> input_shape_, output_shape_;

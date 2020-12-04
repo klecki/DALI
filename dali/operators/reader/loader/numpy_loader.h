@@ -16,29 +16,29 @@
 #define DALI_OPERATORS_READER_LOADER_NUMPY_LOADER_H_
 
 #include <dirent.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <sys/stat.h>
 
+#include <algorithm>
 #include <fstream>
+#include <map>
+#include <memory>
+#include <regex>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <algorithm>
-#include <map>
-#include <regex>
-#include <memory>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/data/types.h"
 #include "dali/operators/reader/loader/file_loader.h"
+#include "dali/pipeline/data/types.h"
 #include "dali/util/file.h"
 
 namespace dali {
 
 TypeInfo TypeFromNumpyStr(const std::string &format);
 
-class NumpyParseTarget{
+class NumpyParseTarget {
  public:
   std::vector<int64_t> shape;
   TypeInfo type_info;
@@ -56,10 +56,10 @@ class NumpyParseTarget{
 
 namespace detail {
 
-DLL_PUBLIC void ParseHeaderMetadata(NumpyParseTarget& target, const std::string &header);
+DLL_PUBLIC void ParseHeaderMetadata(NumpyParseTarget &target, const std::string &header);
 
 // parser function, only for internal use
-void ParseHeader(FileStream *file, NumpyParseTarget& target);
+void ParseHeader(FileStream *file, NumpyParseTarget &target);
 
 class NumpyHeaderCache {
  public:
@@ -78,14 +78,13 @@ class NumpyHeaderCache {
 
 class NumpyLoader : public FileLoader<> {
  public:
-  explicit inline NumpyLoader(
-    const OpSpec& spec,
-    bool shuffle_after_epoch = false)
-    : FileLoader(spec, shuffle_after_epoch),
-    header_cache_(spec.GetArgument<bool>("cache_header_information")) {}
+  explicit inline NumpyLoader(const OpSpec &spec, bool shuffle_after_epoch = false)
+      : FileLoader(spec, shuffle_after_epoch),
+        header_cache_(spec.GetArgument<bool>("cache_header_information")) {}
 
   // we want to make it possible to override this function as well
-  void ReadSample(ImageFileWrapper& tensor) override;
+  void ReadSample(ImageFileWrapper &tensor) override;
+
  private:
   detail::NumpyHeaderCache header_cache_;
 };

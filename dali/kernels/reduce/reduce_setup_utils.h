@@ -20,8 +20,8 @@
  * This file contains utilities for setting up multi-stage directional reduction
  */
 
-#include <utility>
 #include <type_traits>
+#include <utility>
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
 #include "dali/core/small_vector.h"
@@ -104,7 +104,6 @@ void SimplifyReduction(Axes &out_axes, DimGroups &out_dim_groups,
   out_dim_groups.push_back(std::make_pair(group_start, group_size));
 }
 
-
 /**
  * @brief Throws an exception if given tensor list cannot be reduced across samples with
  *        given set of axes.
@@ -130,13 +129,13 @@ inline void CheckBatchReduce(const TensorListShape<> &tls, span<const int> axes)
     for (int a : non_reduced) {
       if (sample_shape[a] != first_sample_shape[a])
         throw std::logic_error(make_string(
-          "Reduce: batch reduction requires that all samples have the same extent in non-reduced "
-          "dimensions.\nError at sample ", i, " axis ", a, ": the extent is ", sample_shape[a],
-          " != ", first_sample_shape[a], " in the first sample in the batch."));
+            "Reduce: batch reduction requires that all samples have the same extent in non-reduced "
+            "dimensions.\nError at sample ",
+            i, " axis ", a, ": the extent is ", sample_shape[a], " != ", first_sample_shape[a],
+            " in the first sample in the batch."));
     }
   }
 }
-
 
 /**
  * @brief Checks that axes only appear once and that they are within range.
@@ -149,7 +148,7 @@ inline void CheckAxes(span<const int> axes, int ndim) {
   uint64_t mask = 0;
   for (auto a : axes) {
     if (a < 0 || a >= ndim)
-      throw std::out_of_range(make_string("Axis index out of range: ", a, " not in 0..", ndim-1));
+      throw std::out_of_range(make_string("Axis index out of range: ", a, " not in 0..", ndim - 1));
     uint64_t amask = 1ul << a;
     if (mask & amask)
       throw std::invalid_argument(make_string("Duplicate axis index ", a));
@@ -178,11 +177,8 @@ inline void CheckAxes(span<const int> axes, int ndim) {
  *
  * @remarks The function assumes that arguments are valid.
  */
-inline void CalculateReducedShape(TensorListShape<> &out_shape,
-                                  const TensorListShape<> &in_shape,
-                                  span<const int> axes,
-                                  bool keep_dims,
-                                  bool batch_reduce) {
+inline void CalculateReducedShape(TensorListShape<> &out_shape, const TensorListShape<> &in_shape,
+                                  span<const int> axes, bool keep_dims, bool batch_reduce) {
   int nsamples = in_shape.num_samples();
   int out_samples = batch_reduce ? 1 : nsamples;
   int in_dim = in_shape.sample_dim();

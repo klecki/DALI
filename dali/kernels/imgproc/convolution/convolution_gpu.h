@@ -21,9 +21,9 @@
 #include "dali/core/tensor_view.h"
 #include "dali/kernels/common/utils.h"
 #include "dali/kernels/imgproc/convolution/cutlass/device/gemm.h"
+#include "dali/kernels/imgproc/convolution/cutlass/utility.h"
 #include "dali/kernels/kernel.h"
 #include "dali/pipeline/util/operator_impl_utils.h"
-#include "dali/kernels/imgproc/convolution/cutlass/utility.h"
 
 namespace dali {
 namespace kernels {
@@ -118,7 +118,7 @@ struct ConvolutionGpu {
         DALI_ENFORCE(
             window_anchor == window_size / 2,
             make_string("Support for non-centered window is not yet implemented, got anchor: ",
-                        window_anchor, ", expected:", window_size / 2,  "."));
+                        window_anchor, ", expected:", window_size / 2, "."));
         cutlass::Array<int, 2> size;
         auto sample_shape = in.tensor_shape(i);
         int num_channels = has_channels ? sample_shape[ndim - 1] : 1;
@@ -153,7 +153,7 @@ struct ConvolutionGpu {
         DALI_ENFORCE(
             window_anchor == window_size / 2,
             make_string("Support for non-centered window is not yet implemented, got anchor: ",
-                        window_anchor, ", expected:", window_size / 2,  "."));
+                        window_anchor, ", expected:", window_size / 2, "."));
         cutlass::Array<int, 2> size;
         auto sample_shape = in.tensor_shape(i);
         // height
@@ -168,18 +168,18 @@ struct ConvolutionGpu {
             reinterpret_cast<cutlass_W*>(window_tmp_buffer_gpu + i * kWindowCopyBufferSize);
         const auto* cutlass_in = reinterpret_cast<const cutlass_In*>(in.tensor_data(i));
         auto* cutlass_out = reinterpret_cast<cutlass_Out*>(out.tensor_data(i));
-        args.sample_arguments.push_back(SampleArguments{
-            size,                       // Input matrix dimensions
-            window_size,                // Window size
-            window_anchor,              // Window anchor
-            1,                          // channels don't matter for outer dimensions
-            {cutlass_in, row_stride},   // Tensor-ref for source matrix A
-            window_gpu,                 // Pointers to windows
-            {cutlass_out, row_stride},  // Tensor-ref for source matrix C
-            {cutlass_out, row_stride},  // Tensor-ref for destination matrix D
-            {scale, 0.f},               // Epilogue scalars
-            planes,                     // For non-outermost we can have 1+ planes
-            plane_stride});
+        args.sample_arguments.push_back(
+            SampleArguments{size,                      // Input matrix dimensions
+                            window_size,               // Window size
+                            window_anchor,             // Window anchor
+                            1,                         // channels don't matter for outer dimensions
+                            {cutlass_in, row_stride},  // Tensor-ref for source matrix A
+                            window_gpu,                // Pointers to windows
+                            {cutlass_out, row_stride},  // Tensor-ref for source matrix C
+                            {cutlass_out, row_stride},  // Tensor-ref for destination matrix D
+                            {scale, 0.f},               // Epilogue scalars
+                            planes,                     // For non-outermost we can have 1+ planes
+                            plane_stride});
       }
     }
     // Construct and invoke the CUTLASS kernel
@@ -223,7 +223,6 @@ struct ConvolutionGpu {
       CutlassWindowConfig,  /// Size and layout of SMEM for window kernel lookups
       float>;               /// Element type for internal accumulation
 
-
   static constexpr int kMaxWindowSize = CutlassConv::ConvWindowConfiguration::kMaxWindowSize;
   static constexpr int kWindowCopyBufferSize =
       CutlassConv::ConvWindowConfiguration::kTotalAlignedSize;
@@ -237,8 +236,8 @@ struct ConvolutionGpu {
                 "- 1) for channel-last input");
 
   void FillAlignedWindows(span<W> window_tmp_buffer_host,
-                         const TensorListView<StorageCPU, const W, 1>& window,
-                         const TensorListShape<ndim>& in_shape) {
+                          const TensorListView<StorageCPU, const W, 1>& window,
+                          const TensorListShape<ndim>& in_shape) {
     for (int i = 0; i < window.num_samples(); i++) {
       using dst_win_t =
           typename CutlassConv::ConvWindowConfiguration::template PaddedWindowBuffer<W>;

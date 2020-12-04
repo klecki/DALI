@@ -45,12 +45,8 @@ __global__ void BbFlipKernel(float *output, const float *input, size_t num_boxes
   if (idx >= num_boxes)
     return;
 
-  bool h = per_sample_horizontal
-         ? per_sample_horizontal[sample_indices[idx]]
-         : global_horizontal;
-  bool v = per_sample_vertical
-         ? per_sample_vertical[sample_indices[idx]]
-         : global_vertical;
+  bool h = per_sample_horizontal ? per_sample_horizontal[sample_indices[idx]] : global_horizontal;
+  bool v = per_sample_vertical ? per_sample_vertical[sample_indices[idx]] : global_vertical;
 
   const auto *in = &input[4 * idx];
   auto *out = &output[4 * idx];
@@ -70,16 +66,18 @@ __global__ void BbFlipKernel(float *output, const float *input, size_t num_boxes
   }
 }
 
-
 void BbFlip<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
   auto &input = ws.Input<GPUBackend>(0);
-  auto&output = ws.Output<GPUBackend>(0);
+  auto &output = ws.Output<GPUBackend>(0);
 
-  DALI_ENFORCE(IsType<float>(input.type()), "Expected input data as float;"
-               " got " + input.type().name());
+  DALI_ENFORCE(IsType<float>(input.type()),
+               "Expected input data as float;"
+               " got " +
+                   input.type().name());
   DALI_ENFORCE(input.size() % 4 == 0,
                "Input data size must be a multiple of 4 if it contains bounding boxes;"
-               " got " + std::to_string(input.size()));
+               " got " +
+                   std::to_string(input.size()));
 
   horz_.Update(spec_, ws);
   vert_.Update(spec_, ws);
@@ -102,13 +100,13 @@ void BbFlip<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
     for (int sample = 0; sample < shape.size(); sample++) {
       auto dim = shape[sample].size();
 
-      DALI_ENFORCE(dim < 2 || shape[sample][dim-1] == 4,
+      DALI_ENFORCE(dim < 2 || shape[sample][dim - 1] == 4,
                    "If bounding box tensor is >= 2D, innermost dimension must be 4");
       DALI_ENFORCE(dim > 1 || shape[sample][0] % 4 == 0,
                    "Flat representation of bouding boxes must have size divisible by 4");
 
       size_t sample_boxes = dim == 2 ? shape[sample][0] : shape[sample][0] / 4;
-      for (size_t i = 0; i < sample_boxes ; i++) {
+      for (size_t i = 0; i < sample_boxes; i++) {
         indices.push_back(sample);
       }
     }
@@ -134,16 +132,12 @@ void BbFlip<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
 
   if (ltrb) {
     BbFlipKernel<true><<<grid, block, 0, stream>>>(
-      output.mutable_data<float>(), input.data<float>(), num_boxes,
-      !per_sample_horz && horz_[0], per_sample_horz,
-      !per_sample_vert && vert_[0], per_sample_vert,
-      sample_idx);
+        output.mutable_data<float>(), input.data<float>(), num_boxes, !per_sample_horz && horz_[0],
+        per_sample_horz, !per_sample_vert && vert_[0], per_sample_vert, sample_idx);
   } else {
     BbFlipKernel<false><<<grid, block, 0, stream>>>(
-      output.mutable_data<float>(), input.data<float>(), num_boxes,
-      !per_sample_horz && horz_[0], per_sample_horz,
-      !per_sample_vert && vert_[0], per_sample_vert,
-      sample_idx);
+        output.mutable_data<float>(), input.data<float>(), num_boxes, !per_sample_horz && horz_[0],
+        per_sample_horz, !per_sample_vert && vert_[0], per_sample_vert, sample_idx);
   }
 }
 

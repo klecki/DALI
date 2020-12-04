@@ -23,8 +23,8 @@
 #include "dali/pipeline/data/views.h"
 
 #define ERASE_SUPPORTED_NDIMS (1, 2, 3, 4, 5)
-#define ERASE_SUPPORTED_TYPES (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, \
-                               uint64_t, int64_t, float)
+#define ERASE_SUPPORTED_TYPES \
+  (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float)
 namespace dali {
 
 namespace detail {
@@ -43,13 +43,11 @@ class EraseImplGpu : public OpImplBase<GPUBackend> {
   using EraseKernel = kernels::EraseGpu<T, Dims, channel_dim>;
 
   explicit EraseImplGpu(const OpSpec &spec)
-  : spec_(spec)
-  , batch_size_(spec.GetArgument<int>("batch_size")) {
-      kmgr_.Resize<EraseKernel>(1, 1);
+      : spec_(spec), batch_size_(spec.GetArgument<int>("batch_size")) {
+    kmgr_.Resize<EraseKernel>(1, 1);
   }
 
-  bool SetupImpl(std::vector<OutputDesc> &output_desc,
-                 const workspace_t<GPUBackend> &ws) override {
+  bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<GPUBackend> &ws) override {
     const auto &input = ws.template InputRef<GPUBackend>(0);
     auto layout = input.GetLayout();
     auto type = input.type();
@@ -77,8 +75,7 @@ class EraseImplGpu : public OpImplBase<GPUBackend> {
     kmgr_.Run<EraseKernel>(0, 0, ctx_, output, input, regions_view, make_cspan(fill_values_));
   }
 
-  void AcquireArgs(const DeviceWorkspace &ws, TensorListShape<> in_shape,
-                   TensorLayout in_layout) {
+  void AcquireArgs(const DeviceWorkspace &ws, TensorListShape<> in_shape, TensorLayout in_layout) {
     fill_values_ = spec_.template GetRepeatedArgument<float>("fill_value");
     auto args = detail::GetEraseArgs<T, Dims>(spec_, ws, in_shape, in_layout);
     auto regions_shape = TensorListShape<1>(batch_size_);

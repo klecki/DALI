@@ -27,8 +27,6 @@
 namespace dali {
 namespace kernels {
 
-
-
 /**
  * @brief Apply convolution in all spatial axes, starting from the innermost to outermost.
  *        If channel axis is pressent, the convolution is not applied there.
@@ -71,8 +69,7 @@ struct SeparableConvolutionGpu<Out, In, W, 1, has_channels, is_sequence> {
   void Run(KernelContext& ctx, const TensorListView<StorageGPU, Out, ndim> out,
            const TensorListView<StorageGPU, const In, ndim>& in,
            const std::array<TensorListView<StorageCPU, const W, 1>, axes>& windows,
-           const std::array<span<const int>, 1> anchors = {},
-           float scale = 1) {
+           const std::array<span<const int>, 1> anchors = {}, float scale = 1) {
     conv_.Run(ctx, out, in, windows[0], anchors[0], scale);
   }
 
@@ -109,9 +106,8 @@ struct SeparableConvolutionGpu<Out, In, W, 2, has_channels, is_sequence> {
   void Run(KernelContext& ctx, const TensorListView<StorageGPU, Out, ndim> out,
            const TensorListView<StorageGPU, const In, ndim>& in,
            const std::array<TensorListView<StorageCPU, const W, 1>, axes>& windows,
-           const std::array<span<const int>, 2> anchors = {},
-           float scale = 1) {
-    auto *tmp = ctx.scratchpad->Allocate<Intermediate>(AllocType::GPU, in.shape.num_elements());
+           const std::array<span<const int>, 2> anchors = {}, float scale = 1) {
+    auto* tmp = ctx.scratchpad->Allocate<Intermediate>(AllocType::GPU, in.shape.num_elements());
     auto intermediate = TensorListView<StorageGPU, Intermediate, ndim>(tmp, in.shape);
 
     // Prepare the scratchpad with all the remaining memory requested by sub-kernels
@@ -170,8 +166,7 @@ struct SeparableConvolutionGpu<Out, In, W, 3, has_channels, is_sequence> {
   void Run(KernelContext& ctx, const TensorListView<StorageGPU, Out, ndim> out,
            const TensorListView<StorageGPU, const In, ndim>& in,
            const std::array<TensorListView<StorageCPU, const W, 1>, axes>& windows,
-           const std::array<span<const int>, 3> anchors = {},
-           float scale = 1) {
+           const std::array<span<const int>, 3> anchors = {}, float scale = 1) {
     int intermediate_count = kUseOutAsIntermediate ? 1 : 2;
     auto* tmp = ctx.scratchpad->Allocate<Intermediate>(
         AllocType::GPU, in.shape.num_elements() * intermediate_count);

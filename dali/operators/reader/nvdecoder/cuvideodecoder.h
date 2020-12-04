@@ -15,8 +15,8 @@
 #ifndef DALI_OPERATORS_READER_NVDECODER_CUVIDEODECODER_H_
 #define DALI_OPERATORS_READER_NVDECODER_CUVIDEODECODER_H_
 
-#include "dali/operators/reader/nvdecoder/dynlink_nvcuvid.h"
 #include "dali/core/error_handling.h"
+#include "dali/operators/reader/nvdecoder/dynlink_nvcuvid.h"
 
 namespace dali {
 

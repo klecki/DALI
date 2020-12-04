@@ -16,18 +16,18 @@
 #define DALI_KERNELS_IMGPROC_POINTWISE_MULTIPLY_ADD_H_
 
 #include <utility>
-#include "dali/util/ocv.h"
 #include "dali/core/common.h"
 #include "dali/core/convert.h"
-#include "dali/core/geom/box.h"
 #include "dali/core/error_handling.h"
-#include "dali/kernels/kernel.h"
+#include "dali/core/geom/box.h"
 #include "dali/kernels/imgproc/roi.h"
+#include "dali/kernels/kernel.h"
+#include "dali/util/ocv.h"
 
 namespace dali {
 namespace kernels {
 
-template<typename OutputType, typename InputType, int ndims = 3>
+template <typename OutputType, typename InputType, int ndims = 3>
 class MultiplyAddCpu {
  private:
   static constexpr size_t spatial_dims = ndims - 1;
@@ -35,19 +35,15 @@ class MultiplyAddCpu {
  public:
   using Roi = Box<spatial_dims, int>;
 
-
-  KernelRequirements
-  Setup(KernelContext &context, const InTensorCPU<InputType, ndims> &in, float addend,
-        float multiplier, const Roi *roi = nullptr) {
+  KernelRequirements Setup(KernelContext &context, const InTensorCPU<InputType, ndims> &in,
+                           float addend, float multiplier, const Roi *roi = nullptr) {
     DALI_ENFORCE(!roi || all_coords(roi->hi >= roi->lo), "Region of interest is invalid");
     auto adjusted_roi = AdjustRoi(roi, in.shape);
     KernelRequirements req;
-    TensorListShape<> out_shape({ShapeFromRoi(adjusted_roi, in.shape[ndims - 1])
-    });
+    TensorListShape<> out_shape({ShapeFromRoi(adjusted_roi, in.shape[ndims - 1])});
     req.output_shapes = {std::move(out_shape)};
     return req;
   }
-
 
   /**
    * Assumes HWC memory layout

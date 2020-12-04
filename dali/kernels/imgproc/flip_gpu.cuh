@@ -19,8 +19,8 @@
 #include <vector>
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/kernels/kernel.h"
 #include "dali/core/static_switch.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -32,20 +32,19 @@ namespace gpu {
 
 template <size_t C, bool Single, typename T>
 __global__ void FlipKernel(T *__restrict__ output, const T *__restrict__ input,
-                           TensorShape<sample_ndim> shape,
-                           bool flip_z, bool flip_y, bool flip_x) {
+                           TensorShape<sample_ndim> shape, bool flip_z, bool flip_y, bool flip_x) {
   size_t xc = blockIdx.x * blockDim.x + threadIdx.x;
   size_t y = blockIdx.y * blockDim.y + threadIdx.y;
   size_t fz = blockIdx.z * blockDim.z + threadIdx.z;
-  const Index seq_length = shape[0], depth = shape[1], height = shape[2],
-                           width = shape[3], channels = shape[4];
+  const Index seq_length = shape[0], depth = shape[1], height = shape[2], width = shape[3],
+              channels = shape[4];
   if (xc >= width * channels || y >= height || fz >= depth * seq_length) {
     return;
   }
   const size_t channel = C ? xc % C : xc % channels;
   const size_t x = C ? xc / C : xc / channels;
   const size_t z = (!Single) ? fz % depth : fz;
-  const size_t f = (!Single) ? fz / depth: 0;
+  const size_t f = (!Single) ? fz / depth : 0;
   const size_t in_x = flip_x ? width - 1 - x : x;
   const size_t in_y = flip_y ? height - 1 - y : y;
   const size_t in_z = flip_z ? depth - 1 - z : z;
@@ -58,14 +57,13 @@ __global__ void FlipKernel(T *__restrict__ output, const T *__restrict__ input,
 
 template <typename T>
 void FlipImpl(T *__restrict__ output, const T *__restrict__ input,
-              const TensorShape<sample_ndim> &shape,
-              bool flip_z, bool flip_y, bool flip_x, cudaStream_t stream) {
+              const TensorShape<sample_ndim> &shape, bool flip_z, bool flip_y, bool flip_x,
+              cudaStream_t stream) {
   auto plane_width = shape[3] * shape[4];
   unsigned int block_x = plane_width < 32 ? plane_width : 32;
   unsigned int block_y = shape[2] < 32 ? shape[2] : 32;
   dim3 block(block_x, block_y, 1);
-  dim3 grid((plane_width + block_x - 1) / block_x,
-            (shape[2] + block_y - 1) / block_y,
+  dim3 grid((plane_width + block_x - 1) / block_x, (shape[2] + block_y - 1) / block_y,
             shape[0] * shape[1]);
   if (shape[0] == 1) {
     VALUE_SWITCH(shape[4], c_channels, (1, 2, 3, 4, 5, 6, 7, 8), (
@@ -96,9 +94,8 @@ class DLL_PUBLIC FlipGPU {
   }
 
   DLL_PUBLIC void Run(KernelContext &context, OutListGPU<Type, sample_ndim> &out,
-                      const InListGPU<Type, sample_ndim> &in,
-                      const std::vector<int> &flip_z, const std::vector<int> &flip_y,
-                      const std::vector<int> &flip_x) {
+                      const InListGPU<Type, sample_ndim> &in, const std::vector<int> &flip_z,
+                      const std::vector<int> &flip_y, const std::vector<int> &flip_x) {
     auto num_samples = static_cast<size_t>(in.num_samples());
     DALI_ENFORCE(flip_x.size() == num_samples && flip_y.size() == num_samples);
     for (size_t i = 0; i < num_samples; ++i) {

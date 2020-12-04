@@ -39,9 +39,7 @@ struct DctArgs {
   int ndct = -1;
 
   inline bool operator==(const DctArgs& oth) const {
-    return dct_type == oth.dct_type &&
-           ndct == oth.ndct &&
-           normalize == oth.normalize;
+    return dct_type == oth.dct_type && ndct == oth.ndct && normalize == oth.normalize;
   }
 
   inline bool operator!=(const DctArgs& oth) const {
@@ -50,8 +48,8 @@ struct DctArgs {
 
   // needed to use the struct as a key in std::map
   inline bool operator<(const DctArgs& rhs) const {
-    return std::make_tuple(dct_type, normalize, ndct)
-           < std::make_tuple(rhs.dct_type, rhs.normalize, rhs.ndct);
+    return std::make_tuple(dct_type, normalize, ndct) <
+           std::make_tuple(rhs.dct_type, rhs.normalize, rhs.ndct);
   }
 };
 

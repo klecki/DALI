@@ -15,14 +15,14 @@
 #ifndef DALI_KERNELS_IMGPROC_POINTWISE_LINEAR_TRANSFORMATION_CPU_H_
 #define DALI_KERNELS_IMGPROC_POINTWISE_LINEAR_TRANSFORMATION_CPU_H_
 
-#include <vector>
 #include <utility>
-#include "dali/core/format.h"
+#include <vector>
 #include "dali/core/convert.h"
+#include "dali/core/format.h"
 #include "dali/core/geom/box.h"
 #include "dali/kernels/common/block_setup.h"
-#include "dali/kernels/imgproc/surface.h"
 #include "dali/kernels/imgproc/roi.h"
+#include "dali/kernels/imgproc/surface.h"
 
 namespace dali {
 namespace kernels {
@@ -37,8 +37,8 @@ class LinearTransformationCpu {
 
  public:
   KernelRequirements Setup(KernelContext &context, const InTensorCPU<InputType, ndims> &in,
-                            Mat tmatrix = Mat::eye(), Vec tvector = {},
-                            const Roi<spatial_ndims_> *roi = nullptr) {
+                           Mat tmatrix = Mat::eye(), Vec tvector = {},
+                           const Roi<spatial_ndims_> *roi = nullptr) {
     DALI_ENFORCE(in.shape.shape.back() == channels_in,
                  "Unexpected number of channels. Number of channels in InTensorCPU has to match"
                  " the number of channels, that the kernel is instantiated with");
@@ -52,10 +52,9 @@ class LinearTransformationCpu {
     return req;
   }
 
-
   void Run(KernelContext &context, const OutTensorCPU<OutputType, ndims> &out,
-            const InTensorCPU<InputType, ndims> &in, Mat tmatrix = Mat::eye(), Vec tvector = {},
-            const Roi<spatial_ndims_> *roi = nullptr) {
+           const InTensorCPU<InputType, ndims> &in, Mat tmatrix = Mat::eye(), Vec tvector = {},
+           const Roi<spatial_ndims_> *roi = nullptr) {
     auto adjusted_roi = AdjustRoi(roi, in.shape);
     auto ptr = out.data;
     auto in_width = in.shape[1];

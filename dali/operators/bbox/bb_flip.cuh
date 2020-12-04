@@ -31,6 +31,7 @@ class BbFlip<GPUBackend> : public Operator<GPUBackend> {
   }
 
   void RunImpl(Workspace<GPUBackend> &ws) override;
+
  private:
   ArgValue<int> horz_{"horizontal"};
   ArgValue<int> vert_{"vertical"};

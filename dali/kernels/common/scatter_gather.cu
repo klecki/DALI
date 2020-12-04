@@ -23,9 +23,8 @@ namespace detail {
 size_t Coalesce(span<CopyRange> ranges) {
   if (ranges.empty())
     return 0;
-  std::sort(ranges.begin(), ranges.end(), [](const CopyRange &a, const CopyRange &b) {
-    return a.src < b.src;
-  });
+  std::sort(ranges.begin(), ranges.end(),
+            [](const CopyRange &a, const CopyRange &b) { return a.src < b.src; });
 
   int start = 0;
   size_t n = ranges.size();
@@ -36,7 +35,7 @@ size_t Coalesce(span<CopyRange> ranges) {
     if (ranges[i].src == ranges[start].src + ranges[start].size &&
         ranges[i].dst == ranges[start].dst + ranges[start].size) {
       ranges[start].size += ranges[i].size;
-      ranges[i] = { nullptr, nullptr, 0 };
+      ranges[i] = {nullptr, nullptr, 0};
       changed = true;
     } else {
       start = i;
@@ -78,7 +77,7 @@ void ScatterGatherGPU::MakeBlocks() {
   blocks_.reserve(num_blocks);
   for (auto &r : ranges_) {
     for (size_t ofs = 0; ofs < r.size; ofs += size_per_block_) {
-      blocks_.push_back({ r.src + ofs, r.dst + ofs, std::min(r.size - ofs, size_per_block_) });
+      blocks_.push_back({r.src + ofs, r.dst + ofs, std::min(r.size - ofs, size_per_block_)});
     }
   }
   assert(blocks_.size() == num_blocks);
@@ -106,7 +105,7 @@ void ScatterGatherGPU::Run(cudaStream_t stream, bool reset, ScatterGatherGPU::Me
   // TODO(michalz): Error handling
 
   bool use_memcpy = (method == ScatterGatherGPU::Method::Memcpy) ||
-    (method == ScatterGatherGPU::Method::Default && ranges_.size() <= 2);
+                    (method == ScatterGatherGPU::Method::Default && ranges_.size() <= 2);
 
   if (use_memcpy) {
     for (auto &r : ranges_) {
@@ -116,7 +115,7 @@ void ScatterGatherGPU::Run(cudaStream_t stream, bool reset, ScatterGatherGPU::Me
     MakeBlocks();
     ReserveGPUBlocks();
     cudaMemcpyAsync(blocks_dev_.get(), blocks_.data(), blocks_.size() * sizeof(blocks_[0]),
-      cudaMemcpyHostToDevice, stream);
+                    cudaMemcpyHostToDevice, stream);
 
     dim3 grid(blocks_.size());
     dim3 block(std::min<size_t>(size_per_block_, 1024));

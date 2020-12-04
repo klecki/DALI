@@ -30,8 +30,7 @@ namespace signal {
 template <typename T = float>
 class DLL_PUBLIC ToDecibelsCpu {
  public:
-  static_assert(std::is_floating_point<T>::value,
-    "Only floating point types are supported");
+  static_assert(std::is_floating_point<T>::value, "Only floating point types are supported");
 
   DLL_PUBLIC ~ToDecibelsCpu();
 
@@ -39,10 +38,8 @@ class DLL_PUBLIC ToDecibelsCpu {
                                       const InTensorCPU<T, DynamicDimensions> &in,
                                       const ToDecibelsArgs<T> &args);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutTensorCPU<T, DynamicDimensions> &out,
-                      const InTensorCPU<T, DynamicDimensions> &in,
-                      const ToDecibelsArgs<T> &args);
+  DLL_PUBLIC void Run(KernelContext &context, const OutTensorCPU<T, DynamicDimensions> &out,
+                      const InTensorCPU<T, DynamicDimensions> &in, const ToDecibelsArgs<T> &args);
 };
 
 }  // namespace signal

@@ -88,16 +88,18 @@ TEST(EraseGpuKernelTest, CheckUtils) {
   }
 }
 
-enum class RegionGen {
-  NO_ERASE,  ///< only copy, no erase
-  FULL_ERASE,  ///< full, 1-element cover, only erase
+enum class RegionGen
+{
+  NO_ERASE,     ///< only copy, no erase
+  FULL_ERASE,   ///< full, 1-element cover, only erase
   RANDOM_ERASE  ///< randomly generated cover
 };
 
-enum class FillType {
-  MAGIC_42,  ///< use single value `42` for erase
+enum class FillType
+{
+  MAGIC_42,             ///< use single value `42` for erase
   CHANNEL_CONSECUTIVE,  ///< use consecutive values to erase channels
-  DEFAULT  ///< do not pass a value, use default `0`
+  DEFAULT               ///< do not pass a value, use default `0`
 };
 
 template <int ndim>
@@ -107,7 +109,6 @@ struct EraseTestParams {
   FillType fill_type;
   TensorShape<ndim> shape;
 };
-
 
 std::ostream& operator<<(std::ostream& os, RegionGen p) {
   switch (p) {
@@ -123,7 +124,6 @@ std::ostream& operator<<(std::ostream& os, RegionGen p) {
   }
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, FillType p) {
   switch (p) {
@@ -142,14 +142,14 @@ std::ostream& operator<<(std::ostream& os, FillType p) {
 
 template <int ndim>
 std::ostream& operator<<(std::ostream& os, const EraseTestParams<ndim>& p) {
-  os << "Num erase regions: " << p.max_erase_regions << ", region generation: "
-     << p.region_generation << ", fill type: " << p.fill_type << ", shape: " << p.shape;
+  os << "Num erase regions: " << p.max_erase_regions
+     << ", region generation: " << p.region_generation << ", fill type: " << p.fill_type
+     << ", shape: " << p.shape;
   return os;
 }
 
 template <typename T, int ndim, int channel_dim = -1>
-struct EraseGpuKernelTest :
-    public testing::TestWithParam<EraseTestParams<ndim>> {
+struct EraseGpuKernelTest : public testing::TestWithParam<EraseTestParams<ndim>> {
   void SetUp() override {
     auto params = this->GetParam();
     max_erase_regions_ = params.max_erase_regions;
@@ -168,7 +168,7 @@ struct EraseGpuKernelTest :
     } else if (fill_type_ == FillType::CHANNEL_CONSECUTIVE) {
       fill_values_.resize(shape_[channel_dim]);
       int value = 0;
-      for (auto &elem : fill_values_) {
+      for (auto& elem : fill_values_) {
         elem = value++;
       }
     } else if (fill_type_ == FillType::MAGIC_42) {
@@ -271,12 +271,12 @@ struct EraseGpuKernelTest :
     } else if (region_generation_ == RegionGen::RANDOM_ERASE) {
       for (int i = 0; i < batch_size_; i++) {
         auto regions_tv = regions_cpu[i];
-        for (int j = 0; j < regions_tv.shape[0]; j ++) {
+        for (int j = 0; j < regions_tv.shape[0]; j++) {
           ibox<ndim> region_box;
           for (int d = 0; d < ndim; d++) {
-            std::uniform_int_distribution<>  start_dim(0, shape_[d] - 1);
+            std::uniform_int_distribution<> start_dim(0, shape_[d] - 1);
             region_box.lo[d] = start_dim(gen);
-            std::uniform_int_distribution<>  end_dim(region_box.lo[d] + 1, shape_[d]);
+            std::uniform_int_distribution<> end_dim(region_box.lo[d] + 1, shape_[d]);
             region_box.hi[d] = end_dim(gen);
           }
           *regions_tv(j) = region_box;
@@ -306,9 +306,9 @@ using EraseGpuKernel4fDHCWTest = EraseGpuKernelTest<float, 4, 2>;
 using EraseGpuKernel4fDHWCTest = EraseGpuKernelTest<float, 4, 3>;
 using EraseGpuKernel5fTest = EraseGpuKernelTest<float, 5>;
 
-#define ERASE_TEST_P(TEST) \
+#define ERASE_TEST_P(TEST)     \
   TEST_P(TEST, RunAndVerify) { \
-    this->RunTest(); \
+    this->RunTest();           \
   }
 
 ERASE_TEST_P(EraseGpuKernel1fTest)
@@ -485,7 +485,7 @@ std::vector<EraseTestParams<5>> values_5 = {
 };
 
 #define INSTANTIATE_ERASE_SUITE(TEST, VALUES) \
-  INSTANTIATE_TEST_SUITE_P(TEST, TEST ## Test, testing::ValuesIn(VALUES));
+  INSTANTIATE_TEST_SUITE_P(TEST, TEST##Test, testing::ValuesIn(VALUES));
 
 INSTANTIATE_ERASE_SUITE(EraseGpuKernel1f, values_1);
 INSTANTIATE_ERASE_SUITE(EraseGpuKernel2f, values_2);
@@ -496,7 +496,6 @@ INSTANTIATE_ERASE_SUITE(EraseGpuKernel3fCHW, values_3CHW);
 INSTANTIATE_ERASE_SUITE(EraseGpuKernel4fDHCW, values_4DHCW);
 INSTANTIATE_ERASE_SUITE(EraseGpuKernel4fDHWC, values_4DHWC);
 INSTANTIATE_ERASE_SUITE(EraseGpuKernel5f, values_5);
-
 
 }  // namespace kernels
 }  // namespace dali

@@ -16,19 +16,18 @@
 #define DALI_KERNELS_SIGNAL_FFT_CUFFT_HELPER_H_
 
 #include <cufft.h>
-#include <utility>
 #include <string>
+#include <utility>
 #include "dali/core/cuda_error.h"
-#include "dali/core/unique_handle.h"
 #include "dali/core/format.h"
+#include "dali/core/unique_handle.h"
 
 namespace dali {
 
 class CUFFTError : public std::runtime_error {
  public:
   explicit CUFFTError(cufftResult result, const char *details = nullptr)
-  : std::runtime_error(Message(result, details))
-  , result_(result) {}
+      : std::runtime_error(Message(result, details)), result_(result) {}
 
   static const char *ErrorString(cufftResult result) {
     switch (result) {
@@ -73,15 +72,16 @@ class CUFFTError : public std::runtime_error {
 
   static std::string Message(cufftResult result, const char *details) {
     if (details && *details) {
-      return make_string("CUFFT error: ", result, " ", ErrorString(result),
-                         "\nDetails:\n", details);
+      return make_string("CUFFT error: ", result, " ", ErrorString(result), "\nDetails:\n",
+                         details);
     } else {
       return make_string("CUFFT error: ", result, " ", ErrorString(result));
     }
   }
 
-
-  cufftResult result() const { return result_; }
+  cufftResult result() const {
+    return result_;
+  }
 
  private:
   cufftResult result_;
@@ -92,12 +92,12 @@ class CUFFTBadAlloc : public CUDABadAlloc {};
 template <>
 inline void cudaResultCheck<cufftResult>(cufftResult status) {
   switch (status) {
-  case CUFFT_SUCCESS:
-    return;
-  case CUFFT_ALLOC_FAILED:
-    throw dali::CUDABadAlloc();
-  default:
-    throw dali::CUFFTError(status);
+    case CUFFT_SUCCESS:
+      return;
+    case CUFFT_ALLOC_FAILED:
+      throw dali::CUDABadAlloc();
+    default:
+      throw dali::CUFFTError(status);
   }
 }
 

@@ -46,8 +46,7 @@ struct BlockDesc {
 constexpr int kBlock = 32;
 
 struct norm2square {
-  DALI_HOST_DEV DALI_FORCEINLINE
-  auto operator()(float2 c) const {
+  DALI_HOST_DEV DALI_FORCEINLINE auto operator()(float2 c) const {
     return c.x * c.x + c.y * c.y;
   }
 
@@ -58,8 +57,7 @@ struct norm2square {
 };
 
 struct norm2 {
-  DALI_HOST_DEV DALI_FORCEINLINE
-  auto operator()(float2 c) const {
+  DALI_HOST_DEV DALI_FORCEINLINE auto operator()(float2 c) const {
     return sqrtf(c.x * c.x + c.y * c.y);
   }
 
@@ -72,19 +70,19 @@ struct norm2 {
 #if defined(__clang__) && defined(__CUDA__)
 
 template <typename T>
-__host__ const T& hostdev_max(const T& l, const  T& r) {
+__host__ const T &hostdev_max(const T &l, const T &r) {
   return std::max(l, r);
 }
 
 template <typename T>
-__device__ const T hostdev_max(const T& l, const  T& r) {
+__device__ const T hostdev_max(const T &l, const T &r) {
   return ::max(l, r);
 }
 
 #else
 
 template <typename T>
-__host__ __device__ const T hostdev_max(const T& l, const T& r) {
+__host__ __device__ const T hostdev_max(const T &l, const T &r) {
   return ::max(l, r);
 }
 
@@ -99,22 +97,18 @@ struct power_dB {
   float mul = 3.01029995664f;  // log10(2)
   float cutoff = 1e-8;         // -80 dB
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  auto operator()(float2 c) const {
+  DALI_HOST_DEV DALI_FORCEINLINE auto operator()(float2 c) const {
     return mul * log2f(hostdev_max(c.x * c.x + c.y * c.y, cutoff));
   }
 
-  DALI_HOST DALI_FORCEINLINE
-  auto operator()(complexf c) const {
+  DALI_HOST DALI_FORCEINLINE auto operator()(complexf c) const {
     return (*this)(float2{c.real(), c.imag()});
   }
 };
 
 template <typename Out, typename In, typename Convert>
-__global__ void ConvertTimeMajorSpectrogram(
-      Out *out, int out_stride,
-      const In *in, int in_stride, int nfft, int64_t nwindows,
-      Convert convert = {}) {
+__global__ void ConvertTimeMajorSpectrogram(Out *out, int out_stride, const In *in, int in_stride,
+                                            int nfft, int64_t nwindows, Convert convert = {}) {
   // A warp processes a whole row (transform) to ensure sequential processing
   // and thus enable in-place operation.
 
@@ -125,7 +119,7 @@ __global__ void ConvertTimeMajorSpectrogram(
   in += wnd * in_stride;
 
   // Check for in-place operation and size change
-  if (static_cast<const void*>(out) == static_cast<const void *>(in) &&
+  if (static_cast<const void *>(out) == static_cast<const void *>(in) &&
       sizeof(Out) != sizeof(In)) {
     // The loop starts at 0 (not threadIdx.x) to ensure there's no divergence which would
     // cause undefined behavior in __syncwarp() (or require complex mask calculation).
@@ -143,10 +137,8 @@ __global__ void ConvertTimeMajorSpectrogram(
 }
 
 template <typename Out, typename In, typename Convert = identity>
-__global__ void TransposeBatch(
-    const SampleDesc<Out, In> *samples,
-    const BlockDesc *blocks,
-    Convert convert = {}) {
+__global__ void TransposeBatch(const SampleDesc<Out, In> *samples, const BlockDesc *blocks,
+                               Convert convert = {}) {
   BlockDesc block = blocks[blockIdx.x];
   SampleDesc<Out, In> sample = samples[block.sample_idx];
 
@@ -174,7 +166,7 @@ __global__ void TransposeBatch(
       if (out_pos.y < block.end.x && out_pos.x < block.end.y)
         sample.out[out_pos.y * sample.out_stride + out_pos.x] = tmp[page][threadIdx.x][threadIdx.y];
 
-      page = 1-page;
+      page = 1 - page;
     }
   }
 }
@@ -184,8 +176,7 @@ class FFTPostprocess {
  public:
   virtual KernelRequirements Setup(KernelContext &ctx, const TensorListShape<2> &in_shape) = 0;
 
-  virtual void Run(KernelContext &ctx,
-                   const OutListGPU<Out, 2> &out,
+  virtual void Run(KernelContext &ctx, const OutListGPU<Out, 2> &out,
                    const InListGPU<In, 2> &in) = 0;
 
   virtual ~FFTPostprocess() = default;
@@ -199,7 +190,7 @@ class ConvertTimeMajorSpectrum : public FFTPostprocess<Out, In> {
 
   KernelRequirements Setup(KernelContext &ctx, const TensorListShape<2> &in_shape) override {
     KernelRequirements req;
-    req.output_shapes = { in_shape };
+    req.output_shapes = {in_shape};
     return req;
   }
 
@@ -214,8 +205,7 @@ class ConvertTimeMajorSpectrum : public FFTPostprocess<Out, In> {
     for (int i = 0; i < N; i++) {
       DALI_ENFORCE(in.shape[i][0] == out.shape[i][0],
                    "Number of transforms must match for corresponding input/output samples.");
-      DALI_ENFORCE(in.shape[i][1] == in.shape[0][1],
-                   "All input tensors must have the same width");
+      DALI_ENFORCE(in.shape[i][1] == in.shape[0][1], "All input tensors must have the same width");
       DALI_ENFORCE(out.shape[i][1] == out.shape[0][1],
                    "All output tensors must have the same width");
     }
@@ -285,7 +275,7 @@ class ToFreqMajorSpectrum : public FFTPostprocess<Out, In> {
     for (int i = 0; i < N; i++) {
       TensorShape<2> sample_shape = in_shape[i];
       DALI_ENFORCE(sample_shape[1] == nfft, "All inputs must have the same number of FFT bins");
-      out_shape.set_tensor_shape(i, { sample_shape[1], sample_shape[0] });
+      out_shape.set_tensor_shape(i, {sample_shape[1], sample_shape[0]});
 
       total_windows += sample_shape[0];
     }
@@ -322,15 +312,14 @@ class ToFreqMajorSpectrum : public FFTPostprocess<Out, In> {
       assert(sample_shape[1] == nfft);
       int nwindows = sample_shape[0];
       cpu_samples[i] = {
-        out.data[i],
-        in.data[i],
-        nwindows,  // output stride - a row contains all windows
-        nfft       // input stride  - a row contains all frequencies
+          out.data[i], in.data[i],
+          nwindows,  // output stride - a row contains all windows
+          nfft       // input stride  - a row contains all frequencies
       };
       for (int start = 0; start < nwindows; start += block_size_) {
         int end = std::min(start + block_size_, nwindows);
         assert(b < nblocks_);
-        cpu_blocks[b++] = { i, ivec2(0, start), ivec2(nfft, end) };
+        cpu_blocks[b++] = {i, ivec2(0, start), ivec2(nfft, end)};
       }
     }
     assert(b == nblocks_);
@@ -365,8 +354,7 @@ inline std::unique_ptr<FFTPostprocess<float2, float2>> GetSTFTPostprocessor(bool
 }
 
 template <typename Convert>
-std::unique_ptr<FFTPostprocess<float, float2>> GetSpectrogramPostprocessor(
-    bool time_major) {
+std::unique_ptr<FFTPostprocess<float, float2>> GetSpectrogramPostprocessor(bool time_major) {
   if (time_major)
     return std::make_unique<ConvertTimeMajorSpectrum<float, float2, Convert>>();
   else
@@ -374,8 +362,7 @@ std::unique_ptr<FFTPostprocess<float, float2>> GetSpectrogramPostprocessor(
 }
 
 inline std::unique_ptr<FFTPostprocess<float, float2>> GetSpectrogramPostprocessor(
-    bool time_major,
-    FftSpectrumType type) {
+    bool time_major, FftSpectrumType type) {
   switch (type) {
     case FFT_SPECTRUM_MAGNITUDE:
       return GetSpectrogramPostprocessor<norm2>(time_major);

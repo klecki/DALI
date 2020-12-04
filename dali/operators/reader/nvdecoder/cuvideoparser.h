@@ -18,14 +18,14 @@
 #include <algorithm>
 #include <cstring>
 
-#include "dali/operators/reader/nvdecoder/dynlink_nvcuvid.h"
-#include "dali/core/error_handling.h"
 #include "dali/core/cuda_utils.h"
-
+#include "dali/core/error_handling.h"
+#include "dali/operators/reader/nvdecoder/dynlink_nvcuvid.h"
 
 namespace dali {
 
-enum class Codec {
+enum class Codec
+{
   H264,
   HEVC,
   MPEG4,
@@ -34,15 +34,11 @@ enum class Codec {
 
 class CUVideoParser {
  public:
-  CUVideoParser()
-    : parser_{0}, parser_info_{}, parser_extinfo_{}, initialized_{false}
-  {
-  }
-
+  CUVideoParser() : parser_{0}, parser_info_{}, parser_extinfo_{}, initialized_{false} {}
 
   template <typename Decoder>
-  void init(Codec codec, Decoder* decoder, int decode_surfaces,
-            uint8_t* extradata, int extradata_size) {
+  void init(Codec codec, Decoder* decoder, int decode_surfaces, uint8_t* extradata,
+            int extradata_size) {
     switch (codec) {
       case Codec::H264:
         parser_info_.CodecType = cudaVideoCodec_H264;
@@ -79,7 +75,7 @@ class CUVideoParser {
     parser_info_.pExtVideoInfo = &parser_extinfo_;
     if (extradata_size > 0) {
       auto hdr_size = std::min(sizeof(parser_extinfo_.raw_seqhdr_data),
-                                static_cast<std::size_t>(extradata_size));
+                               static_cast<std::size_t>(extradata_size));
       parser_extinfo_.format.seqhdr_data_length = hdr_size;
       memcpy(parser_extinfo_.raw_seqhdr_data, extradata, hdr_size);
     }
@@ -87,10 +83,7 @@ class CUVideoParser {
     initialized_ = true;
   }
 
-  explicit CUVideoParser(CUvideoparser parser)
-      : parser_{parser}, initialized_{true}
-  {
-  }
+  explicit CUVideoParser(CUvideoparser parser) : parser_{parser}, initialized_{true} {}
 
   ~CUVideoParser() {
     if (initialized_) {
@@ -99,8 +92,7 @@ class CUVideoParser {
   }
 
   explicit CUVideoParser(CUVideoParser&& other)
-      : parser_{other.parser_}, initialized_{other.initialized_}
-  {
+      : parser_{other.parser_}, initialized_{other.initialized_} {
     other.parser_ = 0;
     other.initialized_ = false;
   }
@@ -133,7 +125,6 @@ class CUVideoParser {
 
   bool initialized_;
 };
-
 
 }  // namespace dali
 

@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <vector>
-#include "dali/operators/generic/one_hot.h"
 #include "dali/operators/generic/one_hot.cuh"
+#include "dali/operators/generic/one_hot.h"
 
 namespace dali {
 
@@ -32,7 +32,7 @@ class OneHotGPU : public OneHot<GPUBackend> {
   void RunImpl(workspace_t<GPUBackend> &ws) override;
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<GPUBackend> &ws) override;
 
-  template<typename OutputType, typename InputType>
+  template <typename OutputType, typename InputType>
   void RunImplTyped(workspace_t<GPUBackend> &ws, int placement_axis);
 
  private:
@@ -64,7 +64,7 @@ void OneHotGPU::RunImpl(workspace_t<GPUBackend> &ws) {
     TYPE_SWITCH(output_type_, type2id, OutputType, ONE_HOT_TYPES, (
       RunImplTyped<OutputType, InputType>(ws, placement_axis);
     ), DALI_FAIL(make_string("Unsupported output type: ", output_type_)); );       // NOLINT
-  ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())); );     // NOLINT
+  ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())); );  // NOLINT
 }
 
 template <typename OutputType, typename InputType>
@@ -96,8 +96,8 @@ void OneHotGPU::RunImplTyped(workspace_t<GPUBackend> &ws, int axis) {
   const int block = 256;
   auto grid = detail::gridHelper(max_out_vol, num_samples, block);
 
-  detail::PopulateOneHot<OutputType, InputType><<<grid, block, 0, stream>>>(
-    on_value_, off_value_, scratch_mem_gpu);
+  detail::PopulateOneHot<OutputType, InputType>
+      <<<grid, block, 0, stream>>>(on_value_, off_value_, scratch_mem_gpu);
 }
 
 DALI_REGISTER_OPERATOR(OneHot, OneHotGPU, GPU);

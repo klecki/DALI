@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/audio/preemphasis_filter_op.h"
 #include <vector>
+#include "dali/operators/audio/preemphasis_filter_op.h"
 #include "dali/pipeline/data/types.h"
 
 namespace dali {
@@ -39,10 +39,10 @@ void __global__ PreemphasisFilterKernel(const SampleDescriptor<OutputType, Input
   if (k >= sample.size)
     return;
 
-  sample.out[k] = sample.in[k] - sample.coeff * sample.in[cuda_max(0l, k-1)];
+  sample.out[k] = sample.in[k] - sample.coeff * sample.in[cuda_max(0l, k - 1)];
   k += grid_stride;
   for (; k < sample.size; k += grid_stride)
-    sample.out[k] = sample.in[k] - sample.coeff * sample.in[k-1];
+    sample.out[k] = sample.in[k] - sample.coeff * sample.in[k - 1];
 }
 
 }  // namespace detail
@@ -82,10 +82,10 @@ void PreemphasisFilterGPU::RunImplTyped(workspace_t<GPUBackend> &ws) {
   int64_t sz = batch_size_ * sizeof(SampleDesc);
   scratch_mem_.set_type(TypeTable::GetTypeInfo(DALI_UINT8));
   scratch_mem_.Resize({sz});
-  auto sample_descs_gpu = reinterpret_cast<SampleDesc*>(scratch_mem_.mutable_data<uint8_t>());
+  auto sample_descs_gpu = reinterpret_cast<SampleDesc *>(scratch_mem_.mutable_data<uint8_t>());
   auto stream = ws.stream();
   CUDA_CALL(
-    cudaMemcpyAsync(sample_descs_gpu, samples_cpu.data(), sz, cudaMemcpyHostToDevice, stream));
+      cudaMemcpyAsync(sample_descs_gpu, samples_cpu.data(), sz, cudaMemcpyHostToDevice, stream));
 
   int block = 256;
   auto blocks_per_sample = std::max(32, 1024 / batch_size_);

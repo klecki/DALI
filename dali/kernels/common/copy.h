@@ -18,16 +18,16 @@
 #include <cuda_runtime.h>
 #include <cstring>
 #include <utility>
-#include "dali/core/traits.h"
-#include "dali/kernels/alloc.h"
 #include "dali/core/backend_tags.h"
 #include "dali/core/tensor_view.h"
+#include "dali/core/traits.h"
+#include "dali/kernels/alloc.h"
 
 namespace dali {
 namespace kernels {
 
 template <typename StorageOut, typename StorageIn>
-void copy(void* out, const void* in, std::size_t N, cudaStream_t stream = 0) {
+void copy(void *out, const void *in, std::size_t N, cudaStream_t stream = 0) {
   if (!is_gpu_accessible<StorageOut>::value) {
     if (is_cpu_accessible<StorageIn>::value) {
       if (is_gpu_accessible<StorageIn>::value)
@@ -45,10 +45,10 @@ void copy(void* out, const void* in, std::size_t N, cudaStream_t stream = 0) {
   }
 }
 
-template <typename StorageOut, typename TOut, int NDimOut,
-          typename StorageIn, typename TIn, int NDimIn>
-void copy(const TensorView<StorageOut, TOut, NDimIn>& out,
-          const TensorView<StorageIn, TIn, NDimOut>& in, cudaStream_t stream = 0) {
+template <typename StorageOut, typename TOut, int NDimOut, typename StorageIn, typename TIn,
+          int NDimIn>
+void copy(const TensorView<StorageOut, TOut, NDimIn> &out,
+          const TensorView<StorageIn, TIn, NDimOut> &in, cudaStream_t stream = 0) {
   static_assert(sizeof(TOut) == sizeof(TIn), "Tensor elements must be of equal size!");
   static_assert(!std::is_const<TOut>::value, "Cannot copy to a tensor of const elements!");
   assert(in.shape == out.shape);
@@ -66,11 +66,10 @@ void copy(const TensorView<StorageOut, TOut, NDimIn>& out,
  * memory are merged and those groups need to have the same total length. Empty samples are skipped
  * and are not treated as discontinuities.
  */
-template <typename StorageOut, typename TOut, int NDimOut,
-          typename StorageIn, typename TIn, int NDimIn>
+template <typename StorageOut, typename TOut, int NDimOut, typename StorageIn, typename TIn,
+          int NDimIn>
 void copy(const TensorListView<StorageOut, TOut, NDimOut> &out,
-          const TensorListView<StorageIn, TIn, NDimIn> &in,
-          cudaStream_t stream = 0) {
+          const TensorListView<StorageIn, TIn, NDimIn> &in, cudaStream_t stream = 0) {
   static_assert(sizeof(TOut) == sizeof(TIn), "Tensor elements must be of equal size!");
   static_assert(!std::is_const<TOut>::value, "Cannot copy to a tensor of const elements!");
   int M = in.num_samples();
@@ -81,7 +80,7 @@ void copy(const TensorListView<StorageOut, TOut, NDimOut> &out,
   int64_t out_len = 0, in_len = 0;
   int i, o;
   for (i = 0, o = 0; i < M && o < N;) {
-    int64_t in_sample_size  = volume(in.shape.tensor_shape_span(i));
+    int64_t in_sample_size = volume(in.shape.tensor_shape_span(i));
     int64_t out_sample_size = volume(out.shape.tensor_shape_span(o));
     if (in_sample_size == 0) {
       i++;
@@ -111,7 +110,7 @@ void copy(const TensorListView<StorageOut, TOut, NDimOut> &out,
       in_len = 0;
       out_len = 0;
     }
-    in_len  += in_sample_size;
+    in_len += in_sample_size;
     out_len += out_sample_size;
     i++;
     o++;
@@ -119,13 +118,13 @@ void copy(const TensorListView<StorageOut, TOut, NDimOut> &out,
 
   for (; i < M; i++) {
     assert(in.data[i] == in_start + in_len);
-    int64_t in_sample_size  = volume(in.shape.tensor_shape_span(i));
+    int64_t in_sample_size = volume(in.shape.tensor_shape_span(i));
     in_len += in_sample_size;
   }
 
   for (; o < N; o++) {
     assert(in.data[o] == out_start + out_len);
-    int64_t out_sample_size  = volume(out.shape.tensor_shape_span(o));
+    int64_t out_sample_size = volume(out.shape.tensor_shape_span(o));
     out_len += out_sample_size;
   }
 
@@ -139,16 +138,16 @@ void copy(const TensorListView<StorageOut, TOut, NDimOut> &out,
 /**
  * Copies input TensorView and returns the output.
  * @tparam DstAlloc Requested allocation type of the output TensorView.
- *                  According to this parameter, StorageBackend of output TensorView will be determined
+ *                  According to this parameter, StorageBackend of output TensorView will be
+ * determined
  * @tparam NonconstT utility parameter, do not specify (leave default)
- * @return The output consists of new TensorView along with pointer to its memory (as the TensorView doesn't own any)
+ * @return The output consists of new TensorView along with pointer to its memory (as the TensorView
+ * doesn't own any)
  */
-template<AllocType DstAlloc, typename SrcBackend, typename T, int ndims>
-std::pair<
-        TensorView<AllocBackend<DstAlloc>, dali::remove_const_t<T>, ndims>,
-        memory::KernelUniquePtr<dali::remove_const_t<T>>
-          >
-copy(const TensorView <SrcBackend, T, ndims> &src) {
+template <AllocType DstAlloc, typename SrcBackend, typename T, int ndims>
+std::pair<TensorView<AllocBackend<DstAlloc>, dali::remove_const_t<T>, ndims>,
+          memory::KernelUniquePtr<dali::remove_const_t<T>>>
+copy(const TensorView<SrcBackend, T, ndims> &src) {
   auto mem = kernels::memory::alloc_unique<dali::remove_const_t<T>>(DstAlloc, volume(src.shape));
   auto tvgpu = make_tensor<AllocBackend<DstAlloc>, ndims>(mem.get(), src.shape);
   kernels::copy(tvgpu, src);

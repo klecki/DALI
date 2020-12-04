@@ -23,10 +23,7 @@ namespace dali {
 
 class nvJPEGDecoderCrop : public nvJPEGDecoder, protected CropAttr {
  public:
-  explicit nvJPEGDecoderCrop(const OpSpec& spec)
-    : nvJPEGDecoder(spec)
-    , CropAttr(spec) {
-  }
+  explicit nvJPEGDecoderCrop(const OpSpec& spec) : nvJPEGDecoder(spec), CropAttr(spec) {}
 
   DISABLE_COPY_MOVE_ASSIGN(nvJPEGDecoderCrop);
 
@@ -35,7 +32,7 @@ class nvJPEGDecoderCrop : public nvJPEGDecoder, protected CropAttr {
     return CropAttr::GetCropWindowGenerator(data_idx);
   }
 
-  void SetupSharedSampleParams(MixedWorkspace &ws) override {
+  void SetupSharedSampleParams(MixedWorkspace& ws) override {
     CropAttr::ProcessArguments(ws);
   }
 };

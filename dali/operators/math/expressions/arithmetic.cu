@@ -31,5 +31,4 @@ void ArithmeticGenericOp<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
 
 DALI_REGISTER_OPERATOR(ArithmeticGenericOp, ArithmeticGenericOp<GPUBackend>, GPU);
 
-
 }  // namespace dali

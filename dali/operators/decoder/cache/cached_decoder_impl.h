@@ -33,25 +33,20 @@ class CachedDecoderImpl {
    */
   explicit CachedDecoderImpl(const OpSpec& spec);
 
-  bool CacheLoad(
-    const std::string& file_name,
-    uint8_t *output_data,
-    cudaStream_t stream);
+  bool CacheLoad(const std::string& file_name, uint8_t* output_data, cudaStream_t stream);
 
-  void CacheStore(
-    const std::string& file_name,
-    const uint8_t *data,
-    const ImageCache::ImageShape& data_shape,
-    cudaStream_t stream);
+  void CacheStore(const std::string& file_name, const uint8_t* data,
+                  const ImageCache::ImageShape& data_shape, cudaStream_t stream);
 
-  bool DeferCacheLoad(const std::string& file_name, uint8_t *output_data);
+  bool DeferCacheLoad(const std::string& file_name, uint8_t* output_data);
 
   void LoadDeferred(cudaStream_t stream);
 
-  ImageCache::ImageShape CacheImageShape(
-    const std::string& file_name);
+  ImageCache::ImageShape CacheImageShape(const std::string& file_name);
 
-  bool IsCacheEnabled() const noexcept { return cache_ != nullptr; }
+  bool IsCacheEnabled() const noexcept {
+    return cache_ != nullptr;
+  }
 
  protected:
   ~CachedDecoderImpl();

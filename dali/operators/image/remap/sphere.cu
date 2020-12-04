@@ -12,9 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-#include "dali/operators/image/remap/sphere.h"
 #include "dali/operators/image/remap/displacement_filter_impl_gpu.cuh"
+#include "dali/operators/image/remap/sphere.h"
 
 namespace dali {
 

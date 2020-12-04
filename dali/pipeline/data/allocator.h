@@ -49,7 +49,6 @@ class AllocatorBase {
   virtual void Delete(void *ptr, size_t bytes) = 0;
 };
 
-
 /**
  * @brief Default GPU memory allocator.
  */
@@ -71,10 +70,9 @@ class GPUAllocator : public AllocatorBase {
 
 DALI_DECLARE_OPTYPE_REGISTRY(GPUAllocator, GPUAllocator);
 
-#define DALI_REGISTER_GPU_ALLOCATOR(OpName, OpType) \
-  DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType,     \
-      dali::GPUAllocator, dali::GPUAllocator, "GPU_Allocator")
-
+#define DALI_REGISTER_GPU_ALLOCATOR(OpName, OpType)                                     \
+  DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType, dali::GPUAllocator, dali::GPUAllocator, \
+                                "GPU_Allocator")
 
 /**
  * @brief Default CPU memory allocator.
@@ -95,9 +93,9 @@ class CPUAllocator : public AllocatorBase {
 
 DALI_DECLARE_OPTYPE_REGISTRY(CPUAllocator, CPUAllocator);
 
-#define DALI_REGISTER_CPU_ALLOCATOR(OpName, OpType) \
-  DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType,     \
-      dali::CPUAllocator, dali::CPUAllocator, "CPU_Allocator")
+#define DALI_REGISTER_CPU_ALLOCATOR(OpName, OpType)                                     \
+  DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType, dali::CPUAllocator, dali::CPUAllocator, \
+                                "CPU_Allocator")
 
 /**
  * @brief Pinned memory CPU allocator

@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <utility>
 #include <vector>
-#include <memory>
-#include "dali/operators/signal/decibel/to_decibels_op.h"
 #include "dali/core/static_switch.h"
 #include "dali/kernels/kernel_params.h"
 #include "dali/kernels/reduce/reduce_all_kernel_gpu.h"
 #include "dali/kernels/signal/decibel/to_decibels_gpu.h"
+#include "dali/operators/signal/decibel/to_decibels_op.h"
 #include "dali/pipeline/data/views.h"
 
 namespace dali {
@@ -31,8 +31,7 @@ class ToDecibelsImpl : public OpImplBase<GPUBackend> {
   using ToDecibelsKernel = kernels::signal::ToDecibelsGpu<T>;
   using ToDecibelsArgs = kernels::signal::ToDecibelsArgs<T>;
 
-  explicit ToDecibelsImpl(ToDecibelsArgs args)
-      : args_(std::move(args)) {
+  explicit ToDecibelsImpl(ToDecibelsArgs args) : args_(std::move(args)) {
     if (args_.ref_max) {
       kmgr_max_.Initialize<MaxKernel>();
       kmgr_max_.Resize<MaxKernel>(1, 1);
@@ -65,13 +64,13 @@ bool ToDecibelsImpl<T>::SetupImpl(std::vector<OutputDesc> &output_desc,
 
   kernels::KernelContext ctx;
   if (args_.ref_max) {
-    auto& req_max = kmgr_max_.Setup<MaxKernel>(0, ctx, in_view);
+    auto &req_max = kmgr_max_.Setup<MaxKernel>(0, ctx, in_view);
     max_out_desc_.resize(1);
     max_out_desc_[0].type = type;
     max_out_desc_[0].shape = req_max.output_shapes[0];
   }
 
-  auto& req = kmgr_todb_.Setup<ToDecibelsKernel>(0, ctx, in_view);
+  auto &req = kmgr_todb_.Setup<ToDecibelsKernel>(0, ctx, in_view);
   output_desc.resize(1);
   output_desc[0].type = type;
   output_desc[0].shape = req.output_shapes[0];

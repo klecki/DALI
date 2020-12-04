@@ -15,8 +15,8 @@
 #ifndef DALI_KERNELS_SIGNAL_WINDOW_EXTRACT_WINDOWS_CPU_H_
 #define DALI_KERNELS_SIGNAL_WINDOW_EXTRACT_WINDOWS_CPU_H_
 
-#include <memory>
 #include <complex>
+#include <memory>
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
@@ -62,7 +62,7 @@ class DLL_PUBLIC ExtractWindowsCpu {
   static constexpr int OutputDims = Dims + 1;
 
   static_assert(std::is_same<OutputType, InputType>::value,
-    "Type conversion is not allowed in this kernel");
+                "Type conversion is not allowed in this kernel");
 
   DLL_PUBLIC ~ExtractWindowsCpu();
 
@@ -71,11 +71,9 @@ class DLL_PUBLIC ExtractWindowsCpu {
                                       const InTensorCPU<float, 1> &window_fn,
                                       const ExtractWindowsArgs &args);
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutTensorCPU<OutputType, OutputDims> &out,
+  DLL_PUBLIC void Run(KernelContext &context, const OutTensorCPU<OutputType, OutputDims> &out,
                       const InTensorCPU<InputType, InputDims> &in,
-                      const InTensorCPU<float, 1> &window_fn,
-                      const ExtractWindowsArgs &args);
+                      const InTensorCPU<float, 1> &window_fn, const ExtractWindowsArgs &args);
 
  private:
   int window_length_ = -1;

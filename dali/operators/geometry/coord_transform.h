@@ -20,8 +20,8 @@
 #include "dali/core/geom/mat.h"
 #include "dali/core/static_switch.h"
 #include "dali/kernels/kernel_manager.h"
-#include "dali/pipeline/operator/operator.h"
 #include "dali/operators/geometry/mt_transform_attr.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -35,7 +35,9 @@ class CoordTransform : public Operator<Backend>, private MTTransformAttr {
     dtype_ = spec_.template GetArgument<DALIDataType>("dtype");
   }
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
  protected:
   using Operator<Backend>::spec_;
@@ -47,12 +49,12 @@ class CoordTransform : public Operator<Backend>, private MTTransformAttr {
 
     CheckType(input.type().id());
 
-    PrepareTransformArguments(ws, input_shape);      // this is where the magic happens
+    PrepareTransformArguments(ws, input_shape);  // this is where the magic happens
     // Now we know the matrix size and therefore number of output vector components.
     // This allows us to set the output shape.
 
     const int N = input_shape.num_samples();
-    output_descs[0].shape = input_shape;             // copy the input shape...
+    output_descs[0].shape = input_shape;  // copy the input shape...
     for (int i = 0; i < N; i++) {
       // ...and replace the number of vector components
       output_descs[0].shape.tensor_shape_span(i).back() = output_pt_dim_;
@@ -62,8 +64,8 @@ class CoordTransform : public Operator<Backend>, private MTTransformAttr {
 
   void CheckType(DALIDataType input_type) {
     DALI_ENFORCE(dtype_ == input_type || dtype_ == DALI_FLOAT,
-      make_string("CoordTransform output type must be the same as input type, which is ",
-                  input_type, ", or `float`. Got: ", dtype_));
+                 make_string("CoordTransform output type must be the same as input type, which is ",
+                             input_type, ", or `float`. Got: ", dtype_));
   }
 
   void RunImpl(workspace_t<Backend> &ws) override {
@@ -104,7 +106,7 @@ class CoordTransform : public Operator<Backend>, private MTTransformAttr {
     output_pt_dim_ = 0;
 
     DALI_ENFORCE(input_shape.sample_dim() >= 2,
-      "CoordTransform expects an input with at least 2 dimensions.");
+                 "CoordTransform expects an input with at least 2 dimensions.");
 
     const int N = input_shape.num_samples();
     input_pt_dim_ = 0;
@@ -117,7 +119,8 @@ class CoordTransform : public Operator<Backend>, private MTTransformAttr {
         input_pt_dim_ = pt_dim;
       } else {
         DALI_ENFORCE(pt_dim == input_pt_dim_, make_string("The point dimensions must be the same "
-        "for all input samples. Got: ", input_shape, "."));
+                                                          "for all input samples. Got: ",
+                                                          input_shape, "."));
       }
     }
     if (input_pt_dim_ == 0)

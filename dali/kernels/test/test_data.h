@@ -23,8 +23,8 @@ namespace dali {
 namespace testing {
 
 namespace data {
-  span<uint8_t> file(const char *name);
-  const cv::Mat &image(const char *name, bool color = true);
+span<uint8_t> file(const char *name);
+const cv::Mat &image(const char *name, bool color = true);
 }  // namespace data
 
 }  // namespace testing

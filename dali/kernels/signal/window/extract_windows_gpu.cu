@@ -13,35 +13,32 @@
 // limitations under the License.
 
 #include <memory>
-#include "dali/kernels/signal/window/extract_windows_gpu.h"
 #include "dali/kernels/signal/window/extract_windows_gpu.cuh"
+#include "dali/kernels/signal/window/extract_windows_gpu.h"
 
 namespace dali {
 namespace kernels {
 namespace signal {
 
 template <typename Dst, typename Src>
-KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(
-    KernelContext &context,
-    const InListGPU<Src, 1> &input,
-    const InTensorGPU<float, 1> &window,
-    const ExtractWindowsBatchedArgs &args) {
+KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(KernelContext &context,
+                                                      const InListGPU<Src, 1> &input,
+                                                      const InTensorGPU<float, 1> &window,
+                                                      const ExtractWindowsBatchedArgs &args) {
   return Setup(context, make_span(input.shape.shapes), args);
 }
 
 template <typename Dst, typename Src>
-KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(
-    KernelContext &context,
-    const TensorListShape<1> &input_shape,
-    const ExtractWindowsBatchedArgs &args) {
+KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(KernelContext &context,
+                                                      const TensorListShape<1> &input_shape,
+                                                      const ExtractWindowsBatchedArgs &args) {
   return Setup(context, make_span(input_shape.shapes), args);
 }
 
 template <typename Dst, typename Src>
-KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(
-    KernelContext &context,
-    span<const int64_t> input_shape,
-    const ExtractWindowsBatchedArgs &args) {
+KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(KernelContext &context,
+                                                      span<const int64_t> input_shape,
+                                                      const ExtractWindowsBatchedArgs &args) {
   if (!impl || impl->IsVertical() != args.vertical) {
     impl.reset();
     if (args.vertical)
@@ -54,11 +51,9 @@ KernelRequirements ExtractWindowsGPU<Dst, Src>::Setup(
 }
 
 template <typename Dst, typename Src>
-void ExtractWindowsGPU<Dst, Src>::Run(
-    KernelContext &context,
-    const OutListGPU<Dst, 2> &output,
-    const InListGPU<Src, 1> &input,
-    const InTensorGPU<float, 1> &window) {
+void ExtractWindowsGPU<Dst, Src>::Run(KernelContext &context, const OutListGPU<Dst, 2> &output,
+                                      const InListGPU<Src, 1> &input,
+                                      const InTensorGPU<float, 1> &window) {
   assert(impl != nullptr);
   impl->Run(context, output, input, window);
 }

@@ -30,12 +30,12 @@ extern "C" {
 #include <utility>
 #include <vector>
 
-#include "dali/core/dynlink_cuda.h"
 #include "dali/core/cuda_stream.h"
-#include "dali/operators/reader/nvdecoder/sequencewrapper.h"
-#include "dali/operators/reader/nvdecoder/cuvideoparser.h"
+#include "dali/core/dynlink_cuda.h"
 #include "dali/operators/reader/nvdecoder/cuvideodecoder.h"
+#include "dali/operators/reader/nvdecoder/cuvideoparser.h"
 #include "dali/operators/reader/nvdecoder/dynlink_nvcuvid.h"
+#include "dali/operators/reader/nvdecoder/sequencewrapper.h"
 #include "dali/util/thread_safe_queue.h"
 
 struct AVPacket;
@@ -61,27 +61,23 @@ struct FrameReq {
   AVRational frame_base;
 };
 
-enum ScaleMethod {
-    /**
-     * The value for the nearest neighbor is used, no interpolation
-     */
-    ScaleMethod_Nearest,
+enum ScaleMethod
+{
+  /**
+   * The value for the nearest neighbor is used, no interpolation
+   */
+  ScaleMethod_Nearest,
 
-    /**
-     * Simple bilinear interpolation of four nearest neighbors
-     */
-    ScaleMethod_Linear
+  /**
+   * Simple bilinear interpolation of four nearest neighbors
+   */
+  ScaleMethod_Linear
 };
 
 class NvDecoder {
  public:
-  NvDecoder(int device_id,
-            const CodecParameters* codecpar,
-            DALIImageType image_type,
-            DALIDataType dtype,
-            bool normalized,
-            int max_height,
-            int max_width,
+  NvDecoder(int device_id, const CodecParameters* codecpar, DALIImageType image_type,
+            DALIDataType dtype, bool normalized, int max_height, int max_width,
             int additional_decode_surfaces);
 
   // Some of the members are non-movable or non-copyable so the constructors below still end up
@@ -123,8 +119,7 @@ class NvDecoder {
   class MappedFrame {
    public:
     MappedFrame();
-    MappedFrame(CUVIDPARSERDISPINFO* disp_info, CUvideodecoder decoder,
-                CUstream stream);
+    MappedFrame(CUVIDPARSERDISPINFO* disp_info, CUvideodecoder decoder, CUstream stream);
     ~MappedFrame();
     MappedFrame(const MappedFrame&) = delete;
     MappedFrame& operator=(const MappedFrame&) = delete;
@@ -135,6 +130,7 @@ class NvDecoder {
     unsigned int get_pitch() const;
 
     CUVIDPARSERDISPINFO* disp_info;
+
    private:
     bool valid_;
     CUvideodecoder decoder_;
@@ -146,8 +142,7 @@ class NvDecoder {
   class TextureObject {
    public:
     TextureObject();
-    TextureObject(const cudaResourceDesc* pResDesc,
-                  const cudaTextureDesc* pTexDesc,
+    TextureObject(const cudaResourceDesc* pResDesc, const cudaTextureDesc* pTexDesc,
                   const cudaResourceViewDesc* pResViewDesc);
     ~TextureObject();
     TextureObject(TextureObject&& other);
@@ -155,6 +150,7 @@ class NvDecoder {
     TextureObject(const TextureObject&) = delete;
     TextureObject& operator=(const TextureObject&) = delete;
     operator cudaTextureObject_t() const;
+
    private:
     bool valid_;
     cudaTextureObject_t object_ = 0;
@@ -165,12 +161,9 @@ class NvDecoder {
     TextureObject chroma;
   };
 
-  const TextureObjects& get_textures(uint8_t* input, unsigned int input_pitch,
-                                     uint16_t input_width, uint16_t input_height,
-                                     ScaleMethod scale_method);
-  void convert_frame(const MappedFrame& frame, SequenceWrapper& sequence,
-                     int index);
-
+  const TextureObjects& get_textures(uint8_t* input, unsigned int input_pitch, uint16_t input_width,
+                                     uint16_t input_height, ScaleMethod scale_method);
+  void convert_frame(const MappedFrame& frame, SequenceWrapper& sequence, int index);
 
   const int device_id_;
   CUDAStream stream_;
@@ -193,24 +186,24 @@ class NvDecoder {
   using TexID = std::tuple<uint8_t*, ScaleMethod, uint16_t, uint16_t, unsigned int>;
 
   struct tex_hash {
-      // hash_combine taken from
-      // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3876.pdf
-      template <typename T>
-      inline void hash_combine(size_t& seed, const T& value) const {
-        std::hash<T> hasher;
-        seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-      }
+    // hash_combine taken from
+    // http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2014/n3876.pdf
+    template <typename T>
+    inline void hash_combine(size_t& seed, const T& value) const {
+      std::hash<T> hasher;
+      seed ^= hasher(value) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
 
-      std::size_t operator () (const TexID& tex) const {
-        size_t seed = 0;
-        hash_combine(seed, std::get<0>(tex));
-        hash_combine(seed, std::get<1>(tex));
-        hash_combine(seed, std::get<2>(tex));
-        hash_combine(seed, std::get<3>(tex));
-        hash_combine(seed, std::get<4>(tex));
+    std::size_t operator()(const TexID& tex) const {
+      size_t seed = 0;
+      hash_combine(seed, std::get<0>(tex));
+      hash_combine(seed, std::get<1>(tex));
+      hash_combine(seed, std::get<2>(tex));
+      hash_combine(seed, std::get<3>(tex));
+      hash_combine(seed, std::get<4>(tex));
 
-        return seed;
-      }
+      return seed;
+    }
   };
 
   std::unordered_map<TexID, TextureObjects, tex_hash> textures_;
@@ -224,15 +217,14 @@ class NvDecoder {
 }  // namespace dali
 
 namespace std {
-template<>
+template <>
 struct hash<dali::ScaleMethod> {
  public:
   std::size_t operator()(dali::ScaleMethod const& s) const noexcept {
-  return std::hash<int>()(s);
+    return std::hash<int>()(s);
   }
 };
 
 }  // namespace std
-
 
 #endif  // DALI_OPERATORS_READER_NVDECODER_NVDECODER_H_

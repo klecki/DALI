@@ -17,8 +17,8 @@
 
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/workspace/device_workspace.h"
-#include "dali/pipeline/workspace/sample_workspace.h"
 #include "dali/pipeline/workspace/mixed_workspace.h"
+#include "dali/pipeline/workspace/sample_workspace.h"
 
 namespace dali {
 
@@ -30,14 +30,19 @@ template <typename Backend>
 struct Backend2WorkspaceMap {};
 
 template <>
-struct Backend2WorkspaceMap<CPUBackend> { using type = SampleWorkspace; };
+struct Backend2WorkspaceMap<CPUBackend> {
+  using type = SampleWorkspace;
+};
 
 template <>
-struct Backend2WorkspaceMap<GPUBackend> { using type = DeviceWorkspace; };
+struct Backend2WorkspaceMap<GPUBackend> {
+  using type = DeviceWorkspace;
+};
 
 template <>
-struct Backend2WorkspaceMap<MixedBackend> { using type = MixedWorkspace; };
-
+struct Backend2WorkspaceMap<MixedBackend> {
+  using type = MixedWorkspace;
+};
 
 // Workspace<CPUBackend> maps to SampleWorkspace
 // Workspace<GPUBackend> maps to DeviceWorkspace
@@ -50,13 +55,19 @@ template <typename Backend>
 struct backend_to_ws {};
 
 template <>
-struct backend_to_ws<CPUBackend> { using type = HostWorkspace; };
+struct backend_to_ws<CPUBackend> {
+  using type = HostWorkspace;
+};
 
 template <>
-struct backend_to_ws<MixedBackend> { using type = MixedWorkspace; };
+struct backend_to_ws<MixedBackend> {
+  using type = MixedWorkspace;
+};
 
 template <>
-struct backend_to_ws<GPUBackend> { using type = DeviceWorkspace; };
+struct backend_to_ws<GPUBackend> {
+  using type = DeviceWorkspace;
+};
 
 template <typename Backend>
 using workspace_t = typename backend_to_ws<Backend>::type;
@@ -65,30 +76,40 @@ template <OpType>
 struct op_to_workspace;
 
 template <>
-struct op_to_workspace<OpType::CPU> { using type = HostWorkspace; };
+struct op_to_workspace<OpType::CPU> {
+  using type = HostWorkspace;
+};
 
 template <>
-struct op_to_workspace<OpType::MIXED> { using type = MixedWorkspace; };
+struct op_to_workspace<OpType::MIXED> {
+  using type = MixedWorkspace;
+};
 
 template <>
-struct op_to_workspace<OpType::GPU> { using type = DeviceWorkspace; };
+struct op_to_workspace<OpType::GPU> {
+  using type = DeviceWorkspace;
+};
 
 template <OpType op_type>
 using op_to_workspace_t = typename op_to_workspace<op_type>::type;
-
 
 template <typename T>
 struct workspace_to_op;
 
 template <>
-struct workspace_to_op<HostWorkspace> { static constexpr OpType value = OpType::CPU; };
+struct workspace_to_op<HostWorkspace> {
+  static constexpr OpType value = OpType::CPU;
+};
 
 template <>
-struct workspace_to_op<MixedWorkspace> { static constexpr OpType value = OpType::MIXED; };
+struct workspace_to_op<MixedWorkspace> {
+  static constexpr OpType value = OpType::MIXED;
+};
 
 template <>
-struct workspace_to_op<DeviceWorkspace> { static constexpr OpType value = OpType::GPU; };
-
+struct workspace_to_op<DeviceWorkspace> {
+  static constexpr OpType value = OpType::GPU;
+};
 
 }  // namespace dali
 

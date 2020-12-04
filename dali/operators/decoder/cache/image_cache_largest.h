@@ -20,8 +20,8 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
-#include "dali/operators/decoder/cache/image_cache_blob.h"
 #include "dali/core/common.h"
+#include "dali/operators/decoder/cache/image_cache_blob.h"
 
 namespace dali {
 
@@ -36,9 +36,8 @@ class DLL_PUBLIC ImageCacheLargest : public ImageCacheBlob {
 
  private:
   using QueueElement = std::pair<std::size_t, ImageKey>;
-  std::priority_queue<QueueElement,
-      std::vector<QueueElement>,
-      std::greater<QueueElement>> biggest_images_;
+  std::priority_queue<QueueElement, std::vector<QueueElement>, std::greater<QueueElement>>
+      biggest_images_;
   std::unordered_set<ImageKey> images_;
   bool start_caching_ = false;
   std::size_t biggest_images_total_ = 0;

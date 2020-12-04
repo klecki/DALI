@@ -21,8 +21,8 @@
 
 #include <cassert>
 #include <vector>
-#include "dali/operators/image/resize/resize_op_impl.h"
 #include "dali/kernels/imgproc/resample.h"
+#include "dali/operators/image/resize/resize_op_impl.h"
 
 namespace dali {
 
@@ -30,7 +30,7 @@ template <typename Out, typename In, int spatial_ndim>
 class ResizeOpImplGPU : public ResizeBase<GPUBackend>::Impl {
  public:
   explicit ResizeOpImplGPU(kernels::KernelManager &kmgr, int minibatch_size)
-  : kmgr_(kmgr), minibatch_size_(minibatch_size) {
+      : kmgr_(kmgr), minibatch_size_(minibatch_size) {
     kmgr_.Resize(kmgr_.NumThreads(), 0);
   }
 
@@ -41,16 +41,13 @@ class ResizeOpImplGPU : public ResizeBase<GPUBackend>::Impl {
   /// Dimensionality of each separate frame. If input contains no channel dimension, one is added
   static constexpr int frame_ndim = spatial_ndim + 1;
 
-  void Setup(TensorListShape<> &out_shape,
-             const TensorListShape<> &in_shape,
-             int first_spatial_dim,
+  void Setup(TensorListShape<> &out_shape, const TensorListShape<> &in_shape, int first_spatial_dim,
              span<const kernels::ResamplingParams> params) override {
     // Calculate output shape of the input, as supplied (sequences, planar images, etc)
     GetResizedShape(out_shape, in_shape, params, spatial_ndim, first_spatial_dim);
 
     // Create "frames" from outer dimensions and "channels" from inner dimensions.
-    GetFrameShapesAndParams<spatial_ndim>(in_shape_, params_, in_shape, params,
-                                          first_spatial_dim);
+    GetFrameShapesAndParams<spatial_ndim>(in_shape_, params_, in_shape, params, first_spatial_dim);
 
     // Now that we have per-frame parameters, we can calculate the output shape of the
     // effective frames (from videos, channel planes, etc).
@@ -81,8 +78,7 @@ class ResizeOpImplGPU : public ResizeBase<GPUBackend>::Impl {
     }
   }
 
-  void RunResize(DeviceWorkspace &ws,
-                 TensorList<GPUBackend> &output,
+  void RunResize(DeviceWorkspace &ws, TensorList<GPUBackend> &output,
                  const TensorList<GPUBackend> &input) override {
     auto in_view = view<const In>(input);
     auto in_frames_view = reshape(in_view, in_shape_, true);
@@ -98,8 +94,8 @@ class ResizeOpImplGPU : public ResizeBase<GPUBackend>::Impl {
     for (size_t b = 0; b < minibatches_.size(); b++) {
       MiniBatch &mb = minibatches_[b];
 
-      kmgr_.Run<Kernel>(0, b, context,
-          mb.output, mb.input, make_span(params_.data() + mb.start, mb.count));
+      kmgr_.Run<Kernel>(0, b, context, mb.output, mb.input,
+                        make_span(params_.data() + mb.start, mb.count));
     }
   }
 

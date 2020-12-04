@@ -198,14 +198,14 @@ class ConvMmaPipelined
   /// Perform a threadblock-scoped matrix multiply-accumulate
   CUTLASS_DEVICE
   void operator()(
-      int gemm_k_iterations,                      ///< number of starting iteration of the mainloop
-      int skip_last_iterations,                   ///< how many iterations we skip at the end
-      FragmentC &accum,                           ///< destination accumulator tile
-      IteratorA iterator_A,                       ///< iterator over A operand in global memory
-      IteratorB iterator_B,                       ///< iterator over B operand in global memory
-      FragmentC const &src_accum,                 ///< source accumulator tile
-      TransformA transform_A = TransformA(),      ///< transformation applied to A fragment
-      TransformB transform_B = TransformB()) {    ///< transformation applied to B fragment
+      int gemm_k_iterations,                    ///< number of starting iteration of the mainloop
+      int skip_last_iterations,                 ///< how many iterations we skip at the end
+      FragmentC &accum,                         ///< destination accumulator tile
+      IteratorA iterator_A,                     ///< iterator over A operand in global memory
+      IteratorB iterator_B,                     ///< iterator over B operand in global memory
+      FragmentC const &src_accum,               ///< source accumulator tile
+      TransformA transform_A = TransformA(),    ///< transformation applied to A fragment
+      TransformB transform_B = TransformB()) {  ///< transformation applied to B fragment
     //
     // Prologue
     //

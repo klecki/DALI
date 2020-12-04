@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/decoder/nvjpeg/decoupled_api/permute_layout.h"
+#include "dali/core/error_handling.h"
+#include "dali/core/format.h"
 #include "dali/core/static_switch.h"
 #include "dali/core/util.h"
-#include "dali/core/format.h"
-#include "dali/core/error_handling.h"
-
+#include "dali/operators/decoder/nvjpeg/decoupled_api/permute_layout.h"
 
 namespace dali {
 
 template <int64_t C, typename T>
 __global__ void permuteToInterleavedK(T *output, const T *input, int64_t comp_size) {
   auto tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid >= comp_size) return;
+  if (tid >= comp_size)
+    return;
   T *out = output + C * tid;
   for (int c = 0; c < C; ++c) {
     auto l = input[c * comp_size + tid];
@@ -32,8 +32,8 @@ __global__ void permuteToInterleavedK(T *output, const T *input, int64_t comp_si
   }
 }
 
-void PermuteToInterleaved(uint8_t *output, const uint8_t *input,
-                          int64_t comp_size, int64_t comp_count, cudaStream_t stream) {
+void PermuteToInterleaved(uint8_t *output, const uint8_t *input, int64_t comp_size,
+                          int64_t comp_count, cudaStream_t stream) {
   if (comp_count < 2) {
     cudaMemcpyAsync(output, input, comp_size * comp_count, cudaMemcpyDeviceToDevice, stream);
     return;

@@ -16,26 +16,24 @@
 #define DALI_PIPELINE_OPERATOR_OP_SPEC_H_
 
 #include <map>
-#include <utility>
-#include <string>
-#include <vector>
-#include <unordered_map>
 #include <memory>
 #include <set>
+#include <string>
 #include <type_traits>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "dali/core/common.h"
 #include "dali/core/copy_vector_helper.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/pipeline/operator/argument.h"
 #include "dali/pipeline/data/tensor.h"
+#include "dali/pipeline/operator/argument.h"
 #include "dali/pipeline/operator/op_schema.h"
 #include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {
-
-
 
 /**
  * @brief Defines all parameters needed to construct an Operator,
@@ -75,7 +73,9 @@ class DLL_PUBLIC OpSpec {
   /**
    * @brief Getter for the name of the Operator.
    */
-  DLL_PUBLIC inline const string& name() const { return name_; }
+  DLL_PUBLIC inline const string &name() const {
+    return name_;
+  }
 
   /**
    * @brief Sets the name of the Operator.
@@ -94,11 +94,10 @@ class DLL_PUBLIC OpSpec {
    * @brief Add an argument with the given name and value.
    */
   template <typename T>
-  DLL_PUBLIC inline OpSpec& AddArg(const string &name, const T &val) {
+  DLL_PUBLIC inline OpSpec &AddArg(const string &name, const T &val) {
     EnforceNoAliasWithDeprecated(name);
     DALI_ENFORCE(arguments_.find(name) == arguments_.end(),
-        "AddArg failed. Argument with name \"" + name +
-        "\" already exists. ");
+                 "AddArg failed. Argument with name \"" + name + "\" already exists. ");
     return SetArg(name, val);
   }
 
@@ -106,7 +105,7 @@ class DLL_PUBLIC OpSpec {
    * @brief Add an argument with the given name and value if it doesn't exist already.
    */
   template <typename T>
-  DLL_PUBLIC inline OpSpec& AddArgIfNotExisting(const string &name, const T &val) {
+  DLL_PUBLIC inline OpSpec &AddArgIfNotExisting(const string &name, const T &val) {
     if (arguments_.find(name) != arguments_.end()) {
       return *this;
     }
@@ -117,7 +116,7 @@ class DLL_PUBLIC OpSpec {
    * @brief Sets or adds an argument with the given name and value.
    */
   template <typename T>
-  DLL_PUBLIC inline OpSpec& SetArg(const string &name, const T &val) {
+  DLL_PUBLIC inline OpSpec &SetArg(const string &name, const T &val) {
     using S = argument_storage_t<T>;
     return SetInitializedArg(name, Argument::Store<S>(name, static_cast<S>(val)));
   }
@@ -126,21 +125,19 @@ class DLL_PUBLIC OpSpec {
    * @brief Sets or adds an argument with the given name and value.
    */
   template <typename T>
-  DLL_PUBLIC inline OpSpec& SetArg(const string &name, const std::vector<T> &val) {
+  DLL_PUBLIC inline OpSpec &SetArg(const string &name, const std::vector<T> &val) {
     using S = argument_storage_t<T>;
     using V = std::vector<S>;
     return SetInitializedArg(name, Argument::Store<V>(name, detail::convert_vector<S>(val)));
   }
 
-
   /**
    * @brief Add an instantiated argument with given name
    */
-  DLL_PUBLIC inline OpSpec& AddInitializedArg(const string& name, Argument* arg) {
+  DLL_PUBLIC inline OpSpec &AddInitializedArg(const string &name, Argument *arg) {
     EnforceNoAliasWithDeprecated(name);
     DALI_ENFORCE(arguments_.find(name) == arguments_.end(),
-        "AddArg failed. Argument with name \"" + name +
-        "\" already exists. ");
+                 "AddArg failed. Argument with name \"" + name + "\" already exists. ");
     return SetInitializedArg(name, arg);
   }
 
@@ -149,15 +146,15 @@ class DLL_PUBLIC OpSpec {
    *
    * @remarks Deprecated arguments are renamed (or dropped, if no longer used).
    */
-  DLL_PUBLIC inline OpSpec& SetInitializedArg(const string& arg_name, Argument* arg) {
+  DLL_PUBLIC inline OpSpec &SetInitializedArg(const string &arg_name, Argument *arg) {
     if (schema_ && schema_->IsDeprecatedArg(arg_name)) {
-      const auto& deprecation_meta = schema_->DeprecatedArgMeta(arg_name);
+      const auto &deprecation_meta = schema_->DeprecatedArgMeta(arg_name);
       // Argument was removed, and we can discard it
       if (deprecation_meta.removed) {
         return *this;
       }
       if (!deprecation_meta.renamed_to.empty()) {
-        const auto& new_arg_name = deprecation_meta.renamed_to;
+        const auto &new_arg_name = deprecation_meta.renamed_to;
         DALI_ENFORCE(
             arguments_.find(new_arg_name) == arguments_.end(),
             make_string("Operator ", name(), " got an unexpected '", arg_name,
@@ -180,7 +177,7 @@ class DLL_PUBLIC OpSpec {
   /**
    * @brief Check if the `arg_name` was already set through a deprecated argument
    */
-  DLL_PUBLIC inline void EnforceNoAliasWithDeprecated(const string& arg_name) {
+  DLL_PUBLIC inline void EnforceNoAliasWithDeprecated(const string &arg_name) {
     auto set_through = set_through_deprecated_arguments_.find(arg_name);
     DALI_ENFORCE(set_through == set_through_deprecated_arguments_.end(),
                  make_string("Operator ", name(), " got an unexpected '", set_through->second,
@@ -189,7 +186,7 @@ class DLL_PUBLIC OpSpec {
 
   // Forward to string implementation
   template <unsigned N>
-  DLL_PUBLIC inline OpSpec& SetArg(const string &name, const char (&c_str)[N]) {
+  DLL_PUBLIC inline OpSpec &SetArg(const string &name, const char (&c_str)[N]) {
     return this->SetArg<std::string>(name, c_str);
   }
 
@@ -202,7 +199,7 @@ class DLL_PUBLIC OpSpec {
    * which inputs are added to the OpSpec is the order in
    * which the Operator will receive them.
    */
-  DLL_PUBLIC OpSpec& AddInput(const string &name, const string &device, bool regular_input = true);
+  DLL_PUBLIC OpSpec &AddInput(const string &name, const string &device, bool regular_input = true);
 
   /**
    * @brief Specifies the argument input to the op.
@@ -210,7 +207,7 @@ class DLL_PUBLIC OpSpec {
    * per-iteration arguments. The input may be added only if
    * corresponding argument exists in the schema.
    */
-  DLL_PUBLIC OpSpec& AddArgumentInput(const string &arg_name, const string &inp_name);
+  DLL_PUBLIC OpSpec &AddArgumentInput(const string &arg_name, const string &inp_name);
 
   /**
    * @brief Specifies the name and device (cpu or gpu) of an
@@ -221,9 +218,11 @@ class DLL_PUBLIC OpSpec {
    * which outputs are added to the OpSpec is the order in
    * which the Operator will receive them.
    */
-  DLL_PUBLIC OpSpec& AddOutput(const string &name, const string &device);
+  DLL_PUBLIC OpSpec &AddOutput(const string &name, const string &device);
 
-  DLL_PUBLIC inline int NumInput() const { return inputs_.size(); }
+  DLL_PUBLIC inline int NumInput() const {
+    return inputs_.size();
+  }
 
   DLL_PUBLIC inline int NumArgumentInput() const {
     return argument_inputs_indexes_.size();
@@ -233,7 +232,9 @@ class DLL_PUBLIC OpSpec {
     return NumInput() - NumArgumentInput();
   }
 
-  DLL_PUBLIC inline int NumOutput() const { return outputs_.size(); }
+  DLL_PUBLIC inline int NumOutput() const {
+    return outputs_.size();
+  }
 
   DLL_PUBLIC inline string Input(int idx) const {
     DALI_ENFORCE_VALID_INDEX(idx, NumInput());
@@ -259,8 +260,8 @@ class DLL_PUBLIC OpSpec {
     DALI_ENFORCE_VALID_INDEX(idx, NumInput());
     auto idx_ptr = argument_inputs_indexes_.find(idx);
     DALI_ENFORCE(idx_ptr != argument_inputs_indexes_.end(),
-        "Index " + to_string(idx) + " does not correspond to valid argument input.");
-    for (const auto& arg_pair : argument_inputs_) {
+                 "Index " + to_string(idx) + " does not correspond to valid argument input.");
+    for (const auto &arg_pair : argument_inputs_) {
       if (arg_pair.second == idx) {
         return arg_pair.first;
       }
@@ -283,18 +284,18 @@ class DLL_PUBLIC OpSpec {
     return outputs_[idx].device;
   }
 
-  DLL_PUBLIC inline const std::unordered_map<string, Index>& ArgumentInputs() const {
+  DLL_PUBLIC inline const std::unordered_map<string, Index> &ArgumentInputs() const {
     return argument_inputs_;
   }
 
-  DLL_PUBLIC inline const std::unordered_map<string, std::shared_ptr<Argument>>& Arguments() const {
+  DLL_PUBLIC inline const std::unordered_map<string, std::shared_ptr<Argument>> &Arguments() const {
     return arguments_;
   }
 
   DLL_PUBLIC inline int OutputIdxForName(const string &name, const string &device) {
     auto it = output_name_idx_.find({name, device});
-    DALI_ENFORCE(it != output_name_idx_.end(), "Output with name '" +
-        name + "' and device '" + device + "' does not exist.");
+    DALI_ENFORCE(it != output_name_idx_.end(),
+                 "Output with name '" + name + "' and device '" + device + "' does not exist.");
     return it->second;
   }
 
@@ -344,16 +345,14 @@ class DLL_PUBLIC OpSpec {
    * not exist.
    */
   template <typename T>
-  DLL_PUBLIC inline T GetArgument(const string &name,
-                       const ArgumentWorkspace *ws = nullptr,
-                       Index idx = 0) const {
+  DLL_PUBLIC inline T GetArgument(const string &name, const ArgumentWorkspace *ws = nullptr,
+                                  Index idx = 0) const {
     using S = argument_storage_t<T>;
     return GetArgumentImpl<T, S>(name, ws, idx);
   }
 
   template <typename T>
-  DLL_PUBLIC inline bool TryGetArgument(T &result,
-                                        const string &name,
+  DLL_PUBLIC inline bool TryGetArgument(T &result, const string &name,
                                         const ArgumentWorkspace *ws = nullptr,
                                         Index idx = 0) const {
     using S = argument_storage_t<T>;
@@ -380,26 +379,24 @@ class DLL_PUBLIC OpSpec {
    * Returns the default if an argument with the given name does not exist.
    */
   template <typename T>
-  DLL_PUBLIC bool TryGetRepeatedArgument(
-      std::vector<T> &result,
-      const string &name) const {
+  DLL_PUBLIC bool TryGetRepeatedArgument(std::vector<T> &result, const string &name) const {
     using S = argument_storage_t<T>;
     return TryGetRepeatedArgumentImpl<T, S>(result, name);
   }
 
-  DLL_PUBLIC OpSpec& ShareArguments(OpSpec& other) {
+  DLL_PUBLIC OpSpec &ShareArguments(OpSpec &other) {
     this->arguments_ = other.arguments_;
     this->argument_inputs_ = other.argument_inputs_;
     this->argument_inputs_indexes_ = other.argument_inputs_indexes_;
     return *this;
   }
 
-  DLL_PUBLIC inline InOutDeviceDesc& MutableInput(int idx) {
+  DLL_PUBLIC inline InOutDeviceDesc &MutableInput(int idx) {
     DALI_ENFORCE_VALID_INDEX(idx, NumInput());
     return inputs_[idx];
   }
 
-  DLL_PUBLIC inline InOutDeviceDesc& MutableOutput(int idx) {
+  DLL_PUBLIC inline InOutDeviceDesc &MutableOutput(int idx) {
     DALI_ENFORCE_VALID_INDEX(idx, NumOutput());
     return outputs_[idx];
   }
@@ -415,7 +412,7 @@ class DLL_PUBLIC OpSpec {
       ret += "    " + Output(i) + "\n";
     }
     ret += "  Arguments:\n";
-    for (auto& a : arguments_) {
+    for (auto &a : arguments_) {
       ret += "    ";
       ret += a.second->ToString();
       ret += "\n";
@@ -435,28 +432,28 @@ class DLL_PUBLIC OpSpec {
    * @return true iff the shape is allowed to be used as Argument
    */
   bool CheckScalarArgumentShape(const TensorListShape<> &shape, int batch_size,
-                          const std::string &name, bool should_throw = false) const {
+                                const std::string &name, bool should_throw = false) const {
     DALI_ENFORCE(is_uniform(shape),
                  "Arguments should be passed as uniform TensorLists. Argument \"" + name +
                      "\" is not uniform. To access non-uniform argument inputs use "
                      "ArgumentWorkspace::ArgumentInput method directly.");
 
-    bool valid_shape =
-        shape.num_elements() == batch_size &&
-        (shape.num_samples() == batch_size || shape.num_samples() == 1);
+    bool valid_shape = shape.num_elements() == batch_size &&
+                       (shape.num_samples() == batch_size || shape.num_samples() == 1);
     if (should_throw) {
-      DALI_ENFORCE(valid_shape, make_string(
-                   "Unexpected shape of argument \"", name, "\". Expected batch of ", batch_size,
-                   " scalars or a batch of tensors containing one element per sample or a single "
-                   "tensor with ", batch_size, " elements. Got:\n", shape));
+      DALI_ENFORCE(
+          valid_shape,
+          make_string(
+              "Unexpected shape of argument \"", name, "\". Expected batch of ", batch_size,
+              " scalars or a batch of tensors containing one element per sample or a single "
+              "tensor with ",
+              batch_size, " elements. Got:\n", shape));
     }
     return valid_shape;
   }
 
   template <typename T, typename S>
-  inline bool TryGetArgumentImpl(T &result,
-                                 const string &name,
-                                 const ArgumentWorkspace *ws,
+  inline bool TryGetArgumentImpl(T &result, const string &name, const ArgumentWorkspace *ws,
                                  Index idx) const;
 
   template <typename T, typename S>
@@ -478,20 +475,16 @@ class DLL_PUBLIC OpSpec {
   vector<InOutDeviceDesc> inputs_, outputs_;
 };
 
-
 template <typename T, typename S>
-inline T OpSpec::GetArgumentImpl(
-      const string &name,
-      const ArgumentWorkspace *ws,
-      Index idx) const {
+inline T OpSpec::GetArgumentImpl(const string &name, const ArgumentWorkspace *ws, Index idx) const {
   // Search for the argument in tensor arguments first
   if (this->HasTensorArgument(name)) {
     DALI_ENFORCE(ws != nullptr, "Tensor value is unexpected for argument \"" + name + "\".");
     const auto &value = ws->ArgumentInput(name);
     CheckScalarArgumentShape(value.shape(), GetArgument<int>("batch_size"), name, true);
-    DALI_ENFORCE(IsType<T>(value.type()),
-        "Unexpected type of argument \"" + name + "\". Expected " +
-        TypeTable::GetTypeName<T>() + " and got " + value.type().name());
+    DALI_ENFORCE(IsType<T>(value.type()), "Unexpected type of argument \"" + name +
+                                              "\". Expected " + TypeTable::GetTypeName<T>() +
+                                              " and got " + value.type().name());
     return static_cast<T>(value[idx].data<T>()[0]);
   }
   // Search for the argument locally
@@ -501,22 +494,19 @@ inline T OpSpec::GetArgumentImpl(
     return static_cast<T>(arg_it->second->template Get<S>());
   } else {
     // Argument wasn't present locally, get the default from the associated schema
-    const OpSchema& schema = GetSchema();
+    const OpSchema &schema = GetSchema();
     return static_cast<T>(schema.GetDefaultValueForArgument<S>(name));
   }
 }
 
 template <typename T, typename S>
-inline bool OpSpec::TryGetArgumentImpl(
-      T &result,
-      const string &name,
-      const ArgumentWorkspace *ws,
-      Index idx) const {
+inline bool OpSpec::TryGetArgumentImpl(T &result, const string &name, const ArgumentWorkspace *ws,
+                                       Index idx) const {
   // Search for the argument in tensor arguments first
   if (this->HasTensorArgument(name)) {
     if (ws == nullptr)
       return false;
-    const auto& value = ws->ArgumentInput(name);
+    const auto &value = ws->ArgumentInput(name);
     if (!CheckScalarArgumentShape(value.shape(), GetArgument<int>("batch_size"), name, false)) {
       return false;
     }
@@ -527,7 +517,7 @@ inline bool OpSpec::TryGetArgumentImpl(
   }
   // Search for the argument locally
   auto arg_it = arguments_.find(name);
-  const OpSchema& schema = GetSchema();
+  const OpSchema &schema = GetSchema();
   if (arg_it != arguments_.end()) {
     // Found locally - return
     if (arg_it->second->template IsType<S>()) {
@@ -546,7 +536,6 @@ inline bool OpSpec::TryGetArgumentImpl(
   return false;
 }
 
-
 template <typename T, typename S>
 inline std::vector<T> OpSpec::GetRepeatedArgumentImpl(const string &name) const {
   using V = std::vector<S>;
@@ -557,7 +546,7 @@ inline std::vector<T> OpSpec::GetRepeatedArgumentImpl(const string &name) const 
     return detail::convert_vector<T>(arg_it->second->template Get<V>());
   } else {
     // Argument wasn't present locally, get the default from the associated schema
-    const OpSchema& schema = GetSchema();
+    const OpSchema &schema = GetSchema();
     return detail::convert_vector<T>(schema.GetDefaultValueForArgument<V>(name));
   }
 }
@@ -567,7 +556,7 @@ inline bool OpSpec::TryGetRepeatedArgumentImpl(std::vector<T> &result, const str
   using V = std::vector<S>;
   // Search for the argument locally
   auto arg_it = arguments_.find(name);
-  const OpSchema& schema = GetSchema();
+  const OpSchema &schema = GetSchema();
   if (arg_it != arguments_.end()) {
     // Found locally - return
     if (arg_it->second->template IsType<V>()) {

@@ -36,8 +36,10 @@ inline int VideoReaderOutputFn(const OpSpec &spec) {
     ++num_outputs;
   }
   if (!file_list.empty() || !file_names.empty()) {
-    if (enable_frame_num) num_outputs++;
-    if (enable_timestamps) num_outputs++;
+    if (enable_frame_num)
+      num_outputs++;
+    if (enable_timestamps)
+      num_outputs++;
   }
   return num_outputs;
 }
@@ -86,8 +88,9 @@ class VideoReader : public DataReader<GPUBackend, SequenceWrapper> {
                  "are provided with ``filenames`` argument.");
 
     if (!filenames_.empty() && has_labels_arg) {
-      DALI_ENFORCE(filenames_.size() == labels_.size() || labels_.empty(), make_string("Provided ",
-                  labels_.size(), " labels for ", filenames_.size(), " files."));
+      DALI_ENFORCE(
+          filenames_.size() == labels_.size() || labels_.empty(),
+          make_string("Provided ", labels_.size(), " labels for ", filenames_.size(), " files."));
     }
 
     output_labels_ = has_labels_arg || !file_list_.empty() || !file_root_.empty();
@@ -98,8 +101,10 @@ class VideoReader : public DataReader<GPUBackend, SequenceWrapper> {
     label_shape_ = uniform_list_shape(batch_size_, {1});
 
     if (can_use_frames_timestamps_) {
-      if (enable_frame_num_) frame_num_shape_ = label_shape_;
-      if (enable_timestamps_) timestamp_shape_ = uniform_list_shape(batch_size_, {count_});
+      if (enable_frame_num_)
+        frame_num_shape_ = label_shape_;
+      if (enable_timestamps_)
+        timestamp_shape_ = uniform_list_shape(batch_size_, {count_});
     }
   }
 

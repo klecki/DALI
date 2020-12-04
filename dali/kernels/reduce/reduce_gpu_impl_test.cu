@@ -15,111 +15,73 @@
 #include <gtest/gtest.h>
 #include <random>
 #include <utility>
-#include "dali/kernels/reduce/reduce_gpu_impl.cuh"
-#include "dali/kernels/scratch.h"
-#include "dali/test/test_tensors.h"
-#include "dali/test/tensor_test_utils.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/kernels/reduce/reduce_test.h"
+#include "dali/kernels/reduce/reduce_gpu_impl.cuh"
 #include "dali/kernels/reduce/reduce_gpu_test.h"
+#include "dali/kernels/reduce/reduce_test.h"
+#include "dali/kernels/scratch.h"
+#include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
 namespace reduce_impl {
 
 TEST(ReduceImplGPU, ReducedShape_NoOp) {
-  TensorListShape<> in = {{
-    { 1, 2, 3 },
-    { 4, 5, 6 }
-  }};
-  TensorListShape<> ref = {{
-    { 1, 2, 3 },
-    { 4, 5, 6 }
-  }};
+  TensorListShape<> in = {{{1, 2, 3}, {4, 5, 6}}};
+  TensorListShape<> ref = {{{1, 2, 3}, {4, 5, 6}}};
   TensorListShape<> out;
   CalculateReducedShape(out, in, {}, false, false);
   EXPECT_EQ(out, ref);
 }
 
 TEST(ReduceImplGPU, ReducedShape_BatchOnly) {
-  TensorListShape<> in = {{
-    { 3, 4, 5 },
-    { 3, 4, 5 }
-  }};
-  TensorListShape<> ref = {{
-    { 3, 4, 5 }
-  }};
+  TensorListShape<> in = {{{3, 4, 5}, {3, 4, 5}}};
+  TensorListShape<> ref = {{{3, 4, 5}}};
   TensorListShape<> out;
   CalculateReducedShape(out, in, {}, false, true);
   EXPECT_EQ(out, ref);
 }
 
 TEST(ReduceImplGPU, ReducedShape_SomeAxes_KeepDims) {
-  TensorListShape<> in = {{
-    { 2, 3, 4 },
-    { 5, 6, 7 }
-  }};
-  TensorListShape<> ref = {{
-    { 1, 3, 1 },
-    { 1, 6, 1 }
-  }};
-  int axes[] = { 0, 2 };
+  TensorListShape<> in = {{{2, 3, 4}, {5, 6, 7}}};
+  TensorListShape<> ref = {{{1, 3, 1}, {1, 6, 1}}};
+  int axes[] = {0, 2};
   TensorListShape<> out;
   CalculateReducedShape(out, in, make_span(axes), true, false);
   EXPECT_EQ(out, ref);
 }
 
 TEST(ReduceImplGPU, ReducedShape_SomeAxes_NoKeepDims_Batch) {
-  TensorListShape<> in = {{
-    { 3, 15, 5, 17 },
-    { 3, 16, 5, 18 }
-  }};
-  TensorListShape<> ref = {{
-    { 3, 5 }
-  }};
-  int axes[] = { 1, 3 };
+  TensorListShape<> in = {{{3, 15, 5, 17}, {3, 16, 5, 18}}};
+  TensorListShape<> ref = {{{3, 5}}};
+  int axes[] = {1, 3};
   TensorListShape<> out;
   CalculateReducedShape(out, in, make_span(axes), false, true);
   EXPECT_EQ(out, ref);
 }
 
 TEST(ReduceImplGPU, ReducedShape_AllAxes_NoKeepDims) {
-  TensorListShape<> in = {{
-    { 1, 2 },
-    { 3, 4 }
-  }};
-  TensorListShape<> ref = {{
-    TensorShape<>{},
-    TensorShape<>{}
-  }};
-  int axes[] = { 0, 1 };
+  TensorListShape<> in = {{{1, 2}, {3, 4}}};
+  TensorListShape<> ref = {{TensorShape<>{}, TensorShape<>{}}};
+  int axes[] = {0, 1};
   TensorListShape<> out;
   CalculateReducedShape(out, in, make_span(axes), false, false);
   EXPECT_EQ(out, ref);
 }
 
 TEST(ReduceImplGPU, ReducedShape_AllAxes_KeepDims_Batch) {
-  TensorListShape<> in = {{
-    { 1, 2, 3, 4 },
-    { 5, 6, 7, 8 }
-  }};
-  TensorListShape<> ref = {{
-    { 1, 1, 1, 1 }
-  }};
-  int axes[] = { 0, 1, 2, 3 };
+  TensorListShape<> in = {{{1, 2, 3, 4}, {5, 6, 7, 8}}};
+  TensorListShape<> ref = {{{1, 1, 1, 1}}};
+  int axes[] = {0, 1, 2, 3};
   TensorListShape<> out;
   CalculateReducedShape(out, in, make_span(axes), true, true);
   EXPECT_EQ(out, ref);
 }
 
 TEST(ReduceImplGPU, ReducedShape_ScalarInput_batch) {
-  TensorListShape<> in = {{
-    TensorShape<>{},
-    TensorShape<>{}
-  }};
-  TensorListShape<> ref = {{
-    TensorShape<>{}
-  }};
+  TensorListShape<> in = {{TensorShape<>{}, TensorShape<>{}}};
+  TensorListShape<> ref = {{TensorShape<>{}}};
   TensorListShape<> out;
   CalculateReducedShape(out, in, {}, true, true);
   EXPECT_EQ(out, ref);
@@ -127,16 +89,15 @@ TEST(ReduceImplGPU, ReducedShape_ScalarInput_batch) {
 
 TEST(ReduceImplGPU, SimplifyComplex) {
   TensorListShape<> tls = {{
-    { 1, 2, 1, 1, 1, 3, 3 },
-    { 1, 1, 3, 1, 5, 2, 3 }
-  //  T  F  F  T  F  F, F    <-- all samples with extent == 1
+      {1, 2, 1, 1, 1, 3, 3}, {1, 1, 3, 1, 5, 2, 3}
+      //  T  F  F  T  F  F, F    <-- all samples with extent == 1
   }};
   EXPECT_TRUE(is_degenerate_dim(tls, 0));
   EXPECT_TRUE(is_degenerate_dim(tls, 3));
   SmallVector<int, 6> out_axes;
   SmallVector<std::pair<int, int>, 6> groups;
 
-  int axes[] = { 0, 2, 4, 6 };
+  int axes[] = {0, 2, 4, 6};
   // axes 0, 2, 4 and 6
   //
   // axis 0 is degenerate, so will not be reduced (no need to) - and will be collapsed
@@ -162,10 +123,7 @@ TEST(ReduceImplGPU, SimplifyComplex) {
 
 TEST(ReduceImplGPU, Simplify_NoReduce) {
   for (int axis = 0; axis < 3; axis++) {
-    TensorListShape<> tls = {{
-      { 2, 3, 4 },
-      { 3, 4, 5 }
-    }};
+    TensorListShape<> tls = {{{2, 3, 4}, {3, 4, 5}}};
 
     for (int i = 0; i < tls.num_samples(); i++)
       tls.tensor_shape_span(i)[axis] = 1;
@@ -173,7 +131,7 @@ TEST(ReduceImplGPU, Simplify_NoReduce) {
     for (int a = 0; a < 3; a++)
       EXPECT_EQ(is_degenerate_dim(tls, a), a == axis);
 
-    int axes[] = { axis };
+    int axes[] = {axis};
     SmallVector<int, 6> out_axes;
     SmallVector<std::pair<int, int>, 6> groups;
     SimplifyReduction(out_axes, groups, tls, make_span(axes));
@@ -184,11 +142,8 @@ TEST(ReduceImplGPU, Simplify_NoReduce) {
 }
 
 TEST(ReduceImplGPU, Simplify_NoOp) {
-  TensorListShape<> tls = {{
-    { 2, 3, 4 },
-    { 3, 4, 5 }
-  }};
-  int axes[] = { 1 };
+  TensorListShape<> tls = {{{2, 3, 4}, {3, 4, 5}}};
+  int axes[] = {1};
   SmallVector<int, 6> out_axes;
   SmallVector<std::pair<int, int>, 6> groups;
   SimplifyReduction(out_axes, groups, tls, make_span(axes));
@@ -202,10 +157,10 @@ TEST(ReduceImplGPU, Simplify_NoOp) {
 
 TEST(ReduceImpl, TestCheckAxes) {
   EXPECT_NO_THROW(CheckAxes({}, 0));
-  int axes_0[] = { 0 };
-  int axes_01[] = { 0, 1 };
-  int axes_2[] = { 2 };
-  int axes_010[] = { 0, 1, 0 };
+  int axes_0[] = {0};
+  int axes_01[] = {0, 1};
+  int axes_2[] = {2};
+  int axes_010[] = {0, 1, 0};
   EXPECT_NO_THROW(CheckAxes(make_span(axes_0), 1));
   EXPECT_NO_THROW(CheckAxes(make_span(axes_01), 2));
   EXPECT_THROW(CheckAxes(make_span(axes_2), 2), std::out_of_range);
@@ -213,11 +168,7 @@ TEST(ReduceImpl, TestCheckAxes) {
 }
 
 TEST(ReduceImpl, TestCheckBatchReduce) {
-  TensorListShape<> tls = {{
-    { 3, 3, 2, 4 },
-    { 3, 4, 2, 5 },
-    { 3, 5, 2, 6 }
-  }};
+  TensorListShape<> tls = {{{3, 3, 2, 4}, {3, 4, 2, 5}, {3, 5, 2, 6}}};
 
   unsigned must_reduce = 0b1010;  // dimensions 1 and 3 are non-uniform and must be reduced
 
@@ -237,17 +188,9 @@ TEST(ReduceImpl, TestCheckBatchReduce) {
 }
 
 TEST(SumImplGPU, Inner) {
-  TensorListShape<> in_shape = {{
-    { 3, 480, 640 },
-    { 3, 720, 1280 },
-    { 1, 576, 720 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 3, 1, 1 },
-    { 3, 1, 1 },
-    { 1, 1, 1 }
-  }};
-  int axes[] = { 1, 2 };
+  TensorListShape<> in_shape = {{{3, 480, 640}, {3, 720, 1280}, {1, 576, 720}}};
+  TensorListShape<> ref_out_shape = {{{3, 1, 1}, {3, 1, 1}, {1, 1, 1}}};
+  int axes[] = {1, 2};
 
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), true, false);
@@ -270,19 +213,10 @@ TEST(SumImplGPU, Inner) {
   test.Check();
 }
 
-
 TEST(SumImplGPU, Outer) {
-  TensorListShape<> in_shape = {{
-    { 480, 640, 3 },
-    { 720, 1280, 3 },
-    { 576, 720, 1 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 1, 1, 3 },
-    { 1, 1, 3 },
-    { 1, 1, 1 }
-  }};
-  int axes[] = { 0, 1 };
+  TensorListShape<> in_shape = {{{480, 640, 3}, {720, 1280, 3}, {576, 720, 1}}};
+  TensorListShape<> ref_out_shape = {{{1, 1, 3}, {1, 1, 3}, {1, 1, 1}}};
+  int axes[] = {0, 1};
 
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), true, false);
@@ -307,17 +241,9 @@ TEST(SumImplGPU, Outer) {
 }
 
 TEST(SumImplGPU, SplitStage) {
-  TensorListShape<> in_shape = {{
-    { 32, 2, 64000 },
-    { 15, 4, 128000 },
-    { 72000, 1, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 1, 2, 1 },
-    { 1, 4, 1 },
-    { 1, 1, 1 }
-  }};
-  int axes[] = { 0, 2 };
+  TensorListShape<> in_shape = {{{32, 2, 64000}, {15, 4, 128000}, {72000, 1, 7}}};
+  TensorListShape<> ref_out_shape = {{{1, 2, 1}, {1, 4, 1}, {1, 1, 1}}};
+  int axes[] = {0, 2};
 
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), true, false);
@@ -330,21 +256,15 @@ TEST(SumImplGPU, SplitStage) {
   test.Check();
 }
 
-
 TEST(SumImplGPU, WholeSamples) {
   TensorListShape<> in_shape = {{
-    { 480, 640 },
-    { 640, 480 },
-    { 0, 0 },
-    { 1280, 300 },
+      {480, 640},
+      {640, 480},
+      {0, 0},
+      {1280, 300},
   }};
-  TensorListShape<> ref_out_shape = {{
-    { 1, 1 },
-    { 1, 1 },
-    { 1, 1 },
-    { 1, 1 }
-  }};
-  int axes[] = { 0, 1 };
+  TensorListShape<> ref_out_shape = {{{1, 1}, {1, 1}, {1, 1}, {1, 1}}};
+  int axes[] = {0, 1};
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), true, false);
   EXPECT_GE(test.kernel.GetNumStages(), 2);  // at least two stages - large extent
@@ -356,17 +276,10 @@ TEST(SumImplGPU, WholeSamples) {
   test.Check();
 }
 
-
 TEST(SumImplGPU, All) {
-  TensorListShape<> in_shape = {{
-    { 480, 640 },
-    { 640, 480 },
-    { 1280, 300 }
-  }};
-  int axes[] = { 0, 1 };
-  TensorListShape<> ref_out_shape = {{
-    { 1, 1 }
-  }};
+  TensorListShape<> in_shape = {{{480, 640}, {640, 480}, {1280, 300}}};
+  int axes[] = {0, 1};
+  TensorListShape<> ref_out_shape = {{{1, 1}}};
 
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), true, true);
@@ -380,14 +293,8 @@ TEST(SumImplGPU, All) {
 }
 
 TEST(SumImplGPU, BatchOnly) {
-  TensorListShape<> in_shape = {{
-    { 480, 640 },
-    { 480, 640 },
-    { 480, 640 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    { 480, 640 }
-  }};
+  TensorListShape<> in_shape = {{{480, 640}, {480, 640}, {480, 640}}};
+  TensorListShape<> ref_out_shape = {{{480, 640}}};
 
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, {}, false, true);
@@ -401,15 +308,9 @@ TEST(SumImplGPU, BatchOnly) {
 }
 
 TEST(SumImplGPU, SplitStageBatch) {
-  TensorListShape<> in_shape = {{
-    { 32, 3, 64000 },
-    { 15, 3, 128000 },
-    { 72000, 3, 7 }
-  }};
-  TensorListShape<> ref_out_shape = {{
-    TensorShape<>{3}
-  }};
-  int axes[] = { 0, 2 };
+  TensorListShape<> in_shape = {{{32, 3, 64000}, {15, 3, 128000}, {72000, 3, 7}}};
+  TensorListShape<> ref_out_shape = {{TensorShape<>{3}}};
+  int axes[] = {0, 2};
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), false, true);
   test.FillData(0, 255);
@@ -422,17 +323,14 @@ TEST(SumImplGPU, SplitStageBatch) {
   test.Check();
 }
 
-
 TEST(SumImplGPU, All_ZeroSize) {
   TensorListShape<> in_shape = {{
-    TensorShape<>{0, 0},
-    TensorShape<>{0, 0},
-    TensorShape<>{0, 0},
+      TensorShape<>{0, 0},
+      TensorShape<>{0, 0},
+      TensorShape<>{0, 0},
   }};
-  TensorListShape<> ref_out_shape = {{
-    TensorShape<>{}
-  }};
-  int axes[] = { 0, 1 };
+  TensorListShape<> ref_out_shape = {{TensorShape<>{}}};
+  int axes[] = {0, 1};
 
   testing::ReductionKernelTest<SumImplGPU<int64_t, uint8_t>, int64_t, uint8_t> test;
   test.Setup(in_shape, ref_out_shape, make_span(axes), false, true);

@@ -23,10 +23,11 @@ namespace testing {
 class GraphDescr {
  public:
   GraphDescr(std::string name) : name_(name) {}  // NOLINT (non-explicit ctor)
-  std::string get_op_name() { return name_; }
+  std::string get_op_name() {
+    return name_;
+  }
   std::string name_;
 };  // PR #369
-
 
 }  // namespace testing
 }  // namespace dali

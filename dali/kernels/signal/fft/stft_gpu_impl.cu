@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/signal/fft/stft_gpu_impl.cuh"
 #include "dali/core/format.h"
 #include "dali/core/tensor_shape_print.h"
+#include "dali/kernels/signal/fft/stft_gpu_impl.cuh"
 
 namespace dali {
 namespace kernels {
@@ -28,15 +28,15 @@ void StftImplGPU::Reset() {
 }
 
 inline void add_scratch(ScratchpadEstimator &se,
-    const std::array<size_t, (size_t)AllocType::Count> &sizes) {
+                        const std::array<size_t, (size_t)AllocType::Count> &sizes) {
   constexpr size_t kScratchpadAlignment = 64;
   for (size_t i = 0; i < sizes.size(); i++) {
     se.sizes[i] = align_up(se.sizes[i], kScratchpadAlignment) + sizes[i];
   }
 }
 
-KernelRequirements StftImplGPU::Setup(
-    KernelContext &ctx, span<const int64_t> lengths, const StftArgs &args) {
+KernelRequirements StftImplGPU::Setup(KernelContext &ctx, span<const int64_t> lengths,
+                                      const StftArgs &args) {
   if (args != args_) {
     Reset();
     args_ = args;
@@ -54,8 +54,8 @@ KernelRequirements StftImplGPU::Setup(
   for (int i = 0; i < N; i++) {
     int64_t l = lengths[i];
     int64_t n = args_.num_windows(l);
-    TensorShape<2> ts_in = { n, transform_in_size() };
-    TensorShape<2> ts_out = { n, transform_out_size() };
+    TensorShape<2> ts_in = {n, transform_in_size()};
+    TensorShape<2> ts_out = {n, transform_out_size()};
     transform_out_.shape.set_tensor_shape(i, ts_out);
     transform_in_.shape.set_tensor_shape(i, ts_in);
 
@@ -74,15 +74,13 @@ KernelRequirements StftImplGPU::Setup(
   ReserveTempStorage(se);
   SetupPostprocessing(ctx, se);
 
-  req.output_shapes = { shape };
+  req.output_shapes = {shape};
   req.scratch_sizes = se.sizes;
   return req;
 }
 
-void StftImplGPU::SetupWindowExtraction(
-    KernelContext &ctx,
-    ScratchpadEstimator &se,
-    span<const int64_t> input_lengths) {
+void StftImplGPU::SetupWindowExtraction(KernelContext &ctx, ScratchpadEstimator &se,
+                                        span<const int64_t> input_lengths) {
   ExtractWindowsBatchedArgs extract_args;
   static_cast<ExtractWindowsArgs &>(extract_args) = static_cast<ExtractWindowsArgs &>(args_);
   extract_args.output_window_length = transform_in_size();  // include padding, if necessary
@@ -99,13 +97,12 @@ void StftImplGPU::SetupPostprocessing(KernelContext &ctx, ScratchpadEstimator &s
     add_scratch(se, req.scratch_sizes);
   } else {
     post_complex_.reset();
-    post_real_ = fft_postprocess::GetSpectrogramPostprocessor(
-        args_.time_major_layout, args_.spectrum_type);
+    post_real_ =
+        fft_postprocess::GetSpectrogramPostprocessor(args_.time_major_layout, args_.spectrum_type);
     auto req = post_real_->Setup(ctx, transform_out_.shape);
     add_scratch(se, req.scratch_sizes);
   }
 }
-
 
 void StftImplGPU::CreatePlans(int64_t nwindows) {
   int64_t max_windows = kMaxSize;
@@ -122,7 +119,7 @@ void StftImplGPU::CreatePlans(int64_t nwindows) {
   max_windows_ = max_windows;
   min_windows_ = std::min(max_windows_, next_pow2(kMinSize / transform_size()));
 
-  int n[1] = { transform_size() };
+  int n[1] = {transform_size()};
   for (int w = max_windows_; w >= min_windows_; w >>= 1) {
     auto &plan = plans_[w];
     if (!plan.handle) {
@@ -131,10 +128,7 @@ void StftImplGPU::CreatePlans(int64_t nwindows) {
       plan.handle.reset(handle);
       CUDA_CALL(cufftSetAutoAllocation(handle, false));
       plan.work_size = 0;
-      CUDA_CALL(cufftMakePlanMany(
-          handle, 1, n,
-          0, 0, 0, 0, 0, 0,
-          CUFFT_R2C, w, &plan.work_size));
+      CUDA_CALL(cufftMakePlanMany(handle, 1, n, 0, 0, 0, 0, 0, 0, CUFFT_R2C, w, &plan.work_size));
     }
   }
 
@@ -147,7 +141,7 @@ void StftImplGPU::CreateStreams(int new_num_streams) {
   if (num_streams < new_num_streams) {
     streams_.resize(new_num_streams);
     for (int i = num_streams; i < new_num_streams; i++)
-      streams_[i] = { CUDAStream::Create(true), CUDAEvent::Create() };
+      streams_[i] = {CUDAStream::Create(true), CUDAEvent::Create()};
   }
 }
 
@@ -182,8 +176,9 @@ void StftImplGPU::ValidateParams(ExecutionContext &ctx) {
   int N = ctx.in().num_samples();
   const TensorListShape<2> &out_shape = ctx.output_shape();
 
-  DALI_ENFORCE(out_shape.num_samples() == N, make_string(
-        "Unexpected number of samples in output list: ", out_shape.num_samples(), " vs ", N));
+  DALI_ENFORCE(out_shape.num_samples() == N,
+               make_string("Unexpected number of samples in output list: ", out_shape.num_samples(),
+                           " vs ", N));
 
   for (int i = 0; i < N; i++) {
     TensorShape<2> ts = transform_out_.shape[i];
@@ -191,28 +186,24 @@ void StftImplGPU::ValidateParams(ExecutionContext &ctx) {
     if (!args_.time_major_layout)
       std::swap(ts[0], ts[1]);
 
-    DALI_ENFORCE(out_shape[i] == ts,
-        make_string("Unexpected output shape at sample ", i, ": ", out_shape[i], " expected ", ts));
+    DALI_ENFORCE(out_shape[i] == ts, make_string("Unexpected output shape at sample ", i, ": ",
+                                                 out_shape[i], " expected ", ts));
   }
 }
 
-void StftImplGPU::Run(KernelContext &ctx,
-                      const OutListGPU<complexf, 2> &out,
-                      const InListGPU<float, 1> &in,
-                      const InTensorGPU<float, 1> &window) {
+void StftImplGPU::Run(KernelContext &ctx, const OutListGPU<complexf, 2> &out,
+                      const InListGPU<float, 1> &in, const InTensorGPU<float, 1> &window) {
   assert(args_.spectrum_type == FFT_SPECTRUM_COMPLEX);
 
-  ExecutionContext ectx({ &ctx, &out, nullptr, &in, &window });
+  ExecutionContext ectx({&ctx, &out, nullptr, &in, &window});
   Run(ectx);
 }
 
-void StftImplGPU::Run(KernelContext &ctx,
-                      const OutListGPU<float, 2> &out,
-                      const InListGPU<float, 1> &in,
-                      const InTensorGPU<float, 1> &window) {
+void StftImplGPU::Run(KernelContext &ctx, const OutListGPU<float, 2> &out,
+                      const InListGPU<float, 1> &in, const InTensorGPU<float, 1> &window) {
   assert(args_.spectrum_type != FFT_SPECTRUM_COMPLEX);
 
-  ExecutionContext ectx({ &ctx, nullptr, &out, &in, &window });
+  ExecutionContext ectx({&ctx, nullptr, &out, &in, &window});
   Run(ectx);
 }
 
@@ -311,7 +302,7 @@ void StftImplGPU::ExtractWindows(ExecutionContext &ctx) {
   int64_t pad = num_temp_windows() * transform_in_size() - ofs;
 
   // 0-pad to avoid running FFT on garbage
-  cudaMemsetAsync(fft_in + ofs, 0, pad*sizeof(float), ctx.stream());
+  cudaMemsetAsync(fft_in + ofs, 0, pad * sizeof(float), ctx.stream());
 }
 
 }  // namespace fft

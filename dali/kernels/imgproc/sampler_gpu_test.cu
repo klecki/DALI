@@ -23,17 +23,16 @@ using Pixel = std::array<uint8_t, 3>;
 using PixelF = std::array<float, 3>;
 
 template <typename Out, DALIInterpType interp, int MaxChannels = 8, typename In>
-__global__ void RunSampler2D(
-      Surface2D<Out> out, Sampler2D<interp, In> sampler, In border_value,
-      float dx, float dy, float x0, float y0) {
+__global__ void RunSampler2D(Surface2D<Out> out, Sampler2D<interp, In> sampler, In border_value,
+                             float dx, float dy, float x0, float y0) {
   int x = threadIdx.x + blockIdx.x * blockDim.x;
   int y = threadIdx.y + blockIdx.y * blockDim.y;
   if (x >= out.size.x || y >= out.size.y)
     return;
 
-  In border[3] = { border_value, border_value, border_value };
+  In border[3] = {border_value, border_value, border_value};
 
-  vec2 src = { x*dx + x0, y*dy + y0 };
+  vec2 src = {x * dx + x0, y * dy + y0};
   Out tmp[MaxChannels];
   sampler(tmp, src, border);
   for (int c = 0; c < out.channels; c++)
@@ -41,18 +40,17 @@ __global__ void RunSampler2D(
 }
 
 template <typename Out, DALIInterpType interp, int MaxChannels = 8, typename In>
-__global__ void RunSampler3D(
-      Surface3D<Out> out, Sampler3D<interp, In> sampler, In border_value,
-      float dx, float dy, float dz, float x0, float y0, float z0) {
+__global__ void RunSampler3D(Surface3D<Out> out, Sampler3D<interp, In> sampler, In border_value,
+                             float dx, float dy, float dz, float x0, float y0, float z0) {
   int x = threadIdx.x + blockIdx.x * blockDim.x;
   int y = threadIdx.y + blockIdx.y * blockDim.y;
   int z = threadIdx.z + blockIdx.z * blockDim.z;
   if (x >= out.size.x || y >= out.size.y || z >= out.size.z)
     return;
 
-  In border[3] = { border_value, border_value, border_value };
+  In border[3] = {border_value, border_value, border_value};
 
-  vec3 src = { x*dx + x0, y*dy + y0, z*dz + z0 };
+  vec3 src = {x * dx + x0, y * dy + y0, z * dz + z0};
   Out tmp[MaxChannels];
   sampler(tmp, src, border);
   for (int c = 0; c < out.channels; c++)
@@ -69,28 +67,28 @@ TEST(Sampler2D_GPU, NN) {
   Sampler2D<DALI_INTERP_NN, uint8_t> sampler(surf_gpu);
 
   uint8_t border_value = 50;
-  Pixel border = { border_value, border_value, border_value };
+  Pixel border = {border_value, border_value, border_value};
 
   float dy = 0.125f;
   float dx = 0.125f;
   float x0 = -1;
   float y0 = -1;
 
-  int w = (surf_cpu.size.x+2) / dx + 1;
-  int h = (surf_cpu.size.y+2) / dy + 1;
+  int w = (surf_cpu.size.x + 2) / dx + 1;
+  int h = (surf_cpu.size.y + 2) / dy + 1;
   int c = surf_cpu.channels;
 
-  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w*h*c);
-  Surface2D<uint8_t> out_surf = { out_mem.get(), { w, h }, c, { c, w*c }, 1 };
+  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w * h * c);
+  Surface2D<uint8_t> out_surf = {out_mem.get(), {w, h}, c, {c, w * c}, 1};
 
-  std::vector<uint8_t> out_mem_cpu(w*h*c);
+  std::vector<uint8_t> out_mem_cpu(w * h * c);
 
   dim3 block(32, 32);
-  dim3 grid((w+31)/32, (h+31)/32);
+  dim3 grid((w + 31) / 32, (h + 31) / 32);
   RunSampler2D<<<grid, block>>>(out_surf, sampler, border_value, dx, dy, x0, y0);
-  Surface2D<uint8_t> out_cpu = { out_mem_cpu.data(), { w, h }, c, { c, w*c }, 1 };
+  Surface2D<uint8_t> out_cpu = {out_mem_cpu.data(), {w, h}, c, {c, w * c}, 1};
 
-  cudaMemcpy(out_cpu.data, out_surf.data, w*h*c, cudaMemcpyDeviceToHost);
+  cudaMemcpy(out_cpu.data, out_surf.data, w * h * c, cudaMemcpyDeviceToHost);
 
   for (int oy = 0; oy < h; oy++) {
     float y = oy * dy + y0;
@@ -107,13 +105,12 @@ TEST(Sampler2D_GPU, NN) {
           ref[c] = surf_cpu(ix, iy, c);
       }
       Pixel pixel;
-      for (int c = 0; c< surf_cpu.channels; c++)
+      for (int c = 0; c < surf_cpu.channels; c++)
         pixel[c] = out_cpu(ox, oy, c);
       EXPECT_EQ(pixel, ref) << " mismatch at " << vec2(x, y);
     }
   }
 }
-
 
 TEST(Sampler3D_GPU, NN) {
   SamplerTestData<uint8_t> sd;
@@ -125,7 +122,7 @@ TEST(Sampler3D_GPU, NN) {
   Sampler3D<DALI_INTERP_NN, uint8_t> sampler(surf_gpu);
 
   uint8_t border_value = 50;
-  Pixel border = { border_value, border_value, border_value };
+  Pixel border = {border_value, border_value, border_value};
 
   float dy = 0.125f;
   float dx = 0.125f;
@@ -134,22 +131,22 @@ TEST(Sampler3D_GPU, NN) {
   float y0 = -1;
   float z0 = -1;
 
-  int w = (surf_cpu.size.x+2) / dx + 1;
-  int h = (surf_cpu.size.y+2) / dy + 1;
-  int d = (surf_cpu.size.z+2) / dz + 1;
+  int w = (surf_cpu.size.x + 2) / dx + 1;
+  int h = (surf_cpu.size.y + 2) / dy + 1;
+  int d = (surf_cpu.size.z + 2) / dz + 1;
   int c = surf_cpu.channels;
 
-  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w*h*d*c);
-  Surface3D<uint8_t> out_surf = { out_mem.get(), { w, h, d }, c, { c, w*c, h*w*c }, 1 };
+  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w * h * d * c);
+  Surface3D<uint8_t> out_surf = {out_mem.get(), {w, h, d}, c, {c, w * c, h * w * c}, 1};
 
-  std::vector<uint8_t> out_mem_cpu(w*h*d*c);
+  std::vector<uint8_t> out_mem_cpu(w * h * d * c);
 
   dim3 block(32, 32, 1);
-  dim3 grid((w+31)/32, (h+31)/32, d);
+  dim3 grid((w + 31) / 32, (h + 31) / 32, d);
   RunSampler3D<<<grid, block>>>(out_surf, sampler, border_value, dx, dy, dz, x0, y0, z0);
-  Surface3D<uint8_t> out_cpu = { out_mem_cpu.data(), { w, h, d }, c, { c, w*c, h*w*c }, 1 };
+  Surface3D<uint8_t> out_cpu = {out_mem_cpu.data(), {w, h, d}, c, {c, w * c, h * w * c}, 1};
 
-  cudaMemcpy(out_cpu.data, out_surf.data, w*h*d*c, cudaMemcpyDeviceToHost);
+  cudaMemcpy(out_cpu.data, out_surf.data, w * h * d * c, cudaMemcpyDeviceToHost);
 
   for (int oz = 0; oz < d; oz++) {
     float z = oz * dz + z0;
@@ -162,23 +159,21 @@ TEST(Sampler3D_GPU, NN) {
         int ix = floorf(x);
 
         Pixel ref;
-        if (ix < 0 || iy < 0 || iz < 0 ||
-            ix >= surf_cpu.size.x || iy >= surf_cpu.size.y || iz >= surf_cpu.size.z) {
+        if (ix < 0 || iy < 0 || iz < 0 || ix >= surf_cpu.size.x || iy >= surf_cpu.size.y ||
+            iz >= surf_cpu.size.z) {
           ref = border;
         } else {
           for (int c = 0; c < surf_cpu.channels; c++)
             ref[c] = surf_cpu(ix, iy, iz, c);
         }
         Pixel pixel;
-        for (int c = 0; c< surf_cpu.channels; c++)
+        for (int c = 0; c < surf_cpu.channels; c++)
           pixel[c] = out_cpu(ox, oy, oz, c);
         EXPECT_EQ(pixel, ref) << " mismatch at " << vec3(x, y, z);
       }
     }
   }
 }
-
-
 
 TEST(Sampler2D_GPU, Linear) {
   SamplerTestData<uint8_t> sd;
@@ -191,28 +186,28 @@ TEST(Sampler2D_GPU, Linear) {
   Sampler2D<DALI_INTERP_LINEAR, uint8_t> sampler_cpu(surf_cpu);
 
   uint8_t border_value = 50;
-  Pixel border = { border_value, border_value, border_value };
+  Pixel border = {border_value, border_value, border_value};
 
   float dy = 0.125f;
   float dx = 0.125f;
   float x0 = -1;
   float y0 = -1;
 
-  int w = (surf_cpu.size.x+2) / dx + 1;
-  int h = (surf_cpu.size.y+2) / dy + 1;
+  int w = (surf_cpu.size.x + 2) / dx + 1;
+  int h = (surf_cpu.size.y + 2) / dy + 1;
   int c = surf_cpu.channels;
 
-  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w*h*c);
-  Surface2D<uint8_t> out_surf = { out_mem.get(), { w, h }, c, { c, w*c}, 1 };
+  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w * h * c);
+  Surface2D<uint8_t> out_surf = {out_mem.get(), {w, h}, c, {c, w * c}, 1};
 
-  std::vector<uint8_t> out_mem_cpu(w*h*c);
+  std::vector<uint8_t> out_mem_cpu(w * h * c);
 
   dim3 block(32, 32);
-  dim3 grid((w+31)/32, (h+31)/32);
+  dim3 grid((w + 31) / 32, (h + 31) / 32);
   RunSampler2D<<<grid, block>>>(out_surf, sampler, border_value, dx, dy, x0, y0);
-  Surface2D<uint8_t> out_cpu = { out_mem_cpu.data(), { w, h }, c, { c, w*c }, 1 };
+  Surface2D<uint8_t> out_cpu = {out_mem_cpu.data(), {w, h}, c, {c, w * c}, 1};
 
-  cudaMemcpy(out_cpu.data, out_surf.data, w*h*c, cudaMemcpyDeviceToHost);
+  cudaMemcpy(out_cpu.data, out_surf.data, w * h * c, cudaMemcpyDeviceToHost);
 
   const float eps = 0.50000025f;  // 0.5 + 4 ULP
 
@@ -221,13 +216,13 @@ TEST(Sampler2D_GPU, Linear) {
     for (int ox = 0; ox < w; ox++) {
       float x = ox * dx + x0;
 
-      vec2 pos = { x, y };
+      vec2 pos = {x, y};
 
       PixelF ref;
       sampler_cpu(ref.data(), pos, border.data());
 
       Pixel pixel;
-      for (int c = 0; c< surf_cpu.channels; c++) {
+      for (int c = 0; c < surf_cpu.channels; c++) {
         pixel[c] = out_cpu(ox, oy, c);
         EXPECT_NEAR(pixel[c], ref[c], eps) << " mismatch at " << pos;
       }
@@ -246,7 +241,7 @@ TEST(Sampler3D_GPU, Linear) {
   Sampler3D<DALI_INTERP_LINEAR, uint8_t> sampler_cpu(surf_cpu);
 
   uint8_t border_value = 50;
-  Pixel border = { border_value, border_value, border_value };
+  Pixel border = {border_value, border_value, border_value};
 
   float dy = 0.125f;
   float dx = 0.125f;
@@ -255,22 +250,22 @@ TEST(Sampler3D_GPU, Linear) {
   float y0 = -1;
   float z0 = -1;
 
-  int w = (surf_cpu.size.x+2) / dx + 1;
-  int h = (surf_cpu.size.y+2) / dy + 1;
-  int d = (surf_cpu.size.z+2) / dz + 1;
+  int w = (surf_cpu.size.x + 2) / dx + 1;
+  int h = (surf_cpu.size.y + 2) / dy + 1;
+  int d = (surf_cpu.size.z + 2) / dz + 1;
   int c = surf_cpu.channels;
 
-  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w*h*d*c);
-  Surface3D<uint8_t> out_surf = { out_mem.get(), { w, h, d }, c, { c, w*c, h*w*c }, 1 };
+  auto out_mem = memory::alloc_unique<uint8_t>(AllocType::GPU, w * h * d * c);
+  Surface3D<uint8_t> out_surf = {out_mem.get(), {w, h, d}, c, {c, w * c, h * w * c}, 1};
 
-  std::vector<uint8_t> out_mem_cpu(w*h*d*c);
+  std::vector<uint8_t> out_mem_cpu(w * h * d * c);
 
   dim3 block(32, 32, 1);
-  dim3 grid((w+31)/32, (h+31)/32, d);
+  dim3 grid((w + 31) / 32, (h + 31) / 32, d);
   RunSampler3D<<<grid, block>>>(out_surf, sampler, border_value, dx, dy, dz, x0, y0, z0);
-  Surface3D<uint8_t> out_cpu = { out_mem_cpu.data(), { w, h, d }, c, { c, w*c, h*w*c }, 1 };
+  Surface3D<uint8_t> out_cpu = {out_mem_cpu.data(), {w, h, d}, c, {c, w * c, h * w * c}, 1};
 
-  cudaMemcpy(out_cpu.data, out_surf.data, w*h*d*c, cudaMemcpyDeviceToHost);
+  cudaMemcpy(out_cpu.data, out_surf.data, w * h * d * c, cudaMemcpyDeviceToHost);
 
   const float eps = 0.50000025f;  // 0.5 + 4 ULP
 
@@ -281,13 +276,13 @@ TEST(Sampler3D_GPU, Linear) {
       for (int ox = 0; ox < w; ox++) {
         float x = ox * dx + x0;
 
-        vec3 pos = { x, y, z };
+        vec3 pos = {x, y, z};
 
         PixelF ref;
         sampler_cpu(ref.data(), pos, border.data());
 
         Pixel pixel;
-        for (int c = 0; c< surf_cpu.channels; c++) {
+        for (int c = 0; c < surf_cpu.channels; c++) {
           pixel[c] = out_cpu(ox, oy, oz, c);
           EXPECT_NEAR(pixel[c], ref[c], eps) << " mismatch at " << pos;
         }

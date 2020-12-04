@@ -15,8 +15,8 @@
 #ifndef DALI_OPERATORS_READER_LOADER_UTILS_H_
 #define DALI_OPERATORS_READER_LOADER_UTILS_H_
 
-#include <vector>
 #include <string>
+#include <vector>
 #include "dali/core/api_helper.h"
 
 namespace dali {
@@ -25,14 +25,14 @@ namespace dali {
  * When adding new vector here,
  * make sure to add it also in `bool HasKnownExtension(const std::string &filepath);`
  */
-static const std::vector<std::string> kKnownImageExtensions = {".jpg", ".jpeg", ".png", ".bmp",
-                                                               ".tif", ".tiff", ".pnm", ".ppm",
-                                                               ".pgm", ".pbm", ".jp2"};
+static const std::vector<std::string> kKnownImageExtensions = {
+    ".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".pnm", ".ppm", ".pgm", ".pbm", ".jp2"};
 
 static const std::vector<std::string> kKnownAudioExtensions = {".flac", ".ogg", ".wav"};
 
 /**
- * Checks, if the name of the file provided in the argument ends with image extension, that is known.
+ * Checks, if the name of the file provided in the argument ends with image extension, that is
+ * known.
  */
 DLL_PUBLIC bool HasExtension(std::string filepath, const std::vector<std::string> &extensions);
 

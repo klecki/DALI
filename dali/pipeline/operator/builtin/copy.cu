@@ -17,19 +17,15 @@
 
 namespace dali {
 
-template<>
+template <>
 void Copy<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   auto &input = ws.Input<GPUBackend>(0);
   auto &output = ws.Output<GPUBackend>(0);
   output.set_type(input.type());
   output.SetLayout(input.GetLayout());
   output.ResizeLike(input);
-  CUDA_CALL(cudaMemcpyAsync(
-          output.raw_mutable_data(),
-          input.raw_data(),
-          input.nbytes(),
-          cudaMemcpyDeviceToDevice,
-          ws.stream()));
+  CUDA_CALL(cudaMemcpyAsync(output.raw_mutable_data(), input.raw_data(), input.nbytes(),
+                            cudaMemcpyDeviceToDevice, ws.stream()));
 }
 
 DALI_REGISTER_OPERATOR(Copy, Copy<GPUBackend>, GPU);

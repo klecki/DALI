@@ -15,8 +15,8 @@
 #ifndef DALI_IMAGE_JPEG2K_H_
 #define DALI_IMAGE_JPEG2K_H_
 
-#include <utility>
 #include <memory>
+#include <utility>
 
 #include "dali/core/common.h"
 #include "dali/image/generic_image.h"
@@ -28,7 +28,7 @@ bool CheckIsJPEG2k(const uint8_t *jpeg2k, int size);
 class Jpeg2kImage : public GenericImage {
  public:
   Jpeg2kImage(const uint8_t *encoded_buffer, size_t length, DALIImageType image_type)
-  : GenericImage(encoded_buffer, length, image_type) {}
+      : GenericImage(encoded_buffer, length, image_type) {}
 
   ~Jpeg2kImage() override = default;
 

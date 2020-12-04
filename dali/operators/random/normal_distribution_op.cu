@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/random/normal_distribution_op.cuh"
-#include <vector>
 #include <utility>
+#include <vector>
 #include "dali/core/convert.h"
+#include "dali/operators/random/normal_distribution_op.cuh"
 
 namespace dali {
 
@@ -25,7 +25,7 @@ template <typename Out, typename RandType>
 __global__ void NormalDistKernel(NormalDistributionGpu::BlockDesc *block_descs,
                                  RandomizerGPU randomizer) {
   auto desc = block_descs[blockIdx.x];
-  auto out = static_cast<Out*>(desc.sample);
+  auto out = static_cast<Out *>(desc.sample);
   auto tid = blockIdx.x * blockDim.x + threadIdx.x;
   for (int x = desc.start + threadIdx.x; x < desc.end; x += blockDim.x) {
     auto norm = randomizer.normal<RandType>(tid);
@@ -34,17 +34,18 @@ __global__ void NormalDistKernel(NormalDistributionGpu::BlockDesc *block_descs,
 }
 
 template <typename Out, typename RandType>
-__global__ void NormalDistSingleValue(NormalDistributionGpu::BlockDesc *descs,
-                                      int size, RandomizerGPU randomizer) {
+__global__ void NormalDistSingleValue(NormalDistributionGpu::BlockDesc *descs, int size,
+                                      RandomizerGPU randomizer) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid >= size) return;
+  if (tid >= size)
+    return;
   auto desc = descs[tid];
   auto norm = randomizer.normal<RandType>(tid);
-  *(static_cast<Out*>(desc.sample)) = ConvertSat<Out>(norm * desc.std + desc.mean);
+  *(static_cast<Out *>(desc.sample)) = ConvertSat<Out>(norm * desc.std + desc.mean);
 }
 
-std::pair<std::vector<int>, int> DistributeBlocksPerSample(
-    const TensorListShape<> &shape, int block_size, int max_blocks) {
+std::pair<std::vector<int>, int> DistributeBlocksPerSample(const TensorListShape<> &shape,
+                                                           int block_size, int max_blocks) {
   std::vector<int> sizes(shape.size());
   int sum = 0;
   for (int i = 0; i < shape.size(); ++i) {
@@ -73,7 +74,7 @@ std::pair<std::vector<int>, int> DistributeBlocksPerSample(
 }  // namespace detail
 
 NormalDistributionGpu::NormalDistributionGpu(const OpSpec &spec)
-      : NormalDistribution(spec), randomizer_(seed_, block_size_ * max_blocks_) {
+    : NormalDistribution(spec), randomizer_(seed_, block_size_ * max_blocks_) {
   DALI_ENFORCE(batch_size_ <= max_blocks_,
                "Batch size must be smaller than " + std::to_string(max_blocks_));
   block_descs_gpu_ = mem::alloc_unique<BlockDesc>(kernels::AllocType::GPU, max_blocks_);
@@ -89,7 +90,7 @@ int NormalDistributionGpu::SetupBlockDescs(TensorList<GPUBackend> &output, cudaS
   int blocks_num;
   auto shape = output.shape();
   std::tie(blocks_per_sample, blocks_num) =
-    detail::DistributeBlocksPerSample(shape, block_size_, max_blocks_);
+      detail::DistributeBlocksPerSample(shape, block_size_, max_blocks_);
   BlockDesc *blocks = block_descs_cpu_.get();
   int block = 0;
   for (int s = 0; s < shape.size(); ++s) {
@@ -112,7 +113,7 @@ int NormalDistributionGpu::SetupBlockDescs(TensorList<GPUBackend> &output, cudaS
 }
 
 int NormalDistributionGpu::SetupSingleValueDescs(TensorList<GPUBackend> &output,
-                                                  cudaStream_t stream) {
+                                                 cudaStream_t stream) {
   assert(output.GetElementsNumber() == output.ntensor());
   auto elems = output.ntensor();
   BlockDesc *blocks = block_descs_cpu_.get();

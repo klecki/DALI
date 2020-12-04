@@ -18,10 +18,10 @@
 #include <cuda_runtime.h>
 #include <algorithm>
 
-#include "dali/core/convert.h"
 #include "dali/core/boundary.h"
-#include "dali/kernels/signal/window/extract_windows_args.h"
+#include "dali/core/convert.h"
 #include "dali/kernels/kernel.h"
+#include "dali/kernels/signal/window/extract_windows_args.h"
 
 namespace dali {
 namespace kernels {
@@ -30,7 +30,6 @@ namespace signal {
 namespace window {
 
 constexpr int kBlock = 32;
-
 
 /**
  *  @brief Extract and store kBlock values from kBlock windows.
@@ -58,18 +57,13 @@ constexpr int kBlock = 32;
  * @remarks This function must be executed by all (or no) threads in a block!
  */
 template <int num_pages = 1, typename Dst, typename Src>
-__device__ void ExtractVerticalWindowsBlock(
-    int first_window_idx,
-    Dst *__restrict__ dst, ptrdiff_t num_windows, ptrdiff_t stride,
-    const Src *__restrict__ src, ptrdiff_t length,
-    const float *__restrict__ window,
-    int out_win_len,
-    int in_win_len,
-    int win_center,
-    int step,
-    bool reflect,
-    int page = 0) {
-  __shared__ float tmp[num_pages][kBlock][kBlock+1];  // +1 to avoid bank conflicts
+__device__ void ExtractVerticalWindowsBlock(int first_window_idx, Dst *__restrict__ dst,
+                                            ptrdiff_t num_windows, ptrdiff_t stride,
+                                            const Src *__restrict__ src, ptrdiff_t length,
+                                            const float *__restrict__ window, int out_win_len,
+                                            int in_win_len, int win_center, int step, bool reflect,
+                                            int page = 0) {
+  __shared__ float tmp[num_pages][kBlock][kBlock + 1];  // +1 to avoid bank conflicts
   ptrdiff_t in_window_idx = first_window_idx + threadIdx.y;
   ptrdiff_t window_start = in_window_idx * step - win_center;
 
@@ -115,19 +109,14 @@ __device__ void ExtractVerticalWindowsBlock(
  * @param reflect       if true, reflect the signal at ends, otherwise zero-pad
  */
 template <typename Dst, typename Src>
-__device__ void ExtractHorizontalWindows(
-    ptrdiff_t idx,
-    Dst *__restrict__ dst, ptrdiff_t num_windows, ptrdiff_t stride,
-    const Src *__restrict__ src, ptrdiff_t length,
-    const float *__restrict__ window,
-    int win_len,
-    int win_center,
-    int step,
-    bool reflect) {
-
+__device__ void ExtractHorizontalWindows(ptrdiff_t idx, Dst *__restrict__ dst,
+                                         ptrdiff_t num_windows, ptrdiff_t stride,
+                                         const Src *__restrict__ src, ptrdiff_t length,
+                                         const float *__restrict__ window, int win_len,
+                                         int win_center, int step, bool reflect) {
   // calculate the index of the first window that sample at `idx ` contributes to
   ptrdiff_t idx0 = idx + win_center - win_len + step;  // add step to round up
-  ptrdiff_t win0 = ::max(ptrdiff_t(), idx0/step);
+  ptrdiff_t win0 = ::max(ptrdiff_t(), idx0 / step);
 
   float value = 0;
 
@@ -140,31 +129,26 @@ __device__ void ExtractHorizontalWindows(
   }
 
   for (int win_ofs = idx - (win0 * step - win_center), win_idx = win0;
-      win_ofs >= 0 && win_idx < num_windows;
-      win_ofs -= step, win_idx++) {
+       win_ofs >= 0 && win_idx < num_windows; win_ofs -= step, win_idx++) {
     float v = window ? value * window[win_ofs] : value;
     dst[win_idx * stride + win_ofs] = ConvertSatNorm<Dst>(v);
   }
 }
 
 template <typename Dst, typename Src>
-__global__ void ExtractVerticalWindowsKernel(
-    Dst *__restrict__ dst, ptrdiff_t num_windows, ptrdiff_t stride,
-    const Src *__restrict__ src, ptrdiff_t length,
-    const float *__restrict__ window,
-    int out_win_len,
-    int in_win_len,
-    int win_center,
-    int step,
-    bool reflect) {
+__global__ void ExtractVerticalWindowsKernel(Dst *__restrict__ dst, ptrdiff_t num_windows,
+                                             ptrdiff_t stride, const Src *__restrict__ src,
+                                             ptrdiff_t length, const float *__restrict__ window,
+                                             int out_win_len, int in_win_len, int win_center,
+                                             int step, bool reflect) {
   // This kernel reads kBlock elements from kBlock windows to shared memory
   // and stores the transposed result to output in columns.
 
-  ExtractVerticalWindowsBlock(
-    blockIdx.x * kBlock,        // first window index
-    dst, num_windows, stride,   // output
-    src, length,                // input
-    window, out_win_len, in_win_len, win_center, step, reflect);  // windowing options
+  ExtractVerticalWindowsBlock(blockIdx.x * kBlock,       // first window index
+                              dst, num_windows, stride,  // output
+                              src, length,               // input
+                              window, out_win_len, in_win_len, win_center, step,
+                              reflect);  // windowing options
 }
 
 struct SampleDesc {
@@ -209,21 +193,16 @@ struct HorizontalBlockDesc {
  * equal to 1 << block_shift.
  */
 template <typename Dst, typename Src>
-__global__ void ExtractVerticalWindowsBatchedKernel(
-    const SampleDesc *samples,
-    const BlockDesc *blocks,
-    int windows_per_block,
-    const float *__restrict__ window,
-    int out_win_len,
-    int in_win_len,
-    int win_center,
-    int step,
-    bool reflect) {
+__global__ void ExtractVerticalWindowsBatchedKernel(const SampleDesc *samples,
+                                                    const BlockDesc *blocks, int windows_per_block,
+                                                    const float *__restrict__ window,
+                                                    int out_win_len, int in_win_len, int win_center,
+                                                    int step, bool reflect) {
   int block_idx = blockIdx.x;
   BlockDesc blk = blocks[block_idx];
   SampleDesc sample = samples[blk.sample_idx];
-  const Src *__restrict__ src = static_cast<const Src*>(sample.input);
-  Dst *__restrict__ dst = static_cast<Dst*>(sample.output);
+  const Src *__restrict__ src = static_cast<const Src *>(sample.input);
+  Dst *__restrict__ dst = static_cast<Dst *>(sample.output);
   ptrdiff_t stride = sample.output_stride;
   int num_windows = sample.num_windows;
   ptrdiff_t length = sample.length;
@@ -232,13 +211,13 @@ __global__ void ExtractVerticalWindowsBatchedKernel(
 
   // NOTE: This loop is dynamically uniform. Introducing any thread-index dependent condition
   // will break the code, leading to undefined behavior (including hangs).
-  for (int pos = blk.start, page = 0; pos < block_end; pos += kBlock, page = 1-page) {
+  for (int pos = blk.start, page = 0; pos < block_end; pos += kBlock, page = 1 - page) {
     ExtractVerticalWindowsBlock<2>(
-      pos,                        // first window index
-      dst, num_windows, stride,   // output
-      src, length,                // input
-      window, out_win_len, in_win_len, win_center, step, reflect,  // windowing options
-      page);  // page-flipped temporary buffer avoids additional __syncthreads
+        pos,                                                         // first window index
+        dst, num_windows, stride,                                    // output
+        src, length,                                                 // input
+        window, out_win_len, in_win_len, win_center, step, reflect,  // windowing options
+        page);  // page-flipped temporary buffer avoids additional __syncthreads
   }
 }
 
@@ -250,19 +229,15 @@ __global__ void ExtractVerticalWindowsBatchedKernel(
  * CUDA block size is variable (and generally quite large).
  */
 template <typename Dst, typename Src>
-__global__ void ExtractHorizontalWindowsBatchedKernel(
-    const SampleDesc *samples,
-    const HorizontalBlockDesc *blocks,
-    const float *__restrict__ window,
-    int win_len,
-    int win_center,
-    int step,
-    bool reflect) {
+__global__ void ExtractHorizontalWindowsBatchedKernel(const SampleDesc *samples,
+                                                      const HorizontalBlockDesc *blocks,
+                                                      const float *__restrict__ window, int win_len,
+                                                      int win_center, int step, bool reflect) {
   int block_idx = blockIdx.x;
   HorizontalBlockDesc blk = blocks[block_idx];
   SampleDesc sample = samples[blk.sample_idx];
-  const Src *__restrict__ src = static_cast<const Src*>(sample.input);
-  Dst *__restrict__ dst = static_cast<Dst*>(sample.output);
+  const Src *__restrict__ src = static_cast<const Src *>(sample.input);
+  Dst *__restrict__ dst = static_cast<Dst *>(sample.output);
   ptrdiff_t stride = sample.output_stride;
   int num_windows = sample.num_windows;
   ptrdiff_t length = sample.length;
@@ -270,14 +245,12 @@ __global__ void ExtractHorizontalWindowsBatchedKernel(
   ptrdiff_t block_end = blk.start + blk.count;
 
   for (ptrdiff_t pos = blk.start + threadIdx.x; pos < block_end; pos += blockDim.x) {
-    ExtractHorizontalWindows(
-      pos,                        // input offset
-      dst, num_windows, stride,   // output
-      src, length,                // input
-      window, win_len, win_center, step, reflect);  // windowing options
+    ExtractHorizontalWindows(pos,                                          // input offset
+                             dst, num_windows, stride,                     // output
+                             src, length,                                  // input
+                             window, win_len, win_center, step, reflect);  // windowing options
   }
 }
-
 
 struct PadHorizontalWindowsBlock {
   /// @brief Pointer to the first _padding_ element in the block
@@ -288,13 +261,12 @@ struct PadHorizontalWindowsBlock {
   int window_stride;
 };
 
-
 /**
  * @brief Pads windows in non-contiguous output with zeros.
  */
 template <typename T>
-__global__ void PadHorizontalWindowsKernel(
-  const PadHorizontalWindowsBlock *__restrict__ blocks, int pad_length) {
+__global__ void PadHorizontalWindowsKernel(const PadHorizontalWindowsBlock *__restrict__ blocks,
+                                           int pad_length) {
   T *__restrict__ base = static_cast<T *>(blocks[blockIdx.z].base);
   int num_win = blocks[blockIdx.z].num_windows;
   int win_stride = blocks[blockIdx.z].window_stride;
@@ -318,24 +290,19 @@ __global__ void PadHorizontalWindowsKernel(
  */
 template <typename Dst, typename Src>
 struct ExtractWindowsImplGPU {
-  virtual KernelRequirements Setup(
-      KernelContext &context,
-      span<const int64_t> input_shape,
-      const ExtractWindowsArgs &args,
-      bool concatenate,
-      int out_win_length = -1) = 0;
+  virtual KernelRequirements Setup(KernelContext &context, span<const int64_t> input_shape,
+                                   const ExtractWindowsArgs &args, bool concatenate,
+                                   int out_win_length = -1) = 0;
 
-  virtual void Run(
-      KernelContext &ctx,
-      const OutListGPU<Dst, 2> &out,
-      const InListGPU<Src, 1> &in,
-      const InTensorGPU<float, 1> &window) = 0;
+  virtual void Run(KernelContext &ctx, const OutListGPU<Dst, 2> &out, const InListGPU<Src, 1> &in,
+                   const InTensorGPU<float, 1> &window) = 0;
 
-  virtual bool IsVertical() const { return false; }
+  virtual bool IsVertical() const {
+    return false;
+  }
 
   virtual ~ExtractWindowsImplGPU() = default;
 };
-
 
 /// @brief Extracts windows and stores them in columns
 template <typename Dst, typename Src>
@@ -343,15 +310,14 @@ struct ExtractVerticalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
   using SampleDesc = window::SampleDesc;
   using BlockDesc = window::BlockDesc;
 
-  bool IsVertical() const override { return true; }
+  bool IsVertical() const override {
+    return true;
+  }
 
-  KernelRequirements Setup(
-      KernelContext &context,
-      span<const int64_t> lengths,
-      const ExtractWindowsArgs &args,
-      bool concatenate,
-      int out_win_length) override {
-    block_dim  = dim3(window::kBlock, window::kBlock);
+  KernelRequirements Setup(KernelContext &context, span<const int64_t> lengths,
+                           const ExtractWindowsArgs &args, bool concatenate,
+                           int out_win_length) override {
+    block_dim = dim3(window::kBlock, window::kBlock);
 
     this->args = args;
     this->concatenate = concatenate;
@@ -377,11 +343,11 @@ struct ExtractVerticalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
       int blocks = div_ceil(nwin, windows_per_block);
       xgrid += blocks;
       if (!concatenate) {
-        out_shape.set_tensor_shape(i, { out_win_length, nwin });
+        out_shape.set_tensor_shape(i, {out_win_length, nwin});
       }
     }
     if (concatenate) {
-      out_shape.set_tensor_shape(0, { out_win_length, total_windows });
+      out_shape.set_tensor_shape(0, {out_win_length, total_windows});
     }
 
     const int kMaxBlocks = 0x10000;
@@ -404,14 +370,12 @@ struct ExtractVerticalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
 
     KernelRequirements req;
     req.scratch_sizes = se.sizes;
-    req.output_shapes = { out_shape };
+    req.output_shapes = {out_shape};
 
     return req;
   }
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Dst, 2> &out,
-           const InListGPU<Src, 1> &in,
+  void Run(KernelContext &ctx, const OutListGPU<Dst, 2> &out, const InListGPU<Src, 1> &in,
            const InTensorGPU<float, 1> &window) {
     size_t b = 0;
     int nblocks = grid_dim.x;
@@ -444,7 +408,7 @@ struct ExtractVerticalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
 
       for (int w = 0; w < nwindows; w += windows_per_block) {
         assert(b < nblocks);
-        cpu_blocks[b++] = { i, w };
+        cpu_blocks[b++] = {i, w};
       }
       total_windows += nwindows;
     }
@@ -452,15 +416,14 @@ struct ExtractVerticalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
     SampleDesc *gpu_samples;
     BlockDesc *gpu_blocks;
 
-    std::tie(gpu_samples, gpu_blocks) = ctx.scratchpad->ToContiguousGPU(ctx.gpu.stream,
-      make_span(cpu_samples, N),
-      make_span(cpu_blocks, nblocks));
+    std::tie(gpu_samples, gpu_blocks) = ctx.scratchpad->ToContiguousGPU(
+        ctx.gpu.stream, make_span(cpu_samples, N), make_span(cpu_blocks, nblocks));
 
     window::ExtractVerticalWindowsBatchedKernel<Dst, Src>
-    <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(
-      gpu_samples, gpu_blocks, windows_per_block,
-      window.data, out_win_length, args.window_length, args.window_center,
-      args.window_step, args.padding == Padding::Reflect);
+        <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(
+            gpu_samples, gpu_blocks, windows_per_block, window.data, out_win_length,
+            args.window_length, args.window_center, args.window_step,
+            args.padding == Padding::Reflect);
     CUDA_CALL(cudaGetLastError());
   }
 
@@ -478,12 +441,9 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
   using BlockDesc = window::HorizontalBlockDesc;
   using PadBlock = window::PadHorizontalWindowsBlock;
 
-  KernelRequirements Setup(
-      KernelContext &context,
-      span<const int64_t> lengths,
-      const ExtractWindowsArgs &args,
-      bool concatenate,
-      int out_win_length) override {
+  KernelRequirements Setup(KernelContext &context, span<const int64_t> lengths,
+                           const ExtractWindowsArgs &args, bool concatenate,
+                           int out_win_length) override {
     this->args = args;
     this->concatenate = concatenate;
     if (out_win_length < 0)
@@ -508,7 +468,8 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
       int64_t length = lengths[i];
       int nwin = args.num_windows(length);
 
-      int64_t padded_length = static_cast<int64_t>(nwin-1) * args.window_step + args.window_length;
+      int64_t padded_length =
+          static_cast<int64_t>(nwin - 1) * args.window_step + args.window_length;
       if (padded_length > max_padded_length)
         max_padded_length = padded_length;
 
@@ -516,12 +477,12 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
         max_win_per_input = nwin;
       total_windows += nwin;
       if (!concatenate) {
-        out_shape.set_tensor_shape(i, { nwin, out_win_length });
+        out_shape.set_tensor_shape(i, {nwin, out_win_length});
       }
     }
 
     if (concatenate) {
-      out_shape.set_tensor_shape(0, { total_windows, out_win_length });
+      out_shape.set_tensor_shape(0, {total_windows, out_win_length});
     }
 
     if (max_padded_length <= kDefaultBlockSize) {
@@ -533,7 +494,7 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
         grid_dim = 0;
         for (int i = 0; i < N; i++) {
           ptrdiff_t nwin = args.num_windows(lengths[i]);
-          ptrdiff_t length = (nwin-1) * args.window_step + args.window_length;
+          ptrdiff_t length = (nwin - 1) * args.window_step + args.window_length;
           grid_dim += div_ceil(length, logical_block_size);
         }
         if (grid_dim <= kMaxBlocks || grid_dim < 2 * N)
@@ -549,10 +510,10 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
       int pad_length = out_win_length - args.window_length;
       int max_pad_block_x = 32;
       if (max_win_per_input < 32) {
-        max_pad_block_x = 1024/max_win_per_input;
+        max_pad_block_x = 1024 / max_win_per_input;
       }
       int pad_block_x = clamp(pad_length, 1, max_pad_block_x);
-      int pad_block_y = clamp(1024/pad_block_x, 1, max_win_per_input);
+      int pad_block_y = clamp(1024 / pad_block_x, 1, max_win_per_input);
       pad_block_size = pad_block_y;
       const int kMaxBlocks = 0x10000;
       pad_grid.x = div_ceil(pad_length, pad_block_x);
@@ -582,14 +543,12 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
 
     KernelRequirements req;
     req.scratch_sizes = se.sizes;
-    req.output_shapes = { out_shape };
+    req.output_shapes = {out_shape};
 
     return req;
   }
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Dst, 2> &out,
-           const InListGPU<Src, 1> &in,
+  void Run(KernelContext &ctx, const OutListGPU<Dst, 2> &out, const InListGPU<Src, 1> &in,
            const InTensorGPU<float, 1> &window) override {
     int b = 0;
 
@@ -633,7 +592,7 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
       for (ptrdiff_t pos = start; pos < end; pos += logical_block_size) {
         assert(b < grid_dim);
         int count = std::min<ptrdiff_t>(end - pos, logical_block_size);
-        cpu_blocks[b++] = { i, count, pos };
+        cpu_blocks[b++] = {i, count, pos};
       }
       total_windows += nwindows;
 
@@ -643,9 +602,7 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
         for (int w = 0; w < nwindows; w += pad_block_size) {
           assert(pad_blocks < static_cast<int>(pad_grid.z));
           int cnt = std::min(pad_block_size, nwindows - w);
-          cpu_pad_blocks[pad_blocks] = {
-            ptr, cnt, static_cast<int>(sample.output_stride)
-          };
+          cpu_pad_blocks[pad_blocks] = {ptr, cnt, static_cast<int>(sample.output_stride)};
           pad_blocks++;
           ptr += cnt * sample.output_stride;
         }
@@ -658,28 +615,26 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
     PadBlock *gpu_pad_blocks;
 
     std::tie(gpu_samples, gpu_blocks, gpu_pad_blocks) = ctx.scratchpad->ToContiguousGPU(
-      ctx.gpu.stream,
-      make_span(cpu_samples, N),
-      make_span(cpu_blocks, grid_dim),
-      make_span(cpu_pad_blocks, pad_grid.z));
+        ctx.gpu.stream, make_span(cpu_samples, N), make_span(cpu_blocks, grid_dim),
+        make_span(cpu_pad_blocks, pad_grid.z));
 
     window::ExtractHorizontalWindowsBatchedKernel<Dst, Src>
-    <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(
-      gpu_samples, gpu_blocks,
-      window.data, args.window_length, args.window_center,
-      args.window_step, args.padding == Padding::Reflect);
+        <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(
+            gpu_samples, gpu_blocks, window.data, args.window_length, args.window_center,
+            args.window_step, args.padding == Padding::Reflect);
     CUDA_CALL(cudaGetLastError());
 
     int padding_length = out_win_length - args.window_length;
     if (padding_length > 0) {
       if (pad_grid.z) {
-        window::PadHorizontalWindowsKernel<Dst><<<pad_grid, pad_block, 0, ctx.gpu.stream>>>(
-          gpu_pad_blocks, padding_length);
+        window::PadHorizontalWindowsKernel<Dst>
+            <<<pad_grid, pad_block, 0, ctx.gpu.stream>>>(gpu_pad_blocks, padding_length);
       } else {
         assert(concatenate);
         auto stride = out.tensor_shape_span(0)[1];
-        CUDA_CALL(cudaMemset2DAsync(out.tensor_data(0) + args.window_length,
-          stride * sizeof(Dst), 0, padding_length * sizeof(Dst), total_windows, ctx.gpu.stream));
+        CUDA_CALL(cudaMemset2DAsync(out.tensor_data(0) + args.window_length, stride * sizeof(Dst),
+                                    0, padding_length * sizeof(Dst), total_windows,
+                                    ctx.gpu.stream));
       }
     }
   }
@@ -693,7 +648,6 @@ struct ExtractHorizontalWindowsImplGPU : ExtractWindowsImplGPU<Dst, Src> {
   int out_win_length = -1;
   bool concatenate = true;
 };
-
 
 }  // namespace signal
 }  // namespace kernels

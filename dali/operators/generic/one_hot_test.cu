@@ -16,11 +16,10 @@
 
 #include "dali/core/cuda_event.h"
 #include "dali/core/cuda_stream.h"
+#include "dali/operators/generic/one_hot.cuh"
 #include "dali/test/dali_operator_test.h"
 #include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
-#include "dali/operators/generic/one_hot.cuh"
-
 
 namespace dali {
 
@@ -91,8 +90,8 @@ struct OneHotOpGpuPerfTest : public ::testing::Test {
     cudaEventRecord(start, stream_);
     constexpr int kIters = 100;
     for (int i = 0; i < kIters; i++) {
-      detail::PopulateOneHot<Out, In><<<grid, block, 0, stream_>>>(
-        on_value, off_value, samples_gpu_);
+      detail::PopulateOneHot<Out, In>
+          <<<grid, block, 0, stream_>>>(on_value, off_value, samples_gpu_);
     }
     cudaEventRecord(end, stream_);
     cudaDeviceSynchronize();
@@ -117,39 +116,37 @@ struct OneHotOpGpuPerfTest : public ::testing::Test {
 TYPED_TEST_SUITE_P(OneHotOpGpuPerfTest);
 
 TYPED_TEST_P(OneHotOpGpuPerfTest, Perf) {
-  std::cerr << "batch_size: " << this->config_.batch_size << ", num_classes: "
-            << this->config_.num_classes << ", sample_dim: " << this->config_.shape
-            << std::endl;
+  std::cerr << "batch_size: " << this->config_.batch_size
+            << ", num_classes: " << this->config_.num_classes
+            << ", sample_dim: " << this->config_.shape << std::endl;
   this->MeasurePerf();
 }
 
 REGISTER_TYPED_TEST_SUITE_P(OneHotOpGpuPerfTest, Perf);
 
-using TestConfigs = ::testing::Types<
-OneHotTestParams<int, int, 1, 256, 0, 1024, 1024>,
-OneHotTestParams<int, int, 1, 256, 1, 1024, 1024>,
-OneHotTestParams<int, int, 1, 256, 2, 1024, 1024>,
-OneHotTestParams<int64_t, int, 1, 256, 0, 1024, 1024>,
-OneHotTestParams<int64_t, int, 1, 256, 1, 1024, 1024>,
-OneHotTestParams<int64_t, int, 1, 256, 2, 1024, 1024>,
-OneHotTestParams<int64_t, int64_t, 1, 256, 0, 1024, 1024>,
-OneHotTestParams<int64_t, int64_t, 1, 256, 1, 1024, 1024>,
-OneHotTestParams<int64_t, int64_t, 1, 256, 2, 1024, 1024>,
-OneHotTestParams<int8_t, int8_t, 1, 256, 0, 1024, 1024>,
-OneHotTestParams<int8_t, int8_t, 1, 256, 1, 1024, 1024>,
-OneHotTestParams<int8_t, int8_t, 1, 256, 2, 1024, 1024>,
-OneHotTestParams<int, int, 4, 8, 0, 32, 32, 32, 32, 32>,
-OneHotTestParams<int, int, 4, 8, 1, 32, 32, 32, 32, 32>,
-OneHotTestParams<int, int, 4, 8, 2, 32, 32, 32, 32, 32>,
-OneHotTestParams<int, int, 4, 8, 3, 32, 32, 32, 32, 32>,
-OneHotTestParams<int, int, 4, 8, 4, 32, 32, 32, 32, 32>,
-OneHotTestParams<int, int, 4, 8, 5, 32, 32, 32, 32, 32>,
-OneHotTestParams<int, int, 4, 1024 * 256, 0, 1024>,
-OneHotTestParams<int, int, 4, 1024 * 256, 1, 1024>,
-OneHotTestParams<int, int, 16, 64, 0, 1024, 128>,
-OneHotTestParams<int, int, 16, 64, 1, 1024, 128>,
-OneHotTestParams<int, int, 16, 64, 2, 1024, 128>
->;
+using TestConfigs = ::testing::Types<OneHotTestParams<int, int, 1, 256, 0, 1024, 1024>,
+                                     OneHotTestParams<int, int, 1, 256, 1, 1024, 1024>,
+                                     OneHotTestParams<int, int, 1, 256, 2, 1024, 1024>,
+                                     OneHotTestParams<int64_t, int, 1, 256, 0, 1024, 1024>,
+                                     OneHotTestParams<int64_t, int, 1, 256, 1, 1024, 1024>,
+                                     OneHotTestParams<int64_t, int, 1, 256, 2, 1024, 1024>,
+                                     OneHotTestParams<int64_t, int64_t, 1, 256, 0, 1024, 1024>,
+                                     OneHotTestParams<int64_t, int64_t, 1, 256, 1, 1024, 1024>,
+                                     OneHotTestParams<int64_t, int64_t, 1, 256, 2, 1024, 1024>,
+                                     OneHotTestParams<int8_t, int8_t, 1, 256, 0, 1024, 1024>,
+                                     OneHotTestParams<int8_t, int8_t, 1, 256, 1, 1024, 1024>,
+                                     OneHotTestParams<int8_t, int8_t, 1, 256, 2, 1024, 1024>,
+                                     OneHotTestParams<int, int, 4, 8, 0, 32, 32, 32, 32, 32>,
+                                     OneHotTestParams<int, int, 4, 8, 1, 32, 32, 32, 32, 32>,
+                                     OneHotTestParams<int, int, 4, 8, 2, 32, 32, 32, 32, 32>,
+                                     OneHotTestParams<int, int, 4, 8, 3, 32, 32, 32, 32, 32>,
+                                     OneHotTestParams<int, int, 4, 8, 4, 32, 32, 32, 32, 32>,
+                                     OneHotTestParams<int, int, 4, 8, 5, 32, 32, 32, 32, 32>,
+                                     OneHotTestParams<int, int, 4, 1024 * 256, 0, 1024>,
+                                     OneHotTestParams<int, int, 4, 1024 * 256, 1, 1024>,
+                                     OneHotTestParams<int, int, 16, 64, 0, 1024, 128>,
+                                     OneHotTestParams<int, int, 16, 64, 1, 1024, 128>,
+                                     OneHotTestParams<int, int, 16, 64, 2, 1024, 128>>;
 
 INSTANTIATE_TYPED_TEST_SUITE_P(OneHotOpGpu, OneHotOpGpuPerfTest, TestConfigs);
 

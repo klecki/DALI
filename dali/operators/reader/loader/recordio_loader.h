@@ -20,17 +20,15 @@
 #include <string>
 #include <vector>
 
-#include "dali/operators/reader/loader/indexed_file_loader.h"
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
+#include "dali/operators/reader/loader/indexed_file_loader.h"
 
 namespace dali {
 
 class RecordIOLoader : public IndexedFileLoader {
  public:
-  explicit RecordIOLoader(const OpSpec& options)
-    : IndexedFileLoader(options) {
-  }
+  explicit RecordIOLoader(const OpSpec& options) : IndexedFileLoader(options) {}
   ~RecordIOLoader() override {}
 
   void ReadIndexFile(const std::vector<std::string>& index_uris) override {
@@ -41,20 +39,19 @@ class RecordIOLoader : public IndexedFileLoader {
       file_offsets.push_back(tmp->Size() + file_offsets.back());
       tmp->Close();
     }
-    DALI_ENFORCE(index_uris.size() == 1,
-        "RecordIOReader supports only a single index file");
+    DALI_ENFORCE(index_uris.size() == 1, "RecordIOReader supports only a single index file");
     const std::string& path = index_uris[0];
     std::ifstream index_file(path);
     DALI_ENFORCE(index_file.good(),
-        "Could not open RecordIO index file. Provided path: \"" + path + "\"");
+                 "Could not open RecordIO index file. Provided path: \"" + path + "\"");
     std::vector<size_t> temp;
     size_t index, offset, prev_offset = -1;
     while (index_file >> index >> offset) {
       temp.push_back(offset);
     }
     DALI_ENFORCE(!temp.empty(),
-      make_string("RecordIO index file doesn't contain any indices. Provided path: \"",
-                  path, "\""));
+                 make_string("RecordIO index file doesn't contain any indices. Provided path: \"",
+                             path, "\""));
 
     std::sort(temp.begin(), temp.end());
     size_t file_offset_index = 0;
@@ -65,15 +62,15 @@ class RecordIOLoader : public IndexedFileLoader {
       int64 size = temp[i + 1] - temp[i];
       // skip 0 sized images
       if (size) {
-        indices_.push_back(std::make_tuple(temp[i] - file_offsets[file_offset_index],
-                                          size, file_offset_index));
+        indices_.push_back(
+            std::make_tuple(temp[i] - file_offsets[file_offset_index], size, file_offset_index));
       }
     }
     int64 size = file_offsets.back() - temp.back();
     // skip 0 sized images
     if (size) {
-      indices_.push_back(std::make_tuple(temp.back() - file_offsets[file_offset_index],
-                                        size, file_offset_index));
+      indices_.push_back(
+          std::make_tuple(temp.back() - file_offsets[file_offset_index], size, file_offset_index));
     }
     index_file.close();
   }
@@ -135,16 +132,15 @@ class RecordIOLoader : public IndexedFileLoader {
         }
       }
       if (use_read) {
-        n_read += current_file_->Read(tensor.mutable_data<uint8_t>() + n_read,
-                                      size - n_read);
+        n_read += current_file_->Read(tensor.mutable_data<uint8_t>() + n_read, size - n_read);
         next_seek_pos_ = seek_pos + n_read;
       }
       if (p == nullptr && n_read < size) {
         DALI_ENFORCE(current_file_index_ + 1 < uris_.size(),
-          "Incomplete or corrupted record files");
+                     "Incomplete or corrupted record files");
         // Release previously opened file
-        current_file_ = FileStream::Open(uris_[++current_file_index_], read_ahead_,
-                                         !copy_read_data_);
+        current_file_ =
+            FileStream::Open(uris_[++current_file_index_], read_ahead_, !copy_read_data_);
         next_seek_pos_ = 0;
         continue;
       }

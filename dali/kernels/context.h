@@ -16,11 +16,11 @@
 #define DALI_KERNELS_CONTEXT_H_
 
 #include <cuda_runtime_api.h>
-#include <utility>
-#include <tuple>
-#include <vector>
 #include <algorithm>
+#include <tuple>
 #include <type_traits>
+#include <utility>
+#include <vector>
 #include "dali/core/tensor_view.h"
 #include "dali/kernels/alloc_type.h"
 
@@ -38,12 +38,12 @@ struct Context<ComputeGPU> {
 class Scratchpad;
 
 template <typename... Collections>
-std::tuple<std::remove_cv_t<element_t<Collections>>*...>
-ToContiguousHostMem(Scratchpad &scratchpad, const Collections &... c);
+std::tuple<std::remove_cv_t<element_t<Collections>> *...> ToContiguousHostMem(
+    Scratchpad &scratchpad, const Collections &...c);
 
 template <typename... Collections>
-std::tuple<std::remove_cv_t<element_t<Collections>>*...>
-ToContiguousGPUMem(Scratchpad &scratchpad, cudaStream_t stream, const Collections &... c);
+std::tuple<std::remove_cv_t<element_t<Collections>> *...> ToContiguousGPUMem(
+    Scratchpad &scratchpad, cudaStream_t stream, const Collections &...c);
 
 /**
  * @brief Interface for kernels to obtain auxiliary working memory
@@ -61,7 +61,7 @@ class Scratchpad {
    */
   template <AllocType alloc_type, typename T, int dim>
   TensorView<AllocBackend<alloc_type>, T, dim> AllocTensor(TensorShape<dim> shape) {
-    return { Allocate<T>(alloc_type, volume(shape)), std::move(shape) };
+    return {Allocate<T>(alloc_type, volume(shape)), std::move(shape)};
   }
 
   /**
@@ -69,8 +69,8 @@ class Scratchpad {
    *        in the memory of type `alloc_type`.
    */
   template <AllocType alloc_type, typename T, int dim>
-  TensorListView<AllocBackend<alloc_type>, T, dim>
-  AllocTensorList(const std::vector<TensorShape<dim>> &shape) {
+  TensorListView<AllocBackend<alloc_type>, T, dim> AllocTensorList(
+      const std::vector<TensorShape<dim>> &shape) {
     return AllocTensorList<alloc_type, T, dim>(TensorListShape<dim>(shape));
   }
 
@@ -79,8 +79,7 @@ class Scratchpad {
    *        in the memory of type `alloc_type`.
    */
   template <AllocType alloc_type, typename T, int dim>
-  TensorListView<AllocBackend<alloc_type>, T, dim>
-  AllocTensorList(TensorListShape<dim> shape) {
+  TensorListView<AllocBackend<alloc_type>, T, dim> AllocTensorList(TensorListShape<dim> shape) {
     T *data = Allocate<T>(alloc_type, shape.num_elements());
     TensorListView<AllocBackend<alloc_type>, T, dim> tlv(data, std::move(shape));
     return tlv;
@@ -92,36 +91,32 @@ class Scratchpad {
    */
   template <typename T>
   T *Allocate(AllocType alloc_type, size_t count, size_t alignment = alignof(T)) {
-    return reinterpret_cast<T*>(Alloc(alloc_type, count*sizeof(T), alignment));
+    return reinterpret_cast<T *>(Alloc(alloc_type, count * sizeof(T), alignment));
   }
 
   template <typename Collection, typename T = std::remove_const_t<element_t<Collection>>>
-  if_array_like<Collection, T*>
-  ToGPU(cudaStream_t stream, const Collection &c) {
+  if_array_like<Collection, T *> ToGPU(cudaStream_t stream, const Collection &c) {
     T *ptr = Allocate<T>(AllocType::GPU, size(c));
     cudaMemcpyAsync(ptr, &c[0], size(c) * sizeof(T), cudaMemcpyHostToDevice, stream);
     return ptr;
   }
 
   template <typename Collection, typename T = std::remove_const_t<element_t<Collection>>>
-  if_iterable<Collection, T*>
-  ToHost(const Collection &c) {
+  if_iterable<Collection, T *> ToHost(const Collection &c) {
     T *ptr = Allocate<T>(AllocType::Host, size(c));
     std::copy(begin(c), end(c), ptr);
     return ptr;
   }
 
   template <typename Collection, typename T = std::remove_const_t<element_t<Collection>>>
-  if_iterable<Collection, T*>
-  ToPinned(const Collection &c) {
+  if_iterable<Collection, T *> ToPinned(const Collection &c) {
     T *ptr = Allocate<T>(AllocType::Pinned, size(c));
     std::copy(begin(c), end(c), ptr);
     return ptr;
   }
 
   template <typename Collection, typename T = std::remove_const_t<element_t<Collection>>>
-  if_iterable<Collection, T*>
-  ToUnified(const Collection &c) {
+  if_iterable<Collection, T *> ToUnified(const Collection &c) {
     T *ptr = Allocate<T>(AllocType::Unified, size(c));
     std::copy(begin(c), end(c), ptr);
     return ptr;

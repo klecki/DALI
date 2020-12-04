@@ -54,18 +54,18 @@ struct ReferenceFFT {
  private:
   void fft(C *inout, int n, int twiddle_stride = 1) const {
     if (n == 2) {
-        C e = inout[0] + inout[1];
-        C o = inout[0] - inout[1];
-        inout[0] = e;
-        inout[1] = o;
+      C e = inout[0] + inout[1];
+      C o = inout[0] - inout[1];
+      inout[0] = e;
+      inout[1] = o;
     } else {
-      fft(inout,       n/2, twiddle_stride * 2);
-      fft(inout + n/2, n/2, twiddle_stride * 2);
+      fft(inout, n / 2, twiddle_stride * 2);
+      fft(inout + n / 2, n / 2, twiddle_stride * 2);
       for (int i = 0; i < n / 2; i++) {
         C e = inout[i];
-        C o = inout[i + n/2] * twiddle[twiddle_stride * i];
-        inout[i] =       e + o;
-        inout[i + n/2] = e - o;
+        C o = inout[i + n / 2] * twiddle[twiddle_stride * i];
+        inout[i] = e + o;
+        inout[i + n / 2] = e - o;
       }
     }
   }
@@ -81,7 +81,6 @@ struct ReferenceFFT {
   int N = 0;
   std::vector<C> twiddle;
 };
-
 
 }  // namespace test
 }  // namespace fft

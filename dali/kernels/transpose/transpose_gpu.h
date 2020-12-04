@@ -27,25 +27,20 @@ class DLL_PUBLIC TransposeGPU {
   TransposeGPU();
   ~TransposeGPU();
 
-  KernelRequirements Setup(
-        KernelContext &ctx,
-        const TensorListShape<> &in_shape,
-        span<const int> permutation,
-        int element_size);
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
+                           span<const int> permutation, int element_size);
 
   void Run(KernelContext &ctx, void *const *out, const void *const *in);
 
   template <typename T>
   void Run(KernelContext &ctx, const OutListGPU<T> &out, const InListGPU<T> &in) {
     CheckShapes(in.shape, out.shape, sizeof(T));
-    Run(ctx,
-        reinterpret_cast<void *const*>(out.data.data()),
-        reinterpret_cast<const void *const*>(in.data.data()));
+    Run(ctx, reinterpret_cast<void *const *>(out.data.data()),
+        reinterpret_cast<const void *const *>(in.data.data()));
   }
 
  private:
-  void CheckShapes(const TensorListShape<> &in_shape,
-                   const TensorListShape<> &out_shape,
+  void CheckShapes(const TensorListShape<> &in_shape, const TensorListShape<> &out_shape,
                    int element_size);
 
   class Impl;

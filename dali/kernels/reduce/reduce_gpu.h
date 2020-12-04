@@ -22,10 +22,9 @@
  */
 
 #include <memory>
-#include "dali/kernels/kernel.h"
 #include "dali/core/host_dev.h"
 #include "dali/core/tensor_view.h"
-
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -80,8 +79,7 @@ class DLL_PUBLIC SumGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -118,7 +116,6 @@ extern template class SumGPU<int32_t, int32_t>;
 extern template class SumGPU<uint64_t, uint64_t>;
 extern template class SumGPU<int64_t, int64_t>;
 extern template class SumGPU<float, float>;
-
 
 /**
  * @brief Calculates the min of elements in the tensor(s) along given axes
@@ -170,8 +167,7 @@ class DLL_PUBLIC MinGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -244,8 +240,7 @@ class DLL_PUBLIC MaxGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -312,8 +307,7 @@ class DLL_PUBLIC MeanGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -325,7 +319,6 @@ class DLL_PUBLIC MeanGPU {
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
-
 
 extern template class MeanGPU<uint8_t, uint8_t>;
 extern template class MeanGPU<float, uint8_t>;
@@ -348,7 +341,6 @@ extern template class MeanGPU<uint64_t, uint64_t>;
 extern template class MeanGPU<float, uint64_t>;
 
 extern template class MeanGPU<float, float>;
-
 
 /**
  * @brief Calculates the mean square of elements in the tensor(s) along given axes
@@ -378,8 +370,7 @@ class DLL_PUBLIC MeanSquareGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -442,8 +433,7 @@ class DLL_PUBLIC RootMeanSquareGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -477,7 +467,6 @@ extern template class RootMeanSquareGPU<int64_t, int64_t>;
 extern template class RootMeanSquareGPU<float, int64_t>;
 
 extern template class RootMeanSquareGPU<float, float>;
-
 
 /**
  * @brief Calculates the standard deviation of input elements along given axes, given externally
@@ -513,8 +502,7 @@ class DLL_PUBLIC StdDevGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -522,8 +510,8 @@ class DLL_PUBLIC StdDevGPU {
    *
    * @param ddof delta degrees of freedom for Bessel's correction
    */
-  void Run(KernelContext &ctx, const OutListGPU<Out> &out,
-           const InListGPU<In> &in, const InListGPU<Mean> &mean, int ddof = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Mean> &mean, int ddof = 0);
 
  private:
   class Impl;
@@ -551,7 +539,6 @@ extern template class StdDevGPU<int64_t, int64_t>;
 extern template class StdDevGPU<float, int64_t>;
 
 extern template class StdDevGPU<float, float>;
-
 
 /**
  * @brief Calculates the variance of input elements along given axes, given externally
@@ -583,8 +570,7 @@ class DLL_PUBLIC VarianceGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   /**
@@ -592,8 +578,8 @@ class DLL_PUBLIC VarianceGPU {
    *
    * @param ddof delta degrees of freedom for Bessel's correction
    */
-  void Run(KernelContext &ctx, const OutListGPU<Out> &out,
-           const InListGPU<In> &in, const InListGPU<Mean> &mean, int ddof = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Mean> &mean, int ddof = 0);
 
  private:
   class Impl;
@@ -621,7 +607,6 @@ extern template class VarianceGPU<int64_t, int64_t>;
 extern template class VarianceGPU<float, int64_t>;
 
 extern template class VarianceGPU<float, float>;
-
 
 /**
  * @brief Calculates the inverse of standard deviation of input elements along given axes,
@@ -662,8 +647,7 @@ class DLL_PUBLIC InvStdDevGPU {
    * @param reduce_batch if true, reduces respective output values of all samples in the batch
    *                     and outputs a single tensor
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &in_shape,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
                            span<const int> axes, bool keep_dims, bool reduce_batch);
 
   using param_t = std::conditional_t<std::is_same<Out, double>::value, double, float>;
@@ -691,8 +675,8 @@ class DLL_PUBLIC InvStdDevGPU {
    *                cause division by zero are forced to 0, but small denominators
    *                may still cause problems
    */
-  void Run(KernelContext &ctx, const OutListGPU<Out> &out,
-           const InListGPU<In> &in, const InListGPU<Mean> &mean, int ddof = 0, param_t epsilon = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Mean> &mean, int ddof = 0, param_t epsilon = 0);
 
  private:
   class Impl;

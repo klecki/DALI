@@ -30,14 +30,15 @@ class DLL_PUBLIC MTTransformAttr {
     has_mt_input_ = spec.HasTensorArgument("MT");  // check if there's an Argument Input MT
     has_matrix_ = spec.HasArgument("M");  // check if there's a regular argument M (not input)
     has_matrix_input_ = spec.HasTensorArgument("M");  // check if there's an Argument Input M
-    has_translation_ = spec.HasArgument("T");  // ...and similarly, for T
+    has_translation_ = spec.HasArgument("T");         // ...and similarly, for T
     has_translation_input_ = spec.HasTensorArgument("T");
 
     bool has_fused_arg = has_mt_ || has_mt_input_;
-    bool has_separate_args = has_matrix_ || has_matrix_input_ ||
-                             has_translation_ || has_translation_input_;
-    DALI_ENFORCE(!(has_fused_arg && has_separate_args), "The combined ``MT`` argument cannot be "
-      "used together with separate ``M``, ``T`` arguments.");
+    bool has_separate_args =
+        has_matrix_ || has_matrix_input_ || has_translation_ || has_translation_input_;
+    DALI_ENFORCE(!(has_fused_arg && has_separate_args),
+                 "The combined ``MT`` argument cannot be "
+                 "used together with separate ``M``, ``T`` arguments.");
   }
 
   template <int out_dim, int in_dim>
@@ -46,7 +47,7 @@ class DLL_PUBLIC MTTransformAttr {
     assert(in_dim == input_pt_dim_);
     const auto *M = reinterpret_cast<const mat<out_dim, in_dim> *>(per_sample_mtx_.data());
     int N = per_sample_mtx_.size() / (out_dim * in_dim);
-    return { M, N };
+    return {M, N};
   }
 
   template <int out_dim>
@@ -54,12 +55,12 @@ class DLL_PUBLIC MTTransformAttr {
     assert(out_dim == output_pt_dim_);
     const auto *T = reinterpret_cast<const vec<out_dim> *>(per_sample_translation_.data());
     int N = per_sample_translation_.size() / out_dim;
-    return { T, N };
+    return {T, N};
   }
 
   void SetTransformDims(int input_pt_dim, int output_pt_dim = -1) {
-      input_pt_dim_  = input_pt_dim;
-      output_pt_dim_ = output_pt_dim;
+    input_pt_dim_ = input_pt_dim;
+    output_pt_dim_ = output_pt_dim;
   }
 
   bool HasFusedMT() const {
@@ -73,7 +74,6 @@ class DLL_PUBLIC MTTransformAttr {
   bool HasMatrixInputArg() const {
     return has_matrix_input_ || has_mt_input_;
   }
-
 
   vector<float> mtx_;
   vector<float> translation_;
@@ -96,8 +96,10 @@ class DLL_PUBLIC MTTransformAttr {
 
   void SetOutputPtDim(int d) {
     if (output_pt_dim_ > 0) {
-      DALI_ENFORCE(d == output_pt_dim_, make_string("The arguments suggest ", d,
-        " output components, but it was previously set to ", output_pt_dim_));
+      DALI_ENFORCE(
+          d == output_pt_dim_,
+          make_string("The arguments suggest ", d,
+                      " output components, but it was previously set to ", output_pt_dim_));
     } else {
       output_pt_dim_ = d;
     }
@@ -109,7 +111,7 @@ class DLL_PUBLIC MTTransformAttr {
     assert(static_cast<int>(size(mtx)) == input_pt_dim_ * output_pt_dim_);
     for (int i = 0, k = 0; i < output_pt_dim_; i++)
       for (int j = 0; j < input_pt_dim_; j++, k++)
-          mtx[k] = (i == j ? value : 0);
+        mtx[k] = (i == j ? value : 0);
   }
 
   template <typename OutRange, typename InRange>
@@ -121,11 +123,11 @@ class DLL_PUBLIC MTTransformAttr {
         out[k] = in[j];
   }
 
-  bool has_mt_                = false;
-  bool has_mt_input_          = false;
-  bool has_matrix_            = false;
-  bool has_matrix_input_      = false;
-  bool has_translation_       = false;
+  bool has_mt_ = false;
+  bool has_mt_input_ = false;
+  bool has_matrix_ = false;
+  bool has_matrix_input_ = false;
+  bool has_translation_ = false;
   bool has_translation_input_ = false;
 };
 

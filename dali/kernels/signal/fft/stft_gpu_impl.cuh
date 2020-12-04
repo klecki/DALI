@@ -20,14 +20,14 @@
 #include <map>
 #include <memory>
 #include <vector>
-#include "dali/core/tensor_view.h"
-#include "dali/core/cuda_stream.h"
 #include "dali/core/cuda_event.h"
+#include "dali/core/cuda_stream.h"
+#include "dali/core/tensor_view.h"
 #include "dali/kernels/kernel_req.h"
-#include "dali/kernels/signal/fft/stft_gpu.h"
 #include "dali/kernels/signal/fft/cufft_helper.h"
-#include "dali/kernels/signal/window/extract_windows_gpu.h"
 #include "dali/kernels/signal/fft/fft_postprocess.cuh"
+#include "dali/kernels/signal/fft/stft_gpu.h"
+#include "dali/kernels/signal/window/extract_windows_gpu.h"
 
 namespace dali {
 namespace kernels {
@@ -40,23 +40,17 @@ class StftImplGPU {
   StftImplGPU(StftImplGPU &&) = default;
   StftImplGPU(const StftImplGPU &) = delete;
 
-
   KernelRequirements Setup(KernelContext &ctx, span<const int64_t> lengths, const StftArgs &args);
 
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<1> &lengths,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<1> &lengths,
                            const StftArgs &args) {
     return Setup(ctx, make_span(lengths.shapes), args);
   }
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<complexf, 2> &out,
-           const InListGPU<float, 1> &in,
+  void Run(KernelContext &ctx, const OutListGPU<complexf, 2> &out, const InListGPU<float, 1> &in,
            const InTensorGPU<float, 1> &window);
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<float, 2> &out,
-           const InListGPU<float, 1> &in,
+  void Run(KernelContext &ctx, const OutListGPU<float, 2> &out, const InListGPU<float, 1> &in,
            const InTensorGPU<float, 1> &window);
 
  private:
@@ -86,8 +80,8 @@ class StftImplGPU {
   void ValidateParams(ExecutionContext &ctx);
   void StoreResult(ExecutionContext &ctx);
 
-  static constexpr int kMinSize = 1<<16;
-  static constexpr int kMaxSize = 1<<26;
+  static constexpr int kMinSize = 1 << 16;
+  static constexpr int kMaxSize = 1 << 26;
 
   int max_windows_ = 1, min_windows_ = 0;
   int64_t total_windows_ = 0;
@@ -138,17 +132,35 @@ class StftImplGPU {
     } params;
     explicit ExecutionContext(const Params &params) : params(params) {}
 
-    KernelContext &context() const { return *params.ctx; }
-    Scratchpad *scratchpad() const { return params.ctx->scratchpad; }
-    cudaStream_t stream() const { return params.ctx->gpu.stream; }
-    const OutListGPU<float, 2> &real_out() const { return *params.real_out; }
-    const OutListGPU<complexf, 2> &complex_out() const { return *params.complex_out; }
-    const InListGPU<float, 1> &in() const { return *params.in; }
-    const InTensorGPU<float, 1> &window() const { return *params.window; }
+    KernelContext &context() const {
+      return *params.ctx;
+    }
+    Scratchpad *scratchpad() const {
+      return params.ctx->scratchpad;
+    }
+    cudaStream_t stream() const {
+      return params.ctx->gpu.stream;
+    }
+    const OutListGPU<float, 2> &real_out() const {
+      return *params.real_out;
+    }
+    const OutListGPU<complexf, 2> &complex_out() const {
+      return *params.complex_out;
+    }
+    const InListGPU<float, 1> &in() const {
+      return *params.in;
+    }
+    const InTensorGPU<float, 1> &window() const {
+      return *params.window;
+    }
 
-    bool has_window_func() const { return params.window && params.window->num_elements() != 0; }
+    bool has_window_func() const {
+      return params.window && params.window->num_elements() != 0;
+    }
 
-    bool has_real_output() const { return params.real_out != nullptr; }
+    bool has_real_output() const {
+      return params.real_out != nullptr;
+    }
 
     const TensorListShape<2> &output_shape() const {
       return has_real_output() ? real_out().shape : complex_out().shape;

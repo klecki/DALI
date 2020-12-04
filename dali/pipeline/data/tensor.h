@@ -24,10 +24,10 @@
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/core/util.h"
 #include "dali/core/span.h"
-#include "dali/core/traits.h"
 #include "dali/core/tensor_shape.h"
+#include "dali/core/traits.h"
+#include "dali/core/util.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
 #include "dali/pipeline/data/meta.h"
@@ -44,7 +44,6 @@ class Tensor : public Buffer<Backend> {
  public:
   inline Tensor() {}
   inline ~Tensor() override = default;
-
 
   /**
    *
@@ -82,8 +81,8 @@ class Tensor : public Buffer<Backend> {
   inline void Copy(const vector<T> &data, cudaStream_t stream) {
     this->template mutable_data<T>();
     this->Resize({(Index)data.size()});
-    type_.template Copy<Backend, CPUBackend>(this->raw_mutable_data(),
-        data.data(), this->size(), stream);
+    type_.template Copy<Backend, CPUBackend>(this->raw_mutable_data(), data.data(), this->size(),
+                                             stream);
   }
 
   /**
@@ -94,8 +93,8 @@ class Tensor : public Buffer<Backend> {
     using U = remove_const_t<T>;
     this->template mutable_data<U>();
     this->Resize({(Index)data.size()});
-    type_.template Copy<Backend, CPUBackend>(this->raw_mutable_data(),
-        data.data(), this->size(), stream);
+    type_.template Copy<Backend, CPUBackend>(this->raw_mutable_data(), data.data(), this->size(),
+                                             stream);
   }
 
   /**
@@ -108,8 +107,8 @@ class Tensor : public Buffer<Backend> {
     this->SetSourceInfo(other.GetSourceInfo());
     this->SetSkipSample(other.ShouldSkipSample());
     this->ResizeLike(other);
-    type_.template Copy<Backend, InBackend>(this->raw_mutable_data(),
-        other.raw_data(), this->size(), stream);
+    type_.template Copy<Backend, InBackend>(this->raw_mutable_data(), other.raw_data(),
+                                            this->size(), stream);
   }
 
   /**
@@ -124,8 +123,8 @@ class Tensor : public Buffer<Backend> {
     this->SetSourceInfo(other.GetSourceInfo(idx));
     this->SetSkipSample(other.ShouldSkipSample(idx));
     this->Resize(shape_);
-    type_.template Copy<Backend, InBackend>(this->raw_mutable_data(),
-        other.raw_tensor(idx), this->size(), stream);
+    type_.template Copy<Backend, InBackend>(this->raw_mutable_data(), other.raw_tensor(idx),
+                                            this->size(), stream);
   }
 
   template <typename InBackend>
@@ -201,11 +200,13 @@ class Tensor : public Buffer<Backend> {
    */
   inline void ShareData(TensorList<Backend> *tl, int idx) {
     DALI_ENFORCE(tl != nullptr, "Input TensorList is nullptr");
-    DALI_ENFORCE(IsValidType(tl->type()), "To share data, "
-        "the input TensorList must have a valid data type.");
+    DALI_ENFORCE(IsValidType(tl->type()),
+                 "To share data, "
+                 "the input TensorList must have a valid data type.");
     DALI_ENFORCE(idx >= 0, "Negative tensor index not supported.");
-    DALI_ENFORCE(static_cast<size_t>(idx) < tl->ntensor(), "Index of " + std::to_string(idx) +
-        " out of range for TensorList of size " + std::to_string(tl->ntensor()));
+    DALI_ENFORCE(static_cast<size_t>(idx) < tl->ntensor(),
+                 "Index of " + std::to_string(idx) + " out of range for TensorList of size " +
+                     std::to_string(tl->ntensor()));
 
     // Reset our pointer to the correct offset inside the tensor list.
     // This is not the beginning of the allocation, so we pass a noop
@@ -238,8 +239,9 @@ class Tensor : public Buffer<Backend> {
    */
   inline void ShareData(Tensor<Backend> *t) {
     DALI_ENFORCE(t != nullptr, "Input Tensor is nullptr");
-    DALI_ENFORCE(IsValidType(t->type()), "To share data, "
-        "the input Tensor must have a valid data type.");
+    DALI_ENFORCE(IsValidType(t->type()),
+                 "To share data, "
+                 "the input Tensor must have a valid data type.");
 
     // Save a copy of our new data pointer. We create a copy of the
     // shared_ptr to ensure the data persists while we are still
@@ -273,8 +275,7 @@ class Tensor : public Buffer<Backend> {
    * manage the lifetime of the allocation such that it persist while it is
    * in use by the Tensor.
    */
-  inline void ShareData(const shared_ptr<void> &ptr, size_t bytes,
-                        const TensorShape<> &shape,
+  inline void ShareData(const shared_ptr<void> &ptr, size_t bytes, const TensorShape<> &shape,
                         const TypeInfo &type = {}) {
     // don't check ptr as we want to share empty data as well
 
@@ -332,7 +333,7 @@ class Tensor : public Buffer<Backend> {
    */
   inline void ShareData(void *ptr, size_t bytes,
                         const TypeInfo &type = TypeInfo::Create<NoType>()) {
-    ShareData(ptr, bytes, { 0 }, type);
+    ShareData(ptr, bytes, {0}, type);
   }
 
   /**
@@ -346,13 +347,14 @@ class Tensor : public Buffer<Backend> {
   inline void ShareDataReshape(TensorList<Backend> *tl, const TensorShape<> &new_shape) {
     DALI_ENFORCE(tl != nullptr, "Input TensorList is nullptr");
     DALI_ENFORCE(tl->ntensor() > 0, "Input TensorList has 0 elements!");
-    DALI_ENFORCE(IsValidType(tl->type()), "To share data, "
-        "the input TensorList must have a valid data type.");
+    DALI_ENFORCE(IsValidType(tl->type()),
+                 "To share data, "
+                 "the input TensorList must have a valid data type.");
     DALI_ENFORCE(tl->IsContiguousTensor(),
-      "All tensors in the input TensorList must be contiguous in memory.");
+                 "All tensors in the input TensorList must be contiguous in memory.");
     Index product = tl->shape().num_elements();
     DALI_ENFORCE(product == volume(new_shape),
-      "Requested shape need to have the same volume as the tensor list.");
+                 "Requested shape need to have the same volume as the tensor list.");
     data_.reset(tl->raw_mutable_tensor(0), [](void *) {});
 
     // Get the meta-data for the target tensor
@@ -376,10 +378,12 @@ class Tensor : public Buffer<Backend> {
   inline void ShareData(TensorList<Backend> *tl) {
     DALI_ENFORCE(tl != nullptr, "Input TensorList is nullptr");
     DALI_ENFORCE(tl->ntensor() > 0, "Input TensorList has 0 elements!");
-    DALI_ENFORCE(IsValidType(tl->type()), "To share data, "
-        "the input TensorList must have a valid data type.");
-    DALI_ENFORCE(tl->IsDenseTensor(),
-      "All tensors in the input TensorList must have the same shape and be densely packed.");
+    DALI_ENFORCE(IsValidType(tl->type()),
+                 "To share data, "
+                 "the input TensorList must have a valid data type.");
+    DALI_ENFORCE(
+        tl->IsDenseTensor(),
+        "All tensors in the input TensorList must have the same shape and be densely packed.");
     data_.reset(tl->raw_mutable_tensor(0), [](void *) {});
 
     // Get the meta-data for the target tensor
@@ -397,7 +401,7 @@ class Tensor : public Buffer<Backend> {
 
   inline void Reset() {
     reset();  // free the underlying buffer
-    shape_ = { 0 };
+    shape_ = {0};
     meta_ = {};
   }
 
@@ -482,16 +486,18 @@ class Tensor : public Buffer<Backend> {
    */
   template <typename OtherBackend>
   inline bool SameShape(const Tensor<OtherBackend> &other) const {
-    if (this->ndim() != other.ndim()) return false;
+    if (this->ndim() != other.ndim())
+      return false;
 
     for (int i = 0; i < ndim(); ++i) {
-      if (this->dim(i) != other.dim(i)) return false;
+      if (this->dim(i) != other.dim(i))
+        return false;
     }
     return true;
   }
 
-  Tensor<Backend>(const Tensor<Backend>&) = delete;
-  Tensor<Backend>& operator=(const Tensor<Backend>&) = delete;
+  Tensor<Backend>(const Tensor<Backend> &) = delete;
+  Tensor<Backend> &operator=(const Tensor<Backend> &) = delete;
 
   Tensor<Backend>(Tensor<Backend> &&t) noexcept {
     // Steal all data and set input to default state
@@ -513,7 +519,7 @@ class Tensor : public Buffer<Backend> {
     t.meta_ = {};
   }
 
-  Tensor<Backend>& operator=(Tensor<Backend> &&t) noexcept {
+  Tensor<Backend> &operator=(Tensor<Backend> &&t) noexcept {
     if (&t != this) {
       shape_ = std::move(t.shape_);
       type_ = t.type_;
@@ -540,7 +546,7 @@ class Tensor : public Buffer<Backend> {
     return meta_;
   }
 
-  void SetMeta(const DALIMeta &meta)  {
+  void SetMeta(const DALIMeta &meta) {
     meta_ = meta;
   }
 
@@ -569,7 +575,7 @@ class Tensor : public Buffer<Backend> {
   }
 
  protected:
-  TensorShape<> shape_ = { 0 };
+  TensorShape<> shape_ = {0};
   DALIMeta meta_;
   USE_BUFFER_MEMBERS();
 

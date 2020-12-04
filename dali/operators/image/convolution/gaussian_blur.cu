@@ -22,10 +22,10 @@
 #include "dali/kernels/imgproc/convolution/separable_convolution_gpu.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/operators/image/convolution/gaussian_blur.h"
+#include "dali/operators/image/convolution/gaussian_blur_gpu.h"
 #include "dali/operators/image/convolution/gaussian_blur_params.h"
 #include "dali/pipeline/data/views.h"
 #include "dali/pipeline/operator/common.h"
-#include "dali/operators/image/convolution/gaussian_blur_gpu.h"
 
 namespace dali {
 

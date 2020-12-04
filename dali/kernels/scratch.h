@@ -16,8 +16,8 @@
 #define DALI_KERNELS_SCRATCH_H_
 
 #include <array>
-#include <utility>
 #include <type_traits>
+#include <utility>
 #include "dali/kernels/alloc.h"
 #include "dali/kernels/context.h"
 
@@ -51,11 +51,19 @@ class BumpAllocator {
     return p;
   }
 
-  inline char *next() const { return memory_ + used_; }
+  inline char *next() const {
+    return memory_ + used_;
+  }
 
-  inline size_t avail() const { return total_ - used_; }
-  inline size_t total() const { return total_; }
-  inline size_t used() const { return used_; }
+  inline size_t avail() const {
+    return total_ - used_;
+  }
+  inline size_t total() const {
+    return total_;
+  }
+  inline size_t used() const {
+    return used_;
+  }
 
   inline void AssertAvail(size_t required) {
     assert(used_ + required <= total_);
@@ -80,10 +88,8 @@ class BumpAllocator {
 struct PreallocatedScratchpad : Scratchpad {
   PreallocatedScratchpad() = default;
 
-  explicit PreallocatedScratchpad(
-      std::array<BumpAllocator,
-      size_t(AllocType::Count)> &&allocs)
-  : allocs(std::move(allocs)) {}
+  explicit PreallocatedScratchpad(std::array<BumpAllocator, size_t(AllocType::Count)> &&allocs)
+      : allocs(std::move(allocs)) {}
 
   void Clear() {
     for (auto &a : allocs) {
@@ -97,7 +103,7 @@ struct PreallocatedScratchpad : Scratchpad {
     auto &A = allocs[(size_t)alloc];
     uintptr_t ptr = reinterpret_cast<uintptr_t>(A.next());
     // Calculate the padding needed to satisfy alignmnent requirements
-    uintptr_t padding = (alignment-1) & (-ptr);
+    uintptr_t padding = (alignment - 1) & (-ptr);
     (void)A.alloc(padding);
     return A.alloc(bytes);
   }
@@ -195,7 +201,7 @@ class ScratchpadAllocator {
       buf.mem.reset();
       buf.mem = memory::alloc_unique<char>(type, new_capacity + alignment);
       uintptr_t ptr = reinterpret_cast<uintptr_t>(buf.mem.get());
-      size_t padding = (alignment-1) & (-ptr);
+      size_t padding = (alignment - 1) & (-ptr);
       buf.capacity = new_capacity + alignment - padding;
       buf.padding = padding;
     }
@@ -227,7 +233,7 @@ class ScratchpadAllocator {
     PreallocatedScratchpad scratchpad;
     for (size_t idx = 0; idx < NumAllocTypes; idx++) {
       auto &buf = buffers_[idx];
-      scratchpad.allocs[idx] = { buf.mem.get() + buf.padding, buf.capacity };
+      scratchpad.allocs[idx] = {buf.mem.get() + buf.padding, buf.capacity};
     }
     return scratchpad;
   }

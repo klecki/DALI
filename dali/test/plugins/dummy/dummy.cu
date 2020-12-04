@@ -17,23 +17,17 @@
 
 namespace other_ns {
 
-template<>
+template <>
 void Dummy<::dali::GPUBackend>::RunImpl(::dali::DeviceWorkspace &ws) {
   auto &input = ws.Input<::dali::GPUBackend>(0);
   auto &output = ws.Output<::dali::GPUBackend>(0);
   output.set_type(input.type());
   output.ResizeLike(input);
   output.SetLayout(input.GetLayout());
-  CUDA_CALL(cudaMemcpyAsync(
-          output.raw_mutable_data(),
-          input.raw_data(),
-          input.nbytes(),
-          cudaMemcpyDeviceToDevice,
-          ws.stream()));
+  CUDA_CALL(cudaMemcpyAsync(output.raw_mutable_data(), input.raw_data(), input.nbytes(),
+                            cudaMemcpyDeviceToDevice, ws.stream()));
 }
 
 }  // namespace other_ns
 
 DALI_REGISTER_OPERATOR(CustomDummy, ::other_ns::Dummy<::dali::GPUBackend>, ::dali::GPU);
-
-

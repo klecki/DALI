@@ -38,13 +38,13 @@ static constexpr double kDefaultDuration = -1.0;
 struct NemoAsrEntry {
   std::string audio_filepath;
   double duration = kDefaultDuration;  // in seconds, optional
-  double offset = 0.0;  // in seconds, optional
-  std::string text;  // transcription
+  double offset = 0.0;                 // in seconds, optional
+  std::string text;                    // transcription
 };
 
 class AsrSample {
  public:
-  const std::string& text() const {
+  const std::string &text() const {
     return text_;
   }
 
@@ -52,15 +52,15 @@ class AsrSample {
     return audio_meta_;
   }
 
-  const std::string& audio_filepath() const {
+  const std::string &audio_filepath() const {
     return audio_filepath_;
   }
 
-  const TensorShape<>& shape() const {
+  const TensorShape<> &shape() const {
     return shape_;
   }
 
-  void decode_audio(Tensor<CPUBackend>& audio, int tid) {
+  void decode_audio(Tensor<CPUBackend> &audio, int tid) {
     decode_f_(audio, tid);
   }
 
@@ -68,7 +68,7 @@ class AsrSample {
 
   AsrSample() = default;
   AsrSample(AsrSample &&) = default;
-  AsrSample& operator=(AsrSample&&) = default;
+  AsrSample &operator=(AsrSample &&) = default;
 
  private:
   AudioDecoderBase &decoder() {
@@ -81,7 +81,7 @@ class AsrSample {
   std::string audio_filepath_;  // for tensor metadata purposes
   TensorShape<> shape_;
 
-  std::function<void(Tensor<CPUBackend>&, int)> decode_f_;
+  std::function<void(Tensor<CPUBackend> &, int)> decode_f_;
   std::unique_ptr<AudioDecoderBase> decoder_;
 };
 
@@ -134,7 +134,7 @@ class DLL_PUBLIC NemoAsrLoader : public Loader<CPUBackend, AsrSample> {
 
   ~NemoAsrLoader() override = default;
   void PrepareEmpty(AsrSample &sample) override;
-  void ReadSample(AsrSample& sample) override;
+  void ReadSample(AsrSample &sample) override;
 
  protected:
   void PrepareMetadataImpl() override;
@@ -143,12 +143,9 @@ class DLL_PUBLIC NemoAsrLoader : public Loader<CPUBackend, AsrSample> {
 
  private:
   template <typename OutputType>
-  void ReadAudio(Tensor<CPUBackend> &audio,
-                 const AudioMetadata &audio_meta,
-                 const NemoAsrEntry &entry,
-                 AudioDecoderBase &decoder,
-                 std::vector<float> &decode_scratch,
-                 std::vector<float> &resample_scratch);
+  void ReadAudio(Tensor<CPUBackend> &audio, const AudioMetadata &audio_meta,
+                 const NemoAsrEntry &entry, AudioDecoderBase &decoder,
+                 std::vector<float> &decode_scratch, std::vector<float> &resample_scratch);
 
   std::vector<std::string> manifest_filepaths_;
   std::vector<NemoAsrEntry> entries_;

@@ -17,16 +17,15 @@
 
 #include <memory>
 
-#include "dali/pipeline/executor/executor.h"
-#include "dali/pipeline/executor/pipelined_executor.h"
 #include "dali/pipeline/executor/async_pipelined_executor.h"
 #include "dali/pipeline/executor/async_separated_pipelined_executor.h"
+#include "dali/pipeline/executor/executor.h"
+#include "dali/pipeline/executor/pipelined_executor.h"
 
 namespace dali {
 
 template <typename... Ts>
-std::unique_ptr<ExecutorBase> GetExecutor(bool pipelined, bool separated, bool async,
-                                          Ts... args) {
+std::unique_ptr<ExecutorBase> GetExecutor(bool pipelined, bool separated, bool async, Ts... args) {
   if (async && separated && pipelined) {
     return std::unique_ptr<ExecutorBase>{new AsyncSeparatedPipelinedExecutor(args...)};
   } else if (async && !separated && pipelined) {

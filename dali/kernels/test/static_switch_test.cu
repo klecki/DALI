@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include "dali/kernels/kernel.h"
 #include "dali/core/static_switch.h"
+#include "dali/kernels/kernel.h"
 #include "dali/kernels/type_tag.h"
 
 namespace {
@@ -47,7 +47,7 @@ TYPED_TEST(StaticSwitch_NVCC, TypeSwitch) {
   );  // NOLINT
 
   EXPECT_EQ(dali::TypeTag<T>::value, tag)
-    << "Tag mismatch - did type switch actually call anything?";
+      << "Tag mismatch - did type switch actually call anything?";
 }
 
 TEST(StaticSwitch_NVCC, Nested) {
@@ -64,7 +64,7 @@ TEST(StaticSwitch_NVCC, Nested) {
           ), FAIL() << "Unsupported output type";   // NOLINT
         )                                           // NOLINT
       ), FAIL() << "Unsupported input type";        // NOLINT
-    )                                               // NOLINT
+    )  // NOLINT
   }
   // check that the test functor was actually called
   EXPECT_EQ(calls, 4) << "Test functor was expected to be called 4 times";

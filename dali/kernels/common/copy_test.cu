@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include "dali/kernels/common/copy.h"
 #include "dali/kernels/alloc.h"
+#include "dali/kernels/common/copy.h"
 #include "dali/test/tensor_test_utils.h"
 
 namespace dali {
@@ -25,11 +25,11 @@ struct CopyTest : ::testing::Test {
   static constexpr int kSize = 3 * 5 * 7 * 9;
   std::mt19937 rng;
 };
-const TensorShape<4> CopyTest::shape = { 3, 5, 7, 9 };
+const TensorShape<4> CopyTest::shape = {3, 5, 7, 9};
 
 TEST_F(CopyTest, HostDevHost) {
   float data_src[kSize];
-  float data_dst[kSize] = { 0 };
+  float data_dst[kSize] = {0};
   auto data_gpu = memory::alloc_unique<float>(AllocType::GPU, kSize);
   auto src = make_tensor_cpu(data_src, shape);
   auto gpu = make_tensor_gpu(data_gpu.get(), shape);
@@ -42,7 +42,7 @@ TEST_F(CopyTest, HostDevHost) {
 
 TEST_F(CopyTest, HostHost) {
   float data_src[kSize];
-  float data_dst[kSize] = { 0 };
+  float data_dst[kSize] = {0};
   auto src = make_tensor_cpu(data_src, shape);
   auto host = make_tensor_cpu(data_dst, shape);
   UniformRandomFill(src, rng, -1, 1);
@@ -50,10 +50,9 @@ TEST_F(CopyTest, HostHost) {
   Check(host, src);
 }
 
-
 TEST_F(CopyTest, HostDevDevHost) {
   float data_src[kSize];
-  float data_dst[kSize] = { 0 };
+  float data_dst[kSize] = {0};
   auto data_gpu1 = memory::alloc_unique<float>(AllocType::GPU, kSize);
   auto data_gpu2 = memory::alloc_unique<float>(AllocType::GPU, kSize);
   auto src = make_tensor_cpu(data_src, shape);
@@ -74,28 +73,24 @@ TEST_F(CopyTest, ListNonContiguous) {
   const int N = part1 + part2;
 
   TensorListShape<2> in_shape = {{
-    { 2, 3 },  // 6 +
-    { 4, 5 },  // 20 == 26
-    { 3, 4 },  // 12 +
-    { 2, 2 }   // 4  == 16
+      {2, 3},  // 6 +
+      {4, 5},  // 20 == 26
+      {3, 4},  // 12 +
+      {2, 2}   // 4  == 16
   }};
 
   TensorListShape<2> gpu_shape = {{
-    { 4, 4 },  // 16 +
-    { 2, 5 },  // 10 == 26
-    { 4, 4 },  // 16
+      {4, 4},  // 16 +
+      {2, 5},  // 10 == 26
+      {4, 4},  // 16
   }};
 
   // requires sample merging
-  TensorListShape<1> out_shape = {{
-    TensorShape<1>{ 10 },
-    TensorShape<1>{ 22 },
-    TensorShape<1>{ 10 }
-  }};
+  TensorListShape<1> out_shape = {{TensorShape<1>{10}, TensorShape<1>{22}, TensorShape<1>{10}}};
 
   int in_data[N], ref_data[N], out_data[N];
   for (int i = 0; i < N; i++) {
-    in_data[i] = i+1;
+    in_data[i] = i + 1;
     out_data[i] = -1;
   }
 
@@ -128,10 +123,9 @@ TEST_F(CopyTest, ListNonContiguous) {
   Check(out, ref);
 }
 
-
 TEST_F(CopyTest, HostDevUnifiedHost) {
   float data_src[kSize];
-  float data_dst[kSize] = { 0 };
+  float data_dst[kSize] = {0};
   auto data_gpu = memory::alloc_unique<float>(AllocType::GPU, kSize);
   auto data_unified = memory::alloc_unique<float>(AllocType::Unified, kSize);
   auto src = make_tensor_cpu(data_src, shape);
@@ -147,7 +141,7 @@ TEST_F(CopyTest, HostDevUnifiedHost) {
 
 TEST_F(CopyTest, HostUnifiedDevHost) {
   float data_src[kSize];
-  float data_dst[kSize] = { 0 };
+  float data_dst[kSize] = {0};
   auto data_gpu = memory::alloc_unique<float>(AllocType::GPU, kSize);
   auto data_unified = memory::alloc_unique<float>(AllocType::Unified, kSize);
   auto src = make_tensor_cpu(data_src, shape);
@@ -161,7 +155,6 @@ TEST_F(CopyTest, HostUnifiedDevHost) {
   Check(host, src);
 }
 
-
 TEST_F(CopyTest, CopyReturnTensorViewTestUnified) {
   float data_src[kSize];
   auto tv = make_tensor_cpu(data_src, shape);
@@ -170,7 +163,6 @@ TEST_F(CopyTest, CopyReturnTensorViewTestUnified) {
   cudaDeviceSynchronize();
   Check(tv, tvcpy.first);
 }
-
 
 TEST_F(CopyTest, CopyReturnTensorViewTestHost) {
   float data_src[kSize];

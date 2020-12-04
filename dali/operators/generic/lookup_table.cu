@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/generic/lookup_table.h"
 #include <limits>
-#include "dali/core/span.h"
 #include "dali/core/convert.h"
+#include "dali/core/span.h"
+#include "dali/operators/generic/lookup_table.h"
 
 namespace dali {
 
@@ -24,16 +24,11 @@ namespace detail {
 constexpr auto kMaxKey = LookupTable<GPUBackend>::kMaxKey;
 
 template <typename OutputType, typename InputType>
-__global__ void
-LookupValuesImpl(OutputType *output,
-                 const InputType *input,
-                 size_t data_size,
-                 const OutputType* lookup_table,
-                 const OutputType default_value) {
+__global__ void LookupValuesImpl(OutputType *output, const InputType *input, size_t data_size,
+                                 const OutputType *lookup_table, const OutputType default_value) {
   // We do not check the key range when the type range is smaller than the supported range
   constexpr bool check_range =
-       !std::is_same<InputType, uint8_t>::value
-    && !std::is_same<InputType, uint16_t>::value;
+      !std::is_same<InputType, uint8_t>::value && !std::is_same<InputType, uint16_t>::value;
   constexpr auto max_key = ConvertSat<InputType>(kMaxKey);
 
   size_t tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -42,8 +37,9 @@ LookupValuesImpl(OutputType *output,
 
   const auto key = input[tid];
   if (check_range) {
-    output[tid] = (std::is_unsigned<InputType>::value || key >= 0) && key <= max_key ?
-      lookup_table[key] : default_value;
+    output[tid] = (std::is_unsigned<InputType>::value || key >= 0) && key <= max_key
+                      ? lookup_table[key]
+                      : default_value;
   } else {
     output[tid] = lookup_table[key];
   }
@@ -51,7 +47,7 @@ LookupValuesImpl(OutputType *output,
 
 }  // namespace detail
 
-template<>
+template <>
 void LookupTable<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   const auto &input = ws.Input<GPUBackend>(0);
   auto &output = ws.Output<GPUBackend>(0);
@@ -76,7 +72,7 @@ void LookupTable<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
         out_data, in_data, data_size,
         lookup_table, default_value);
     ), DALI_FAIL(make_string("Unsupported output type: ", output_type_)); );       // NOLINT
-  ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())); );     // NOLINT
+  ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())); );  // NOLINT
 }
 
 DALI_REGISTER_OPERATOR(LookupTable, LookupTable<GPUBackend>, GPU);

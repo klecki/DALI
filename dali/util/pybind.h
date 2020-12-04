@@ -15,13 +15,13 @@
 #ifndef DALI_UTIL_PYBIND_H_
 #define DALI_UTIL_PYBIND_H_
 
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <utility>
 #include <string>
-#include "dali/pipeline/data/types.h"
+#include <utility>
 #include "dali/pipeline/data/dltensor.h"
+#include "dali/pipeline/data/types.h"
 
 namespace dali {
 
@@ -69,18 +69,20 @@ static std::string FormatStrFromType(const TypeInfo &type) {
   } else if (IsType<uint16_t>(type)) {
     return "=H";
   } else if (IsType<int32_t>(type) ||
-            (IsType<long>(type) && sizeof(long) == sizeof(int32_t))) {  // NOLINT
+             (IsType<long>(type) && sizeof(long) == sizeof(int32_t))) {  // NOLINT
     return "=i";
-  } else if (IsType<uint32_t>(type) ||
-            (IsType<unsigned long>(type) && sizeof(unsigned long) == sizeof(uint32_t))) {  // NOLINT
+  } else if (IsType<uint32_t>(type) || (IsType<unsigned long>(type) &&
+                                        sizeof(unsigned long) == sizeof(uint32_t))) {  // NOLINT
     return "=I";
   } else if (IsType<int64_t>(type) ||
-            (IsType<long>(type) && sizeof(long) == sizeof(int64_t)) ||  // NOLINT
-            (IsType<long long>(type) && sizeof(long long) == sizeof(int64_t))) {  // NOLINT
+             (IsType<long>(type) && sizeof(long) == sizeof(int64_t)) ||            // NOLINT
+             (IsType<long long>(type) && sizeof(long long) == sizeof(int64_t))) {  // NOLINT
     return "=q";
   } else if (IsType<uint64_t>(type) ||
-            (IsType<unsigned long>(type) && sizeof(unsigned long) == sizeof(uint64_t)) ||  // NOLINT
-            (IsType<unsigned long long>(type) && sizeof(unsigned long long) == sizeof(uint64_t))) {  // NOLINT
+             (IsType<unsigned long>(type) &&
+              sizeof(unsigned long) == sizeof(uint64_t)) ||  // NOLINT
+             (IsType<unsigned long long>(type) &&
+              sizeof(unsigned long long) == sizeof(uint64_t))) {  // NOLINT
     return "=Q";
   } else if (IsType<float>(type)) {
     return "=f";
@@ -95,8 +97,7 @@ static std::string FormatStrFromType(const TypeInfo &type) {
   } else if (IsType<size_t>(type)) {
     return "=N";
   } else {
-    DALI_FAIL("Cannot convert type " + type.name() +
-        " to format descriptor string");
+    DALI_FAIL("Cannot convert type " + type.name() + " to format descriptor string");
   }
 }
 
@@ -117,7 +118,7 @@ static TypeInfo TypeFromFormatStr(const std::string &format) {
   using sized_long = std::conditional_t<sizeof(long) == 4, int32_t, int64_t>;  // NOLINT
   using sized_ulong = std::make_unsigned_t<sized_long>;
   static_assert(sizeof(sized_long) == sizeof(long),  // NOLINT
-    "This code requires `long` to be 32 or 64 bit");
+                "This code requires `long` to be 32 or 64 bit");
 
   switch (format_letter) {
     case 'c':
@@ -190,7 +191,7 @@ constexpr const char *USED_DLTENSOR_NAME = "used_dltensor";
 static void DLTensorCapsuleDestructor(PyObject *capsule) {
   // run the destructor only for unused capsules (those which keep the original name)
   if (std::string(PyCapsule_GetName(capsule)) == DLTENSOR_NAME) {
-    auto *ptr = static_cast<DLManagedTensor*>(PyCapsule_GetPointer(capsule, DLTENSOR_NAME));
+    auto *ptr = static_cast<DLManagedTensor *>(PyCapsule_GetPointer(capsule, DLTENSOR_NAME));
     DLMTensorPtrDeleter(ptr);
   }
 }
@@ -217,13 +218,13 @@ py::list TensorListToDLPackView(TensorList<Backend> &tensors) {
   return result;
 }
 
-static DLManagedTensor* DLMTensorRawPtrFromCapsule(py::capsule &capsule, bool consume = true) {
+static DLManagedTensor *DLMTensorRawPtrFromCapsule(py::capsule &capsule, bool consume = true) {
   DALI_ENFORCE(std::string(capsule.name()) == DLTENSOR_NAME,
-      "Invalid DLPack tensor capsule. Notice that a dl tensor can be consumed only once");
+               "Invalid DLPack tensor capsule. Notice that a dl tensor can be consumed only once");
   if (consume) {
     PyCapsule_SetName(capsule.ptr(), USED_DLTENSOR_NAME);
   }
-  return static_cast<DLManagedTensor*>(capsule);
+  return static_cast<DLManagedTensor *>(capsule);
 }
 
 static DLMTensorPtr DLMTensorPtrFromCapsule(py::capsule &capsule) {

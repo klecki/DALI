@@ -28,10 +28,12 @@ namespace dali {
 
 namespace TFUtil {
 
-enum FeatureType {
+enum FeatureType
+{
   int64,
   string,
-  float32 };
+  float32
+};
 
 class Feature {
  public:
@@ -64,30 +66,35 @@ class Feature {
     val_ = std::move(val);
   }
 
-  FeatureType GetType() const { return type_; }
-  bool HasShape() const { return has_shape_; }
-  bool HasPartialShape() const { return has_partial_shape_; }
+  FeatureType GetType() const {
+    return type_;
+  }
+  bool HasShape() const {
+    return has_shape_;
+  }
+  bool HasPartialShape() const {
+    return has_partial_shape_;
+  }
   const std::vector<Index>& Shape() const {
     return shape_;
   }
   std::vector<Index> PartialShape() const {
     return partial_shape_;
   }
-  const Value GetValue() const { return val_; }
+  const Value GetValue() const {
+    return val_;
+  }
 
-  template<typename T>
+  template <typename T>
   T GetDefaultValue() {
     if (std::is_same<T, std::string>::value()) {
-      DALI_ENFORCE(GetType() == FeatureType::string,
-          "Requested invalid type from the Feature");
+      DALI_ENFORCE(GetType() == FeatureType::string, "Requested invalid type from the Feature");
       return val_.str;
     } else if (std::is_same<T, int64_t>::value()) {
-      DALI_ENFORCE(GetType() == FeatureType::int64,
-          "Requested invalid type from the Feature");
+      DALI_ENFORCE(GetType() == FeatureType::int64, "Requested invalid type from the Feature");
       return val_.int64;
     } else if (std::is_same<T, float>::value()) {
-      DALI_ENFORCE(GetType() == FeatureType::float32,
-          "Requested invalid type from the Feature");
+      DALI_ENFORCE(GetType() == FeatureType::float32, "Requested invalid type from the Feature");
       return val_.float32;
     } else {
       DALI_FAIL("Requested invalid type from the feature");
@@ -124,7 +131,7 @@ class Feature {
     return "TFRecord";
   }
 
-  DaliProtoPriv * SerializeToProtobuf(DaliProtoPriv *arg) const {
+  DaliProtoPriv* SerializeToProtobuf(DaliProtoPriv* arg) const {
     arg->set_type(SerializeType());
     arg->set_is_vector(false);
 

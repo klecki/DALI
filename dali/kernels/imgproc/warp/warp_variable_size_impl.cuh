@@ -15,24 +15,19 @@
 #ifndef DALI_KERNELS_IMGPROC_WARP_VARIABLE_SIZE_IMPL_CUH_
 #define DALI_KERNELS_IMGPROC_WARP_VARIABLE_SIZE_IMPL_CUH_
 
-#include "dali/kernels/imgproc/warp/warp_setup.cuh"
+#include "dali/core/static_switch.h"
 #include "dali/kernels/imgproc/warp/block_warp.cuh"
 #include "dali/kernels/imgproc/warp/mapping_traits.h"
-#include "dali/core/static_switch.h"
+#include "dali/kernels/imgproc/warp/warp_setup.cuh"
 
 namespace dali {
 namespace kernels {
 namespace warp {
 
-
-template <typename Mapping,
-         int ndim, typename OutputType, typename InputType,
-         typename BorderType>
-__global__ void BatchWarpVariableSize(
-    const SampleDesc<ndim, OutputType, InputType> *samples,
-    const BlockDesc<ndim> *blocks,
-    const mapping_params_t<Mapping> *mapping,
-    BorderType border) {
+template <typename Mapping, int ndim, typename OutputType, typename InputType, typename BorderType>
+__global__ void BatchWarpVariableSize(const SampleDesc<ndim, OutputType, InputType> *samples,
+                                      const BlockDesc<ndim> *blocks,
+                                      const mapping_params_t<Mapping> *mapping, BorderType border) {
   auto block = blocks[blockIdx.x];
   auto sample = samples[block.sample_idx];
   VALUE_SWITCH(sample.interp, interp_const, (DALI_INTERP_NN, DALI_INTERP_LINEAR), (

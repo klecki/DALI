@@ -15,11 +15,11 @@
 #ifndef DALI_KERNELS_IMGPROC_WARP_WARP_SETUP_CUH_
 #define DALI_KERNELS_IMGPROC_WARP_WARP_SETUP_CUH_
 
-#include <vector>
 #include <utility>
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/common/block_setup.h"
+#include <vector>
 #include "dali/core/geom/vec.h"
+#include "dali/kernels/common/block_setup.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -45,15 +45,15 @@ struct SampleDesc {
 template <int spatial_ndim, typename OutputType, typename InputType>
 class WarpSetup : public BlockSetup<spatial_ndim, spatial_ndim> {
   static_assert(spatial_ndim == 2 || spatial_ndim == 3,
-    "Warping is defined only for 2D and 3D data with interleaved channels");
+                "Warping is defined only for 2D and 3D data with interleaved channels");
 
  public:
   using Base = BlockSetup<spatial_ndim, spatial_ndim>;
-  using Base::tensor_ndim;
   using Base::Blocks;
   using Base::IsUniformSize;
   using Base::SetupBlocks;
   using Base::shape2size;
+  using Base::tensor_ndim;
   using SampleDesc = warp::SampleDesc<spatial_ndim, OutputType, InputType>;
   using BlockDesc = kernels::BlockDesc<spatial_ndim>;
 
@@ -65,7 +65,7 @@ class WarpSetup : public BlockSetup<spatial_ndim, spatial_ndim> {
     ScratchpadEstimator se;
     se.add<SampleDesc>(AllocType::GPU, output_shape.num_samples());
     se.add<BlockDesc>(AllocType::GPU, Blocks().size());
-    req.output_shapes = { output_shape };
+    req.output_shapes = {output_shape};
     req.scratch_sizes = se.sizes;
     return req;
   }
@@ -92,14 +92,16 @@ class WarpSetup : public BlockSetup<spatial_ndim, spatial_ndim> {
       sample.in_strides.x = channels;
       for (int d = 0; d < spatial_ndim - 1; d++) {
         sample.out_strides[d + 1] = sample.out_size[d] * sample.out_strides[d];
-        sample.in_strides[d + 1]  = sample.in_size[d]  * sample.in_strides[d];
+        sample.in_strides[d + 1] = sample.in_size[d] * sample.in_strides[d];
       }
 
       sample.interp = interp[interp.size() == 1 ? 0 : i];
     }
   }
 
-  span<const SampleDesc> Samples() const { return make_span(samples_); }
+  span<const SampleDesc> Samples() const {
+    return make_span(samples_);
+  }
 
  private:
   std::vector<SampleDesc> samples_;

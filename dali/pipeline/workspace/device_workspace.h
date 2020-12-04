@@ -17,9 +17,9 @@
 
 #include <cuda_runtime_api.h>
 
+#include <memory>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -100,7 +100,6 @@ class DLL_PUBLIC DeviceWorkspace : public WorkspaceBase<DeviceInputType, DeviceO
     return has_stream_;
   }
 
-
   /**
    * @brief Sets the event for this workspace.
    */
@@ -112,7 +111,9 @@ class DLL_PUBLIC DeviceWorkspace : public WorkspaceBase<DeviceInputType, DeviceO
   /**
    * @brief Returns true if 'set_event' has been called.
    */
-  DLL_PUBLIC inline bool has_event() const { return has_event_; }
+  DLL_PUBLIC inline bool has_event() const {
+    return has_event_;
+  }
 
   /**
    * @brief Returns the cuda event that signals this works completion.
@@ -126,12 +127,16 @@ class DLL_PUBLIC DeviceWorkspace : public WorkspaceBase<DeviceInputType, DeviceO
    * @brief Adds a parent event that will signal this
    * work is allowed to execute.
    */
-  DLL_PUBLIC inline void AddParentEvent(cudaEvent_t event) { parent_events_.push_back(event); }
+  DLL_PUBLIC inline void AddParentEvent(cudaEvent_t event) {
+    parent_events_.push_back(event);
+  }
 
   /**
    * @brief Returns the set of parent events this workspace stores.
    */
-  DLL_PUBLIC inline vector<cudaEvent_t> ParentEvents() const { return parent_events_; }
+  DLL_PUBLIC inline vector<cudaEvent_t> ParentEvents() const {
+    return parent_events_;
+  }
 
  private:
   cudaStream_t stream_impl() const override {

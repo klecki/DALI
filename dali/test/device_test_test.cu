@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
 #include <gtest/gtest-spi.h>
+#include <gtest/gtest.h>
 #include "dali/test/device_test.h"
 
 DEVICE_TEST(DeviceTest, DeviceSideSuccess, dim3(5), dim3(32)) {
@@ -48,10 +48,12 @@ DEFINE_TEST_KERNEL(DeviceTest, DeviceSideFailure) {
 
 TEST(DeviceTest, DeviceSideFailure) {
   int num = 0;
-  EXPECT_NONFATAL_FAILURE({
-    DEVICE_TEST_CASE_BODY(DeviceTest, DeviceSideFailure, dim3(1), dim3(2))
-    num = host_status.num_messages;
-  }, "There were errors in device code");
+  EXPECT_NONFATAL_FAILURE(
+      {
+        DEVICE_TEST_CASE_BODY(DeviceTest, DeviceSideFailure, dim3(1), dim3(2))
+        num = host_status.num_messages;
+      },
+      "There were errors in device code");
   EXPECT_EQ(num, 21);  // threadIdx.x == 0 succeeds once
   EXPECT_EQ(cudaGetLastError(), cudaSuccess);
 }

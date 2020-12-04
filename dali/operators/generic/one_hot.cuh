@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <cstdint>
 #include <algorithm>
+#include <cstdint>
 #include "dali/core/util.h"
 
 namespace dali {
@@ -33,8 +33,8 @@ __global__ void PopulateOneHot(OutputType on_value, OutputType off_value,
   uint64_t grid_size = gridDim.x * blockDim.x;
   const auto &sample = samples[blockIdx.y];
   for (; out_index < sample.output_vol; out_index += grid_size) {
-    auto *out = static_cast<OutputType*>(sample.out);
-    auto *in = static_cast<const InputType*>(sample.in);
+    auto *out = static_cast<OutputType *>(sample.out);
+    auto *in = static_cast<const InputType *>(sample.in);
     uint64_t i = out_index / sample.inner_vol_classes;
     uint64_t j = out_index % sample.inner_vol;
     uint64_t in_index = i * sample.inner_vol + j;

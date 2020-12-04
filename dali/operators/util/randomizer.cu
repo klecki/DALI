@@ -14,14 +14,10 @@
 
 #include "dali/operators/util/randomizer.cuh"
 
-
 namespace dali {
 
-__global__
-void initializeStates(const int N, unsigned int seed, curandState *states) {
-  for (int idx = threadIdx.x + blockIdx.x * blockDim.x;
-       idx < N;
-       idx += blockDim.x * gridDim.x) {
+__global__ void initializeStates(const int N, unsigned int seed, curandState *states) {
+  for (int idx = threadIdx.x + blockIdx.x * blockDim.x; idx < N; idx += blockDim.x * gridDim.x) {
     curand_init(seed, idx, 0, &states[idx]);
   }
 }
@@ -29,9 +25,9 @@ void initializeStates(const int N, unsigned int seed, curandState *states) {
 RandomizerGPU::RandomizerGPU(int seed, size_t len) {
   len_ = len;
   cudaGetDevice(&device_);
-  states_ = static_cast<curandState*>(GPUBackend::New(sizeof(curandState) * len, true));
-  initializeStates<<<div_ceil(len, block_size_), block_size_>>>
-                  (len_, seed, reinterpret_cast<curandState*>(states_));
+  states_ = static_cast<curandState *>(GPUBackend::New(sizeof(curandState) * len, true));
+  initializeStates<<<div_ceil(len, block_size_), block_size_>>>(
+      len_, seed, reinterpret_cast<curandState *>(states_));
 }
 
 void RandomizerGPU::Cleanup() {

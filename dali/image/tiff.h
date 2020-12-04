@@ -15,10 +15,10 @@
 #ifndef DALI_IMAGE_TIFF_H_
 #define DALI_IMAGE_TIFF_H_
 
-#include <vector>
+#include <memory>
 #include <string>
 #include <utility>
-#include <memory>
+#include <vector>
 #include "dali/image/generic_image.h"
 
 namespace dali {
@@ -28,12 +28,10 @@ namespace dali {
  */
 class TiffBuffer {
  public:
-  explicit TiffBuffer(const std::string &buffer, bool little_endian = false) :
-          stream_(buffer),
-          little_endian_(little_endian) {
+  explicit TiffBuffer(const std::string &buffer, bool little_endian = false)
+      : stream_(buffer), little_endian_(little_endian) {
     buffer_size_ = buffer.length();
   }
-
 
   /**
    * Reads value of given type (byte length), at given offset in the buffer.
@@ -42,7 +40,7 @@ class TiffBuffer {
    * @param offset Offset (in bytes) from beginning of the buffer
    * @return value
    */
-  template<typename ValueType>
+  template <typename ValueType>
   ValueType Read(unsigned int offset = 0) {
     DALI_ENFORCE(stream_.good());
     DALI_ENFORCE(offset + sizeof(ValueType) < buffer_size_);
@@ -64,7 +62,7 @@ class TiffBuffer {
    * @tparam T
    * @param value pointer to given value
    */
-  template<typename T>
+  template <typename T>
   void to_little_endian(T *value) {
     static_assert(std::is_integral<T>::value, "Converting floating point value unsupported");
 

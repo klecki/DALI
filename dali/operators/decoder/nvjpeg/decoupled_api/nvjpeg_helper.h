@@ -17,41 +17,40 @@
 
 #include <nvjpeg.h>
 
-#include <string>
 #include <memory>
+#include <string>
+#include "dali/core/backend_tags.h"
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/util/crop_window.h"
-#include "dali/core/backend_tags.h"
-#include "dali/kernels/common/copy.h"
 #include "dali/image/image_factory.h"
+#include "dali/kernels/common/copy.h"
+#include "dali/util/crop_window.h"
 
 namespace dali {
 
 const char* nvjpeg_parse_error_code(nvjpegStatus_t code);
 
-#define NVJPEG_CALL(code)                                    \
-  do {                                                       \
-    nvjpegStatus_t status = code;                            \
-    if (status != NVJPEG_STATUS_SUCCESS) {                   \
-      dali::string error = dali::string("NVJPEG error \"") + \
-        std::to_string(static_cast<int>(status)) + "\""  +   \
-        " : " + nvjpeg_parse_error_code(status);             \
-      DALI_FAIL(error);                                      \
-    }                                                        \
+#define NVJPEG_CALL(code)                                                            \
+  do {                                                                               \
+    nvjpegStatus_t status = code;                                                    \
+    if (status != NVJPEG_STATUS_SUCCESS) {                                           \
+      dali::string error = dali::string("NVJPEG error \"") +                         \
+                           std::to_string(static_cast<int>(status)) + "\"" + " : " + \
+                           nvjpeg_parse_error_code(status);                          \
+      DALI_FAIL(error);                                                              \
+    }                                                                                \
   } while (0)
 
-#define NVJPEG_CALL_EX(code, extra)                          \
-  do {                                                       \
-    nvjpegStatus_t status = code;                            \
-    string extra_info = extra;                               \
-    if (status != NVJPEG_STATUS_SUCCESS) {                   \
-      dali::string error = dali::string("NVJPEG error \"") + \
-        std::to_string(static_cast<int>(status)) + "\""      \
-        + " : " + nvjpeg_parse_error_code(status) + " "      \
-        + extra_info;                                        \
-      DALI_FAIL(error);                                      \
-    }                                                        \
+#define NVJPEG_CALL_EX(code, extra)                                                  \
+  do {                                                                               \
+    nvjpegStatus_t status = code;                                                    \
+    string extra_info = extra;                                                       \
+    if (status != NVJPEG_STATUS_SUCCESS) {                                           \
+      dali::string error = dali::string("NVJPEG error \"") +                         \
+                           std::to_string(static_cast<int>(status)) + "\"" + " : " + \
+                           nvjpeg_parse_error_code(status) + " " + extra_info;       \
+      DALI_FAIL(error);                                                              \
+    }                                                                                \
   } while (0)
 
 struct StateNvJPEG {
@@ -79,8 +78,7 @@ inline nvjpegJpegState_t GetNvjpegState(const StateNvJPEG& state) {
     case NVJPEG_BACKEND_GPU_HYBRID:
       return state.decoder_hybrid_state;
     default:
-      DALI_FAIL("Unknown nvjpegBackend_t "
-                + std::to_string(state.nvjpeg_backend));
+      DALI_FAIL("Unknown nvjpegBackend_t " + std::to_string(state.nvjpeg_backend));
   }
 }
 
@@ -122,7 +120,7 @@ inline uint8_t GetJpegEncoding(const uint8_t* input, size_t size) {
       return marker;
     } else {
       // Next segment
-      uint16_t segment_length = (*ptr << 8) + *(ptr+1);
+      uint16_t segment_length = (*ptr << 8) + *(ptr + 1);
       ptr += segment_length;
     }
   }
@@ -138,21 +136,19 @@ inline bool IsProgressiveJPEG(const uint8_t* raw_jpeg, size_t size) {
 // Predicate to determine if the image should be decoded with the nvJPEG
 // hybrid Huffman decoder instead of the nvjpeg host Huffman decoder
 template <typename T>
-inline bool ShouldUseHybridHuffman(EncodedImageInfo<T>& info,
-                                   const uint8_t* input,
-                                   size_t size,
+inline bool ShouldUseHybridHuffman(EncodedImageInfo<T>& info, const uint8_t* input, size_t size,
                                    unsigned int threshold) {
-  auto &roi = info.crop_window;
+  auto& roi = info.crop_window;
   unsigned int w = static_cast<unsigned int>(info.widths[0]);
-  unsigned int h = static_cast<unsigned int>(
-    roi ? (roi.anchor[0] + roi.shape[0]) : info.heights[0]);
+  unsigned int h =
+      static_cast<unsigned int>(roi ? (roi.anchor[0] + roi.shape[0]) : info.heights[0]);
   // TODO(spanev): replace it by nvJPEG API function when available in future release
   // We don't wanna call IsProgressiveJPEG if not needed
-  return h*w > threshold && !IsProgressiveJPEG(input, size);
+  return h * w > threshold && !IsProgressiveJPEG(input, size);
 }
 
 template <typename StorageType>
-void HostFallback(const uint8_t *data, int size, DALIImageType image_type, uint8_t *output_buffer,
+void HostFallback(const uint8_t* data, int size, DALIImageType image_type, uint8_t* output_buffer,
                   cudaStream_t stream, std::string file_name, CropWindow crop_window,
                   bool use_fast_idct) {
   std::unique_ptr<Image> img;
@@ -161,13 +157,10 @@ void HostFallback(const uint8_t *data, int size, DALIImageType image_type, uint8
     img->SetCropWindow(crop_window);
     img->SetUseFastIdct(use_fast_idct);
     img->Decode();
-  } catch (std::exception &e) {
-    DALI_FAIL(e.what() + ". File: " + file_name);
-  }
+  } catch (std::exception& e) { DALI_FAIL(e.what() + ". File: " + file_name); }
   const auto decoded = img->GetImage();
   const auto shape = img->GetShape();
-  kernels::copy<StorageType, StorageCPU>(
-    output_buffer, decoded.get(), volume(shape), stream);
+  kernels::copy<StorageType, StorageCPU>(output_buffer, decoded.get(), volume(shape), stream);
 }
 
 }  // namespace dali

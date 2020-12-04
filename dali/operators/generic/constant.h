@@ -17,9 +17,9 @@
 
 #include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/core/tensor_view.h"
 #include "dali/core/static_switch.h"
+#include "dali/core/tensor_view.h"
+#include "dali/pipeline/operator/operator.h"
 
 #define CONSTANT_OP_SUPPORTED_TYPES \
   (bool, int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, float16)
@@ -37,38 +37,40 @@ class Constant : public Operator<Backend> {
     spec.TryGetRepeatedArgument<int>(shape_arg_, "shape");
     output_type_ = spec.GetArgument<DALIDataType>("dtype");
     if (spec.HasArgument("fdata")) {
-      DALI_ENFORCE(!spec.HasArgument("idata"), "Constant node: `fdata` and `idata` arguments are "
-        "mutually exclusive");
+      DALI_ENFORCE(!spec.HasArgument("idata"),
+                   "Constant node: `fdata` and `idata` arguments are "
+                   "mutually exclusive");
       fdata_ = spec.GetRepeatedArgument<float>("fdata");
       if (!has_shape) {
-        shape_arg_ = { static_cast<int>(fdata_.size()) };
+        shape_arg_ = {static_cast<int>(fdata_.size())};
       } else {
         DALI_ENFORCE(fdata_.size() == static_cast<size_t>(volume(shape_arg_)) || fdata_.size() == 1,
-          "The number of values does not match the shape specified");
+                     "The number of values does not match the shape specified");
       }
 
       if (!spec.HasArgument("dtype"))
         output_type_ = DALI_FLOAT;
     } else {
       DALI_ENFORCE(spec.HasArgument("idata"),
-          "Constant node: either `fdata` or `idata` must be present.");
+                   "Constant node: either `fdata` or `idata` must be present.");
 
       if (!spec.HasArgument("dtype"))
         output_type_ = DALI_INT32;
 
       idata_ = spec.GetRepeatedArgument<int>("idata");
       if (!has_shape) {
-        shape_arg_ = { static_cast<int>(idata_.size()) };
+        shape_arg_ = {static_cast<int>(idata_.size())};
       } else {
         DALI_ENFORCE(idata_.size() == static_cast<size_t>(volume(shape_arg_)) || idata_.size() == 1,
-          "The number of values does not match the shape specified");
+                     "The number of values does not match the shape specified");
       }
     }
     layout_ = spec.GetArgument<TensorLayout>("layout");
     if (!layout_.empty()) {
-      DALI_ENFORCE(layout_.size() == static_cast<int>(shape_arg_.size()), make_string(
-        "Constant node: The requested layout \"", layout_, "\" has dimensionalilty which is "
-        "incompatible with the requested output shape."));
+      DALI_ENFORCE(layout_.size() == static_cast<int>(shape_arg_.size()),
+                   make_string("Constant node: The requested layout \"", layout_,
+                               "\" has dimensionalilty which is "
+                               "incompatible with the requested output shape."));
     }
   }
 
@@ -84,7 +86,7 @@ class Constant : public Operator<Backend> {
       int batch_size = this->spec_.template GetArgument<int>("batch_size");
       output_shape_ = uniform_list_shape(batch_size, shape_arg_);
     }
-    output_desc[0] = { output_shape_, TypeTable::GetTypeInfo(output_type_) };
+    output_desc[0] = {output_shape_, TypeTable::GetTypeInfo(output_type_)};
     return false;
   }
 
@@ -98,7 +100,7 @@ class Constant : public Operator<Backend> {
   TensorLayout layout_;
   DALIDataType output_type_;
   using storage_t = std::conditional_t<std::is_same<Backend, CPUBackend>::value,
-    TensorVector<CPUBackend>, TensorList<GPUBackend>>;
+                                       TensorVector<CPUBackend>, TensorList<GPUBackend>>;
 
   storage_t output_;
 };

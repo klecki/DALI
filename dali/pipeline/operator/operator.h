@@ -18,14 +18,14 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_map>
 
 #include "dali/core/any.h"
 #include "dali/core/common.h"
-#include "dali/core/format.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/format.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/core/tensor_shape_print.h"
 #include "dali/pipeline/data/backend.h"
@@ -40,12 +40,12 @@
 namespace dali {
 
 struct DLL_PUBLIC ReaderMeta {
-  Index epoch_size = -1;          // raw epoch size
-  Index epoch_size_padded = -1;   // epoch size with the padding at the end
-  int number_of_shards = -1;      // number of shards
-  int shard_id = -1;              // shard id of given reader
-  int pad_last_batch = -1;        // if given reader should pad last batch
-  int stick_to_shard = -1;        // if given reader should stick to its shard
+  Index epoch_size = -1;         // raw epoch size
+  Index epoch_size_padded = -1;  // epoch size with the padding at the end
+  int number_of_shards = -1;     // number of shards
+  int shard_id = -1;             // shard id of given reader
+  int pad_last_batch = -1;       // if given reader should pad last batch
+  int stick_to_shard = -1;       // if given reader should stick to its shard
 
   DLL_PUBLIC operator bool() const {
     return epoch_size != -1 && epoch_size_padded != -1 && number_of_shards != -1 &&
@@ -57,8 +57,8 @@ struct DLL_PUBLIC ReaderMeta {
  * Names for most commonly used arguments, to keep consistency between arg naming amongst operators.
  */
 namespace arg_names {
-const std::string kSeed = "seed";            // NOLINT
-const std::string kDtype = "dtype";          // NOLINT
+const std::string kSeed = "seed";    // NOLINT
+const std::string kDtype = "dtype";  // NOLINT
 }  // namespace arg_names
 
 /**
@@ -71,10 +71,10 @@ inline void CheckInputLayouts(const Workspace &ws, const OpSpec &spec) {
   for (int i = 0; i < spec.NumRegularInput(); ++i) {
     if (ws.template InputIsType<CPUBackend>(i)) {
       auto &input = ws.template InputRef<CPUBackend>(i);
-      (void) schema.GetInputLayout(i, input.shape().sample_dim(), input.GetLayout());
+      (void)schema.GetInputLayout(i, input.shape().sample_dim(), input.GetLayout());
     } else if (ws.template InputIsType<GPUBackend>(i)) {
       auto &input = ws.template InputRef<GPUBackend>(i);
-      (void) schema.GetInputLayout(i, input.shape().sample_dim(), input.GetLayout());
+      (void)schema.GetInputLayout(i, input.shape().sample_dim(), input.GetLayout());
     } else {
       DALI_FAIL(make_string("Input ", i, " has an unknown backend"));
     }
@@ -159,7 +159,7 @@ class DLL_PUBLIC OperatorBase {
     return {};
   }
 
-  DLL_PUBLIC const OpSpec& GetSpec() const {
+  DLL_PUBLIC const OpSpec &GetSpec() const {
     return spec_;
   }
 
@@ -170,8 +170,7 @@ class DLL_PUBLIC OperatorBase {
 
   DISABLE_COPY_MOVE_ASSIGN(OperatorBase);
 
-
-  template<typename T>
+  template <typename T>
   T GetDiagnostic(const std::string &name) const {
     try {
       return *any_cast<T *>(diagnostics_.at(name));
@@ -182,12 +181,10 @@ class DLL_PUBLIC OperatorBase {
     } catch (std::out_of_range &e) {
       DALI_FAIL(make_string("Diagnostic parameter with specified name (`", name,
                             "`) hasn't been registered. ", e.what()));
-    } catch (...) {
-      DALI_FAIL("Error occured when reading diagnostic parameter.");
-    }
+    } catch (...) { DALI_FAIL("Error occured when reading diagnostic parameter."); }
   }
 
-  template<typename T>
+  template <typename T>
   void RegisterDiagnostic(std::string name, T *val) {
     using namespace std;  // NOLINT
     static_assert(is_arithmetic_or_half<remove_reference_t<T>>::value || is_enum<T>::value,
@@ -196,7 +193,6 @@ class DLL_PUBLIC OperatorBase {
       DALI_FAIL("Diagnostic with given name already exists");
     }
   }
-
 
  protected:
   /**
@@ -212,12 +208,11 @@ class DLL_PUBLIC OperatorBase {
    * @param batch_size    number of samples in the batch - if <0, it's taken from an argument
    *                      "batch_size" in OpSpec for this operator.
    */
-  template<typename T>
+  template <typename T>
   void GetPerSampleArgument(std::vector<T> &output, const std::string &argument_name,
                             const ArgumentWorkspace &ws, int batch_size = -1) {
     dali::GetPerSampleArgument(output, argument_name, spec_, ws, batch_size);
   }
-
 
   const OpSpec spec_;
   int num_threads_;
@@ -227,10 +222,10 @@ class DLL_PUBLIC OperatorBase {
   std::unordered_map<std::string, any> diagnostics_;
 };
 
-#define USE_OPERATOR_MEMBERS()                       \
-  using OperatorBase::spec_;                         \
-  using OperatorBase::num_threads_;                  \
-  using OperatorBase::batch_size_;                   \
+#define USE_OPERATOR_MEMBERS()      \
+  using OperatorBase::spec_;        \
+  using OperatorBase::num_threads_; \
+  using OperatorBase::batch_size_;  \
   using OperatorBase::default_cuda_stream_priority_
 
 /**
@@ -247,7 +242,7 @@ template <typename Backend>
 class Operator : public OperatorBase {};
 
 template <typename Workspace>
-TensorLayout GetInputLayout(Workspace& ws, int i) {
+TensorLayout GetInputLayout(Workspace &ws, int i) {
   if (ws.template InputIsType<CPUBackend>(i)) {
     auto &in = ws.template InputRef<CPUBackend>(i);
     return in.GetLayout();
@@ -277,8 +272,8 @@ class Operator<CPUBackend> : public OperatorBase {
 
   inline ~Operator() override {}
 
-  using OperatorBase::Setup;
   using OperatorBase::Run;
+  using OperatorBase::Setup;
 
   bool Setup(std::vector<OutputDesc> &output_desc, const HostWorkspace &ws) override {
     return SetupImpl(output_desc, ws);
@@ -317,12 +312,14 @@ class Operator<CPUBackend> : public OperatorBase {
 
     auto &thread_pool = ws.GetThreadPool();
     for (int data_idx = 0; data_idx < batch_size_; ++data_idx) {
-      thread_pool.AddWork([this, &ws, data_idx](int tid) {
-        SampleWorkspace sample;
-        ws.GetSample(&sample, data_idx, tid);
-        this->SetupSharedSampleParams(sample);
-        this->RunImpl(sample);
-      }, -data_idx);  // -data_idx for FIFO order
+      thread_pool.AddWork(
+          [this, &ws, data_idx](int tid) {
+            SampleWorkspace sample;
+            ws.GetSample(&sample, data_idx, tid);
+            this->SetupSharedSampleParams(sample);
+            this->RunImpl(sample);
+          },
+          -data_idx);  // -data_idx for FIFO order
     }
     thread_pool.RunAll();
   }
@@ -351,8 +348,8 @@ class Operator<GPUBackend> : public OperatorBase {
 
   inline ~Operator() override {}
 
-  using OperatorBase::Setup;
   using OperatorBase::Run;
+  using OperatorBase::Setup;
 
   bool Setup(std::vector<OutputDesc> &output_desc, const DeviceWorkspace &ws) override {
     return SetupImpl(output_desc, ws);
@@ -392,8 +389,8 @@ class Operator<MixedBackend> : public OperatorBase {
 
   inline ~Operator() override {}
 
-  using OperatorBase::Setup;
   using OperatorBase::Run;
+  using OperatorBase::Setup;
 
   bool Setup(std::vector<OutputDesc> &output_desc, const MixedWorkspace &ws) override {
     return SetupImpl(output_desc, ws);
@@ -426,7 +423,6 @@ DALI_DECLARE_OPTYPE_REGISTRY(MixedOperator, OperatorBase);
   int DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName();                                     \
   static int ANONYMIZE_VARIABLE(OpName) = DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName(); \
   DALI_DEFINE_OPTYPE_REGISTERER(OpName, OpType, device##Operator, ::dali::OperatorBase, #device)
-
 
 DLL_PUBLIC std::unique_ptr<OperatorBase> InstantiateOperator(const OpSpec &spec);
 

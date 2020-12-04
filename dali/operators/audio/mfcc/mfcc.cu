@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/audio/mfcc/mfcc.h"
 #include <vector>
-#include "dali/kernels/signal/dct/dct_gpu.h"
 #include "dali/core/static_switch.h"
+#include "dali/kernels/signal/dct/dct_gpu.h"
+#include "dali/operators/audio/mfcc/mfcc.h"
 
 namespace dali {
 
 namespace detail {
 template <>
-DLL_PUBLIC  void LifterCoeffs<GPUBackend>::Calculate(int64_t target_length, float lifter,
-                                                     cudaStream_t stream)  {
+DLL_PUBLIC void LifterCoeffs<GPUBackend>::Calculate(int64_t target_length, float lifter,
+                                                    cudaStream_t stream) {
   // If different lifter argument, clear previous coefficients
   if (lifter_ != lifter) {
     coeffs_.clear();
@@ -59,7 +59,7 @@ std::vector<OutputDesc> SetupKernel(kernels::KernelManager &kmgr, kernels::Kerne
 
 }  // namespace detail
 
-template<>
+template <>
 bool MFCC<GPUBackend>::SetupImpl(std::vector<OutputDesc> &output_desc,
                                  const workspace_t<GPUBackend> &ws) {
   GetArguments(ws);
@@ -78,7 +78,7 @@ bool MFCC<GPUBackend>::SetupImpl(std::vector<OutputDesc> &output_desc,
   return true;
 }
 
-template<>
+template <>
 void MFCC<GPUBackend>::RunImpl(workspace_t<GPUBackend> &ws) {
   auto &input = ws.InputRef<GPUBackend>(0);
   TYPE_SWITCH(input.type().id(), type2id, T, MFCC_SUPPORTED_TYPES, (

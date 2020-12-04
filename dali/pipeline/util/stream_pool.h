@@ -20,8 +20,8 @@
 #include <vector>
 
 #include "dali/core/common.h"
-#include "dali/core/error_handling.h"
 #include "dali/core/device_guard.h"
+#include "dali/core/error_handling.h"
 
 namespace dali {
 
@@ -69,7 +69,7 @@ class StreamPool {
       return new_stream;
     }
     cudaStream_t stream = streams_[idx_];
-    idx_ = (idx_+1) % streams_.size();
+    idx_ = (idx_ + 1) % streams_.size();
     return stream;
   }
 

@@ -79,8 +79,7 @@ template <
     /// Policy describing tuning details (concept: ConvMmaPolicy)
     typename Policy_,
     /// Number of stages,
-    int Stages,
-    typename WindowGlobalElement_,
+    int Stages, typename WindowGlobalElement_,
     /// Convolution window storage configuration
     typename ConvWindowConfiguration,
     /// Used for partial specialization

@@ -107,8 +107,8 @@ struct Conv {
                  typename Mma::IteratorIn::TensorRef ref_In, WindowRef ref_conv_Window,
                  typename Epilogue::OutputTileIterator::TensorRef ref_C,
                  typename Epilogue::OutputTileIterator::TensorRef ref_D,
-                 typename OutputOp::Params output_op = typename OutputOp::Params(),
-                 int planes = 1, int plane_stride = 0)
+                 typename OutputOp::Params output_op = typename OutputOp::Params(), int planes = 1,
+                 int plane_stride = 0)
         : channels(channels),
           window_size(ref_conv_Window.stride(0)),
           window_anchor(window_anchor),
@@ -274,7 +274,7 @@ struct Conv {
       // For right side conv-matrix the non-zero regions starts at (n() - left_span, n()),
       // for the left side it's (m(), m() - left_span)
       int conv_diag_position = kIsInnerConv ? threadblock_tile_offset.n() * Mma::Shape::kN
-                                          : threadblock_tile_offset.m() * Mma::Shape::kM;
+                                            : threadblock_tile_offset.m() * Mma::Shape::kM;
       constexpr int tile_extent = kIsInnerConv ? Mma::Shape::kN : Mma::Shape::kM;
 
       // in this row/column we cover a rectangle starting at (diag - left_span), and ending at
@@ -345,10 +345,10 @@ struct Conv {
       accumulators.clear();
 
       if (!kSplitKSerial || gemm_k_iterations > 0) {
-          // Compute threadblock-scoped matrix multiply-add
-          mma(gemm_k_iterations, skip_last_iterations, accumulators, iterator_A, iterator_B,
-              accumulators);
-        }
+        // Compute threadblock-scoped matrix multiply-add
+        mma(gemm_k_iterations, skip_last_iterations, accumulators, iterator_A, iterator_B,
+            accumulators);
+      }
 
       //
       // Epilogue
@@ -364,20 +364,20 @@ struct Conv {
 
       // assume identity swizzle
       MatrixCoord threadblock_offset(threadblock_tile_offset.m() * Mma::Shape::kM,
-                                    threadblock_tile_offset.n() * Mma::Shape::kN);
+                                     threadblock_tile_offset.n() * Mma::Shape::kN);
 
       int block_idx = threadblock_tile_offset.m() +
-                        threadblock_tile_offset.n() * params.sample_grid_tiled_shape.m();
+                      threadblock_tile_offset.n() * params.sample_grid_tiled_shape.m();
 
       // Tile iterator loading from source tensor.
       typename Epilogue::OutputTileIterator iterator_C(params.params_C, params.ref_C.data(),
-                                                      params.problem_size.mn(), thread_idx,
-                                                      threadblock_offset);
+                                                       params.problem_size.mn(), thread_idx,
+                                                       threadblock_offset);
 
       // Tile iterator writing to destination tensor.
       typename Epilogue::OutputTileIterator iterator_D(params.params_D, params.ref_D.data(),
-                                                      params.problem_size.mn(), thread_idx,
-                                                      threadblock_offset);
+                                                       params.problem_size.mn(), thread_idx,
+                                                       threadblock_offset);
 
       Epilogue epilogue(shared_storage.epilogue, thread_idx, warp_idx, lane_idx);
 

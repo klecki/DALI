@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/geometry/coord_flip.h"
 #include <utility>
 #include <vector>
+#include "dali/operators/geometry/coord_flip.h"
 
 namespace dali {
 
@@ -22,15 +22,15 @@ namespace {
 
 template <typename T = float>
 struct SampleDesc {
-  float* out = nullptr;
-  const float* in = nullptr;
+  float *out = nullptr;
+  const float *in = nullptr;
   int64_t size = 0;
   uint8_t flip_dim_mask = 0;
   float mirrored_origin[3];
 };
 
 template <typename T = float>
-__global__ void CoordFlipKernel(const SampleDesc<T>* samples, int ndim) {
+__global__ void CoordFlipKernel(const SampleDesc<T> *samples, int ndim) {
   int64_t block_size = blockDim.x;
   int64_t grid_size = gridDim.x * block_size;
   int sample_idx = blockIdx.y;
@@ -48,8 +48,7 @@ __global__ void CoordFlipKernel(const SampleDesc<T>* samples, int ndim) {
 
 class CoordFlipGPU : public CoordFlip<GPUBackend> {
  public:
-  explicit CoordFlipGPU(const OpSpec &spec)
-      : CoordFlip<GPUBackend>(spec) {}
+  explicit CoordFlipGPU(const OpSpec &spec) : CoordFlip<GPUBackend>(spec) {}
 
   ~CoordFlipGPU() override = default;
   DISABLE_COPY_MOVE_ASSIGN(CoordFlipGPU);
@@ -107,11 +106,11 @@ void CoordFlipGPU::RunImpl(workspace_t<GPUBackend> &ws) {
   scratchpad_.set_type(TypeInfo::Create<uint8_t>());
   int64_t sz = batch_size_ * sizeof(SampleDesc<float>);
   scratchpad_.Resize({sz});
-  auto sample_descs_gpu_ = reinterpret_cast<SampleDesc<float>*>(
-      scratchpad_.mutable_data<uint8_t>());
+  auto sample_descs_gpu_ =
+      reinterpret_cast<SampleDesc<float> *>(scratchpad_.mutable_data<uint8_t>());
   auto stream = ws.stream();
   CUDA_CALL(
-    cudaMemcpyAsync(sample_descs_gpu_, sample_descs_.data(), sz, cudaMemcpyHostToDevice, stream));
+      cudaMemcpyAsync(sample_descs_gpu_, sample_descs_.data(), sz, cudaMemcpyHostToDevice, stream));
 
   int block = 1024;
   auto blocks_per_sample = std::max(32, 1024 / batch_size_);

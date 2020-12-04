@@ -17,8 +17,8 @@
 
 #include <vector>
 #include "dali/core/common.h"
-#include "dali/operators/image/crop/crop_attr.h"
 #include "dali/operators/decoder/host/host_decoder.h"
+#include "dali/operators/image/crop/crop_attr.h"
 
 namespace dali {
 

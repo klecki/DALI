@@ -20,33 +20,39 @@
 #include <vector>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/operator/common.h"
 #include "dali/core/error_handling.h"
-#include "dali/pipeline/operator/operator.h"
-#include "dali/operators/image/resize/resize_crop_mirror.h"
-#include "dali/operators/image/resize/resize_base.h"
-#include "dali/operators/image/resize/resize_attr.h"
 #include "dali/kernels/context.h"
-#include "dali/kernels/scratch.h"
 #include "dali/kernels/imgproc/resample/params.h"
+#include "dali/kernels/scratch.h"
+#include "dali/operators/image/resize/resize_attr.h"
+#include "dali/operators/image/resize/resize_base.h"
+#include "dali/operators/image/resize/resize_crop_mirror.h"
+#include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 namespace detail {
-  kernels::ResamplingParams2D GetResamplingParams(
-    const TransformMeta &meta, kernels::FilterDesc min_filter, kernels::FilterDesc mag_filter);
+kernels::ResamplingParams2D GetResamplingParams(const TransformMeta &meta,
+                                                kernels::FilterDesc min_filter,
+                                                kernels::FilterDesc mag_filter);
 }  // namespace detail
 
 template <typename Backend>
-class Resize : public Operator<Backend>
-             , protected ResizeBase<Backend> {
+class Resize : public Operator<Backend>, protected ResizeBase<Backend> {
  public:
   explicit Resize(const OpSpec &spec);
 
  protected:
-  int NumSpatialDims() const { return resize_attr_.spatial_ndim_; }
-  int FirstSpatialDim() const { return resize_attr_.first_spatial_dim_; }
+  int NumSpatialDims() const {
+    return resize_attr_.spatial_ndim_;
+  }
+  int FirstSpatialDim() const {
+    return resize_attr_.first_spatial_dim_;
+  }
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override;
 
@@ -111,12 +117,11 @@ bool Resize<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
                     make_cspan(this->resample_params_), NumSpatialDims(), FirstSpatialDim());
 
   if (save_attrs_) {
-    output_desc[1].shape = uniform_list_shape(N, TensorShape<1>({ NumSpatialDims() }));
+    output_desc[1].shape = uniform_list_shape(N, TensorShape<1>({NumSpatialDims()}));
     output_desc[1].type = TypeTable::GetTypeInfo(DALI_INT32);
   }
   return true;
 }
-
 
 }  // namespace dali
 

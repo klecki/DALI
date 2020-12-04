@@ -18,12 +18,12 @@
 #include <random>
 #include <vector>
 #include "dali/core/convert.h"
+#include "dali/core/static_switch.h"
 #include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/util/batch_rng.h"
-#include "dali/core/static_switch.h"
 
-#define DALI_NORMDIST_TYPES (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, \
-                             int64_t, float16, float, double)
+#define DALI_NORMDIST_TYPES \
+  (uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, uint64_t, int64_t, float16, float, double)
 
 namespace dali {
 namespace detail {
@@ -33,11 +33,11 @@ const std::string kStddev = "stddev";  // NOLINT
 const std::string kShape = "shape";    // NOLINT
 
 const int kNumOutputs = 1;
-static std::vector<int> kShapeDefaultValue {};
+static std::vector<int> kShapeDefaultValue{};
 
 }  // namespace detail
 
-template<typename Backend>
+template <typename Backend>
 class NormalDistribution : public Operator<Backend> {
  public:
   ~NormalDistribution() override = default;
@@ -45,21 +45,19 @@ class NormalDistribution : public Operator<Backend> {
   DISABLE_COPY_MOVE_ASSIGN(NormalDistribution);
 
  protected:
-  explicit NormalDistribution(const OpSpec &spec) :
-          Operator<Backend>(spec),
-          seed_(spec.GetArgument<int64_t>(arg_names::kSeed)),
-          dtype_(spec.GetArgument<DALIDataType>(arg_names::kDtype)) {
+  explicit NormalDistribution(const OpSpec &spec)
+      : Operator<Backend>(spec),
+        seed_(spec.GetArgument<int64_t>(arg_names::kSeed)),
+        dtype_(spec.GetArgument<DALIDataType>(arg_names::kDtype)) {
     shape_ = IsShapeArgumentProvided(spec) ? spec.GetRepeatedArgument<int>(detail::kShape)
                                            : detail::kShapeDefaultValue;
   }
-
 
   bool CanInferOutputs() const override {
     return true;
   }
 
-  bool SetupImpl(std::vector<OutputDesc> &output_desc,
-                 const workspace_t<Backend> &ws) override {
+  bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     AcquireArguments(ws);
     output_desc.resize(detail::kNumOutputs);
     output_desc[0].shape = GetOutputShape(ws);
@@ -73,7 +71,6 @@ class NormalDistribution : public Operator<Backend> {
     this->GetPerSampleArgument(mean_, detail::kMean, ws);
     this->GetPerSampleArgument(stddev_, detail::kStddev, ws);
   }
-
 
   TensorListShape<> GetOutputShape(const workspace_t<Backend> &ws) {
     DALI_ENFORCE(!(spec_.NumRegularInput() == 1 && IsShapeArgumentProvided(spec_)),
@@ -113,27 +110,23 @@ class NormalDistribution : public Operator<Backend> {
     }
   }
 
-
   TensorListShape<> ShapesFromArgument(const workspace_t<Backend> &ws) {
     return uniform_list_shape(batch_size_, shape_);
   }
 
-
   TensorListShape<> ShapeForDefaultConfig(const workspace_t<Backend> &ws) {
     return TensorListShape<0>(batch_size_);
   }
-
 
   bool IsShapeArgumentProvided(const OpSpec &spec) {
     return spec_.HasArgument(detail::kShape);
   }
 };
 
-
 class NormalDistributionCpu : public NormalDistribution<CPUBackend> {
  public:
-  explicit NormalDistributionCpu(const OpSpec &spec) : NormalDistribution(spec), rng_(seed_),
-                                                       batch_rng_(seed_, batch_size_) {}
+  explicit NormalDistributionCpu(const OpSpec &spec)
+      : NormalDistribution(spec), rng_(seed_), batch_rng_(seed_, batch_size_) {}
 
   ~NormalDistributionCpu() override = default;
 
@@ -151,7 +144,8 @@ class NormalDistributionCpu : public NormalDistribution<CPUBackend> {
   std::mt19937_64 rng_;
   BatchRNG<std::mt19937_64> batch_rng_;
   static_assert(std::is_same<decltype(mean_), decltype(stddev_)>::value &&
-                is_vector<decltype(mean_)>::value, "Both `mean` and `stddev` should be vectors");
+                    is_vector<decltype(mean_)>::value,
+                "Both `mean` and `stddev` should be vectors");
   static_assert(std::is_floating_point<decltype(mean_)::value_type>::value,
                 "Normal distribution is undefined for given type of mean");
   using distribution_t = std::normal_distribution<decltype(mean_)::value_type>;

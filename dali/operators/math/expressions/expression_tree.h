@@ -47,7 +47,12 @@ class ExprImplBase {
   virtual ~ExprImplBase() = default;
 };
 
-enum class NodeType { Function, Constant, Tensor };
+enum class NodeType
+{
+  Function,
+  Constant,
+  Tensor
+};
 
 inline std::string GetAbbreviation(NodeType t) {
   switch (t) {

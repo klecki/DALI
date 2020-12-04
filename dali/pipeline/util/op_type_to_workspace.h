@@ -17,8 +17,8 @@
 
 #include "dali/core/common.h"
 #include "dali/pipeline/workspace/device_workspace.h"
-#include "dali/pipeline/workspace/sample_workspace.h"
 #include "dali/pipeline/workspace/mixed_workspace.h"
+#include "dali/pipeline/workspace/sample_workspace.h"
 
 namespace dali {
 

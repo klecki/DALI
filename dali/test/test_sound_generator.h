@@ -31,7 +31,7 @@ namespace testing {
  */
 inline void GenerateTestSound(float *inout, int length, float freq, float amplitude) {
   float m = M_PI * freq;
-  int fade = length/4;
+  int fade = length / 4;
   float ampl[8];
 
   for (int h = 0; h < 8; h++)
@@ -40,7 +40,7 @@ inline void GenerateTestSound(float *inout, int length, float freq, float amplit
   auto signal = [&](int i) {
     float v = 0;
     for (int h = 0; h < 8; h++) {
-      float phase = i * m * (2*h+1);  // generate odd harmonics
+      float phase = i * m * (2 * h + 1);  // generate odd harmonics
       v += sin(phase) * ampl[h];
     }
     return v * amplitude;
@@ -48,7 +48,7 @@ inline void GenerateTestSound(float *inout, int length, float freq, float amplit
 
   int i = 0;
   for (; i < fade; i++) {
-    float envelope = (1 - cos(M_PI*i/fade)) * 0.5f;
+    float envelope = (1 - cos(M_PI * i / fade)) * 0.5f;
     inout[i] += signal(i) * envelope;
   }
 
@@ -57,7 +57,7 @@ inline void GenerateTestSound(float *inout, int length, float freq, float amplit
   }
 
   for (; i < length; i++) {
-    float envelope = (1 - cos(M_PI*(length - i)/fade)) * 0.5f;
+    float envelope = (1 - cos(M_PI * (length - i) / fade)) * 0.5f;
     inout[i] += signal(i) * envelope;
   }
 }
@@ -71,7 +71,7 @@ template <typename RNG>
 void GenerateTestWave(RNG &rng, float *out, int length, int num_sounds, int max_sound_length,
                       float noise_level = 0.01f) {
   std::normal_distribution<float> noise(0, noise_level);
-  std::uniform_int_distribution<int> lengths(max_sound_length/10, max_sound_length);
+  std::uniform_int_distribution<int> lengths(max_sound_length / 10, max_sound_length);
   std::uniform_real_distribution<float> freqs(1e-3f, 0.3f);
   std::uniform_real_distribution<float> ampls(0.1f, 1.0f);
   for (int i = 0; i < length; i++)

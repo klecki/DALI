@@ -29,16 +29,14 @@ namespace dali {
 template <typename Backend>
 class Slice : public SliceBase<Backend> {
  public:
-  explicit inline Slice(const OpSpec &spec)
-    : SliceBase<Backend>(spec)
-    , slice_attr_(spec) {}
+  explicit inline Slice(const OpSpec &spec) : SliceBase<Backend>(spec), slice_attr_(spec) {}
 
  protected:
   void ProcessCroppingAttrs(const workspace_t<Backend> &ws) override {
     slice_attr_.ProcessArguments<Backend>(ws);
   }
 
-  const CropWindowGenerator& GetCropWindowGenerator(std::size_t data_idx) const override {
+  const CropWindowGenerator &GetCropWindowGenerator(std::size_t data_idx) const override {
     return slice_attr_.GetCropWindowGenerator(data_idx);
   }
 

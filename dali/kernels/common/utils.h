@@ -16,8 +16,8 @@
 #define DALI_KERNELS_COMMON_UTILS_H_
 
 #include <utility>
-#include "dali/core/util.h"
 #include "dali/core/traits.h"
+#include "dali/core/util.h"
 
 namespace dali {
 namespace kernels {
@@ -34,10 +34,8 @@ inline void CalcStrides(Stride *strides, const Extent *shape, int ndim) {
   }
 }
 
-
 template <typename Strides, typename Shape>
-DALI_HOST_DEV
-void CalcStrides(Strides &strides, const Shape& shape) {
+DALI_HOST_DEV void CalcStrides(Strides &strides, const Shape &shape) {
   int ndim = dali::size(shape);
   resize_if_possible(strides, ndim);  // no-op if strides is a plain array or std::array
   if (ndim > 0) {
@@ -51,8 +49,7 @@ void CalcStrides(Strides &strides, const Shape& shape) {
 }
 
 template <typename Shape, typename OutShape = Shape>
-DALI_HOST_DEV
-OutShape GetStrides(const Shape& shape) {
+DALI_HOST_DEV OutShape GetStrides(const Shape &shape) {
   OutShape strides = shape;
   CalcStrides(strides, shape);
   return strides;

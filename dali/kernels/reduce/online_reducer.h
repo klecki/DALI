@@ -32,7 +32,9 @@ struct TrivialReducer {
     r(value, x);
   }
 
-  DALI_HOST_DEV DALI_FORCEINLINE Acc result() const { return value; }
+  DALI_HOST_DEV DALI_FORCEINLINE Acc result() const {
+    return value;
+  }
 };
 
 template <typename Acc, typename Reduction>
@@ -52,22 +54,23 @@ struct OnlineSum {
   }
 
   template <typename T>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void add(T value, reductions::sum = {}) {
-  #ifdef __CUDA_ARCH__
+  DALI_HOST_DEV DALI_FORCEINLINE void add(T value, reductions::sum = {}) {
+#ifdef __CUDA_ARCH__
     // protect against fast_math optimizations
     Acc addend = __fadd_rn(residue, value);
     Acc new_sum = __fadd_rn(sum, addend);
     residue = __fadd_rn(residue, __fsub_rn(value, __fsub_rn(new_sum, sum)));
     sum = new_sum;
-  #else
+#else
     Acc new_sum = sum + (residue + value);
     residue += value - (new_sum - sum);
     sum = new_sum;
-  #endif
+#endif
   }
 
-  DALI_HOST_DEV DALI_FORCEINLINE Acc result() const { return sum; }
+  DALI_HOST_DEV DALI_FORCEINLINE Acc result() const {
+    return sum;
+  }
 };
 
 template <typename Acc>
@@ -75,7 +78,6 @@ struct OnlineSum<Acc, false> : TrivialReducer<Acc, reductions::sum> {};
 
 template <typename Acc>
 struct OnlineReducer<Acc, reductions::sum> : OnlineSum<Acc> {};
-
 
 }  // namespace kernels
 }  // namespace dali

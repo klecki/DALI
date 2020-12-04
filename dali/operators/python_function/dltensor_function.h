@@ -17,9 +17,9 @@
 #include <dali/util/pybind.h>
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
-#include <vector>
-#include <utility>
 #include <string>
+#include <utility>
+#include <vector>
 #include "dali/pipeline/operator/operator.h"
 #include "dali/pipeline/util/copy_with_stride.h"
 
@@ -44,10 +44,11 @@ constexpr DLDeviceType Backend2DLDevice() {
 
 template <typename Backend>
 std::vector<DLMTensorPtr> CastToDLTensorList(py::list &list, Index exp_size, Index out_idx) {
-  DALI_ENFORCE(list.size() == static_cast<size_t>(exp_size),
-      "Function called by DLTensorPythonFunction returned tensor list of wrong size at idx "
-      + std::to_string(out_idx) + ". Returned list is of a size "
-      + std::to_string(list.size()) + " and should be of size " + std::to_string(exp_size));
+  DALI_ENFORCE(
+      list.size() == static_cast<size_t>(exp_size),
+      "Function called by DLTensorPythonFunction returned tensor list of wrong size at idx " +
+          std::to_string(out_idx) + ". Returned list is of a size " + std::to_string(list.size()) +
+          " and should be of size " + std::to_string(exp_size));
   std::vector<DLMTensorPtr> result;
   result.reserve(exp_size);
   if (exp_size) {
@@ -57,7 +58,7 @@ std::vector<DLMTensorPtr> CastToDLTensorList(py::list &list, Index exp_size, Ind
     auto caps = py::cast<py::capsule>(list[0]);
     result.push_back(DLMTensorPtrFromCapsule(caps));
     DALI_ENFORCE(result[0]->dl_tensor.ctx.device_type == Backend2DLDevice<Backend>(),
-        "Wrong output backend");
+                 "Wrong output backend");
     auto dtype = result[0]->dl_tensor.dtype;
     auto ndim = result[0]->dl_tensor.ndim;
     for (Index i = 1; i < exp_size; ++i) {
@@ -82,12 +83,13 @@ void CopyDlTensor(void *out_data, DLMTensorPtr &dlm_tensor_ptr, cudaStream_t str
   auto item_size = dl_tensor.dtype.bits / 8;
   if (dl_tensor.strides) {
     std::vector<Index> strides(dl_tensor.ndim);
-    for (Index i = 0; i < dl_tensor.ndim; ++i) strides[i] = dl_tensor.strides[i] * item_size;
-    CopyWithStride<Backend>(out_data, dl_tensor.data, strides.data(),
-                            dl_tensor.shape, dl_tensor.ndim, item_size, stream);
+    for (Index i = 0; i < dl_tensor.ndim; ++i)
+      strides[i] = dl_tensor.strides[i] * item_size;
+    CopyWithStride<Backend>(out_data, dl_tensor.data, strides.data(), dl_tensor.shape,
+                            dl_tensor.ndim, item_size, stream);
   } else {
-    CopyWithStride<Backend>(out_data, dl_tensor.data, nullptr,
-                            dl_tensor.shape, dl_tensor.ndim, item_size, stream);
+    CopyWithStride<Backend>(out_data, dl_tensor.data, nullptr, dl_tensor.shape, dl_tensor.ndim,
+                            item_size, stream);
   }
 }
 
@@ -98,8 +100,8 @@ template <typename Backend>
 py::list PrepareDLTensorInputsPerSample(workspace_t<Backend> &ws);
 
 template <typename Workspace, typename Output>
-void CopyOutputData(Output& output, std::vector<DLMTensorPtr> &dl_tensors,
-                    int batch_size, Workspace &workspace);
+void CopyOutputData(Output &output, std::vector<DLMTensorPtr> &dl_tensors, int batch_size,
+                    Workspace &workspace);
 
 template <typename Backend>
 void PrepareOutputs(workspace_t<Backend> &ws, const py::object &output_o, int batch_size) {
@@ -107,7 +109,8 @@ void PrepareOutputs(workspace_t<Backend> &ws, const py::object &output_o, int ba
   for (Index idx = 0; idx < ws.NumOutput(); ++idx) {
     py::list dl_list = py::cast<py::list>(return_tuple[idx]);
     auto dl_tensors = CastToDLTensorList<Backend>(dl_list, batch_size, idx);
-    if (dl_tensors.empty()) continue;
+    if (dl_tensors.empty())
+      continue;
     auto &tlist = ws.template OutputRef<Backend>(idx);
     tlist.set_type(TypeTable::GetTypeInfo(DLToDALIType(dl_tensors[0]->dl_tensor.dtype)));
     tlist.Resize(GetDLTensorListShape(dl_tensors));
@@ -142,14 +145,16 @@ class StreamSynchronizer;
 template <>
 class StreamSynchronizer<GPUBackend> {
  public:
-  StreamSynchronizer(DeviceWorkspace &ws, bool synchronize): previous_(GetCurrentStream()) {
+  StreamSynchronizer(DeviceWorkspace &ws, bool synchronize) : previous_(GetCurrentStream()) {
     SetCurrentStream(ws.stream());
-    if (synchronize) cudaStreamSynchronize(ws.stream());
+    if (synchronize)
+      cudaStreamSynchronize(ws.stream());
   }
 
   ~StreamSynchronizer() {
     SetCurrentStream(previous_);
   }
+
  private:
   cudaStream_t previous_;
 };
@@ -162,14 +167,13 @@ class StreamSynchronizer<CPUBackend> {
 
 }  // namespace detail
 
-
 template <typename Backend>
 class DLTensorPythonFunctionImpl : public Operator<Backend> {
  public:
   inline explicit DLTensorPythonFunctionImpl(const OpSpec &spec)
-      : Operator<Backend>(spec)
-      , python_function(py::reinterpret_borrow<py::object>(
-          reinterpret_cast<PyObject*>(spec.GetArgument<int64_t>("function_id")))) {
+      : Operator<Backend>(spec),
+        python_function(py::reinterpret_borrow<py::object>(
+            reinterpret_cast<PyObject *>(spec.GetArgument<int64_t>("function_id")))) {
     synchronize_stream_ = spec.GetArgument<bool>("synchronize_stream");
     batch_processing = spec.GetArgument<bool>("batch_processing");
     size_t num_outputs = spec.GetArgument<int>("num_outputs");
@@ -204,17 +208,20 @@ class DLTensorPythonFunctionImpl : public Operator<Backend> {
         if (inputs.size() > 0) {
           for (auto &input_tuple : inputs) {
             py::object output = python_function(*input_tuple);
-            if (!output.is_none()) out_batch.append(output);
+            if (!output.is_none())
+              out_batch.append(output);
           }
         } else {
           for (int s = 0; s < batch_size_; ++s) {
             py::object output = python_function();
-            if (!output.is_none()) out_batch.append(output);
+            if (!output.is_none())
+              out_batch.append(output);
           }
         }
-        if (out_batch.size() != 0) output_o = out_batch;
+        if (out_batch.size() != 0)
+          output_o = out_batch;
       }
-    } catch(const py::error_already_set &e) {
+    } catch (const py::error_already_set &e) {
       throw std::runtime_error(to_string("DLTensorPythonFunction error: ") + to_string(e.what()));
     }
     if (!output_o.is_none()) {
@@ -224,8 +231,8 @@ class DLTensorPythonFunctionImpl : public Operator<Backend> {
         detail::PrepareOutputsPerSample<Backend>(ws, output_o, batch_size_);
       }
     } else {
-      DALI_ENFORCE(ws.NumOutput() == 0, "Python function returned 0 outputs and "
-          + std::to_string(ws.NumOutput()) + " were expected.");
+      DALI_ENFORCE(ws.NumOutput() == 0, "Python function returned 0 outputs and " +
+                                            std::to_string(ws.NumOutput()) + " were expected.");
     }
   };
 

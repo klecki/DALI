@@ -12,21 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/common/join/tensor_join_gpu_impl.h"
 #include "dali/kernels/common/join/tensor_join_gpu_impl.cuh"
+#include "dali/kernels/common/join/tensor_join_gpu_impl.h"
 
 namespace dali {
 namespace kernels {
 namespace tensor_join {
 
-
 template <typename T, bool new_axis>
 void TensorJoinImplGPU<T, new_axis>::Setup(
-        TensorListShape<> &output_shape,
-        ScratchpadEstimator &se,
-        const std::function<const TensorListShape<> *(int)> &get_input_shape,
-        int num_inputs,
-        int axis) {
+    TensorListShape<> &output_shape, ScratchpadEstimator &se,
+    const std::function<const TensorListShape<> *(int)> &get_input_shape, int num_inputs,
+    int axis) {
   JoinedShape(output_shape, get_input_shape, num_inputs, axis, new_axis);
   int N = output_shape.num_samples();
   se.add<OutputDesc<T>>(AllocType::GPU, N);
@@ -37,33 +34,29 @@ void TensorJoinImplGPU<T, new_axis>::Setup(
 }
 
 template <typename T, bool new_axis>
-void TensorJoinImplGPU<T, new_axis>::Run(
-        KernelContext &ctx,
-        const OutListGPU<T> &out,
-        span<const InListGPU<T> *const> in_lists) {
+void TensorJoinImplGPU<T, new_axis>::Run(KernelContext &ctx, const OutListGPU<T> &out,
+                                         span<const InListGPU<T> *const> in_lists) {
   int njoin = in_lists.size();
   int N = out.num_samples();
   int N_in = N * njoin;
 
-  auto output_descs_cpu = make_span(
-    ctx.scratchpad->Allocate<OutputDesc<T>>(AllocType::Host, N), N);
-  auto input_descs_cpu  = make_span(
-    ctx.scratchpad->Allocate<InputDesc<T>>(AllocType::Host, N_in), N_in);
+  auto output_descs_cpu = make_span(ctx.scratchpad->Allocate<OutputDesc<T>>(AllocType::Host, N), N);
+  auto input_descs_cpu =
+      make_span(ctx.scratchpad->Allocate<InputDesc<T>>(AllocType::Host, N_in), N_in);
 
   FillDescs(output_descs_cpu, input_descs_cpu, out, in_lists, axis_);
 
   OutputDesc<T> *out_descs_gpu = nullptr;
   InputDesc<T> *in_descs_gpu = nullptr;
 
-  std::tie(out_descs_gpu, in_descs_gpu) = ctx.scratchpad->ToContiguousGPU(
-    ctx.gpu.stream, output_descs_cpu, input_descs_cpu);
+  std::tie(out_descs_gpu, in_descs_gpu) =
+      ctx.scratchpad->ToContiguousGPU(ctx.gpu.stream, output_descs_cpu, input_descs_cpu);
 
   int64_t avg_size = out.num_elements() / N;
   dim3 grid(std::max(static_cast<int>(avg_size / 2048), 32), N);
   dim3 block(256);  // tuned!
 
-  JoinTensorsKernel<<<grid, block, 0, ctx.gpu.stream>>>(
-    out_descs_gpu, in_descs_gpu, njoin);
+  JoinTensorsKernel<<<grid, block, 0, ctx.gpu.stream>>>(out_descs_gpu, in_descs_gpu, njoin);
 }
 
 template class TensorJoinImplGPU<type_of_size<1>, false>;

@@ -34,8 +34,7 @@ namespace dali {
 template <typename Backend>
 class ToDecibels : public Operator<Backend> {
  public:
-  explicit ToDecibels(const OpSpec &spec)
-      : Operator<Backend>(spec) {
+  explicit ToDecibels(const OpSpec &spec) : Operator<Backend>(spec) {
     args_.multiplier = spec.GetArgument<float>("multiplier");
     args_.ref_max = !spec.HasArgument("reference");
     if (!args_.ref_max) {
@@ -49,7 +48,9 @@ class ToDecibels : public Operator<Backend> {
   }
 
  protected:
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override;
   void RunImpl(workspace_t<Backend> &ws) override;
 

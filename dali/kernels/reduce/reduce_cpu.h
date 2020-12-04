@@ -18,9 +18,6 @@
 #include <cassert>
 #include <utility>
 #include <vector>
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/common/utils.h"
-#include "dali/kernels/reduce/reductions.h"
 #include "dali/core/format.h"
 #include "dali/core/small_vector.h"
 #include "dali/core/span.h"
@@ -28,6 +25,9 @@
 #include "dali/core/tensor_shape_print.h"
 #include "dali/core/tensor_view.h"
 #include "dali/core/util.h"
+#include "dali/kernels/common/utils.h"
+#include "dali/kernels/kernel.h"
+#include "dali/kernels/reduce/reductions.h"
 
 namespace dali {
 namespace kernels {
@@ -54,15 +54,15 @@ void reduce1D_stride(Dst &reduced, const Src *data, int64_t dynamic_stride, int6
     // reduce to a temporary
     Dst tmp = neutral;
     for (int64_t i = 0; i < n; i++)
-       R(tmp, P(data[i * stride]));
+      R(tmp, P(data[i * stride]));
     // accumulate in target value
     R(reduced, tmp);
   }
 }
 
 template <typename Dst, typename Src, typename Preprocessor, typename Reduction>
-void reduce1D(Dst &reduced, const Src *data, int64_t stride, int64_t n,
-              const Preprocessor &P, const Reduction &R) {
+void reduce1D(Dst &reduced, const Src *data, int64_t stride, int64_t n, const Preprocessor &P,
+              const Reduction &R) {
   VALUE_SWITCH(stride, static_stride, (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16),
     (reduce1D_stride<static_stride>(reduced, data, static_stride, n, P, R);),
     (reduce1D_stride<-1>(reduced, data, stride, n, P, R);)
@@ -72,15 +72,16 @@ void reduce1D(Dst &reduced, const Src *data, int64_t stride, int64_t n,
 template <typename Backend, typename T>
 struct StridedTensor {
   T *data = nullptr;
-  int dim() const noexcept { return size.size(); }
+  int dim() const noexcept {
+    return size.size();
+  }
   SmallVector<int, 6> stride, size;
 };
 
 /// @brief Reduces a strided tensor slice to a scalar
 template <typename Dst, typename Src, typename Preprocessor, typename Reduction>
-void reduce(Dst &reduced, const StridedTensor<StorageCPU, Src> &in,
-            const Preprocessor &P, const Reduction &R,
-            int axis, int64_t extent, int64_t offset) {
+void reduce(Dst &reduced, const StridedTensor<StorageCPU, Src> &in, const Preprocessor &P,
+            const Reduction &R, int axis, int64_t extent, int64_t offset) {
   int64_t stride = in.stride[axis];
   const Dst neutral = R.template neutral<Dst>();
   if (axis == in.dim() - 1) {
@@ -108,8 +109,8 @@ void reduce(Dst &reduced, const StridedTensor<StorageCPU, Src> &in,
 
 /// @brief Reduces a strided tensor to a scalar
 template <typename Dst, typename Src, typename Preprocessor, typename Reduction>
-void reduce(Dst &reduced, const StridedTensor<StorageCPU, Src> &in,
-            const Preprocessor &P, const Reduction &R, int64_t offset) {
+void reduce(Dst &reduced, const StridedTensor<StorageCPU, Src> &in, const Preprocessor &P,
+            const Reduction &R, int64_t offset) {
   reduce(reduced, in, P, R, 0, in.size[0], offset);
 }
 
@@ -137,8 +138,7 @@ void reduce(Dst &reduced, const StridedTensor<StorageCPU, Src> &in,
  */
 template <typename Dst, typename Src, typename Actual>
 struct ReduceBaseCPU {
-  void Setup(const OutTensorCPU<Dst, -1> &out,
-             const InTensorCPU<Src, -1> &in,
+  void Setup(const OutTensorCPU<Dst, -1> &out, const InTensorCPU<Src, -1> &in,
              span<const int> axes) {
     if (in.shape.size() > 64)
       throw std::range_error("Reduce supports up to 64 dimensions");
@@ -154,11 +154,8 @@ struct ReduceBaseCPU {
     self.PostSetup();
   }
 
-  KernelRequirements Setup(
-      KernelContext ctx,
-      const OutTensorCPU<Dst, -1> &out,
-      const InTensorCPU<Src, -1> &in,
-      span<const int> axes) {
+  KernelRequirements Setup(KernelContext ctx, const OutTensorCPU<Dst, -1> &out,
+                           const InTensorCPU<Src, -1> &in, span<const int> axes) {
     Setup(out, in, axes);
     return KernelRequirements();
   }
@@ -191,8 +188,12 @@ struct ReduceBaseCPU {
       output.data[i] = This().Postprocess(output.data[i]);
   }
 
-  Actual &This() noexcept { return static_cast<Actual&>(*this); }
-  const Actual &This() const noexcept { return static_cast<const Actual&>(*this); }
+  Actual &This() noexcept {
+    return static_cast<Actual &>(*this);
+  }
+  const Actual &This() const noexcept {
+    return static_cast<const Actual &>(*this);
+  }
 
   /**
    * @brief Returns a unary function transforming the input values prior to reduction.
@@ -201,13 +202,19 @@ struct ReduceBaseCPU {
    *
    * @param pos coordinates of the reduced value in the output tensor
    */
-  identity GetPreprocessor(span<int64_t> pos) const { return {}; }
+  identity GetPreprocessor(span<int64_t> pos) const {
+    return {};
+  }
 
   /// @brief Returns a reduction functor, by default, a sum. Can be shadowed by Actual class.
-  reductions::sum GetReduction() const { return {}; }
+  reductions::sum GetReduction() const {
+    return {};
+  }
 
   /// @brief Transforms an output value. Can be shadowed by Actual class.
-  Dst Postprocess(const Dst &x) const { return x; }
+  Dst Postprocess(const Dst &x) const {
+    return x;
+  }
 
  protected:
   void ReduceAxis(bool clear, span<int64_t> pos, int axis, int64_t offset = 0) {
@@ -221,7 +228,7 @@ struct ReduceBaseCPU {
     } else {
       for (int64_t i = 0; i < output.shape[axis]; i++) {
         pos[axis] = i;
-        ReduceAxis(clear, pos, axis+1, offset + i*step[axis]);
+        ReduceAxis(clear, pos, axis + 1, offset + i * step[axis]);
       }
     }
   }
@@ -237,8 +244,8 @@ struct ReduceBaseCPU {
   void InitAxes(span<const int> _axes) {
     for (int axis : _axes) {
       if (axis < 0 || axis >= ndim()) {
-        throw std::range_error(make_string("Axis index out of range: ", axis, " not in 0..",
-                               ndim()-1));
+        throw std::range_error(
+            make_string("Axis index out of range: ", axis, " not in 0..", ndim() - 1));
       }
     }
 
@@ -252,10 +259,12 @@ struct ReduceBaseCPU {
   void CheckOutput() {
     if (axis_mask == (static_cast<uint64_t>(1) << ndim()) - 1) {
       DALI_ENFORCE(
-        (output.dim() == 1 || output.dim() == 0 || output.dim() == input.dim()) &&
-          output.num_elements() == 1,
-        make_string("Full reduction produces a single value (possibly keeping reduced dimensions)."
-        "\nOutput shape provided: ", output.shape));
+          (output.dim() == 1 || output.dim() == 0 || output.dim() == input.dim()) &&
+              output.num_elements() == 1,
+          make_string(
+              "Full reduction produces a single value (possibly keeping reduced dimensions)."
+              "\nOutput shape provided: ",
+              output.shape));
     } else {
       TensorShape<> expected1, expected2 = input.shape;
       for (int i = 0; i < input.dim(); i++) {
@@ -264,12 +273,11 @@ struct ReduceBaseCPU {
         else
           expected1.shape.push_back(input.shape[i]);
       }
-      DALI_ENFORCE(output.shape == expected1 || output.shape == expected2, make_string(
-        "Unexpected shape for reduction. Should be:  ", expected1, "  or  ", expected2, ",\ngot:  ",
-        output.shape));
+      DALI_ENFORCE(output.shape == expected1 || output.shape == expected2,
+                   make_string("Unexpected shape for reduction. Should be:  ", expected1, "  or  ",
+                               expected2, ",\ngot:  ", output.shape));
     }
   }
-
 
   void CollapseAxes() {
     SmallVector<int, 6> tmp_axes = std::move(axes);
@@ -298,7 +306,7 @@ struct ReduceBaseCPU {
     output.shape.resize(ndim() - axes.size());
     // full reduction?
     if (output.shape.empty())
-      output.shape = { 1 };
+      output.shape = {1};
   }
 
   void SetupInput() {
@@ -321,7 +329,9 @@ struct ReduceBaseCPU {
     assert((oaxis == 0 && output.dim() == 1) || oaxis == output.dim());
   }
 
-  DALI_FORCEINLINE int ndim() const noexcept { return input.shape.size(); }
+  DALI_FORCEINLINE int ndim() const noexcept {
+    return input.shape.size();
+  }
   DALI_FORCEINLINE bool is_reduced_axis(int axis) const noexcept {
     return axis_mask & (static_cast<uint64_t>(1) << axis);
   }
@@ -335,21 +345,21 @@ struct ReduceBaseCPU {
 };
 
 template <typename Dst, typename Src>
-struct SumCPU : ReduceBaseCPU<Dst, Src, SumCPU<Dst, Src>> {
-};
-
+struct SumCPU : ReduceBaseCPU<Dst, Src, SumCPU<Dst, Src>> {};
 
 template <typename Dst, typename Src>
 struct MinCPU : ReduceBaseCPU<Dst, Src, MinCPU<Dst, Src>> {
-  reductions::min GetReduction() const { return {}; }
+  reductions::min GetReduction() const {
+    return {};
+  }
 };
-
 
 template <typename Dst, typename Src>
 struct MaxCPU : ReduceBaseCPU<Dst, Src, MaxCPU<Dst, Src>> {
-  reductions::max GetReduction() const { return {}; }
+  reductions::max GetReduction() const {
+    return {};
+  }
 };
-
 
 template <typename Dst, typename Src>
 struct MeanCPU : ReduceBaseCPU<Dst, Src, MeanCPU<Dst, Src>> {
@@ -367,7 +377,6 @@ struct MeanCPU : ReduceBaseCPU<Dst, Src, MeanCPU<Dst, Src>> {
   std::conditional_t<std::is_same<Dst, double>::value, double, float> norm_factor = 1;
 };
 
-
 template <typename Dst, typename Src>
 struct MeanSquareCPU : ReduceBaseCPU<Dst, Src, MeanSquareCPU<Dst, Src>> {
   using Base = ReduceBaseCPU<Dst, Src, MeanSquareCPU<Dst, Src>>;
@@ -379,7 +388,9 @@ struct MeanSquareCPU : ReduceBaseCPU<Dst, Src, MeanSquareCPU<Dst, Src>> {
     norm_factor = 1.0 / v;
   }
 
-  reductions::square GetPreprocessor(span<int64_t> pos) const { return {}; }
+  reductions::square GetPreprocessor(span<int64_t> pos) const {
+    return {};
+  }
 
   Dst Postprocess(Dst x) const {
     return x * norm_factor;
@@ -387,7 +398,6 @@ struct MeanSquareCPU : ReduceBaseCPU<Dst, Src, MeanSquareCPU<Dst, Src>> {
 
   std::conditional_t<std::is_same<Dst, double>::value, double, float> norm_factor = 1;
 };
-
 
 template <typename Dst, typename Src>
 struct RootMeanSquareCPU : ReduceBaseCPU<Dst, Src, RootMeanSquareCPU<Dst, Src>> {
@@ -400,7 +410,9 @@ struct RootMeanSquareCPU : ReduceBaseCPU<Dst, Src, RootMeanSquareCPU<Dst, Src>> 
     norm_factor = 1.0 / v;
   }
 
-  reductions::square GetPreprocessor(span<int64_t> pos) const { return {}; }
+  reductions::square GetPreprocessor(span<int64_t> pos) const {
+    return {};
+  }
 
   Dst Postprocess(Dst x) const {
     return std::sqrt(x * norm_factor);
@@ -414,24 +426,17 @@ struct VarianceCPU : ReduceBaseCPU<Dst, Src, VarianceCPU<Dst, Src, MeanType>> {
   using Base = ReduceBaseCPU<Dst, Src, VarianceCPU<Dst, Src, MeanType>>;
   InTensorCPU<MeanType, -1> mean;
 
-  void Setup(
-      const OutTensorCPU<Dst, -1> &out,
-      const InTensorCPU<Src, -1> &in,
-      span<const int> axes,
-      const InTensorCPU<MeanType, -1> &mean) {
+  void Setup(const OutTensorCPU<Dst, -1> &out, const InTensorCPU<Src, -1> &in, span<const int> axes,
+             const InTensorCPU<MeanType, -1> &mean) {
     assert(mean.shape == out.shape);
     Base::Setup(out, in, axes);
     this->mean = mean;
     this->mean.shape = this->output.shape;
   }
 
-  KernelRequirements Setup(
-      KernelContext ctx,
-      const OutTensorCPU<Dst, -1> &out,
-      const InTensorCPU<Src, -1> &in,
-      span<const int> axes,
-      const InTensorCPU<MeanType, -1> &mean,
-      int ddof) {
+  KernelRequirements Setup(KernelContext ctx, const OutTensorCPU<Dst, -1> &out,
+                           const InTensorCPU<Src, -1> &in, span<const int> axes,
+                           const InTensorCPU<MeanType, -1> &mean, int ddof) {
     ddof_ = ddof;
     Setup(out, in, axes, mean);
     return KernelRequirements();
@@ -446,7 +451,7 @@ struct VarianceCPU : ReduceBaseCPU<Dst, Src, VarianceCPU<Dst, Src, MeanType>> {
   }
 
   reductions::variance<MeanType> GetPreprocessor(span<int64_t> pos) const {
-    return { *mean(pos) };
+    return {*mean(pos)};
   }
 
   Dst Postprocess(Dst x) const {
@@ -462,24 +467,17 @@ struct StdDevCPU : ReduceBaseCPU<Dst, Src, StdDevCPU<Dst, Src, MeanType>> {
   using Base = ReduceBaseCPU<Dst, Src, StdDevCPU<Dst, Src, MeanType>>;
   InTensorCPU<MeanType, -1> mean;
 
-  void Setup(
-      const OutTensorCPU<Dst, -1> &out,
-      const InTensorCPU<Src, -1> &in,
-      span<const int> axes,
-      const InTensorCPU<MeanType, -1> &mean) {
+  void Setup(const OutTensorCPU<Dst, -1> &out, const InTensorCPU<Src, -1> &in, span<const int> axes,
+             const InTensorCPU<MeanType, -1> &mean) {
     assert(mean.shape == out.shape);
     Base::Setup(out, in, axes);
     this->mean = mean;
     this->mean.shape = this->output.shape;
   }
 
-  KernelRequirements Setup(
-      KernelContext ctx,
-      const OutTensorCPU<Dst, -1> &out,
-      const InTensorCPU<Src, -1> &in,
-      span<const int> axes,
-      const InTensorCPU<MeanType, -1> &mean,
-      int ddof) {
+  KernelRequirements Setup(KernelContext ctx, const OutTensorCPU<Dst, -1> &out,
+                           const InTensorCPU<Src, -1> &in, span<const int> axes,
+                           const InTensorCPU<MeanType, -1> &mean, int ddof) {
     ddof_ = ddof;
     Setup(out, in, axes, mean);
     return KernelRequirements();
@@ -494,7 +492,7 @@ struct StdDevCPU : ReduceBaseCPU<Dst, Src, StdDevCPU<Dst, Src, MeanType>> {
   }
 
   reductions::variance<MeanType> GetPreprocessor(span<int64_t> pos) const {
-    return { *mean(pos) };
+    return {*mean(pos)};
   }
 
   Dst Postprocess(Dst x) const {
@@ -504,7 +502,6 @@ struct StdDevCPU : ReduceBaseCPU<Dst, Src, StdDevCPU<Dst, Src, MeanType>> {
   std::conditional_t<std::is_same<Dst, double>::value, double, float> norm_factor = 1;
   int ddof_ = 0;
 };
-
 
 }  // namespace kernels
 }  // namespace dali

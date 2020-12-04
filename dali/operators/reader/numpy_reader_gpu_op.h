@@ -15,22 +15,22 @@
 #ifndef DALI_OPERATORS_READER_NUMPY_READER_GPU_OP_H_
 #define DALI_OPERATORS_READER_NUMPY_READER_GPU_OP_H_
 
-#include <utility>
 #include <string>
+#include <utility>
 #include <vector>
 
-#include "dali/operators/reader/reader_op.h"
-#include "dali/operators/reader/loader/numpy_loader_gpu.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/transpose/transpose_gpu.h"
+#include "dali/operators/reader/loader/numpy_loader_gpu.h"
+#include "dali/operators/reader/reader_op.h"
 
 namespace dali {
 
 class NumpyReaderGPU : public DataReader<GPUBackend, ImageFileWrapperGPU> {
  public:
-  explicit NumpyReaderGPU(const OpSpec& spec) :
-    DataReader<GPUBackend, ImageFileWrapperGPU>(spec),
-    thread_pool_(num_threads_, spec.GetArgument<int>("device_id"), false) {
+  explicit NumpyReaderGPU(const OpSpec& spec)
+      : DataReader<GPUBackend, ImageFileWrapperGPU>(spec),
+        thread_pool_(num_threads_, spec.GetArgument<int>("device_id"), false) {
     prefetched_batch_tensors_.resize(prefetch_queue_depth_);
 
     // set a device guard
@@ -38,8 +38,7 @@ class NumpyReaderGPU : public DataReader<GPUBackend, ImageFileWrapperGPU> {
 
     // init loader
     bool shuffle_after_epoch = spec.GetArgument<bool>("shuffle_after_epoch");
-    loader_ = InitLoader<NumpyLoaderGPU>(spec, std::vector<string>(),
-                                         shuffle_after_epoch);
+    loader_ = InitLoader<NumpyLoaderGPU>(spec, std::vector<string>(), shuffle_after_epoch);
 
     kmgr_.Resize<TransposeKernel>(1, 1);
   }
@@ -78,9 +77,11 @@ class NumpyReaderGPU : public DataReader<GPUBackend, ImageFileWrapperGPU> {
     return prefetched_batch_tensors_[curr_batch_consumer_].raw_mutable_tensor(sample_idx);
   }
 
-  bool CanInferOutputs() const override { return false; }
+  bool CanInferOutputs() const override {
+    return false;
+  }
 
-  void RunImpl(DeviceWorkspace &ws) override;
+  void RunImpl(DeviceWorkspace& ws) override;
 
   USE_READER_OPERATOR_MEMBERS(GPUBackend, ImageFileWrapperGPU);
 

@@ -17,23 +17,20 @@
 
 #include <vector>
 
-#include "dali/pipeline/operator/operator.h"
 #include "dali/core/convert.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
-
-#define CAST_ALLOWED_TYPES \
-  (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, \
-  float16, float, double)
+#define CAST_ALLOWED_TYPES                                                                         \
+  (bool, uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float16, float, \
+   double)
 
 template <typename Backend>
 class Cast : public Operator<Backend> {
  public:
-  explicit inline Cast(const OpSpec &spec) :
-    Operator<Backend>(spec),
-    output_type_(spec.GetArgument<DALIDataType>("dtype"))
-    {}
+  explicit inline Cast(const OpSpec &spec)
+      : Operator<Backend>(spec), output_type_(spec.GetArgument<DALIDataType>("dtype")) {}
 
   inline ~Cast() override = default;
 

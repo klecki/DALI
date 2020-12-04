@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_IMAGE_REMAP_JITTER_CUH_
 #define DALI_OPERATORS_IMAGE_REMAP_JITTER_CUH_
 
 #include <ctgmath>
-#include <vector>
 #include <random>
+#include <vector>
 #include "dali/core/host_dev.h"
-#include "dali/pipeline/operator/operator.h"
 #include "dali/operators/image/remap/displacement_filter.h"
 #include "dali/operators/util/randomizer.cuh"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
@@ -32,18 +31,18 @@ class JitterAugment {};
 template <>
 class JitterAugment<GPUBackend> {
  public:
-  explicit JitterAugment(const OpSpec& spec) :
-        nDegree_(spec.GetArgument<int>("nDegree")),
+  explicit JitterAugment(const OpSpec& spec)
+      : nDegree_(spec.GetArgument<int>("nDegree")),
         rnd_(spec.GetArgument<int64_t>("seed"), rnd_size_) {}
 
   __device__ ivec2 operator()(int y, int x, int c, int H, int W, int C) {
-    const uint16_t nHalf = nDegree_/2;
+    const uint16_t nHalf = nDegree_ / 2;
 
     const int idx = threadIdx.x + blockIdx.x * blockDim.x;
 
     int newX = rnd_.rand(idx % rnd_size_) % nDegree_ - nHalf + x;
     int newY = rnd_.rand(idx % rnd_size_) % nDegree_ - nHalf + y;
-    return { cuda_min(cuda_max(0, newX), W), cuda_min(cuda_max(0, newY), H) };
+    return {cuda_min(cuda_max(0, newX), W), cuda_min(cuda_max(0, newY), H)};
   }
 
   void Cleanup() {}
@@ -57,10 +56,10 @@ class JitterAugment<GPUBackend> {
 template <typename Backend>
 class Jitter : public DisplacementFilter<Backend, JitterAugment<Backend>> {
  public:
-    inline explicit Jitter(const OpSpec &spec)
+  inline explicit Jitter(const OpSpec& spec)
       : DisplacementFilter<Backend, JitterAugment<Backend>>(spec) {}
 
-    virtual ~Jitter() = default;
+  virtual ~Jitter() = default;
 };
 
 }  // namespace dali

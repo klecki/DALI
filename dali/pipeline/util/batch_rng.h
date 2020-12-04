@@ -45,14 +45,12 @@ class BatchRNG {
     }
   }
 
-
   /**
    * Returns engine corresponding to given sample ID
    */
   RNG &operator[](int sample) noexcept {
     return rngs_[sample];
   }
-
 
  private:
   int64_t seed_;

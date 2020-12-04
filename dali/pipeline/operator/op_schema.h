@@ -26,9 +26,9 @@
 
 #include "dali/core/common.h"
 #include "dali/core/copy_vector_helper.h"
+#include "dali/core/error_handling.h"
 #include "dali/core/format.h"
 #include "dali/core/traits.h"
-#include "dali/core/error_handling.h"
 #include "dali/pipeline/data/types.h"
 #include "dali/pipeline/operator/argument.h"
 
@@ -53,7 +53,8 @@ struct DeprecatedArgDef {
   bool removed = false;
 };
 
-enum class InputDevice : uint8_t {
+enum class InputDevice : uint8_t
+{
   MatchBackend = 0,
   CPU = 1,
   GPU = 2,
@@ -68,7 +69,7 @@ class DLL_PUBLIC OpSchema {
   OpSchema &operator=(const OpSchema &) = delete;
   OpSchema &operator=(OpSchema &&) = default;
 
-  DLL_PUBLIC explicit inline OpSchema(const std::string &name): name_(name) {
+  DLL_PUBLIC explicit inline OpSchema(const std::string &name) : name_(name) {
     // Fill internal arguments
     AddInternalArg("num_threads", "Number of CPU threads in a thread pool", -1);
     AddInternalArg("batch_size", "Batch size", -1);
@@ -78,32 +79,33 @@ class DLL_PUBLIC OpSchema {
 
     AddOptionalArg("seed", R"code(Random seed.
 
-If not provided, it will be populated based on the global seed of the pipeline.)code", -1);
+If not provided, it will be populated based on the global seed of the pipeline.)code",
+                   -1);
 
     AddOptionalArg("bytes_per_sample_hint", R"code(Output size hint, in bytes per sample.
 
 If specified, the operator's outputs residing in GPU or page-locked host memory will be preallocated
-to accommodate a batch of samples of this size.)code", 0);
+to accommodate a batch of samples of this size.)code",
+                   0);
 
-    AddOptionalArg("preserve",  R"code(Prevents the operator from being removed from the
-graph even if its outputs are not used.)code", false);
+    AddOptionalArg("preserve", R"code(Prevents the operator from being removed from the
+graph even if its outputs are not used.)code",
+                   false);
   }
-
-
 
   DLL_PUBLIC inline ~OpSchema() = default;
 
   /**
    * @brief Returns the name of this operator.
    */
-  DLL_PUBLIC inline const std::string& name() const {
+  DLL_PUBLIC inline const std::string &name() const {
     return name_;
   }
 
   /**
    * @brief Sets the doc string for this operator.
    */
-  DLL_PUBLIC inline OpSchema& DocStr(const string &dox) {
+  DLL_PUBLIC inline OpSchema &DocStr(const string &dox) {
     dox_ = dox;
     return *this;
   }
@@ -121,7 +123,7 @@ graph even if its outputs are not used.)code", false);
    *     doc
    */
   DLL_PUBLIC inline OpSchema &InputDox(int index, const string &name, const string &type_doc,
-                                          const string &doc) {
+                                       const string &doc) {
     CheckInputIndex(index);
     DALI_ENFORCE(!name.empty(), "Name of the argument should not be empty");
     DALI_ENFORCE(call_dox_.empty(),
@@ -175,7 +177,7 @@ graph even if its outputs are not used.)code", false);
    * If the ops has a fixed number of outputs, this function
    * does not need to be added to the schema
    */
-  DLL_PUBLIC inline OpSchema& OutputFn(SpecFunc f) {
+  DLL_PUBLIC inline OpSchema &OutputFn(SpecFunc f) {
     output_fn_ = std::move(f);
     return *this;
   }
@@ -191,7 +193,7 @@ graph even if its outputs are not used.)code", false);
    * Use case is to expose additional information (such as random
    * numbers used within operators) to the user
    */
-  DLL_PUBLIC inline OpSchema& AdditionalOutputsFn(SpecFunc f) {
+  DLL_PUBLIC inline OpSchema &AdditionalOutputsFn(SpecFunc f) {
     additional_outputs_fn_ = std::move(f);
     return *this;
   }
@@ -199,7 +201,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Sets the number of inputs that the op can receive.
    */
-  DLL_PUBLIC inline OpSchema& NumInput(int n) {
+  DLL_PUBLIC inline OpSchema &NumInput(int n) {
     DALI_ENFORCE(n >= 0);
     max_num_input_ = n;
     min_num_input_ = n;
@@ -212,7 +214,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Sets the min and max number of inputs the op can receive.
    */
-  DLL_PUBLIC inline OpSchema& NumInput(int min, int max) {
+  DLL_PUBLIC inline OpSchema &NumInput(int min, int max) {
     DALI_ENFORCE(min <= max);
     DALI_ENFORCE(min >= 0);
     DALI_ENFORCE(max >= 0);
@@ -227,7 +229,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Sets the input device for given range of inputs
    */
-  DLL_PUBLIC inline OpSchema& InputDevice(int first, int one_past, dali::InputDevice device) {
+  DLL_PUBLIC inline OpSchema &InputDevice(int first, int one_past, dali::InputDevice device) {
     for (int i = first; i < one_past; i++)
       input_devices_[i] = device;
     return *this;
@@ -236,7 +238,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Sets the input device for given range of input
    */
-  DLL_PUBLIC inline OpSchema& InputDevice(int index, dali::InputDevice device) {
+  DLL_PUBLIC inline OpSchema &InputDevice(int index, dali::InputDevice device) {
     input_devices_[index] = device;
     return *this;
   }
@@ -251,7 +253,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Sets the number of outputs that the op can receive.
    */
-  DLL_PUBLIC inline OpSchema& NumOutput(int n) {
+  DLL_PUBLIC inline OpSchema &NumOutput(int n) {
     DALI_ENFORCE(n >= 0);
     num_output_ = n;
     return *this;
@@ -261,7 +263,7 @@ graph even if its outputs are not used.)code", false);
    * @brief Indicates that this operator should not use auto-generated documentation
    *        of inputs and `__call__` operator with custom signature.
    */
-  DLL_PUBLIC inline OpSchema& DisableAutoInputDox() {
+  DLL_PUBLIC inline OpSchema &DisableAutoInputDox() {
     disable_auto_input_dox_ = true;
     return *this;
   }
@@ -270,7 +272,7 @@ graph even if its outputs are not used.)code", false);
    * @brief Indicates that multiple instances of this operator cannot share a logical ID to achieve
    * uniform processing of multiple input sets
    */
-  DLL_PUBLIC inline OpSchema& DisallowInstanceGrouping() {
+  DLL_PUBLIC inline OpSchema &DisallowInstanceGrouping() {
     allow_instance_grouping_ = false;
     return *this;
   }
@@ -278,7 +280,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Notes that this operator expects sequence inputs exclusively
    */
-  DLL_PUBLIC inline OpSchema& SequenceOperator() {
+  DLL_PUBLIC inline OpSchema &SequenceOperator() {
     is_sequence_operator_ = true;
     return *this;
   }
@@ -286,7 +288,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Notes that sequences can be used with this op
    */
-  DLL_PUBLIC inline OpSchema& AllowSequences() {
+  DLL_PUBLIC inline OpSchema &AllowSequences() {
     allow_sequences_ = true;
     return *this;
   }
@@ -295,15 +297,16 @@ graph even if its outputs are not used.)code", false);
    * Notes that the operator can process 3D data.
    * @return
    */
-  DLL_PUBLIC inline OpSchema& SupportVolumetric() {
+  DLL_PUBLIC inline OpSchema &SupportVolumetric() {
     support_volumetric_ = true;
     return *this;
   }
 
   /**
-   * @brief Notes that this operator is internal to DALI backend (and shouldn't be exposed in Python API)
+   * @brief Notes that this operator is internal to DALI backend (and shouldn't be exposed in Python
+   * API)
    */
-  DLL_PUBLIC inline OpSchema& MakeInternal() {
+  DLL_PUBLIC inline OpSchema &MakeInternal() {
     is_internal_ = true;
     return *this;
   }
@@ -311,15 +314,16 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Notes that this operator doc should not be visible (but the Op is exposed in Python API)
    */
-  DLL_PUBLIC inline OpSchema& MakeDocHidden() {
+  DLL_PUBLIC inline OpSchema &MakeDocHidden() {
     is_doc_hidden_ = true;
     return *this;
   }
 
   /**
-   * @brief Notes that this operator is deprecated and optionally specifies the operator to be used instead
+   * @brief Notes that this operator is deprecated and optionally specifies the operator to be used
+   * instead
    */
-  DLL_PUBLIC inline OpSchema& Deprecate(const std::string &in_favor_of) {
+  DLL_PUBLIC inline OpSchema &Deprecate(const std::string &in_favor_of) {
     is_deprecated_ = true;
     deprecated_in_favor_of_ = in_favor_of;
     return *this;
@@ -328,7 +332,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Notes that this operator cannot be serialized
    */
-  DLL_PUBLIC inline OpSchema& Unserializable() {
+  DLL_PUBLIC inline OpSchema &Unserializable() {
     serializable_ = false;
     return *this;
   }
@@ -336,10 +340,8 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Adds a required argument to op with its type
    */
-  DLL_PUBLIC inline OpSchema& AddArg(const std::string &s,
-                                     const std::string &doc,
-                                     const DALIDataType dtype,
-                                     bool enable_tensor_input = false) {
+  DLL_PUBLIC inline OpSchema &AddArg(const std::string &s, const std::string &doc,
+                                     const DALIDataType dtype, bool enable_tensor_input = false) {
     CheckArgument(s);
     arguments_[s] = {doc, dtype};
     if (enable_tensor_input) {
@@ -357,8 +359,8 @@ graph even if its outputs are not used.)code", false);
    * If the input tensor has no layout, the one provided to this function is assumed
    * if number of dimensions matches. Otherswise, error is raised.
    */
-  DLL_PUBLIC inline OpSchema& InputLayout(int index, TensorLayout layout) {
-    return InputLayout(index, { layout });
+  DLL_PUBLIC inline OpSchema &InputLayout(int index, TensorLayout layout) {
+    return InputLayout(index, {layout});
   }
 
   /**
@@ -372,10 +374,10 @@ graph even if its outputs are not used.)code", false);
    * it will be the default value for this input. If number of dimensions doesn't
    * match any of the layouts provided here, an error is raised.
    */
-  DLL_PUBLIC inline OpSchema& InputLayout(int index, std::initializer_list<TensorLayout> layouts) {
+  DLL_PUBLIC inline OpSchema &InputLayout(int index, std::initializer_list<TensorLayout> layouts) {
     CheckInputIndex(index);
-    DALI_ENFORCE(input_layouts_[index].empty(), "Layouts for input " + std::to_string(index) +
-                 " already specified");
+    DALI_ENFORCE(input_layouts_[index].empty(),
+                 "Layouts for input " + std::to_string(index) + " already specified");
     for (auto &l : layouts) {
       DALI_ENFORCE(!l.empty(), "Cannot specify an empty layout for an input");
     }
@@ -387,15 +389,15 @@ graph even if its outputs are not used.)code", false);
    * @brief Sets input layout constraint and default for all inputs.
    * @see InputLayout(int index, TensorLayout layout)
    */
-  DLL_PUBLIC inline OpSchema& InputLayout(TensorLayout layout) {
-    return InputLayout({ layout });
+  DLL_PUBLIC inline OpSchema &InputLayout(TensorLayout layout) {
+    return InputLayout({layout});
   }
 
   /**
    * @brief Sets input layout constraint and default for all inputs.
    * @see InputLayout(int index, TensorLayout layout)
    */
-  DLL_PUBLIC inline OpSchema& InputLayout(std::initializer_list<TensorLayout> layouts) {
+  DLL_PUBLIC inline OpSchema &InputLayout(std::initializer_list<TensorLayout> layouts) {
     for (int i = 0; i < max_num_input_; i++)
       InputLayout(i, layouts);
     return *this;
@@ -408,8 +410,9 @@ graph even if its outputs are not used.)code", false);
   DLL_PUBLIC inline const TensorLayout &GetInputLayout(int index, int sample_ndim,
                                                        const TensorLayout &layout = {}) const {
     CheckInputIndex(index);
-    DALI_ENFORCE(layout.empty() || layout.ndim() == sample_ndim, make_string(
-      "The layout '", layout, "' is not valid for ", sample_ndim, "-dimensional tensor"));
+    DALI_ENFORCE(layout.empty() || layout.ndim() == sample_ndim,
+                 make_string("The layout '", layout, "' is not valid for ", sample_ndim,
+                             "-dimensional tensor"));
 
     if (input_layouts_[index].empty()) {
       return layout;
@@ -420,8 +423,10 @@ graph even if its outputs are not used.)code", false);
         if (l.ndim() == sample_ndim)
           return l;
       std::stringstream ss;
-      ss << "The number of dimensions " << sample_ndim << " does not match any of the allowed"
-        " layouts for input " << index << ". Valid layouts are:\n";
+      ss << "The number of dimensions " << sample_ndim
+         << " does not match any of the allowed"
+            " layouts for input "
+         << index << ". Valid layouts are:\n";
       for (auto &l : input_layouts_[index])
         ss << l.c_str() << "\n";
       DALI_FAIL(ss.str());
@@ -430,8 +435,10 @@ graph even if its outputs are not used.)code", false);
         if (l == layout)
           return l;
       std::stringstream ss;
-      ss << "The layout \"" << layout << "\" does not match any of the allowed"
-        " layouts for input " << index << ". Valid layouts are:\n";
+      ss << "The layout \"" << layout
+         << "\" does not match any of the allowed"
+            " layouts for input "
+         << index << ". Valid layouts are:\n";
       for (auto &l : input_layouts_[index])
         ss << l.c_str() << "\n";
       DALI_FAIL(ss.str());
@@ -447,10 +454,8 @@ graph even if its outputs are not used.)code", false);
    * @brief Adds an optional non-vector argument without default to op
    */
   template <typename T>
-  DLL_PUBLIC inline OpSchema& AddOptionalArg(const std::string &s,
-                                     const std::string &doc,
-                                     std::nullptr_t,
-                                     bool enable_tensor_input = false) {
+  DLL_PUBLIC inline OpSchema &AddOptionalArg(const std::string &s, const std::string &doc,
+                                             std::nullptr_t, bool enable_tensor_input = false) {
     CheckArgument(s);
     optional_arguments_[s] = {doc, type2id<T>::value, nullptr};
     if (enable_tensor_input) {
@@ -459,15 +464,12 @@ graph even if its outputs are not used.)code", false);
     return *this;
   }
 
-
   /**
    * @brief Adds an optional non-vector argument to op
    */
   template <typename T>
-  DLL_PUBLIC inline std::enable_if_t<!is_vector<T>::value && !is_std_array<T>::value, OpSchema&>
-  AddOptionalArg(const std::string &s,
-                 const std::string &doc,
-                 T default_value,
+  DLL_PUBLIC inline std::enable_if_t<!is_vector<T>::value && !is_std_array<T>::value, OpSchema &>
+  AddOptionalArg(const std::string &s, const std::string &doc, T default_value,
                  bool enable_tensor_input = false) {
     CheckArgument(s);
     auto to_store = Value::construct(default_value);
@@ -479,8 +481,7 @@ graph even if its outputs are not used.)code", false);
     return *this;
   }
 
-  DLL_PUBLIC inline OpSchema &AddOptionalArg(const std::string &s,
-                                             const std::string &doc,
+  DLL_PUBLIC inline OpSchema &AddOptionalArg(const std::string &s, const std::string &doc,
                                              const char *default_value) {
     return AddOptionalArg(s, doc, std::string(default_value), false);
   }
@@ -489,7 +490,7 @@ graph even if its outputs are not used.)code", false);
    * @brief Adds an optional vector argument to op
    */
   template <typename T>
-  DLL_PUBLIC inline OpSchema& AddOptionalArg(const std::string &s, const std::string &doc,
+  DLL_PUBLIC inline OpSchema &AddOptionalArg(const std::string &s, const std::string &doc,
                                              std::vector<T> default_value,
                                              bool enable_tensor_input = false) {
     CheckArgument(s);
@@ -509,9 +510,8 @@ graph even if its outputs are not used.)code", false);
    * Providing renamed_to means the argument has been renamed and we can safely
    * propagate the value to the new argument name.
    */
-  DLL_PUBLIC inline OpSchema &DeprecateArgInFavorOf(const std::string& arg_name,
-                                                    std::string renamed_to,
-                                                    std::string msg = {}) {
+  DLL_PUBLIC inline OpSchema &DeprecateArgInFavorOf(const std::string &arg_name,
+                                                    std::string renamed_to, std::string msg = {}) {
     if (msg.empty())
       msg = DefaultDeprecatedArgMsg(arg_name, renamed_to, false);
     deprecated_arguments_[arg_name] = {std::move(renamed_to), std::move(msg), false};
@@ -527,10 +527,10 @@ graph even if its outputs are not used.)code", false);
    *              deprecated argument until it is finally removed completely from the schema.
    *          3. For renaming the argument see DeprecateArgInFavorOf
    */
-  DLL_PUBLIC inline OpSchema &DeprecateArg(const std::string& arg_name,
-                                           bool removed = true,
+  DLL_PUBLIC inline OpSchema &DeprecateArg(const std::string &arg_name, bool removed = true,
                                            std::string msg = {}) {
-    DALI_ENFORCE(HasArgument(arg_name),
+    DALI_ENFORCE(
+        HasArgument(arg_name),
         make_string("Argument \"", arg_name,
                     "\" has been marked for deprecation but it is not present in the schema."));
     if (msg.empty())
@@ -543,7 +543,7 @@ graph even if its outputs are not used.)code", false);
    * @brief Sets a function that infers whether the op can
    * be executed in-place depending on the ops specification.
    */
-  DLL_PUBLIC inline OpSchema& InPlaceFn(SpecFunc f) {
+  DLL_PUBLIC inline OpSchema &InPlaceFn(SpecFunc f) {
     (void)f;
     REPORT_FATAL_PROBLEM("In-place op support not yet implemented.");
     return *this;
@@ -555,12 +555,12 @@ graph even if its outputs are not used.)code", false);
    * and the lookup is transitive.
    * Only arguments are inherited, inputs and outputs are not.
    */
-  DLL_PUBLIC inline OpSchema& AddParent(const std::string &parentName) {
+  DLL_PUBLIC inline OpSchema &AddParent(const std::string &parentName) {
     parents_.push_back(parentName);
     return *this;
   }
 
-  DLL_PUBLIC inline OpSchema& SetName(const std::string &name) {
+  DLL_PUBLIC inline OpSchema &SetName(const std::string &name) {
     name_ = name;
     return *this;
   }
@@ -569,7 +569,7 @@ graph even if its outputs are not used.)code", false);
    * @brief Notes that this operator should not be pruned from
    * a graph even if its outputs are unused.
    */
-  DLL_PUBLIC inline OpSchema& NoPrune() {
+  DLL_PUBLIC inline OpSchema &NoPrune() {
     no_prune_ = true;
     return *this;
   }
@@ -595,7 +595,7 @@ graph even if its outputs are not used.)code", false);
     return *this;
   }
 
-  DLL_PUBLIC inline const vector<std::string>& GetParents() const {
+  DLL_PUBLIC inline const vector<std::string> &GetParents() const {
     return parents_;
   }
 
@@ -639,8 +639,7 @@ graph even if its outputs are not used.)code", false);
    *
    */
   DLL_PUBLIC std::string GetCallSignatureInputs() {
-    DALI_ENFORCE(HasInputDox(),
-                 "Input documentation was not specified for this operator.");
+    DALI_ENFORCE(HasInputDox(), "Input documentation was not specified for this operator.");
     std::stringstream result;
     for (int i = 0; i < MinNumInput(); i++) {
       result << input_dox_[i].name;
@@ -659,8 +658,7 @@ graph even if its outputs are not used.)code", false);
 
   DLL_PUBLIC std::string GetInputName(int input_idx) {
     CheckInputIndex(input_idx);
-    DALI_ENFORCE(HasInputDox(),
-                 "Input documentation was not specified for this operator.");
+    DALI_ENFORCE(HasInputDox(), "Input documentation was not specified for this operator.");
     DALI_ENFORCE(!input_dox_[input_idx].name.empty(),
                  make_string("Docstring for input ", input_idx,
                              "was not set. All inputs should be documented."));
@@ -669,18 +667,15 @@ graph even if its outputs are not used.)code", false);
 
   DLL_PUBLIC std::string GetInputType(int input_idx) {
     CheckInputIndex(input_idx);
-    DALI_ENFORCE(HasInputDox(),
-                 "Input documentation was not specified for this operator.");
+    DALI_ENFORCE(HasInputDox(), "Input documentation was not specified for this operator.");
     return input_dox_[input_idx].type_doc;
   }
 
   DLL_PUBLIC std::string GetInputDox(int input_idx) {
     CheckInputIndex(input_idx);
-    DALI_ENFORCE(HasInputDox(),
-                 "Input documentation was not specified for this operator.");
+    DALI_ENFORCE(HasInputDox(), "Input documentation was not specified for this operator.");
     return input_dox_[input_idx].doc;
   }
-
 
   DLL_PUBLIC inline int MaxNumInput() const {
     return max_num_input_;
@@ -726,18 +721,18 @@ graph even if its outputs are not used.)code", false);
     return is_deprecated_;
   }
 
-  DLL_PUBLIC inline const std::string& DeprecatedInFavorOf() const {
+  DLL_PUBLIC inline const std::string &DeprecatedInFavorOf() const {
     return deprecated_in_favor_of_;
   }
 
-  DLL_PUBLIC inline bool IsDeprecatedArg(const std::string& arg_name) const  {
+  DLL_PUBLIC inline bool IsDeprecatedArg(const std::string &arg_name) const {
     return deprecated_arguments_.find(arg_name) != deprecated_arguments_.end();
   }
 
-  DLL_PUBLIC inline const DeprecatedArgDef& DeprecatedArgMeta(const std::string& arg_name) const  {
+  DLL_PUBLIC inline const DeprecatedArgDef &DeprecatedArgMeta(const std::string &arg_name) const {
     auto it = deprecated_arguments_.find(arg_name);
     DALI_ENFORCE(it != deprecated_arguments_.end(),
-      make_string("Argument \"", arg_name, "\" is not marked as a deprecated argument"));
+                 make_string("Argument \"", arg_name, "\" is not marked as a deprecated argument"));
     return it->second;
   }
 
@@ -771,12 +766,14 @@ graph even if its outputs are not used.)code", false);
   DLL_PUBLIC int CalculateOutputs(const OpSpec &spec) const;
 
   DLL_PUBLIC int CalculateAdditionalOutputs(const OpSpec &spec) const {
-    if (!additional_outputs_fn_) return 0;
+    if (!additional_outputs_fn_)
+      return 0;
     return additional_outputs_fn_(spec);
   }
 
   DLL_PUBLIC inline bool SupportsInPlace(const OpSpec &spec) const {
-    if (!in_place_fn_) return false;
+    if (!in_place_fn_)
+      return false;
     return in_place_fn_(spec);
   }
 
@@ -785,7 +782,7 @@ graph even if its outputs are not used.)code", false);
   /**
    * @brief Get default value of optional or internal argument. The default value must be declared
    */
-  template<typename T>
+  template <typename T>
   DLL_PUBLIC inline T GetDefaultValueForArgument(const std::string &s) const;
 
   DLL_PUBLIC bool HasRequiredArgument(const std::string &name, const bool local_only = false) const;
@@ -798,14 +795,12 @@ graph even if its outputs are not used.)code", false);
    * @brief Finds default value for a given argument
    * @return A pair of the defining schema and the value
    */
-  DLL_PUBLIC std::pair<const OpSchema *, const Value *>
-  FindDefaultValue(const std::string &arg_name,
-                   bool local_only = false,
-                   bool include_internal = true) const;
+  DLL_PUBLIC std::pair<const OpSchema *, const Value *> FindDefaultValue(
+      const std::string &arg_name, bool local_only = false, bool include_internal = true) const;
 
   DLL_PUBLIC inline bool HasArgument(const std::string &name, bool include_internal = false) const {
-    return HasRequiredArgument(name) || HasOptionalArgument(name)
-        || (include_internal && HasInternalArgument(name, true));
+    return HasRequiredArgument(name) || HasOptionalArgument(name) ||
+           (include_internal && HasInternalArgument(name, true));
   }
 
   /**
@@ -839,21 +834,19 @@ graph even if its outputs are not used.)code", false);
 
  private:
   inline void CheckArgument(const std::string &s) {
-    DALI_ENFORCE(!HasArgument(s),
-                 "Argument \"" + s + "\" already added to the schema");
+    DALI_ENFORCE(!HasArgument(s), "Argument \"" + s + "\" already added to the schema");
     DALI_ENFORCE(internal_arguments_.find(s) == internal_arguments_.end(),
                  "Argument name \"" + s + "\" is reserved for internal use");
   }
 
   inline void CheckInputIndex(int index) const {
     DALI_ENFORCE(index >= 0 && index < max_num_input_,
-      "Output index (=" + std::to_string(index) +  ") out of range [0.." +
-      std::to_string(max_num_input_) + ").\nWas NumInput called?");
+                 "Output index (=" + std::to_string(index) + ") out of range [0.." +
+                     std::to_string(max_num_input_) + ").\nWas NumInput called?");
   }
 
   inline std::string DefaultDeprecatedArgMsg(const std::string &arg_name,
-                                             const std::string &renamed_to,
-                                             bool removed) const {
+                                             const std::string &renamed_to, bool removed) const {
     std::stringstream ss;
     ss << "Argument '" << arg_name << "' for operator '" << name_ << "' is now deprecated.";
     if (!renamed_to.empty()) {
@@ -927,8 +920,8 @@ graph even if its outputs are not used.)code", false);
   std::map<std::string, DefaultedArgumentDef> optional_arguments_;
   std::map<std::string, DefaultedArgumentDef> internal_arguments_;
   std::map<std::string, DeprecatedArgDef> deprecated_arguments_;
-  std::vector<std::unique_ptr<Value> > optional_arguments_unq_;
-  std::vector<std::unique_ptr<Value> > internal_arguments_unq_;
+  std::vector<std::unique_ptr<Value>> optional_arguments_unq_;
+  std::vector<std::unique_ptr<Value>> internal_arguments_unq_;
   std::vector<std::vector<TensorLayout>> input_layouts_;
   std::vector<dali::InputDevice> input_devices_;
 
@@ -937,38 +930,37 @@ graph even if its outputs are not used.)code", false);
 
 class SchemaRegistry {
  public:
-  DLL_PUBLIC static OpSchema& RegisterSchema(const std::string &name);
-  DLL_PUBLIC static const OpSchema& GetSchema(const std::string &name);
-  DLL_PUBLIC static const OpSchema* TryGetSchema(const std::string &name);
+  DLL_PUBLIC static OpSchema &RegisterSchema(const std::string &name);
+  DLL_PUBLIC static const OpSchema &GetSchema(const std::string &name);
+  DLL_PUBLIC static const OpSchema *TryGetSchema(const std::string &name);
 
  private:
   inline SchemaRegistry() {}
 
-  DLL_PUBLIC static std::map<string, OpSchema>& registry();
+  DLL_PUBLIC static std::map<string, OpSchema> &registry();
 };
 
-template<typename T>
+template <typename T>
 inline T OpSchema::GetDefaultValueForArgument(const std::string &s) const {
   const Value *v = FindDefaultValue(s, false, true).second;
   DALI_ENFORCE(v != nullptr,
                make_string("The argument \"", s, "\" doesn't have a default value in schema \"",
                            name(), "\"."));
 
-  const ValueInst<T> * vT = dynamic_cast<const ValueInst<T>*>(v);
+  const ValueInst<T> *vT = dynamic_cast<const ValueInst<T> *>(v);
   DALI_ENFORCE(vT != nullptr, "Unexpected type of the default value for argument \"" + s +
-        "\" of schema \"" + this->name() + "\"");
+                                  "\" of schema \"" + this->name() + "\"");
   return vT->Get();
 }
 
-#define DALI_SCHEMA_REG(OpName)      \
-  int DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName() {        \
-    return 42;                                              \
-  }                                                         \
-  static ::dali::OpSchema* ANONYMIZE_VARIABLE(OpName) =             \
-    &::dali::SchemaRegistry::RegisterSchema(#OpName)
+#define DALI_SCHEMA_REG(OpName)                         \
+  int DALI_OPERATOR_SCHEMA_REQUIRED_FOR_##OpName() {    \
+    return 42;                                          \
+  }                                                     \
+  static ::dali::OpSchema *ANONYMIZE_VARIABLE(OpName) = \
+      &::dali::SchemaRegistry::RegisterSchema(#OpName)
 
-#define DALI_SCHEMA(OpName)                            \
-      DALI_SCHEMA_REG(OpName)
+#define DALI_SCHEMA(OpName) DALI_SCHEMA_REG(OpName)
 
 }  // namespace dali
 

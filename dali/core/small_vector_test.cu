@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include "dali/test/device_test.h"
 #include "dali/core/small_vector.h"
+#include "dali/test/device_test.h"
 
 DEVICE_TEST(SmallVectorDev, Test, dim3(1), dim3(1)) {
   dali::SmallVector<int, 3> v;
@@ -38,7 +38,7 @@ DEVICE_TEST(SmallVectorDev, Test, dim3(1), dim3(1)) {
   DEV_EXPECT_EQ(v[5], 6);
   DEV_EXPECT_EQ(v[6], 7);
   DEV_EXPECT_EQ(v[7], 8);
-  v.erase(v.begin()+2, v.end()-2);
+  v.erase(v.begin() + 2, v.end() - 2);
   DEV_ASSERT_EQ(v.size(), 4);
   DEV_EXPECT_EQ(v[0], 1);
   DEV_EXPECT_EQ(v[1], 2);
@@ -64,7 +64,6 @@ DEVICE_TEST(SmallVectorDev, MovePoD, 1, 1) {
   DEV_EXPECT_EQ(a.data(), ptr);
   DEV_EXPECT_TRUE(b.empty());
 }
-
 
 DEVICE_TEST(SmallVectorDev, Resize, 1, 1) {
   dali::SmallVector<int32_t, 4> v;

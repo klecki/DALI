@@ -25,8 +25,7 @@ namespace other_ns {
 template <typename Backend>
 class Dummy : public ::dali::Operator<Backend> {
  public:
-  inline explicit Dummy(const ::dali::OpSpec &spec) :
-    ::dali::Operator<Backend>(spec) {}
+  inline explicit Dummy(const ::dali::OpSpec &spec) : ::dali::Operator<Backend>(spec) {}
 
   virtual inline ~Dummy() = default;
 

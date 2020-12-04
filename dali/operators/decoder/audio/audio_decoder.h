@@ -37,7 +37,7 @@ class AudioDecoderBase {
     return OpenImpl(encoded);
   }
 
-  AudioMetadata OpenFromFile(const std::string &filepath) {
+  AudioMetadata OpenFromFile(const std::string& filepath) {
     Close();
     return OpenFromFileImpl(filepath);
   }
@@ -90,7 +90,7 @@ class AudioDecoderBase {
   virtual ptrdiff_t DecodeFramesImpl(int32_t* output, int64_t nframes) = 0;
 
   virtual AudioMetadata OpenImpl(span<const char> encoded) = 0;
-  virtual AudioMetadata OpenFromFileImpl(const std::string &filepath) = 0;
+  virtual AudioMetadata OpenFromFileImpl(const std::string& filepath) = 0;
   virtual void CloseImpl() = 0;
 };
 

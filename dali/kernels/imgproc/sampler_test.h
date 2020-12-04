@@ -34,9 +34,9 @@ struct SamplerTestData {
   Surface2D<const T> GetSurface2D(bool gpu) {
     Surface2D<const T> surface;
     surface.data = gpu ? GetGPUData() : GetCPUData();
-    surface.size = { W, H };
+    surface.size = {W, H};
     surface.channels = C;
-    surface.strides = { C, W*C };
+    surface.strides = {C, W * C};
     surface.channel_stride = 1;
     return surface;
   }
@@ -44,16 +44,16 @@ struct SamplerTestData {
   Surface3D<const T> GetSurface3D(bool gpu) {
     Surface3D<const T> surface;
     surface.data = gpu ? GetGPUData() : GetCPUData();
-    surface.size = { W, H, D };
+    surface.size = {W, H, D};
     surface.channels = C;
-    surface.strides = { C, W*C, H*W*C };
+    surface.strides = {C, W * C, H * W * C};
     surface.channel_stride = 1;
     return surface;
   }
 
  private:
   static const T *InitCPUData() {
-    static T data[D*W*H*C];
+    static T data[D * W * H * C];
     std::mt19937_64 rng;
     if (std::is_integral<T>::value) {
       std::uniform_int_distribution<int> dist(0, 0x7fffffff);
@@ -74,8 +74,9 @@ struct SamplerTestData {
 
   const T *GetGPUData() {
     if (!gpu_storage) {
-      gpu_storage = memory::alloc_unique<T>(AllocType::GPU, D*W*H*C);
-      cudaMemcpy(gpu_storage.get(), GetCPUData(), sizeof(T)*D*W*H*C, cudaMemcpyHostToDevice);
+      gpu_storage = memory::alloc_unique<T>(AllocType::GPU, D * W * H * C);
+      cudaMemcpy(gpu_storage.get(), GetCPUData(), sizeof(T) * D * W * H * C,
+                 cudaMemcpyHostToDevice);
     }
     return gpu_storage.get();
   }

@@ -16,8 +16,8 @@
 #define DALI_UTIL_MMAPED_FILE_H_
 
 #include <cstdio>
-#include <string>
 #include <memory>
+#include <string>
 
 #include "dali/core/common.h"
 #include "dali/util/file.h"
@@ -31,7 +31,7 @@ class MmapedFileStream : public FileStream {
   shared_ptr<void> Get(size_t n_bytes) override;
   static bool ReserveFileMappings(unsigned int num);
   static void FreeFileMappings(unsigned int num);
-  size_t Read(uint8_t * buffer, size_t n_bytes) override;
+  size_t Read(uint8_t* buffer, size_t n_bytes) override;
   void Seek(int64 pos) override;
   size_t Size() const override;
 

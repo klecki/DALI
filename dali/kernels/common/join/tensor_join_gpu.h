@@ -15,9 +15,9 @@
 #ifndef DALI_KERNELS_COMMON_JOIN_TENSOR_JOIN_GPU_H_
 #define DALI_KERNELS_COMMON_JOIN_TENSOR_JOIN_GPU_H_
 
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/common/type_erasure.h"
 #include "dali/kernels/common/join/tensor_join_gpu_impl.h"
+#include "dali/kernels/common/type_erasure.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -37,6 +37,7 @@ template <typename T, bool new_axis>
 class TensorJoinGPU : public tensor_join::TensorJoinImplGPU<type_of_size<sizeof(T)>, new_axis> {
   using U = type_of_size<sizeof(T)>;
   using InListU = InListGPU<U>;
+
  public:
   using Base = tensor_join::TensorJoinImplGPU<U, new_axis>;
 
@@ -59,8 +60,7 @@ class TensorJoinGPU : public tensor_join::TensorJoinImplGPU<type_of_size<sizeof(
    */
   KernelRequirements Setup(KernelContext &ctx,
                            const std::function<const TensorListShape<> *(int)> &get_input_shape,
-                           int num_inputs,
-                           int axis) {
+                           int num_inputs, int axis) {
     ScratchpadEstimator se;
     KernelRequirements req;
     req.output_shapes.resize(1);
@@ -85,10 +85,9 @@ class TensorJoinGPU : public tensor_join::TensorJoinImplGPU<type_of_size<sizeof(
    * Respective tensors in the input must have the same shape (if new_axis == `true`) or can
    * differ at index `axis` (if new_axis == `false`).
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           span<const InListGPU<T>> inputs,
-                           int axis) {
-    return Setup(ctx, [&](int idx){ return &inputs[idx].shape; }, inputs.size(), axis);
+  KernelRequirements Setup(KernelContext &ctx, span<const InListGPU<T>> inputs, int axis) {
+    return Setup(
+        ctx, [&](int idx) { return &inputs[idx].shape; }, inputs.size(), axis);
   }
 
   /**
@@ -101,10 +100,8 @@ class TensorJoinGPU : public tensor_join::TensorJoinImplGPU<type_of_size<sizeof(
   template <int in_ndim>
   void Run(KernelContext &ctx, const OutListGPU<T> &out,
            span<const InListGPU<T, in_ndim> *const> in_lists) {
-    auto *lists = reinterpret_cast<const InListGPU<U, in_ndim> *const*>(in_lists.data());
-    Base::Run(ctx,
-        reinterpret_cast<const OutListGPU<U> &>(out),
-        make_span(lists, in_lists.size()));
+    auto *lists = reinterpret_cast<const InListGPU<U, in_ndim> *const *>(in_lists.data());
+    Base::Run(ctx, reinterpret_cast<const OutListGPU<U> &>(out), make_span(lists, in_lists.size()));
   }
 
   /**

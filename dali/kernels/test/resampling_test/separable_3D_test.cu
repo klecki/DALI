@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <gtest/gtest.h>
 #include <cuda_runtime.h>
+#include <gtest/gtest.h>
 #include <stdio.h>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -26,12 +26,12 @@
 #include "dali/core/math_util.h"
 #include "dali/core/tensor_shape_print.h"
 
-#include "dali/kernels/imgproc/resample/separable.h"
-#include "dali/kernels/test/test_data.h"
-#include "dali/kernels/scratch.h"
 #include "dali/kernels/imgproc/resample.h"
+#include "dali/kernels/imgproc/resample/separable.h"
 #include "dali/kernels/imgproc/resample_cpu.h"
+#include "dali/kernels/scratch.h"
 #include "dali/kernels/test/resampling_test/resampling_test_params.h"
+#include "dali/kernels/test/test_data.h"
 
 #include "dali/test/cv_mat_utils.h"
 #include "dali/test/tensor_test_utils.h"
@@ -54,8 +54,8 @@ struct Bubble {
 };
 
 template <typename T>
-__global__ void DrawBubblesKernel(T *data, ivec3 size, int nch,
-                                  const Bubble *bubbles, int nbubbles) {
+__global__ void DrawBubblesKernel(T *data, ivec3 size, int nch, const Bubble *bubbles,
+                                  int nbubbles) {
   int x = blockIdx.x * blockDim.x + threadIdx.x;
   int y = blockIdx.y * blockDim.y + threadIdx.y;
   int z = blockIdx.z * blockDim.z + threadIdx.z;
@@ -66,10 +66,10 @@ __global__ void DrawBubblesKernel(T *data, ivec3 size, int nch,
 
   vec3 pos(x + 0.5f, y + 0.5f, z + 0.5f);
 
-  float color[kMaxChannels] = { 0 };
+  float color[kMaxChannels] = {0};
   for (int i = 0; i < nbubbles; i++) {
     float dsq = (bubbles[i].centre - pos).length_square();
-    float d = dsq*rsqrt(dsq);
+    float d = dsq * rsqrt(dsq);
     float magnitude = expf(bubbles[i].decay * dsq);
     float phase = bubbles[i].frequency * d;
     for (int c = 0; c < nch; c++)
@@ -94,8 +94,8 @@ struct TestDataGenerator {
     assert(tensor.shape[3] <= kMaxChannels);
     dim3 block(32, 32, 1);
     dim3 grid(div_ceil(size.x, 32), div_ceil(size.y, 32), size.z);
-    DrawBubblesKernel<<<grid, block, 0, stream>>>(tensor.data, size, nch,
-                                                  gpu_bubbles, bubbles.size());
+    DrawBubblesKernel<<<grid, block, 0, stream>>>(tensor.data, size, nch, gpu_bubbles,
+                                                  bubbles.size());
   }
 
   template <int ndim>
@@ -105,7 +105,7 @@ struct TestDataGenerator {
     assert(tensor.dim() == 4 && "Tensor must be 4D");
     std::mt19937_64 rng(1234);
     std::uniform_real_distribution<float> dist(0, 1);
-    std::uniform_real_distribution<float> freq_dist(M_PI/10, M_PI/3);
+    std::uniform_real_distribution<float> freq_dist(M_PI / 10, M_PI / 3);
     std::uniform_real_distribution<float> sigma_dist(10, 100);
 
     auto shape = tensor.shape;
@@ -114,11 +114,11 @@ struct TestDataGenerator {
 
     std::vector<Bubble> bubbles(num_bubbles);
     for (int i = 0; i < num_bubbles; i++) {
-      bubbles[i].centre = { shape[2] * dist(rng), shape[1] * dist(rng), shape[0] * dist(rng) };
+      bubbles[i].centre = {shape[2] * dist(rng), shape[1] * dist(rng), shape[0] * dist(rng)};
       for (int c = 0; c < nch; c++)
         bubbles[i].color[c] = dist(rng);
       bubbles[i].frequency = freq_dist(rng);
-      bubbles[i].decay = -1/(M_SQRT2 * sigma_dist(rng));
+      bubbles[i].decay = -1 / (M_SQRT2 * sigma_dist(rng));
     }
     DrawBubbles(tensor, make_span(bubbles), stream);
   }
@@ -127,9 +127,9 @@ struct TestDataGenerator {
 // Slices - duplicate params and shapes for depth slices as if they were additional samples
 
 template <int ndim>
-TensorListShape<ndim == DynamicDimensions ? DynamicDimensions : ndim-1>
-GetSliceShapes(const TensorListShape<ndim> &tls) {
-  TensorListShape<ndim == DynamicDimensions ? DynamicDimensions : ndim-1> slice_tls;
+TensorListShape<ndim == DynamicDimensions ? DynamicDimensions : ndim - 1> GetSliceShapes(
+    const TensorListShape<ndim> &tls) {
+  TensorListShape<ndim == DynamicDimensions ? DynamicDimensions : ndim - 1> slice_tls;
   int N = tls.num_samples();
   int total_slices = 0;
   for (int i = 0; i < N; i++) {
@@ -144,7 +144,7 @@ GetSliceShapes(const TensorListShape<ndim> &tls) {
     for (int z = 0; z < ts[0]; z++, slice++) {
       auto slice_ts = slice_tls.tensor_shape_span(slice);
       for (int d = 0; d < D; d++) {
-        slice_ts[d] = ts[d+1];
+        slice_ts[d] = ts[d + 1];
       }
     }
   }
@@ -157,8 +157,7 @@ auto GetSliceImages(const TensorListView<Storage, T, ndim> &volumes) {
 }
 
 template <int ndim>
-void GetSliceParams(vector<ResamplingParams2D> &slice_params,
-                    span<const ResamplingParams3D> params,
+void GetSliceParams(vector<ResamplingParams2D> &slice_params, span<const ResamplingParams3D> params,
                     const TensorListShape<ndim> &in_shape) {
   slice_params.clear();
   int N = in_shape.num_samples();
@@ -195,8 +194,7 @@ auto GetZImages(const TensorListView<Storage, T, ndim> &volumes) {
  *          (after resizing all the slices).
  */
 template <int ndim>
-void GetZParams(vector<ResamplingParams2D> &z_params,
-                span<const ResamplingParams3D> params,
+void GetZParams(vector<ResamplingParams2D> &z_params, span<const ResamplingParams3D> params,
                 const TensorListShape<ndim> &in_shape) {
   z_params.clear();
   int N = in_shape.num_samples();
@@ -213,7 +211,6 @@ void GetZParams(vector<ResamplingParams2D> &z_params,
   }
 }
 
-
 /**
  * @brief Use 2x 2D resampling to achieve 3D
  *
@@ -226,10 +223,8 @@ void GetZParams(vector<ResamplingParams2D> &z_params,
  * operations is not optimized and may be different.
  */
 template <typename Out, typename In>
-void Resample3Dvia2D(TestTensorList<Out> &out,
-                     TestTensorList<In> &in,
-                     span<const ResamplingParams3D> params,
-                     cudaStream_t stream) {
+void Resample3Dvia2D(TestTensorList<Out> &out, TestTensorList<In> &in,
+                     span<const ResamplingParams3D> params, cudaStream_t stream) {
   TestTensorList<float> tmp;
 
   auto in_view = in.template gpu<4>(stream);
@@ -241,7 +236,7 @@ void Resample3Dvia2D(TestTensorList<Out> &out,
   tmp_shape.resize(N);
   out_shape.resize(N);
   for (int i = 0; i < N; i++) {
-    auto in_sample_shape  = in_shape.tensor_shape_span(i);
+    auto in_sample_shape = in_shape.tensor_shape_span(i);
     auto tmp_sample_shape = tmp_shape.tensor_shape_span(i);
     auto out_sample_shape = out_shape.tensor_shape_span(i);
     for (int d = 0; d < 3; d++) {
@@ -306,12 +301,13 @@ template <typename Out, typename In, ResamplingFilterType interp>
 struct ResamplingTestParams {
   using OutputType = Out;
   using InputType = In;
-  static constexpr ResamplingFilterType interp_type() { return interp; }
+  static constexpr ResamplingFilterType interp_type() {
+    return interp;
+  }
 };
 
 template <typename Out, typename In, ResamplingFilterType interp>
-class Resample3DTest<ResamplingTestParams<Out, In, interp>>
-: public ::testing::Test {
+class Resample3DTest<ResamplingTestParams<Out, In, interp>> : public ::testing::Test {
  public:
   Resample3DTest() {
     InitShapes();
@@ -328,35 +324,35 @@ class Resample3DTest<ResamplingTestParams<Out, In, interp>>
 
     // 3 channels
     in_shapes[0] = {{
-      { 40, 60, 50, 3 },
-      { 32, 80, 120, 3 },
+        {40, 60, 50, 3},
+        {32, 80, 120, 3},
     }};
 
     out_shapes[0] = {{
-      { 51, 40, 70, 3 },
-      { 73, 87, 29, 3 },
+        {51, 40, 70, 3},
+        {73, 87, 29, 3},
     }};
 
     // variable number of channels
     in_shapes[1] = {{
-      { 10, 200, 120, 3 },
-      { 100, 10, 10, 3 },
-      { 70, 80, 90, 3 },
+        {10, 200, 120, 3},
+        {100, 10, 10, 3},
+        {70, 80, 90, 3},
     }};
 
     out_shapes[1] = {{
-      { 31, 200, 120, 3 },
-      { 51, 27, 33, 3 },
-      { 73, 181, 43, 3 },
+        {31, 200, 120, 3},
+        {51, 27, 33, 3},
+        {73, 181, 43, 3},
     }};
 
     // many channels
     in_shapes[2] = {{
-      { 40, 40, 40, 3 },
+        {40, 40, 40, 3},
     }};
 
     out_shapes[2] = {{
-      { 51, 51, 51, 3 },
+        {51, 51, 51, 3},
     }};
   }
 
@@ -380,7 +376,8 @@ class Resample3DTest<ResamplingTestParams<Out, In, interp>>
             params[i][d].roi.end = end_dist(rng) * in_sample_shape[d];
             if (dist(rng))
               std::swap(params[i][d].roi.start, params[i][d].roi.end);
-          } while (interp == ResamplingFilterType::Nearest &&
+          } while (
+              interp == ResamplingFilterType::Nearest &&
               !CheckNN(params[i][d].output_size, params[i][d].roi.start, params[i][d].roi.end));
         }
       }
@@ -431,7 +428,7 @@ class Resample3DTest<ResamplingTestParams<Out, In, interp>>
       ASSERT_EQ(req.output_shapes.size(), 1u) << "Expected only 1 output";
       ASSERT_EQ(req.output_shapes[0], out_shape) << "Unexpected output shape";
       out.reshape(out_shape);
-      cudaMemsetAsync(out.gpu(stream).data[0], 0, sizeof(Out)*out_shape.num_elements(), stream);
+      cudaMemsetAsync(out.gpu(stream).data[0], 0, sizeof(Out) * out_shape.num_elements(), stream);
 
       sa.Reserve(req.scratch_sizes);
       auto scratchpad = sa.GetScratchpad();
@@ -471,7 +468,7 @@ class Resample3DTest<ResamplingTestParams<Out, In, interp>>
 
       const TensorListShape<4> &out_shape = out_shapes[iter];
       out.reshape(out_shape);
-      memset(out.cpu(stream).data[0], 0, sizeof(Out)*out_shape.num_elements());
+      memset(out.cpu(stream).data[0], 0, sizeof(Out) * out_shape.num_elements());
 
       vector<ResamplingParams3D> params = GenerateParams(out_shape, in_shape);
 
@@ -504,8 +501,9 @@ class Resample3DTest<ResamplingTestParams<Out, In, interp>>
           // - GPU uses different rounding
           // - processing order in the reference is forced to be XYZ or YXZ, whereas
           //   the tested implementation can use any order.
-          double eps = std::is_integral<Out>::value ? 1 :
-                       std::is_integral<In>::value ? max_value<In>()*1e-6 : 1e-5;
+          double eps = std::is_integral<Out>::value  ? 1
+                       : std::is_integral<In>::value ? max_value<In>() * 1e-6
+                                                     : 1e-5;
           Check(out_cpu[i], ref_cpu[i], EqualEpsRel(eps, 2e-3));
         }
       }
@@ -514,16 +512,17 @@ class Resample3DTest<ResamplingTestParams<Out, In, interp>>
 
   vector<TensorListShape<4>> in_shapes, out_shapes;
 
-  int NumIter() const { return in_shapes.size(); }
+  int NumIter() const {
+    return in_shapes.size();
+  }
   std::mt19937_64 rng{1234};
 };
 
-using Resample3DTestTypes = ::testing::Types<
-  ResamplingTestParams<uint8_t, uint8_t, ResamplingFilterType::Nearest>,
-  ResamplingTestParams<float, uint8_t, ResamplingFilterType::Linear>,
-  ResamplingTestParams<int16_t, int16_t, ResamplingFilterType::Cubic>,
-  ResamplingTestParams<float, uint16_t, ResamplingFilterType::Lanczos3>
->;
+using Resample3DTestTypes =
+    ::testing::Types<ResamplingTestParams<uint8_t, uint8_t, ResamplingFilterType::Nearest>,
+                     ResamplingTestParams<float, uint8_t, ResamplingFilterType::Linear>,
+                     ResamplingTestParams<int16_t, int16_t, ResamplingFilterType::Cubic>,
+                     ResamplingTestParams<float, uint16_t, ResamplingFilterType::Lanczos3>>;
 
 TYPED_TEST_SUITE(Resample3DTest, Resample3DTestTypes);
 

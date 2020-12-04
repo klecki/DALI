@@ -134,14 +134,12 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
   TensorListView<StorageCPU, InType, T::ndim> baseline_in_;
   TensorListView<StorageCPU, OutType, T::ndim> baseline_out_;
 
-  const TensorListShape<> shape_ch_ = {{29, 145, 128, 3}, {64, 64, 64, 3},  {164, 164, 164, 3},
-                                       {12, 12, 12, 3},   {4, 200, 180, 3}, {200, 4, 180, 3},
-                                       {75, 75, 75, 5}, {16, 512, 512, 1}, {16, 512, 512, 1},
-                                       {16, 512, 512, 1}};
-  const TensorListShape<> shape_noch_ = {{29, 145, 128}, {64, 64, 64},  {164, 164, 164},
-                                         {12, 12, 12},   {4, 200, 180}, {200, 4, 180},
-                                         {75, 75, 75}, {16, 512, 512}, {16, 512, 512},
-                                         {16, 512, 512}};
+  const TensorListShape<> shape_ch_ = {
+      {29, 145, 128, 3}, {64, 64, 64, 3}, {164, 164, 164, 3}, {12, 12, 12, 3},   {4, 200, 180, 3},
+      {200, 4, 180, 3},  {75, 75, 75, 5}, {16, 512, 512, 1},  {16, 512, 512, 1}, {16, 512, 512, 1}};
+  const TensorListShape<> shape_noch_ = {
+      {29, 145, 128}, {64, 64, 64}, {164, 164, 164}, {12, 12, 12},   {4, 200, 180},
+      {200, 4, 180},  {75, 75, 75}, {16, 512, 512},  {16, 512, 512}, {16, 512, 512}};
   // Three last window sizes are used to verify against off-by-one error when calculating
   // where the nonzero region ends in the kernel::Conv, as the ThreadblockShape::kK == 8.
   const TensorListShape<1> shape_window = {
@@ -150,7 +148,7 @@ struct ConvolutionGpuKernelTest : public ::testing::Test {
 
 TYPED_TEST_SUITE_P(ConvolutionGpuKernelTest);
 
-  // ndim, has_channels, convolution axis, input type, [output type = float]
+// ndim, has_channels, convolution axis, input type, [output type = float]
 using ConvolutionTestValues = ::testing::Types<
     // 1D
     convolution_params<1, false, 0, uint8_t, float>,

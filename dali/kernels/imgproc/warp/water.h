@@ -15,7 +15,6 @@
 #ifndef DALI_KERNELS_IMGPROC_WARP_WATER_H_
 #define DALI_KERNELS_IMGPROC_WARP_WATER_H_
 
-
 #include "dali/core/geom/vec.h"
 
 namespace dali {
@@ -29,7 +28,7 @@ struct WaterMapping {
   DALI_HOST_DEV
   vec2 operator()(vec2 dst_pos) const {
     vec2 arg = frequency * shuffle<1, 0>(dst_pos) + phase;
-    return dst_pos + amplitude * vec2{ sin(arg.x), cos(arg.y) };
+    return dst_pos + amplitude * vec2{sin(arg.x), cos(arg.y)};
   }
 };
 

@@ -20,39 +20,38 @@
 #include <tuple>
 #include <utility>
 
-
 namespace dali {
 namespace testing {
 
 class ArgumentKey {
  public:
-  ArgumentKey(const char *arg_name) noexcept  // NOLINT (non-explicit ctor)
-          : node_name_(), arg_name_(arg_name) {
-    assert(!arg_name_.empty());  // Arg name has been set either as an empty string or not set at all NOLINT
+  ArgumentKey(const char* arg_name) noexcept  // NOLINT (non-explicit ctor)
+      : node_name_(), arg_name_(arg_name) {
+    assert(
+        !arg_name_
+             .empty());  // Arg name has been set either as an empty string or not set at all NOLINT
   }
-
 
   ArgumentKey(std::string node_name, std::string arg_name) noexcept
-          : node_name_(std::move(node_name)), arg_name_(std::move(arg_name)) {
-    assert(!arg_name_.empty());  // Arg name has been set either as an empty string or not set at all NOLINT
-    assert(!node_name_.empty());  // Node name has been set either as an empty string or not set at all NOLINT
+      : node_name_(std::move(node_name)), arg_name_(std::move(arg_name)) {
+    assert(
+        !arg_name_
+             .empty());  // Arg name has been set either as an empty string or not set at all NOLINT
+    assert(!node_name_.empty());  // Node name has been set either as an empty string or not set at
+                                  // all NOLINT
   }
-
 
   std::string node_name() const noexcept {
     return node_name_;
   }
 
-
   std::string arg_name() const noexcept {
     return arg_name_;
   }
 
-
-  bool operator<(const ArgumentKey &rhs) const noexcept {
+  bool operator<(const ArgumentKey& rhs) const noexcept {
     return std::tie(node_name_, arg_name_) < std::tie(rhs.node_name_, rhs.arg_name_);
   }
-
 
  private:
   std::string node_name_, arg_name_;

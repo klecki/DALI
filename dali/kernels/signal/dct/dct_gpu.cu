@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/signal/dct/dct_gpu.h"
 #include <cmath>
 #include "dali/core/common.h"
 #include "dali/core/convert.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
+#include "dali/core/tensor_shape_print.h"
 #include "dali/core/util.h"
 #include "dali/kernels/common/utils.h"
 #include "dali/kernels/kernel.h"
+#include "dali/kernels/signal/dct/dct_gpu.h"
 #include "dali/kernels/signal/dct/table.h"
-#include "dali/core/tensor_shape_print.h"
 
 namespace dali {
 namespace kernels {
@@ -33,9 +33,9 @@ namespace dct {
 // Transform is applied over the middle axis.
 template <typename OutputType, typename InputType, bool HasLifter>
 __global__ void ApplyDct(const typename Dct1DGpu<OutputType, InputType>::SampleDesc *samples,
-                         const BlockDesc<3> *blocks,  const float *lifter_coeffs)  {
+                         const BlockDesc<3> *blocks, const float *lifter_coeffs) {
   extern __shared__ char cos_table_shm[];
-  OutputType *cos_table = reinterpret_cast<OutputType*>(cos_table_shm);
+  OutputType *cos_table = reinterpret_cast<OutputType *>(cos_table_shm);
   int bid = blockIdx.x + gridDim.x * (blockIdx.y + gridDim.y * blockIdx.z);
   int tid = threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
   int block_vol = blockDim.x * blockDim.y * blockDim.z;
@@ -54,8 +54,8 @@ __global__ void ApplyDct(const typename Dct1DGpu<OutputType, InputType>::SampleD
       const OutputType *cos_row = cos_table + sample.input_length * (y - block.start.y);
       float coeff = HasLifter ? lifter_coeffs[y] : 1.f;
       for (int x = block.start.x + threadIdx.x; x < block.end.x; x += blockDim.x) {
-        int output_idx = out_stride[0]*z + out_stride[1]*y + x;
-        const InputType *input = sample.input + in_stride[0]*z + x;
+        int output_idx = out_stride[0] * z + out_stride[1] * y + x;
+        const InputType *input = sample.input + in_stride[0] * z + x;
         OutputType out_val = 0;
         for (int i = 0; i < sample.input_length; ++i) {
           out_val = fma(*input, cos_row[i], out_val);
@@ -77,8 +77,8 @@ __global__ void ApplyDctInner(const typename Dct1DGpu<OutputType, InputType>::Sa
   int ndct = sample.out_stride[0];
   int64_t nframes = block.frame_count;
   int input_len = sample.input_length * nframes;
-  auto *in_frames = reinterpret_cast<InputType*>(shm);
-  auto *cos_table = reinterpret_cast<OutputType*>(in_frames + input_len);
+  auto *in_frames = reinterpret_cast<InputType *>(shm);
+  auto *cos_table = reinterpret_cast<OutputType *>(in_frames + input_len);
   auto *input = sample.input + block.frame_start * sample.input_length;
   auto *output = sample.output + block.frame_start * ndct;
   int tid = threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
@@ -128,8 +128,7 @@ KernelRequirements Dct1DGpu<OutputType, InputType>::Setup(KernelContext &ctx,
   TensorListShape<3> reduced_shape(in.num_samples());
   max_cos_table_size_ = 0;
   axis_ = axis >= 0 ? axis : dims - 1;
-  DALI_ENFORCE(axis_ >= 0 && axis_ < dims,
-               make_string("Axis is out of bounds: ", axis_));
+  DALI_ENFORCE(axis_ >= 0 && axis_ < dims, make_string("Axis is out of bounds: ", axis_));
   inner_axis_ = true;
   for (int s = 0; s < args.size(); ++s) {
     args_.push_back(args[s]);
@@ -186,11 +185,9 @@ DLL_PUBLIC void Dct1DGpu<OutputType, InputType>::Run(KernelContext &ctx,
                                                      const InListGPU<InputType> &in,
                                                      InTensorGPU<float, 1> lifter_coeffs) {
   OutputType *cpu_cos_table[2];
-  cpu_cos_table[0] =
-    ctx.scratchpad->Allocate<OutputType>(AllocType::Pinned, max_cos_table_size_);
+  cpu_cos_table[0] = ctx.scratchpad->Allocate<OutputType>(AllocType::Pinned, max_cos_table_size_);
   if (cos_tables_.size() > 1) {
-    cpu_cos_table[1] =
-      ctx.scratchpad->Allocate<OutputType>(AllocType::Pinned, max_cos_table_size_);
+    cpu_cos_table[1] = ctx.scratchpad->Allocate<OutputType>(AllocType::Pinned, max_cos_table_size_);
   }
   int i = 0;
   for (auto &table_entry : cos_tables_) {
@@ -201,8 +198,8 @@ DLL_PUBLIC void Dct1DGpu<OutputType, InputType>::Run(KernelContext &ctx,
     std::tie(n, arg) = table_entry.first;
     cudaEventSynchronize(buffer_event);
     FillCosineTable(cpu_table, n, arg);
-    table_entry.second = ctx.scratchpad->ToGPU(ctx.gpu.stream,
-                                               span<OutputType>(cpu_table, n * arg.ndct));
+    table_entry.second =
+        ctx.scratchpad->ToGPU(ctx.gpu.stream, span<OutputType>(cpu_table, n * arg.ndct));
     cudaEventRecord(buffer_event, ctx.gpu.stream);
     ++i;
   }
@@ -214,16 +211,17 @@ DLL_PUBLIC void Dct1DGpu<OutputType, InputType>::Run(KernelContext &ctx,
   for (auto arg : args_) {
     auto in_shape = reduce_shape(in.tensor_shape_span(s), axis_);
     auto out_shape = reduce_shape(out.tensor_shape_span(s), axis_);
-    DALI_ENFORCE(lifter_coeffs.num_elements() == 0 || out_shape[1] <= lifter_coeffs.num_elements(),
-                 make_string("Not enough lifter coefficients. NDCT for sample ", s, " is ",
-                             out_shape[1], " and only ", lifter_coeffs.num_elements(),
-                             " coefficients were passed."));
+    DALI_ENFORCE(
+        lifter_coeffs.num_elements() == 0 || out_shape[1] <= lifter_coeffs.num_elements(),
+        make_string("Not enough lifter coefficients. NDCT for sample ", s, " is ", out_shape[1],
+                    " and only ", lifter_coeffs.num_elements(), " coefficients were passed."));
     ivec3 out_stride = GetStrides(ivec3{out_shape[0], out_shape[1], out_shape[2]});
-    ivec3 in_stride = GetStrides(ivec3{in_shape[0], in_shape[1], in_shape[2]});;
+    ivec3 in_stride = GetStrides(ivec3{in_shape[0], in_shape[1], in_shape[2]});
+    ;
     int n = in_shape[1];
     auto *cos_tables = cos_tables_[{n, arg}];
-    sample_descs_.push_back(SampleDesc{out.tensor_data(s), in.tensor_data(s),
-                                       cos_tables, in_stride, out_stride, n});
+    sample_descs_.push_back(
+        SampleDesc{out.tensor_data(s), in.tensor_data(s), cos_tables, in_stride, out_stride, n});
     max_ndct = std::max(max_ndct, arg.ndct);
     max_input_length = std::max(max_input_length, n);
     ++s;
@@ -257,19 +255,17 @@ void Dct1DGpu<OutputType, InputType>::RunInnerDCT(KernelContext &ctx, int64_t ma
   SampleDesc *sample_descs_gpu;
   BlockSetupInner::BlockDesc *block_descs_gpu;
   std::tie(sample_descs_gpu, block_descs_gpu) =
-    ctx.scratchpad->ToContiguousGPU(ctx.gpu.stream, sample_descs_, block_setup_inner_.Blocks());
+      ctx.scratchpad->ToContiguousGPU(ctx.gpu.stream, sample_descs_, block_setup_inner_.Blocks());
   dim3 block_dim = block_setup_inner_.BlockDim();
   dim3 grid_dim = block_setup_inner_.GridDim();
-  size_t shm_size =
-    block_setup_inner_.SharedMemSize<OutputType, InputType>(max_input_length, max_cos_table_size_);
+  size_t shm_size = block_setup_inner_.SharedMemSize<OutputType, InputType>(max_input_length,
+                                                                            max_cos_table_size_);
   if (lifter_coeffs.num_elements() > 0) {
-    ApplyDctInner<OutputType, InputType, true>
-      <<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(sample_descs_gpu, block_descs_gpu,
-                                                          lifter_coeffs.data);
+    ApplyDctInner<OutputType, InputType, true><<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(
+        sample_descs_gpu, block_descs_gpu, lifter_coeffs.data);
   } else {
-    ApplyDctInner<OutputType, InputType, false>
-      <<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(sample_descs_gpu, block_descs_gpu,
-                                                          nullptr);
+    ApplyDctInner<OutputType, InputType, false><<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(
+        sample_descs_gpu, block_descs_gpu, nullptr);
   }
 }
 
@@ -279,19 +275,17 @@ void Dct1DGpu<OutputType, InputType>::RunPlanarDCT(KernelContext &ctx, int max_n
   SampleDesc *sample_descs_gpu;
   BlockDesc<3> *block_descs_gpu;
   std::tie(sample_descs_gpu, block_descs_gpu) =
-    ctx.scratchpad->ToContiguousGPU(ctx.gpu.stream, sample_descs_, block_setup_.Blocks());
+      ctx.scratchpad->ToContiguousGPU(ctx.gpu.stream, sample_descs_, block_setup_.Blocks());
   dim3 grid_dim = block_setup_.GridDim();
   dim3 block_dim = block_setup_.BlockDim();
   size_t shm_size = sizeof(OutputType) * (max_cos_table_size_ + 32 * max_ndct);
   auto block = block_setup_.Blocks()[0];
   if (lifter_coeffs.num_elements() > 0) {
-    ApplyDct<OutputType, InputType, true>
-      <<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(sample_descs_gpu, block_descs_gpu,
-                                                          lifter_coeffs.data);
+    ApplyDct<OutputType, InputType, true><<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(
+        sample_descs_gpu, block_descs_gpu, lifter_coeffs.data);
   } else {
-    ApplyDct<OutputType, InputType, false>
-      <<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(sample_descs_gpu, block_descs_gpu,
-                                                          nullptr);
+    ApplyDct<OutputType, InputType, false><<<grid_dim, block_dim, shm_size, ctx.gpu.stream>>>(
+        sample_descs_gpu, block_descs_gpu, nullptr);
   }
 }
 

@@ -32,8 +32,8 @@ namespace kernels {
 namespace detail {
 
 template <bool NeedNormalize, typename OutputType, typename InputType>
-inline void Fill(OutputType &destination, InputType element,
-                 const float *mean, const float *inv_stddev) {
+inline void Fill(OutputType &destination, InputType element, const float *mean,
+                 const float *inv_stddev) {
   if (NeedNormalize) {
     float fpout = (static_cast<float>(element) - (*mean)) * (*inv_stddev);
     destination = ConvertSat<OutputType>(fpout);
@@ -60,8 +60,8 @@ void SliceFlipNormalizePermuteKernelImpl(
   }
 }
 
-template <bool NeedNormalize, bool HasChannels, typename OutputType,
-          typename InputType, int DimsLeft>
+template <bool NeedNormalize, bool HasChannels, typename OutputType, typename InputType,
+          int DimsLeft>
 void SliceFlipNormalizePermuteKernelImpl(
     OutputType *output, const InputType *input, const int64_t *in_strides,
     const int64_t *out_strides, const int64_t *anchor, const int64_t *in_shape,
@@ -101,11 +101,12 @@ void SliceFlipNormalizePermutePadKernelImpl(
       for (int i = 0; i < out_shape[d]; i++)
         output[i] = *fill_values;
     }
-  } else  {
+  } else {
     int64_t pad_before, slice, pad_after;
     std::tie(pad_before, slice, pad_after) =
-      CalcPadCopyExtents(anchor[d], in_shape[d], out_shape[d]);
-    if (in_strides[d] < 0) std::swap(pad_before, pad_after);
+        CalcPadCopyExtents(anchor[d], in_shape[d], out_shape[d]);
+    if (in_strides[d] < 0)
+      std::swap(pad_before, pad_after);
 
     // out of bounds (left side)
     if (pad_before > 0) {
@@ -113,7 +114,7 @@ void SliceFlipNormalizePermutePadKernelImpl(
         for (int64_t i = 0; i < pad_before; i++) {
           *output++ = *fill_values++;
         }
-        mean       += pad_before;
+        mean += pad_before;
         inv_stddev += pad_before;
       } else {
         for (int64_t i = 0; i < pad_before; i++)
@@ -157,7 +158,8 @@ void SliceFlipNormalizePermutePadKernelImpl(
   constexpr int d = 0;
   int64_t pad_before, slice, pad_after;
   std::tie(pad_before, slice, pad_after) = CalcPadCopyExtents(anchor[d], in_shape[d], out_shape[d]);
-  if (in_strides[d] < 0) std::swap(pad_before, pad_after);
+  if (in_strides[d] < 0)
+    std::swap(pad_before, pad_after);
 
   // out of bounds (left side)
   if (pad_before > 0) {
@@ -246,8 +248,7 @@ class SliceFlipNormalizePermutePadCpu {
  public:
   using Args = SliceFlipNormalizePermutePadArgs<Dims>;
 
-  KernelRequirements Setup(KernelContext &context,
-                           const InTensorCPU<InputType, Dims> &in,
+  KernelRequirements Setup(KernelContext &context, const InTensorCPU<InputType, Dims> &in,
                            const Args &args) {
     KernelRequirements req;
     TensorShape<Dims> out_shape(args.shape);
@@ -257,10 +258,8 @@ class SliceFlipNormalizePermutePadCpu {
     return req;
   }
 
-  void Run(KernelContext &context,
-           const OutTensorCPU<OutputType, Dims> &out,
-           const InTensorCPU<InputType, Dims> &in,
-           const Args &orig_args) {
+  void Run(KernelContext &context, const OutTensorCPU<OutputType, Dims> &out,
+           const InTensorCPU<InputType, Dims> &in, const Args &orig_args) {
     auto args = detail::ProcessArgs(orig_args, in.shape);
     auto *mean = args.mean.empty() ? nullptr : args.mean.data();
     auto *inv_stddev = args.inv_stddev.empty() ? nullptr : args.inv_stddev.data();

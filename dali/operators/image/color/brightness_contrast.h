@@ -19,12 +19,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "dali/core/format.h"
 #include "dali/core/static_switch.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/pipeline/data/views.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
-#include "dali/core/format.h"
 
 namespace dali {
 
@@ -33,16 +33,12 @@ namespace detail {
 
 template <typename T>
 constexpr float FullRange() {
-  return std::is_integral<T>::value
-    ? static_cast<float>(std::numeric_limits<T>::max())
-    : 1.0f;
+  return std::is_integral<T>::value ? static_cast<float>(std::numeric_limits<T>::max()) : 1.0f;
 }
 
 template <typename T>
 constexpr float HalfRange() {
-  return std::is_integral<T>::value
-    ? (1 << (8*sizeof(T) - std::is_signed<T>::value - 1))
-    : 0.5f;
+  return std::is_integral<T>::value ? (1 << (8 * sizeof(T) - std::is_signed<T>::value - 1)) : 0.5f;
 }
 
 }  // namespace detail
@@ -57,10 +53,10 @@ class BrightnessContrastOp : public Operator<Backend> {
 
  protected:
   explicit BrightnessContrastOp(const OpSpec &spec)
-        : Operator<Backend>(spec)
-        , output_type_arg_(spec.GetArgument<DALIDataType>("dtype"))
-        , output_type_(DALI_NO_TYPE)
-        , input_type_(DALI_NO_TYPE) {
+      : Operator<Backend>(spec),
+        output_type_arg_(spec.GetArgument<DALIDataType>("dtype")),
+        output_type_(DALI_NO_TYPE),
+        input_type_(DALI_NO_TYPE) {
     if (spec.HasArgument("contrast_center"))
       contrast_center_ = spec.GetArgument<float>("contrast_center");
     if (std::is_same<Backend, GPUBackend>::value) {
@@ -75,11 +71,11 @@ class BrightnessContrastOp : public Operator<Backend> {
   }
 
   template <typename OutputType, typename InputType>
-  void OpArgsToKernelArgs(float &addend, float &multiplier,
-    float brightness, float brightness_shift, float contrast) {
+  void OpArgsToKernelArgs(float &addend, float &multiplier, float brightness,
+                          float brightness_shift, float contrast) {
     float contrast_center = std::isnan(contrast_center_)
-      ? brightness_contrast::detail::HalfRange<InputType>()
-      : contrast_center_;
+                                ? brightness_contrast::detail::HalfRange<InputType>()
+                                : contrast_center_;
     float brightness_range = brightness_contrast::detail::FullRange<OutputType>();
     // The formula is:
     // out = brightness_shift * brightness_range +
@@ -100,10 +96,7 @@ class BrightnessContrastOp : public Operator<Backend> {
     this->GetPerSampleArgument(contrast_, "contrast", ws);
 
     input_type_ = ws.template InputRef<Backend>(0).type().id();
-    output_type_ =
-        output_type_arg_ != DALI_NO_TYPE
-        ? output_type_arg_
-        : input_type_;
+    output_type_ = output_type_arg_ != DALI_NO_TYPE ? output_type_arg_ : input_type_;
   }
 
   USE_OPERATOR_MEMBERS();
@@ -112,7 +105,6 @@ class BrightnessContrastOp : public Operator<Backend> {
   float contrast_center_ = std::nanf("");
   kernels::KernelManager kernel_manager_;
 };
-
 
 class BrightnessContrastCpu : public BrightnessContrastOp<CPUBackend> {
  public:
@@ -150,7 +142,6 @@ class BrightnessContrastCpu : public BrightnessContrastOp<CPUBackend> {
     return ret;
   }
 };
-
 
 class BrightnessContrastGpu : public BrightnessContrastOp<GPUBackend> {
  public:

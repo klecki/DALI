@@ -14,10 +14,10 @@
 
 #include <map>
 #include <vector>
-#include "dali/operators/generic/pad.h"
 #include "dali/core/static_switch.h"
-#include "dali/pipeline/data/views.h"
 #include "dali/kernels/slice/slice_gpu.cuh"
+#include "dali/operators/generic/pad.h"
+#include "dali/pipeline/data/views.h"
 
 namespace dali {
 

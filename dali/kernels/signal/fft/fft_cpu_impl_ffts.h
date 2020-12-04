@@ -16,8 +16,8 @@
 #define DALI_KERNELS_SIGNAL_FFT_FFT_CPU_IMPL_FFTS_H_
 
 #include <ffts.h>
-#include <memory>
 #include <complex>
+#include <memory>
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/format.h"
@@ -35,20 +35,19 @@ template <typename OutputType = std::complex<float>, typename InputType = float,
 class DLL_PUBLIC Fft1DImplFfts : public FftImpl<OutputType, InputType, Dims> {
  public:
   static_assert(std::is_same<InputType, float>::value,
-    "Data types other than float are not yet supported");
+                "Data types other than float are not yet supported");
 
-  static_assert(std::is_same<OutputType, float>::value
-             || std::is_same<OutputType, std::complex<float>>::value,
-    "Data types other than float are not yet supported");
+  static_assert(std::is_same<OutputType, float>::value ||
+                    std::is_same<OutputType, std::complex<float>>::value,
+                "Data types other than float are not yet supported");
 
   DLL_PUBLIC KernelRequirements Setup(KernelContext &context,
                                       const InTensorCPU<InputType, Dims> &in,
                                       const FftArgs &args) override;
 
-  DLL_PUBLIC void Run(KernelContext &context,
-                      const OutTensorCPU<OutputType, Dims> &out,
-                      const InTensorCPU<InputType, Dims> &in,
-                      const FftArgs &args) override;
+  DLL_PUBLIC void Run(KernelContext &context, const OutTensorCPU<OutputType, Dims> &out,
+                      const InTensorCPU<InputType, Dims> &in, const FftArgs &args) override;
+
  private:
   using FftsPlanPtr = std::unique_ptr<ffts_plan_t, decltype(&ffts_free)>;
   FftsPlanPtr plan_{nullptr, ffts_free};

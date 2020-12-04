@@ -26,14 +26,14 @@
 #include <unistd.h>
 
 // dali device guard
-#include "dali/core/dynlink_cufile.h"
 #include "dali/core/device_guard.h"
+#include "dali/core/dynlink_cufile.h"
 
 // we need this class to make sure that the driver
 // is only opened once per thread. It is not thread safe, coordination outside
 namespace cufile {
 
-class CUFileDriverHandle{
+class CUFileDriverHandle {
  public:
   explicit CUFileDriverHandle(const int& device = 0) {
     dali::DeviceGuard g(device);
@@ -48,7 +48,7 @@ class CUFileDriverHandle{
 };
 
 // wrapper struct to conveniently store the fd's as well
-class CUFileHandle{
+class CUFileHandle {
  public:
   CUFileHandle() {
     fd = -1;
@@ -62,14 +62,16 @@ class CUFileHandle{
   void Close() {
     if ((fd != -1) && (fdd != -1))
       cuFileHandleDeregister(cufh);
-    if (fd != -1) close(fd);
-    if (fdd != -1) close(fdd);
+    if (fd != -1)
+      close(fd);
+    if (fdd != -1)
+      close(fdd);
     fd = -1;
     fdd = -1;
   }
 
   CUfileHandle_t cufh;
-  int fd;  // descriptor for buffered IO
+  int fd;   // descriptor for buffered IO
   int fdd;  // descriptor for direct IO
 };
 

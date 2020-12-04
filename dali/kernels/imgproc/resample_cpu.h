@@ -15,9 +15,9 @@
 #ifndef DALI_KERNELS_IMGPROC_RESAMPLE_CPU_H_
 #define DALI_KERNELS_IMGPROC_RESAMPLE_CPU_H_
 
-#include "dali/kernels/kernel.h"
 #include "dali/kernels/imgproc/resample/params.h"
 #include "dali/kernels/imgproc/resample/separable_cpu.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {

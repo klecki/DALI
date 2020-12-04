@@ -188,28 +188,24 @@ template <
     typename ArchTag_ = arch::Sm70,
     /// Threadblock-level tile size (concept: GemmShape)
     typename ThreadblockShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_,
-        select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        ElementOut_, ElementAccumulator_>::ThreadblockShape,
+        OperatorClass_, ArchTag_, select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>, ElementOut_,
+        ElementAccumulator_>::ThreadblockShape,
     /// Warp-level tile size (concept: GemmShape)
     typename WarpShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_,
-        select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        ElementOut_, ElementAccumulator_>::WarpShape,
+        OperatorClass_, ArchTag_, select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>, ElementOut_,
+        ElementAccumulator_>::WarpShape,
     /// Instruction-level tile size (concept: GemmShape)
     typename InstructionShape_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_,
-        select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        ElementOut_, ElementAccumulator_>::InstructionShape,
+        OperatorClass_, ArchTag_, select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>, ElementOut_,
+        ElementAccumulator_>::InstructionShape,
     /// Epilogue output operator
     typename EpilogueOutputOp_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_,
-        select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        ElementOut_, ElementAccumulator_>::EpilogueOutputOp,
+        OperatorClass_, ArchTag_, select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>, ElementOut_,
+        ElementAccumulator_>::EpilogueOutputOp,
     /// Threadblock-level swizzling operator
     typename ThreadblockSwizzle_ = typename threadblock::GemmIdentityThreadblockSwizzle<>,
     /// Number of stages used in the pipelined mainloop
@@ -231,10 +227,9 @@ template <
     bool SplitKSerial = false,
     /// Operation performed by GEMM
     typename Operator_ = typename DefaultConvConfiguration<
-        OperatorClass_, ArchTag_,
-        select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
-        ElementOut_, ElementAccumulator_>::Operator,
+        OperatorClass_, ArchTag_, select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
+        select_B_t<IsInnerConv, ElementIn_, ElementWindow_>, ElementOut_,
+        ElementAccumulator_>::Operator,
     /// Whether Beta is zero or not
     bool IsBetaZero = false>
 class Conv {
@@ -274,33 +269,17 @@ class Conv {
   static bool const kIsInnerConv = IsInnerConv;
   // static size_t const kSampleParamsSizeof = sizeof(typename ConvKernel::SampleParams);
 
-    /// Define the kernel
+  /// Define the kernel
   using ConvKernel = typename kernel::DefaultConv<
-    select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
-    select_A_t<IsInnerConv, ElementCastIn_, ElementCastWindow_>,
-    select_A_t<IsInnerConv, LayoutIn, LayoutWindow>,
-    kAlignmentA,
-    select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
-    select_B_t<IsInnerConv, ElementCastIn_, ElementCastWindow_>,
-    select_B_t<IsInnerConv, LayoutIn, LayoutWindow>,
-    kAlignmentB,
-    ConvWindowConfiguration,
-    ElementOut,
-    LayoutOut,
-    ElementAccumulator,
-    OperatorClass,
-    ArchTag,
-    ThreadblockShape,
-    WarpShape,
-    InstructionShape,
-    EpilogueOutputOp,
-    ThreadblockSwizzle,
-    kStages,
-    kSplitKSerial,
-    Operator,
-    kIsBetaZero,
-    kIsInnerConv
-  >::GemmKernel;
+      select_A_t<IsInnerConv, ElementIn_, ElementWindow_>,
+      select_A_t<IsInnerConv, ElementCastIn_, ElementCastWindow_>,
+      select_A_t<IsInnerConv, LayoutIn, LayoutWindow>, kAlignmentA,
+      select_B_t<IsInnerConv, ElementIn_, ElementWindow_>,
+      select_B_t<IsInnerConv, ElementCastIn_, ElementCastWindow_>,
+      select_B_t<IsInnerConv, LayoutIn, LayoutWindow>, kAlignmentB, ConvWindowConfiguration,
+      ElementOut, LayoutOut, ElementAccumulator, OperatorClass, ArchTag, ThreadblockShape,
+      WarpShape, InstructionShape, EpilogueOutputOp, ThreadblockSwizzle, kStages, kSplitKSerial,
+      Operator, kIsBetaZero, kIsInnerConv>::GemmKernel;
 
   using SampleParams = typename ConvKernel::SampleParams;
 
@@ -507,7 +486,6 @@ class Conv {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 }  // namespace device
 }  // namespace gemm

@@ -22,11 +22,8 @@
 namespace dali {
 
 template <typename Backend>
-DLL_PUBLIC void CopyWithStride(void *output, const void *input,
-                               const Index *in_strides,
-                               const Index *shape,
-                               int ndim,
-                               size_t item_size,
+DLL_PUBLIC void CopyWithStride(void *output, const void *input, const Index *in_strides,
+                               const Index *shape, int ndim, size_t item_size,
                                cudaStream_t stream = 0);
 
 }  // namespace dali

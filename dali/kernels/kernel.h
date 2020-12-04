@@ -15,15 +15,15 @@
 #ifndef DALI_KERNELS_KERNEL_H_
 #define DALI_KERNELS_KERNEL_H_
 
-#include <vector>
 #include <functional>
-#include "dali/kernels/context.h"
+#include <vector>
 #include "dali/core/tensor_view.h"
+#include "dali/core/tuple_helpers.h"
+#include "dali/core/util.h"
+#include "dali/kernels/context.h"
 #include "dali/kernels/kernel_params.h"
 #include "dali/kernels/kernel_req.h"
 #include "dali/kernels/kernel_traits.h"
-#include "dali/core/tuple_helpers.h"
-#include "dali/core/util.h"
 
 namespace dali {
 
@@ -75,11 +75,8 @@ struct Kernel {
    * @param in2 - example input, consisting of a 4D tensor with element type Input2
    * @param aux - some extra parameters (e.g. convolution kernel, mask)
    */
-  KernelRequirements Setup(
-    KernelContext &context,
-    const InListGPU<Input1, 3> &in1,
-    const InTensorGPU<Input2, 4> &in2,
-    const std::vector<float> &aux);
+  KernelRequirements Setup(KernelContext &context, const InListGPU<Input1, 3> &in1,
+                           const InTensorGPU<Input2, 4> &in2, const std::vector<float> &aux);
 
   /**
    * @brief Runs the kernel
@@ -91,14 +88,11 @@ struct Kernel {
    *                  Scratch area must satisfy requirements returned by Setup.
    * @param in1 - example input, consisting of a list of 3D tensors with element type Input1
    * @param in2 - example input, consisting of a 4D tensor with element type Input2
-     * @param aux - some extra parameters (e.g. convolution kernel, mask)
-     */
-  void Run(
-    KernelContext &context,
-    const OutListGPU<OutputType, 3> &out,
-    const InListGPU<Input1, 3> &in1,
-    const InTensorGPU<Input2, 4> &in2,
-    const std::vector<float> &aux);
+   * @param aux - some extra parameters (e.g. convolution kernel, mask)
+   */
+  void Run(KernelContext &context, const OutListGPU<OutputType, 3> &out,
+           const InListGPU<Input1, 3> &in1, const InTensorGPU<Input2, 4> &in2,
+           const std::vector<float> &aux);
 };
 
 }  // namespace examples
@@ -129,11 +123,8 @@ using Requirements = KernelRequirements;
  * @param args               - kernel extra arguments, convertible to kernel_args<Kernel>
  */
 template <typename Kernel>
-Requirements Setup(
-      Kernel &instance,
-      Context &context,
-      const inputs<Kernel> &input,
-      const args<Kernel> &args) {
+Requirements Setup(Kernel &instance, Context &context, const inputs<Kernel> &input,
+                   const args<Kernel> &args) {
   check_kernel<Kernel>();
   return apply_all(std::mem_fn(&Kernel::Setup), instance, context, input, args);
 }
@@ -146,12 +137,8 @@ Requirements Setup(
  * @param args                - kernel extra arguments, convertible to kernel_args<Kernel>
  */
 template <typename Kernel>
-void Run(
-      Kernel &instance,
-      Context &context,
-      const outputs<Kernel> &output,
-      const inputs<Kernel> &input,
-      const args<Kernel> &args) {
+void Run(Kernel &instance, Context &context, const outputs<Kernel> &output,
+         const inputs<Kernel> &input, const args<Kernel> &args) {
   check_kernel<std::remove_const_t<Kernel>>();
   apply_all(std::mem_fn(&Kernel::Run), instance, context, output, input, args);
 }

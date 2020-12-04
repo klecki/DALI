@@ -14,22 +14,17 @@
 
 #include <gtest/gtest.h>
 #include <typeinfo>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
-#include "dali/kernels/kernel.h"
 #include "dali/core/static_map.h"
+#include "dali/kernels/kernel.h"
 #include "dali/kernels/type_tag.h"
 
-#define TEST_TYPES_MAP ( \
-    ((uint8_t), (uint8_t, uint64_t, float)), \
-    ((int8_t), (int64_t)), \
-    ((uint16_t), (uint16_t, uint64_t)), \
-    ((int16_t), (int16_t)), \
-    ((uint32_t), (uint32_t, float)), \
-    ((int32_t), (int32_t)), \
-    ((int64_t), (int64_t)), \
-    ((float), (float)))
+#define TEST_TYPES_MAP                                                                          \
+  (((uint8_t), (uint8_t, uint64_t, float)), ((int8_t), (int64_t)),                              \
+   ((uint16_t), (uint16_t, uint64_t)), ((int16_t), (int16_t)), ((uint32_t), (uint32_t, float)), \
+   ((int32_t), (int32_t)), ((int64_t), (int64_t)), ((float), (float)))
 
 namespace {
 template <typename T, typename S>
@@ -40,17 +35,16 @@ using TypeTagMap = std::unordered_map<int, std::vector<int>>;
 template <typename T>
 struct StaticMapNVCC : public testing::Test {
   StaticMapNVCC() {
-    type_mapping_[dali::TypeTag<uint8_t>()] = {
-      dali::TypeTag<uint8_t>(), dali::TypeTag<uint64_t>(), dali::TypeTag<float>() };
-    type_mapping_[dali::TypeTag<int8_t>()] = { dali::TypeTag<int64_t>() };
-    type_mapping_[dali::TypeTag<uint16_t>()] = {
-      dali::TypeTag<uint16_t>(), dali::TypeTag<uint64_t>() };
-    type_mapping_[dali::TypeTag<int16_t>()] = { dali::TypeTag<int16_t>() };
-    type_mapping_[dali::TypeTag<uint32_t>()] = {
-      dali::TypeTag<uint32_t>(), dali::TypeTag<float>() };
-    type_mapping_[dali::TypeTag<int32_t>()] = { dali::TypeTag<int32_t>() };
-    type_mapping_[dali::TypeTag<int64_t>()] = { dali::TypeTag<int64_t>() };
-    type_mapping_[dali::TypeTag<float>()] = { dali::TypeTag<float>() };
+    type_mapping_[dali::TypeTag<uint8_t>()] = {dali::TypeTag<uint8_t>(), dali::TypeTag<uint64_t>(),
+                                               dali::TypeTag<float>()};
+    type_mapping_[dali::TypeTag<int8_t>()] = {dali::TypeTag<int64_t>()};
+    type_mapping_[dali::TypeTag<uint16_t>()] = {dali::TypeTag<uint16_t>(),
+                                                dali::TypeTag<uint64_t>()};
+    type_mapping_[dali::TypeTag<int16_t>()] = {dali::TypeTag<int16_t>()};
+    type_mapping_[dali::TypeTag<uint32_t>()] = {dali::TypeTag<uint32_t>(), dali::TypeTag<float>()};
+    type_mapping_[dali::TypeTag<int32_t>()] = {dali::TypeTag<int32_t>()};
+    type_mapping_[dali::TypeTag<int64_t>()] = {dali::TypeTag<int64_t>()};
+    type_mapping_[dali::TypeTag<float>()] = {dali::TypeTag<float>()};
   }
 
  protected:
@@ -67,8 +61,8 @@ struct StaticMapNVCC : public testing::Test {
 
 }  // namespace
 
-typedef testing::Types<
-  uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, int64_t, float> TypesToTest;
+typedef testing::Types<uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t, int64_t, float>
+    TypesToTest;
 
 TYPED_TEST_SUITE(StaticMapNVCC, TypesToTest);
 
@@ -77,45 +71,22 @@ TYPED_TEST(StaticMapNVCC, ValidTypes) {
 
   int input_type = dali::TypeTag<TestedType>();
   for (auto &output_type : this->type_mapping_[input_type]) {
-    TYPE_MAP(
-      input_type,
-      output_type,
-      dali::TypeTag,
-      InputType,
-      OutputType,
-      TEST_TYPES_MAP,
-      (this->template TypedMethod<InputType, OutputType>(input_type, output_type);),
-      (FAIL()),
-      (FAIL()))
+    TYPE_MAP(input_type, output_type, dali::TypeTag, InputType, OutputType, TEST_TYPES_MAP,
+             (this->template TypedMethod<InputType, OutputType>(input_type, output_type);),
+             (FAIL()), (FAIL()))
   }
 }
 
 TEST(StaticMapFailureNVCC, InvalidInputType) {
   int input_type = dali::TypeTag<uint64_t>();
   int output_type = dali::TypeTag<int32_t>();
-  TYPE_MAP(
-    input_type,
-    output_type,
-    dali::TypeTag,
-    InputType,
-    OutputType,
-    TEST_TYPES_MAP,
-    (TypedFunc<InputType, OutputType>(); FAIL();),
-    (SUCCEED()),
-    (FAIL()))
+  TYPE_MAP(input_type, output_type, dali::TypeTag, InputType, OutputType, TEST_TYPES_MAP,
+           (TypedFunc<InputType, OutputType>(); FAIL();), (SUCCEED()), (FAIL()))
 }
 
 TEST(StaticMapFailureNVCC, InvalidOutputType) {
   int input_type = dali::TypeTag<float>();
   int output_type = dali::TypeTag<int32_t>();
-  TYPE_MAP(
-    input_type,
-    output_type,
-    dali::TypeTag,
-    InputType,
-    OutputType,
-    TEST_TYPES_MAP,
-    (TypedFunc<InputType, OutputType>(); FAIL();),
-    (FAIL()),
-    (SUCCEED()))
+  TYPE_MAP(input_type, output_type, dali::TypeTag, InputType, OutputType, TEST_TYPES_MAP,
+           (TypedFunc<InputType, OutputType>(); FAIL();), (FAIL()), (SUCCEED()))
 }

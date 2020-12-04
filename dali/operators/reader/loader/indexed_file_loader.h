@@ -15,11 +15,11 @@
 #ifndef DALI_OPERATORS_READER_LOADER_INDEXED_FILE_LOADER_H_
 #define DALI_OPERATORS_READER_LOADER_INDEXED_FILE_LOADER_H_
 
-#include <vector>
-#include <string>
-#include <tuple>
 #include <fstream>
 #include <memory>
+#include <string>
+#include <tuple>
+#include <vector>
 
 #include "dali/core/common.h"
 #include "dali/operators/reader/loader/loader.h"
@@ -30,11 +30,12 @@ namespace dali {
 class IndexedFileLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
  public:
   explicit IndexedFileLoader(const OpSpec& options)
-    : Loader(options),
-      uris_(options.GetRepeatedArgument<std::string>("path")),
-      index_uris_(options.GetRepeatedArgument<std::string>("index_path")),
-      current_index_(0), current_file_index_(0), current_file_(nullptr) {
-    }
+      : Loader(options),
+        uris_(options.GetRepeatedArgument<std::string>("path")),
+        index_uris_(options.GetRepeatedArgument<std::string>("index_path")),
+        current_index_(0),
+        current_file_index_(0),
+        current_file_(nullptr) {}
 
   void ReadSample(Tensor<CPUBackend>& tensor) override {
     MoveToNextShard(current_index_);
@@ -85,8 +86,8 @@ class IndexedFileLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
       tensor.set_type(TypeInfo::Create<uint8_t>());
       tensor.Resize({size});
 
-      int64 n_read = current_file_->Read(reinterpret_cast<uint8_t*>(tensor.raw_mutable_data()),
-                          size);
+      int64 n_read =
+          current_file_->Read(reinterpret_cast<uint8_t*>(tensor.raw_mutable_data()), size);
       DALI_ENFORCE(n_read == size, "Error reading from a file " + uris_[current_file_index_]);
     }
 
@@ -102,7 +103,7 @@ class IndexedFileLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
 
   virtual void ReadIndexFile(const std::vector<std::string>& index_uris) {
     DALI_ENFORCE(index_uris.size() == uris_.size(),
-        "Number of index files needs to match the number of data files");
+                 "Number of index files needs to match the number of data files");
     for (size_t i = 0; i < index_uris.size(); ++i) {
       std::ifstream fin(index_uris[i]);
       DALI_ENFORCE(fin.good(), "Failed to open file " + index_uris[i]);
@@ -121,8 +122,7 @@ class IndexedFileLoader : public Loader<CPUBackend, Tensor<CPUBackend>> {
 
   void PrepareMetadataImpl() override {
     if (!dont_use_mmap_) {
-      mmap_reserver_ = FileStream::MappingReserver(
-                                  static_cast<unsigned int>(initial_buffer_fill_));
+      mmap_reserver_ = FileStream::MappingReserver(static_cast<unsigned int>(initial_buffer_fill_));
     }
     copy_read_data_ = dont_use_mmap_ || !mmap_reserver_.CanShareMappedData();
 

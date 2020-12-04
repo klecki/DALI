@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/image/remap/warp_affine_params.h"
 #include <cuda_runtime.h>
+#include "dali/operators/image/remap/warp_affine_params.h"
 
 namespace dali {
 namespace {
@@ -34,7 +34,6 @@ void InvertTransforms(WarpAffineParams<ndims> *output, const WarpAffineParams<nd
 }
 
 }  // namespace
-
 
 template <>
 void InvertTransformsGPU<2>(WarpAffineParams<2> *output, const WarpAffineParams<2> *input,

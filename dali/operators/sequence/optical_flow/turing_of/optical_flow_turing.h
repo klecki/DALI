@@ -18,12 +18,12 @@
 #include <cuda_runtime.h>
 #include <memory>
 #include <string>
-#include "dali/core/dynlink_cuda.h"
-#include "nvOpticalFlowCuda.h"
-#include "nvOpticalFlowCommon.h"
 #include "dali/core/common.h"
+#include "dali/core/dynlink_cuda.h"
 #include "dali/operators/sequence/optical_flow/optical_flow_adapter/optical_flow_adapter.h"
 #include "dali/operators/sequence/optical_flow/turing_of/optical_flow_buffer.h"
+#include "nvOpticalFlowCommon.h"
+#include "nvOpticalFlowCuda.h"
 
 namespace dali {
 namespace optical_flow {
@@ -38,9 +38,8 @@ namespace kernel {
  * @param height
  * @param stream Stream, in which kernel is called
  */
-DLL_PUBLIC void
-RgbToRgba(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px, size_t height,
-          cudaStream_t stream = 0);
+DLL_PUBLIC void RgbToRgba(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px,
+                          size_t height, cudaStream_t stream = 0);
 
 /**
  * Convert BGR image to RGBA and puts it in strided memory
@@ -51,9 +50,8 @@ RgbToRgba(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px, 
  * @param height
  * @param stream Stream, in which kernel is called
  */
-DLL_PUBLIC void
-BgrToRgba(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px, size_t height,
-          cudaStream_t stream = 0);
+DLL_PUBLIC void BgrToRgba(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px,
+                          size_t height, cudaStream_t stream = 0);
 
 /**
  * Puts grayscale data in strided memory
@@ -64,9 +62,8 @@ BgrToRgba(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px, 
  * @param height
  * @param stream Stream, in which kernel is called
  */
-DLL_PUBLIC void
-Gray(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px, size_t height,
-     cudaStream_t stream = 0);
+DLL_PUBLIC void Gray(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px,
+                     size_t height, cudaStream_t stream = 0);
 
 /**
  * Decodes components of flow vector and unstrides memory
@@ -77,9 +74,8 @@ Gray(const uint8_t *input, uint8_t *output, size_t pitch, size_t width_px, size_
  * @param height
  * @param stream Stream, in which kernel is called
  */
-DLL_PUBLIC void
-DecodeFlowComponents(const int16_t *input, float *output, size_t pitch, size_t width_px,
-                     size_t height, cudaStream_t stream = 0);
+DLL_PUBLIC void DecodeFlowComponents(const int16_t *input, float *output, size_t pitch,
+                                     size_t width_px, size_t height, cudaStream_t stream = 0);
 
 /**
  * Encode flow components and put in strided memory (for external hints)
@@ -90,15 +86,12 @@ DecodeFlowComponents(const int16_t *input, float *output, size_t pitch, size_t w
  * @param height
  * @param stream Stream, in which kernel is called
  */
-DLL_PUBLIC void
-EncodeFlowComponents(const float *input, int16_t *output, size_t pitch, size_t width_px,
-                     size_t height, cudaStream_t stream = 0);
-
+DLL_PUBLIC void EncodeFlowComponents(const float *input, int16_t *output, size_t pitch,
+                                     size_t width_px, size_t height, cudaStream_t stream = 0);
 
 inline __host__ __device__ float decode_flow_component(int16_t value) {
   return value * (1 / 32.f);
 }
-
 
 inline __host__ __device__ int16_t encode_flow_component(float value) {
   return static_cast<int16_t>(value * 32.f);
@@ -111,9 +104,7 @@ class DLL_PUBLIC OpticalFlowTuring : public OpticalFlowAdapter<ComputeGPU> {
   OpticalFlowTuring(OpticalFlowParams params, size_t width, size_t height, size_t channels,
                     DALIImageType image_type, int device_id_, cudaStream_t stream = 0);
 
-
   virtual ~OpticalFlowTuring();
-
 
   TensorShape<DynamicDimensions> GetOutputShape() override {
     auto sz = init_params_.outGridSize;
@@ -121,28 +112,24 @@ class DLL_PUBLIC OpticalFlowTuring : public OpticalFlowAdapter<ComputeGPU> {
     return {static_cast<int>(height_ + sz - 1) / sz, static_cast<int>(width_ + sz - 1) / sz, 2};
   }
 
-
   void CalcOpticalFlow(TensorView<StorageBackend, const uint8_t, 3> reference_image,
                        TensorView<StorageBackend, const uint8_t, 3> input_image,
                        TensorView<StorageBackend, float, 3> output_image,
                        TensorView<StorageBackend, const float, 3> external_hints =
-                       TensorView<StorageBackend, const float, 3>()) override;
-
+                           TensorView<StorageBackend, const float, 3>()) override;
 
  private:
   void SetInitParams(OpticalFlowParams api_params);
-
 
   NV_OF_EXECUTE_INPUT_PARAMS
   GenerateExecuteInParams(NvOFGPUBufferHandle in_handle, NvOFGPUBufferHandle ref_handle,
                           NvOFGPUBufferHandle hints_handle = nullptr);
 
-
   NV_OF_EXECUTE_OUTPUT_PARAMS GenerateExecuteOutParams(NvOFGPUBufferHandle out_handle);
 
   using DLLDRIVER = void *;
-  using ofDriverHandle = std::unique_ptr<std::remove_pointer<DLLDRIVER>::type,
-                                         std::function< void(DLLDRIVER) >>;
+  using ofDriverHandle =
+      std::unique_ptr<std::remove_pointer<DLLDRIVER>::type, std::function<void(DLLDRIVER)>>;
 
   DLLDRIVER LoadTuringOpticalFlow(const std::string &library_path);
 

@@ -13,9 +13,9 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include "dali/kernels/slice/slice_kernel_test.h"
-#include "dali/kernels/slice/slice_gpu.cuh"
 #include "dali/kernels/scratch.h"
+#include "dali/kernels/slice/slice_gpu.cuh"
+#include "dali/kernels/slice/slice_kernel_test.h"
 
 namespace dali {
 namespace kernels {

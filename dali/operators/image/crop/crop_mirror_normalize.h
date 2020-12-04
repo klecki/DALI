@@ -20,10 +20,10 @@
 #include <vector>
 #include "dali/core/any.h"
 #include "dali/core/common.h"
-#include "dali/core/format.h"
-#include "dali/core/util.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/format.h"
 #include "dali/core/static_switch.h"
+#include "dali/core/util.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/scratch.h"
 #include "dali/kernels/slice/slice_flip_normalize_permute_pad_common.h"
@@ -91,7 +91,6 @@ kernels::SliceFlipNormalizePermutePadArgs<Dims> ToSliceFlipNormalizePermutePadAr
 
 }  // namespace detail
 
-
 template <typename Backend>
 class CropMirrorNormalize : public Operator<Backend> {
  public:
@@ -106,20 +105,20 @@ class CropMirrorNormalize : public Operator<Backend> {
     float shift = spec.GetArgument<float>("shift");
 
     if (!spec.TryGetRepeatedArgument(inv_std_vec_, "std")) {
-      inv_std_vec_ = { spec.GetArgument<float>("std") };
+      inv_std_vec_ = {spec.GetArgument<float>("std")};
     }
     if (!spec.TryGetRepeatedArgument(mean_vec_, "mean")) {
-      mean_vec_ = { spec.GetArgument<float>("mean") };
+      mean_vec_ = {spec.GetArgument<float>("mean")};
     }
 
-
     DALI_ENFORCE(!mean_vec_.empty() && !inv_std_vec_.empty(),
-      "mean and standard deviation can't be empty");
+                 "mean and standard deviation can't be empty");
 
     DALI_ENFORCE(
-      mean_vec_.size() == inv_std_vec_.size() || mean_vec_.size() == 1 || inv_std_vec_.size() == 1,
-      "`mean` and `stddev` must either be of the same size, be scalars, or one of them can be a "
-      "vector and the other a scalar.");
+        mean_vec_.size() == inv_std_vec_.size() || mean_vec_.size() == 1 ||
+            inv_std_vec_.size() == 1,
+        "`mean` and `stddev` must either be of the same size, be scalars, or one of them can be a "
+        "vector and the other a scalar.");
 
     // Handle irregular mean/std argument lengths
     auto args_size = std::max(mean_vec_.size(), inv_std_vec_.size());
@@ -169,27 +168,26 @@ class CropMirrorNormalize : public Operator<Backend> {
     auto in_shape = input.shape();
     input_layout_ = input.GetLayout();
     DALI_ENFORCE(ImageLayoutInfo::IsImage(input_layout_),
-      ("Unsupported layout: '" + input_layout_.str() + "' for input 0 '" +
-      this->spec_.InputName(0) + "'"));
+                 ("Unsupported layout: '" + input_layout_.str() + "' for input 0 '" +
+                  this->spec_.InputName(0) + "'"));
     DALI_ENFORCE(input_layout_.ndim() == in_shape.sample_dim(),
-      "Number of dimension in layout description does not match the number"
-      " of dimensions in the input.");
+                 "Number of dimension in layout description does not match the number"
+                 " of dimensions in the input.");
     if (output_layout_.empty())
       output_layout_ = input_layout_;
     else
       DALI_ENFORCE(output_layout_.is_permutation_of(input_layout_),
-        "The requested output layout is not a permutation of input layout.");
+                   "The requested output layout is not a permutation of input layout.");
 
     int ndim = in_shape.sample_dim();
     int nsamples = in_shape.size();
-    DALI_ENFORCE(ndim >= 3 || ndim <= 5,
-      make_string("Unexpected number of dimensions: ", ndim));
+    DALI_ENFORCE(ndim >= 3 || ndim <= 5, make_string("Unexpected number of dimensions: ", ndim));
     DALI_ENFORCE(input_layout_.ndim() == ndim);
     int spatial_ndim = ImageLayoutInfo::NumSpatialDims(input_layout_);
     DALI_ENFORCE(spatial_ndim == 2 || spatial_ndim == 3,
-      "Only 2D or 3D images and sequences of images are supported");
+                 "Only 2D or 3D images and sequences of images are supported");
     DALI_ENFORCE(ImageLayoutInfo::HasChannel(input_layout_),
-      "This operator expects an explicit channel dimension, even for monochrome images");
+                 "This operator expects an explicit channel dimension, even for monochrome images");
 
     crop_attr_.ProcessArguments(ws);
 
@@ -240,8 +238,6 @@ class CropMirrorNormalize : public Operator<Backend> {
 
   USE_OPERATOR_MEMBERS();
 };
-
-
 
 }  // namespace dali
 

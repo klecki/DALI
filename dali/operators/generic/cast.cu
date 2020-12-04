@@ -21,8 +21,7 @@
 namespace dali {
 
 template <typename OType, typename IType>
-__global__ void
-BatchedCastKernel(OType * output, const IType * in, size_t N) {
+__global__ void BatchedCastKernel(OType *output, const IType *in, size_t N) {
   size_t tid = threadIdx.x + blockDim.x * blockIdx.x;
   if (tid < N) {
     output[tid] = ConvertSat<OType>(in[tid]);
@@ -30,19 +29,16 @@ BatchedCastKernel(OType * output, const IType * in, size_t N) {
 }
 
 template <typename OType, typename IType>
-DALIError_t BatchedCast(OType * output,
-                        const IType * input,
-                        size_t N,
-                        cudaStream_t stream) {
+DALIError_t BatchedCast(OType *output, const IType *input, size_t N, cudaStream_t stream) {
   DALI_ASSERT(output != nullptr);
   DALI_ASSERT(input != nullptr);
   const int threads = 512;
-  const int blocks = (N + threads - 1)/threads;
+  const int blocks = (N + threads - 1) / threads;
   BatchedCastKernel<<<blocks, threads, 0, stream>>>(output, input, N);
   return DALISuccess;
 }
 
-template<>
+template <>
 void Cast<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   const auto &input = ws.Input<GPUBackend>(0);
   auto &output = ws.Output<GPUBackend>(0);

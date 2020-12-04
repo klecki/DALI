@@ -18,7 +18,7 @@
 namespace dali {
 
 void MakeContiguousMixed::Run(MixedWorkspace &ws) {
-  const auto& input = ws.template InputRef<CPUBackend>(0);
+  const auto &input = ws.template InputRef<CPUBackend>(0);
   int sample_dim = input[0].shape().sample_dim();
   size_t batch_size = input.ntensor();
   TypeInfo type = input.type();
@@ -28,10 +28,12 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
     size_t sample_bytes = sample.nbytes();
     if (coalesced && sample_bytes > COALESCE_THRESHOLD)
       coalesced = false;
-    DALI_ENFORCE(type == sample.type(), "Inconsistent types in "
-        "input batch. Cannot copy to contiguous device buffer.");
-    DALI_ENFORCE(sample_dim == sample.shape().sample_dim(), "Inconsistent sample dimensions "
-        "in input batch. Cannot copy to contiguous device buffer.");
+    DALI_ENFORCE(type == sample.type(),
+                 "Inconsistent types in "
+                 "input batch. Cannot copy to contiguous device buffer.");
+    DALI_ENFORCE(sample_dim == sample.shape().sample_dim(),
+                 "Inconsistent sample dimensions "
+                 "in input batch. Cannot copy to contiguous device buffer.");
   }
 
   auto &output = ws.Output<GPUBackend>(0);
@@ -41,7 +43,7 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
     output.Copy(cpu_output_buff, ws.stream());
   } else {
     DomainTimeRange tr("[DALI][MakeContiguousMixed] non coalesced", DomainTimeRange::kGreen);
-      output.Copy(input, ws.stream());
+    output.Copy(input, ws.stream());
   }
   coalesced = true;
 }

@@ -18,33 +18,32 @@
 #if NVJPEG2K_ENABLED
 
 #include <nvjpeg2k.h>
-#include <string>
 #include <memory>
+#include <string>
 #include "dali/core/error_handling.h"
-#include "dali/core/unique_handle.h"
 #include "dali/core/format.h"
+#include "dali/core/unique_handle.h"
 
 namespace dali {
 
-#define NVJPEG2K_CALL(code)                             \
-  do {                                                  \
-    nvjpeg2kStatus_t status = code;                     \
-    if (status != NVJPEG2K_STATUS_SUCCESS) {            \
-      auto error = make_string("NVJPEG2K error \"",     \
-        static_cast<int>(status), "\"");                \
-      DALI_FAIL(error);                                 \
-    }                                                   \
+#define NVJPEG2K_CALL(code)                                                          \
+  do {                                                                               \
+    nvjpeg2kStatus_t status = code;                                                  \
+    if (status != NVJPEG2K_STATUS_SUCCESS) {                                         \
+      auto error = make_string("NVJPEG2K error \"", static_cast<int>(status), "\""); \
+      DALI_FAIL(error);                                                              \
+    }                                                                                \
   } while (0)
 
-#define NVJPEG2K_CALL_EX(code, extra)                   \
-  do {                                                  \
-    nvjpeg2kStatus_t status = code;                     \
-    std::string extra_info = extra;                     \
-    if (status != NVJPEG2K_STATUS_SUCCESS) {            \
-      auto error = make_string("NVJPEG2K error \"",     \
-        static_cast<int>(status), "\" : ", extra_info); \
-      DALI_FAIL(error);                                 \
-    }                                                   \
+#define NVJPEG2K_CALL_EX(code, extra)                                                      \
+  do {                                                                                     \
+    nvjpeg2kStatus_t status = code;                                                        \
+    std::string extra_info = extra;                                                        \
+    if (status != NVJPEG2K_STATUS_SUCCESS) {                                               \
+      auto error =                                                                         \
+          make_string("NVJPEG2K error \"", static_cast<int>(status), "\" : ", extra_info); \
+      DALI_FAIL(error);                                                                    \
+    }                                                                                      \
   } while (0)
 
 struct NvJPEG2KHandle : public UniqueHandle<nvjpeg2kHandle_t, NvJPEG2KHandle> {
@@ -56,7 +55,9 @@ struct NvJPEG2KHandle : public UniqueHandle<nvjpeg2kHandle_t, NvJPEG2KHandle> {
     NVJPEG2K_CALL(nvjpeg2kCreate(NVJPEG2K_BACKEND_DEFAULT, dev_alloc, pin_alloc, &handle_));
   }
 
-  static constexpr nvjpeg2kHandle_t null_handle() { return nullptr; }
+  static constexpr nvjpeg2kHandle_t null_handle() {
+    return nullptr;
+  }
 
   static void DestroyHandle(nvjpeg2kHandle_t handle) {
     nvjpeg2kDestroy(handle);
@@ -72,7 +73,9 @@ struct NvJPEG2KStream : public UniqueHandle<nvjpeg2kStream_t, NvJPEG2KStream> {
     return NvJPEG2KStream(handle);
   }
 
-  static constexpr nvjpeg2kStream_t null_handle() { return nullptr; }
+  static constexpr nvjpeg2kStream_t null_handle() {
+    return nullptr;
+  }
 
   static void DestroyHandle(nvjpeg2kStream_t handle) {
     nvjpeg2kStreamDestroy(handle);
@@ -86,7 +89,9 @@ struct NvJPEG2KDecodeState : public UniqueHandle<nvjpeg2kDecodeState_t, NvJPEG2K
     NVJPEG2K_CALL(nvjpeg2kDecodeStateCreate(nvjpeg2k_handle, &handle_));
   }
 
-  static constexpr nvjpeg2kDecodeState_t null_handle() { return nullptr; }
+  static constexpr nvjpeg2kDecodeState_t null_handle() {
+    return nullptr;
+  }
 
   static void DestroyHandle(nvjpeg2kDecodeState_t handle) {
     nvjpeg2kDecodeStateDestroy(handle);

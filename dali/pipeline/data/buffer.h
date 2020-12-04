@@ -123,7 +123,8 @@ class DLL_PUBLIC Buffer {
    */
   inline void* raw_mutable_data() {
     // Empty tensor
-    if (data_ == nullptr) return nullptr;
+    if (data_ == nullptr)
+      return nullptr;
     DALI_ENFORCE(IsValidType(type_),
                  "Buffer has no type, 'mutable_data<T>()' or 'set_type' must "
                  "be called on non-const buffer to set valid type");
@@ -137,7 +138,8 @@ class DLL_PUBLIC Buffer {
    */
   inline const void* raw_data() const {
     // Empty tensor
-    if (data_ == nullptr) return nullptr;
+    if (data_ == nullptr)
+      return nullptr;
     DALI_ENFORCE(IsValidType(type_),
                  "Buffer has no type, 'mutable_data<T>()' or 'set_type' must "
                  "be called on non-const buffer to set valid type");
@@ -179,7 +181,7 @@ class DLL_PUBLIC Buffer {
    * @brief Returns the TypeInfo object that keeps track of the
    * datatype of the underlying storage.
    */
-  inline const TypeInfo &type() const {
+  inline const TypeInfo& type() const {
     return type_;
   }
 
@@ -225,7 +227,8 @@ class DLL_PUBLIC Buffer {
    */
   inline void set_type(const TypeInfo& new_type) {
     DALI_ENFORCE(IsValidType(new_type), "new_type must be valid type.");
-    if (new_type == type_) return;
+    if (new_type == type_)
+      return;
 
     size_t new_num_bytes = size_ * new_type.size();
     if (shares_data_) {
@@ -241,7 +244,8 @@ class DLL_PUBLIC Buffer {
   }
 
   inline void reserve(size_t new_num_bytes) {
-    if (new_num_bytes <= num_bytes_) return;
+    if (new_num_bytes <= num_bytes_)
+      return;
 
     // re-allocating: get the device
     if (std::is_same<Backend, GPUBackend>::value) {
@@ -266,7 +270,7 @@ class DLL_PUBLIC Buffer {
     size_ = 0;
     shares_data_ = false;
     num_bytes_ = 0;
-    device_ =  CPU_ONLY_DEVICE_ID;
+    device_ = CPU_ONLY_DEVICE_ID;
   }
 
   /**
@@ -308,7 +312,7 @@ class DLL_PUBLIC Buffer {
   }
 
   // Helper to resize the underlying allocation
-  inline void ResizeHelper(Index new_size, const TypeInfo &new_type) {
+  inline void ResizeHelper(Index new_size, const TypeInfo& new_type) {
     DALI_ENFORCE(new_size >= 0, "Input size less than zero not supported.");
 
     // If we use NoType the result will always be 0
@@ -340,7 +344,8 @@ class DLL_PUBLIC Buffer {
     if (new_num_bytes > num_bytes_) {
       size_t grow = num_bytes_ * growth_factor_;
       grow = (grow + kPadding) & ~(kPadding - 1);
-      if (grow > new_num_bytes) new_num_bytes = grow;
+      if (grow > new_num_bytes)
+        new_num_bytes = grow;
       reserve(new_num_bytes);
     } else if (!is_pinned() && align_up(new_num_bytes, kPadding) < num_bytes_ * shrink_threshold_) {
       data_.reset();
@@ -368,11 +373,10 @@ DLL_PUBLIC double Buffer<Backend>::growth_factor_ = 1.0;
 
 template <typename Backend>
 DLL_PUBLIC double Buffer<Backend>::shrink_threshold_ =
-  std::is_same<Backend, CPUBackend>::value ? 0.9 : 0;
+    std::is_same<Backend, CPUBackend>::value ? 0.9 : 0;
 
 template <typename Backend>
 DLL_PUBLIC constexpr double Buffer<Backend>::kMaxGrowthFactor;
-
 
 // Macro so we don't have to list these in all
 // classes that derive from Buffer
@@ -386,7 +390,6 @@ DLL_PUBLIC constexpr double Buffer<Backend>::kMaxGrowthFactor;
   using Buffer<Backend>::num_bytes_;   \
   using Buffer<Backend>::device_;      \
   using Buffer<Backend>::pinned_
-
 
 }  // namespace dali
 

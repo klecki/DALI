@@ -15,21 +15,22 @@
 #ifndef DALI_OPERATORS_IMAGE_RESIZE_RESIZE_CROP_MIRROR_H_
 #define DALI_OPERATORS_IMAGE_RESIZE_RESIZE_CROP_MIRROR_H_
 
-#include <random>
-#include <vector>
-#include <utility>
 #include <cmath>
+#include <random>
+#include <utility>
+#include <vector>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/image/transform.h"
-#include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/operator/common.h"
 #include "dali/operators/image/crop/crop_attr.h"
+#include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
-enum t_idInfo : uint32_t {
+enum t_idInfo : uint32_t
+{
   t_crop = 1,
   t_mirrorHor,
   t_mirrorVert
@@ -42,24 +43,25 @@ struct TransformMeta {
   int mirror;
 };
 
-
 /**
  * @brief Stores parameters for resize+crop+mirror
  */
 class ResizeCropMirrorAttr : protected CropAttr {
  protected:
-  explicit inline ResizeCropMirrorAttr(const OpSpec &spec) : CropAttr(spec),
-    interp_type_(spec.GetArgument<DALIInterpType>("interp_type")) {
+  explicit inline ResizeCropMirrorAttr(const OpSpec &spec)
+      : CropAttr(spec), interp_type_(spec.GetArgument<DALIInterpType>("interp_type")) {
     resize_shorter_ = spec.ArgumentDefined("resize_shorter");
     resize_longer_ = spec.ArgumentDefined("resize_longer");
     resize_x_ = spec.ArgumentDefined("resize_x");
     resize_y_ = spec.ArgumentDefined("resize_y");
     DALI_ENFORCE(!(resize_shorter_ && resize_longer_),
                  "Options `resize_longer` and `resize_shorter` are mutually"
-                 " exclusive for schema \"" + spec.name() + "\"");
+                 " exclusive for schema \"" +
+                     spec.name() + "\"");
     DALI_ENFORCE((resize_shorter_ || resize_longer_) != (resize_x_ || resize_y_),
                  "Options `resize_{shorter,longer}` and `resize_x` or `resize_y` "
-                 "are mutually exclusive for schema \"" + spec.name() + "\"");
+                 "are mutually exclusive for schema \"" +
+                     spec.name() + "\"");
 
     max_size_enforced_ = spec.ArgumentDefined("max_size");
     if (max_size_enforced_) {
@@ -70,8 +72,7 @@ class ResizeCropMirrorAttr : protected CropAttr {
   }
 
  protected:
-  inline const TransformMeta GetTransformMeta(const OpSpec &spec,
-                                              const TensorShape<> &input_shape,
+  inline const TransformMeta GetTransformMeta(const OpSpec &spec, const TensorShape<> &input_shape,
                                               const ArgumentWorkspace *ws, const Index index,
                                               const uint32_t flag = 0) {
     TransformMeta meta = {};
@@ -107,17 +108,17 @@ class ResizeCropMirrorAttr : protected CropAttr {
         }
       }
     } else if (resize_longer_) {
-        // resize_longer set
-        const int longer_side_size = spec.GetArgument<float>("resize_longer", ws, index);
+      // resize_longer set
+      const int longer_side_size = spec.GetArgument<float>("resize_longer", ws, index);
 
-        if (meta.H > meta.W) {
-          const float scale = longer_side_size / static_cast<float>(meta.H);
-          meta.rsz_h = longer_side_size;
-          meta.rsz_w = static_cast<int>(std::round(scale * meta.W));
-        } else {
-          const float scale = longer_side_size / static_cast<float>(meta.W);
-          meta.rsz_h = static_cast<int>(std::round(scale * meta.H));
-          meta.rsz_w = longer_side_size;
+      if (meta.H > meta.W) {
+        const float scale = longer_side_size / static_cast<float>(meta.H);
+        meta.rsz_h = longer_side_size;
+        meta.rsz_w = static_cast<int>(std::round(scale * meta.W));
+      } else {
+        const float scale = longer_side_size / static_cast<float>(meta.W);
+        meta.rsz_h = static_cast<int>(std::round(scale * meta.H));
+        meta.rsz_w = longer_side_size;
       }
     } else {
       if (resize_x_) {
@@ -143,9 +144,9 @@ class ResizeCropMirrorAttr : protected CropAttr {
       crop_anchor_norm[0] = spec.GetArgument<float>("crop_pos_y", ws, index);
       crop_anchor_norm[1] = spec.GetArgument<float>("crop_pos_x", ws, index);
 
-      auto anchor_abs = CalculateAnchor(make_span(crop_anchor_norm),
-                                        {crop_height_[index], crop_width_[index]},
-                                        {meta.rsz_h, meta.rsz_w});
+      auto anchor_abs =
+          CalculateAnchor(make_span(crop_anchor_norm), {crop_height_[index], crop_width_[index]},
+                          {meta.rsz_h, meta.rsz_w});
       meta.crop = {anchor_abs[0], anchor_abs[1]};
     }
 
@@ -180,8 +181,12 @@ class ResizeCropMirrorAttr : protected CropAttr {
     return GetTransformMeta(spec, input_shape, ws, ws->data_idx(), ResizeInfoNeeded());
   }
 
-  DALIInterpType getInterpType() const        { return interp_type_; }
-  virtual uint32_t ResizeInfoNeeded() const       { return t_crop + t_mirrorHor; }
+  DALIInterpType getInterpType() const {
+    return interp_type_;
+  }
+  virtual uint32_t ResizeInfoNeeded() const {
+    return t_crop + t_mirrorHor;
+  }
 
   // Interpolation type
   DALIInterpType interp_type_;
@@ -195,18 +200,18 @@ class ResizeCropMirrorAttr : protected CropAttr {
   std::vector<float> max_size_;
 };
 
-typedef DALIError_t (*resizeCropMirroHost)(const uint8 *img, int H, int W, int C,
-                                 int rsz_h, int rsz_w, const std::pair<int, int> &crop, int crop_h,
-                                 int crop_w, int mirror, uint8 *out_img, DALIInterpType type,
-                                 uint8 *workspace);
+typedef DALIError_t (*resizeCropMirroHost)(const uint8 *img, int H, int W, int C, int rsz_h,
+                                           int rsz_w, const std::pair<int, int> &crop, int crop_h,
+                                           int crop_w, int mirror, uint8 *out_img,
+                                           DALIInterpType type, uint8 *workspace);
 /**
  * @brief Performs fused resize+crop+mirror
  */
 template <typename Backend>
 class ResizeCropMirror : public Operator<CPUBackend>, protected ResizeCropMirrorAttr {
  public:
-  explicit inline ResizeCropMirror(const OpSpec &spec) :
-    Operator(spec), ResizeCropMirrorAttr(spec) {
+  explicit inline ResizeCropMirror(const OpSpec &spec)
+      : Operator(spec), ResizeCropMirrorAttr(spec) {
     // Resize per-image & per-thread data
     tl_workspace_.resize(num_threads_);
 
@@ -241,17 +246,11 @@ class ResizeCropMirror : public Operator<CPUBackend>, protected ResizeCropMirror
         std::vector<Index>{crop_height_[ws.data_idx()], crop_width_[ws.data_idx()], meta.C});
     output.SetLayout(input.GetLayout());
 
-    tl_workspace_[ws.thread_idx()].resize(meta.rsz_h*meta.rsz_w*meta.C);
-    DALI_CALL((*func)(
-        input.template data<uint8>(),
-        meta.H, meta.W, meta.C,
-        meta.rsz_h, meta.rsz_w,
-        meta.crop,
-        crop_height_[0], crop_width_[0],
-        meta.mirror,
-        output.template mutable_data<uint8>(),
-        interp_type_,
-        tl_workspace_[ws.thread_idx()].data()));
+    tl_workspace_[ws.thread_idx()].resize(meta.rsz_h * meta.rsz_w * meta.C);
+    DALI_CALL((*func)(input.template data<uint8>(), meta.H, meta.W, meta.C, meta.rsz_h, meta.rsz_w,
+                      meta.crop, crop_height_[0], crop_width_[0], meta.mirror,
+                      output.template mutable_data<uint8>(), interp_type_,
+                      tl_workspace_[ws.thread_idx()].data()));
   }
 
   vector<vector<uint8>> tl_workspace_;
@@ -267,8 +266,7 @@ class ResizeCropMirror : public Operator<CPUBackend>, protected ResizeCropMirror
 template <typename Backend>
 class FastResizeCropMirror : public ResizeCropMirror<CPUBackend> {
  public:
-  explicit inline FastResizeCropMirror(const OpSpec &spec) :
-    ResizeCropMirror<CPUBackend>(spec) {}
+  explicit inline FastResizeCropMirror(const OpSpec &spec) : ResizeCropMirror<CPUBackend>(spec) {}
 
   inline ~FastResizeCropMirror() override = default;
 

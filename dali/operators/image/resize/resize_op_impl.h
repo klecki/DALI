@@ -21,8 +21,8 @@
 
 #include <cassert>
 #include <vector>
-#include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/imgproc/resample.h"
+#include "dali/kernels/kernel_manager.h"
 #include "dali/operators/image/resize/resize_base.h"
 
 namespace dali {
@@ -32,17 +32,14 @@ using kernels::ResamplingParamsND;
 
 template <typename Backend>
 struct ResizeBase<Backend>::Impl {
-  using InputBufferType  = typename Workspace::template input_t<Backend>::element_type;
+  using InputBufferType = typename Workspace::template input_t<Backend>::element_type;
   using OutputBufferType = typename Workspace::template output_t<Backend>::element_type;
 
-  virtual void RunResize(workspace_t<Backend> &ws,
-                         OutputBufferType &output,
+  virtual void RunResize(workspace_t<Backend> &ws, OutputBufferType &output,
                          const InputBufferType &input) = 0;
 
-  virtual void Setup(TensorListShape<> &out_shape,
-                     const TensorListShape<> &in_shape,
-                     int first_spatial_dim,
-                     span<const kernels::ResamplingParams> paramss) = 0;
+  virtual void Setup(TensorListShape<> &out_shape, const TensorListShape<> &in_shape,
+                     int first_spatial_dim, span<const kernels::ResamplingParams> paramss) = 0;
 
   virtual ~Impl() = default;
 };
@@ -51,12 +48,10 @@ template <typename Backend>
 ResizeBase<Backend>::~ResizeBase() = default;
 
 template <int spatial_ndim, int out_ndim, int in_ndim>
-void GetFrameShapesAndParams(
-      TensorListShape<out_ndim> &frame_shapes,
-      std::vector<ResamplingParamsND<spatial_ndim>> &frame_params,
-      const TensorListShape<in_ndim> &in_shape,
-      const span<const ResamplingParams> &in_params,
-      int first_spatial_dim) {
+void GetFrameShapesAndParams(TensorListShape<out_ndim> &frame_shapes,
+                             std::vector<ResamplingParamsND<spatial_ndim>> &frame_params,
+                             const TensorListShape<in_ndim> &in_shape,
+                             const span<const ResamplingParams> &in_params, int first_spatial_dim) {
   assert(first_spatial_dim + spatial_ndim <= in_shape.sample_dim());
   const int frame_ndim = spatial_ndim + 1;
   static_assert(out_ndim == frame_ndim || out_ndim < 0, "Invalid frame tensor rank.");
@@ -86,9 +81,9 @@ void GetFrameShapesAndParams(
       frame_shape[od] = in_sample_shape[d];
     }
     // Collapse trailing dimensions, if any, as channel dim.
-    int num_channels = volume(&in_sample_shape[first_spatial_dim + spatial_ndim],
-                              &in_sample_shape[ndim]);
-    frame_shape[frame_ndim-1] = num_channels;
+    int num_channels =
+        volume(&in_sample_shape[first_spatial_dim + spatial_ndim], &in_sample_shape[ndim]);
+    frame_shape[frame_ndim - 1] = num_channels;
 
     // Replicate parameters and frame shape.
     for (int f = 0; f < seq_len; f++, flat_frame_idx++) {
@@ -101,9 +96,8 @@ void GetFrameShapesAndParams(
 }
 
 template <int out_ndim, int in_ndim>
-void GetResizedShape(
-      TensorListShape<out_ndim> &out_shape, const TensorListShape<in_ndim> &in_shape,
-      span<const ResamplingParams> params, int spatial_ndim, int first_spatial_dim) {
+void GetResizedShape(TensorListShape<out_ndim> &out_shape, const TensorListShape<in_ndim> &in_shape,
+                     span<const ResamplingParams> params, int spatial_ndim, int first_spatial_dim) {
   assert(params.size() == spatial_ndim * in_shape.num_samples());
   assert(first_spatial_dim >= 0 && first_spatial_dim + spatial_ndim <= in_shape.sample_dim());
 
@@ -120,9 +114,8 @@ void GetResizedShape(
 }
 
 template <size_t spatial_ndim, int out_ndim, int in_ndim>
-void GetResizedShape(
-      TensorListShape<out_ndim> &out_shape, const TensorListShape<in_ndim> &in_shape,
-      span<const ResamplingParamsND<spatial_ndim>> params, int first_spatial_dim) {
+void GetResizedShape(TensorListShape<out_ndim> &out_shape, const TensorListShape<in_ndim> &in_shape,
+                     span<const ResamplingParamsND<spatial_ndim>> params, int first_spatial_dim) {
   GetResizedShape(out_shape, in_shape, flatten(params), spatial_ndim, first_spatial_dim);
 }
 

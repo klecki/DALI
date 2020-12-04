@@ -16,11 +16,11 @@
 #define DALI_TEST_CV_MAT_UTILS_H_
 
 #include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+#include <tuple>
 #include <utility>
 #include <vector>
-#include <tuple>
 #include "dali/core/geom/box.h"
 #include "dali/test/mat2tensor.h"
 
@@ -28,8 +28,8 @@ namespace dali {
 namespace testing {
 
 template <int _ndim, class T>
-cv::Mat tensor_to_mat(const TensorView<StorageCPU, T, _ndim> &tensor,
-                      bool has_channels = true, bool convert_to_BGR = true) {
+cv::Mat tensor_to_mat(const TensorView<StorageCPU, T, _ndim> &tensor, bool has_channels = true,
+                      bool convert_to_BGR = true) {
   int ndim = tensor.dim();
   int nch = has_channels ? tensor.shape[ndim - 1] : 1;
   int spatial_ndim = ndim - has_channels;
@@ -50,7 +50,7 @@ cv::Mat tensor_to_mat(const TensorView<StorageCPU, T, _ndim> &tensor,
 
 template <int _ndim, class T>
 void SaveImage(const char *name, const TensorView<StorageCPU, T, _ndim> &tensor) {
-  auto mat = tensor_to_mat(tensor, tensor.dim() > 2 && tensor.shape[tensor.dim()-1] <= 3);
+  auto mat = tensor_to_mat(tensor, tensor.dim() > 2 && tensor.shape[tensor.dim() - 1] <= 3);
   cv::imwrite(name, mat);
 }
 
@@ -78,7 +78,6 @@ cv::Mat_<cv::Vec<T, nchannels>> copy_to_mat(Box<2, int> roi, T *base, int rows, 
   return out_copy;
 }
 
-
 /**
  * @brief Creates a copy of cv::Mat, accessible as TensorView. Main reason to use this function,
  *        is when you want to transfer cv::Mat to the GPU.
@@ -97,13 +96,11 @@ cv::Mat_<cv::Vec<T, nchannels>> copy_to_mat(Box<2, int> roi, T *base, int rows, 
  * @param mat
  * @return A tuple, which has ownership of the data underneath
  */
-template<kernels::AllocType DstAlloc = kernels::AllocType::Unified,
-        typename T = uint8_t, int ndims = 3>
+template <kernels::AllocType DstAlloc = kernels::AllocType::Unified, typename T = uint8_t,
+          int ndims = 3>
 // I <3 function declarations in C++
-std::tuple<
-        TensorView<kernels::AllocBackend<DstAlloc>, T, ndims>,
-        kernels::memory::KernelUniquePtr<T>
-          >
+std::tuple<TensorView<kernels::AllocBackend<DstAlloc>, T, ndims>,
+           kernels::memory::KernelUniquePtr<T>>
 mat_to_tensor(const cv::Mat &mat) {
   static_assert(ndims == 1 || ndims == 3, "`ndims` is restricted to 1 or 3");
   auto tvcpu = kernels::view_as_tensor<T, ndims>(mat);

@@ -17,23 +17,22 @@
 
 #ifdef DALI_BUILD_PROTO3
 
-#include "dali/operators/reader/reader_op.h"
 #include "dali/operators/reader/loader/indexed_file_loader.h"
 #include "dali/operators/reader/parser/tfrecord_parser.h"
+#include "dali/operators/reader/reader_op.h"
 
 namespace dali {
 
 class TFRecordReader : public DataReader<CPUBackend, Tensor<CPUBackend>> {
  public:
-  explicit TFRecordReader(const OpSpec& spec)
-  : DataReader<CPUBackend, Tensor<CPUBackend>>(spec) {
+  explicit TFRecordReader(const OpSpec& spec) : DataReader<CPUBackend, Tensor<CPUBackend>>(spec) {
     loader_ = InitLoader<IndexedFileLoader>(spec);
     parser_.reset(new TFRecordParser(spec));
     DALI_ENFORCE(!skip_cached_images_,
-      "TFRecordReader doesn't support `skip_cached_images` option");
+                 "TFRecordReader doesn't support `skip_cached_images` option");
   }
 
-  void RunImpl(SampleWorkspace &ws) override {
+  void RunImpl(SampleWorkspace& ws) override {
     const auto& tensor = GetSample(ws.data_idx());
     parser_->Parse(tensor, &ws);
   }

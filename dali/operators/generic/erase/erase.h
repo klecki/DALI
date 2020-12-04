@@ -32,8 +32,7 @@ namespace dali {
 template <typename Backend>
 class Erase : public Operator<Backend> {
  public:
-  explicit inline Erase(const OpSpec &spec)
-    : Operator<Backend>(spec) {}
+  explicit inline Erase(const OpSpec &spec) : Operator<Backend>(spec) {}
 
  protected:
   using Operator<Backend>::RunImpl;

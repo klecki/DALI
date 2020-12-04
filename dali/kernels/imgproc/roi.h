@@ -44,34 +44,31 @@ template <int ndims>
 using Roi = Box<ndims, int>;
 
 template <int n>
-DALI_HOST_DEV
-ivec<n> shape2vec(const TensorShape<n> &shape) {
+DALI_HOST_DEV ivec<n> shape2vec(const TensorShape<n> &shape) {
   ivec<n> ret;
   for (int i = 0; i < n; i++)
-    ret[n-1-i] = shape[i];
+    ret[n - 1 - i] = shape[i];
   return ret;
 }
 
 template <int n>
-DALI_HOST_DEV
-TensorShape<n> vec2shape(const ivec<n> &shape_vec) {
+DALI_HOST_DEV TensorShape<n> vec2shape(const ivec<n> &shape_vec) {
   TensorShape<n> ret;
   for (int i = 0; i < n; i++)
-    ret[n-1-i] = shape_vec[i];
+    ret[n - 1 - i] = shape_vec[i];
   return ret;
 }
 
 template <int skip, int n>
-DALI_HOST_DEV
-std::enable_if_t<(skip < 0), TensorShape<n>> skip_dim(const TensorShape<n> &shape) {
+DALI_HOST_DEV std::enable_if_t<(skip < 0), TensorShape<n>> skip_dim(const TensorShape<n> &shape) {
   return shape;
 }
 
 template <int skip, int n>
-DALI_HOST_DEV
-std::enable_if_t<(skip >= 0), TensorShape<n-1>> skip_dim(const TensorShape<n> &shape) {
+DALI_HOST_DEV std::enable_if_t<(skip >= 0), TensorShape<n - 1>> skip_dim(
+    const TensorShape<n> &shape) {
   static_assert(skip < n, "The dimension to be skipped must not exceed input ndim");
-  return shape_cat(shape.template first<skip>(), shape.template last<n-skip-1>());
+  return shape_cat(shape.template first<skip>(), shape.template last<n - skip - 1>());
 }
 
 namespace detail {
@@ -81,13 +78,12 @@ namespace detail {
  */
 template <int ndims, int channel_dim = ndims - 1,
           int spatial_dims = (channel_dim >= 0 ? ndims - 1 : ndims)>
-Roi<spatial_dims> WholeImage(const TensorShape <ndims> &shape) {
+Roi<spatial_dims> WholeImage(const TensorShape<ndims> &shape) {
   ivec<spatial_dims> size = shape2vec(skip_dim<channel_dim>(shape));
   return {0, size};
 }
 
 }  // namespace detail
-
 
 /**
  * Defines TensorShape corresponding to provided Roi.
@@ -114,7 +110,6 @@ TensorShape<ndims> ShapeFromRoi(const Roi<spatial_dims> &roi, int nchannels) {
   return ret;
 }
 
-
 /**
  * Convenient overload for batch processing (creating TensorListShape)
  */
@@ -128,7 +123,6 @@ TensorListShape<ndims> ShapeFromRoi(span<const Roi<spatial_dims>> rois, int ncha
   return ret;
 }
 
-
 /**
  * Adjusted Roi is a Roi, which doesn't overflow the image, that is given by TensorShape.
  *
@@ -140,11 +134,10 @@ TensorListShape<ndims> ShapeFromRoi(span<const Roi<spatial_dims>> rois, int ncha
  * Assumes HWC memory layout
  */
 template <int ndims, int spatial_dims = ndims - 1>
-Roi<spatial_dims> AdjustRoi(const Roi<spatial_dims> *roi, const TensorShape <ndims> &shape) {
+Roi<spatial_dims> AdjustRoi(const Roi<spatial_dims> *roi, const TensorShape<ndims> &shape) {
   auto whole_image = detail::WholeImage(shape);
   return roi ? intersection(*roi, whole_image) : whole_image;
 }
-
 
 /**
  * Adjusted Roi is a Roi, which doesn't overflow the image, that is given by TensorShape.
@@ -158,8 +151,8 @@ Roi<spatial_dims> AdjustRoi(const Roi<spatial_dims> *roi, const TensorShape <ndi
  * Assumes HWC memory layout
  */
 template <int ndims, int spatial_dims = ndims - 1>
-std::vector<Roi<spatial_dims>>
-AdjustRoi(span<const Roi<spatial_dims>> rois, const TensorListShape <ndims> &shapes) {
+std::vector<Roi<spatial_dims>> AdjustRoi(span<const Roi<spatial_dims>> rois,
+                                         const TensorListShape<ndims> &shapes) {
   DALI_ENFORCE(rois.empty() || rois.size() == shapes.num_samples(),
                "Either provide `rois` for every corresponding `shape`, or none.");
   std::vector<Roi<spatial_dims>> ret(shapes.num_samples());

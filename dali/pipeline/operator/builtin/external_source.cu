@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <utility>
-#include <memory>
 #include <list>
+#include <memory>
+#include <utility>
 
 #include "dali/pipeline/operator/builtin/external_source.h"
 
 namespace dali {
 
-template<>
+template <>
 void ExternalSource<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   std::list<uptr_tl_type> tensor_list_elm;
   std::list<uptr_cuda_event_type> internal_copy_to_storage;

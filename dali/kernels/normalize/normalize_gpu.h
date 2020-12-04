@@ -91,12 +91,9 @@ class DLL_PUBLIC NormalizeGPU {
    * @param scale_is_stddev if true, scale is interpreted as standard deviation and it's regularized
    *                        and its reciprocal is used when scaling
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &data_shape,
-                           const TensorListShape<> &param_shape,
-                           bool scalar_base,
-                           bool scalar_scale,
-                           bool scale_is_stddev);
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &data_shape,
+                           const TensorListShape<> &param_shape, bool scalar_base,
+                           bool scalar_scale, bool scale_is_stddev);
 
   /**
    * @brief Sets up the normalization
@@ -109,11 +106,8 @@ class DLL_PUBLIC NormalizeGPU {
    * @param scale_is_stddev if true, scale is interpreted as standard deviation and it's regularized
    *                        and its reciprocal is used when scaling
    */
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &data_shape,
-                           span<const int> axes,
-                           bool scalar_base,
-                           bool scalar_scale,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &data_shape,
+                           span<const int> axes, bool scalar_base, bool scalar_scale,
                            bool scale_is_stddev);
 
   ///@{
@@ -130,25 +124,20 @@ class DLL_PUBLIC NormalizeGPU {
    * @param epsilon       regularizing term added to variance; only used if scale_is_stddev = true
    *                      was specified in Setup
    */
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           const InListGPU<Base> &base, const InListGPU<Scale> &scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Base> &base, const InListGPU<Scale> &scale, float global_scale = 1,
+           float shift = 0, float epsilon = 0);
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           float base, const InListGPU<Scale> &scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in, float base,
+           const InListGPU<Scale> &scale, float global_scale = 1, float shift = 0,
+           float epsilon = 0);
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           const InListGPU<Base> &base, float scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Base> &base, float scale, float global_scale = 1, float shift = 0,
+           float epsilon = 0);
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           float base, float scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0);
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in, float base,
+           float scale, float global_scale = 1, float shift = 0, float epsilon = 0);
   ///@}
 
  private:
@@ -156,22 +145,22 @@ class DLL_PUBLIC NormalizeGPU {
   std::unique_ptr<Impl> impl_;
 };
 
-#define DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, output_type)\
-  linkage template class NormalizeGPU<output_type, int8_t>;\
-  linkage template class NormalizeGPU<output_type, int16_t>;\
-  linkage template class NormalizeGPU<output_type, int32_t>;\
-  linkage template class NormalizeGPU<output_type, uint8_t>;\
-  linkage template class NormalizeGPU<output_type, uint16_t>;\
-  linkage template class NormalizeGPU<output_type, uint32_t>;\
-  linkage template class NormalizeGPU<output_type, float>;\
+#define DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, output_type) \
+  linkage template class NormalizeGPU<output_type, int8_t>;      \
+  linkage template class NormalizeGPU<output_type, int16_t>;     \
+  linkage template class NormalizeGPU<output_type, int32_t>;     \
+  linkage template class NormalizeGPU<output_type, uint8_t>;     \
+  linkage template class NormalizeGPU<output_type, uint16_t>;    \
+  linkage template class NormalizeGPU<output_type, uint32_t>;    \
+  linkage template class NormalizeGPU<output_type, float>;
 
-#define DALI_INSTANTIATE_NORMALIZE_GPU(linkage)\
-  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, int8_t)\
-  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, int16_t)\
-  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, int32_t)\
-  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, uint8_t)\
-  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, uint16_t)\
-  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, uint32_t)\
+#define DALI_INSTANTIATE_NORMALIZE_GPU(linkage)         \
+  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, int8_t)   \
+  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, int16_t)  \
+  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, int32_t)  \
+  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, uint8_t)  \
+  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, uint16_t) \
+  DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, uint32_t) \
   DALI_INSTANTIATE_NORMALIZE_GPU_OUT(linkage, float)
 
 DALI_INSTANTIATE_NORMALIZE_GPU(extern)

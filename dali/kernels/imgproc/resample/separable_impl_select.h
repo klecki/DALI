@@ -25,11 +25,10 @@ using namespace resampling;  // NOLINT
 
 template <typename OutputElement, typename InputElement, int spatial_ndim>
 typename SeparableResamplingFilter<OutputElement, InputElement, spatial_ndim>::Ptr
-SeparableResamplingFilter<OutputElement, InputElement, spatial_ndim>::Create(
-    const Params &params) {
+SeparableResamplingFilter<OutputElement, InputElement, spatial_ndim>::Create(const Params &params) {
   (void)params;
   using ImplType =
-    resampling::SeparableResamplingGPUImpl<OutputElement, InputElement, spatial_ndim>;
+      resampling::SeparableResamplingGPUImpl<OutputElement, InputElement, spatial_ndim>;
   return Ptr(new ImplType());
 }
 

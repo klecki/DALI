@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_UTIL_RANDOMIZER_CUH_
 #define DALI_OPERATORS_UTIL_RANDOMIZER_CUH_
 
+#include <curand_kernel.h>  // NOLINT
 #include <math.h>
 #include "dali/core/device_guard.h"
 #include "dali/pipeline/data/backend.h"
-#include <curand_kernel.h>  // NOLINT
 
 namespace dali {
 
@@ -60,10 +59,10 @@ class RandomizerGPU {
   void Cleanup();
 
  private:
-    curandState* states_;
-    size_t len_;
-    int device_;
-    static constexpr int block_size_ = 256;
+  curandState *states_;
+  size_t len_;
+  int device_;
+  static constexpr int block_size_ = 256;
 };
 
 }  // namespace dali

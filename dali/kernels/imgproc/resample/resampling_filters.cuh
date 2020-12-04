@@ -16,18 +16,17 @@
 #define DALI_KERNELS_IMGPROC_RESAMPLE_RESAMPLING_FILTERS_CUH_
 
 #include <cuda_runtime.h>
-#include <vector>
-#include <memory>
 #include <functional>
+#include <memory>
+#include <vector>
 #ifndef __CUDACC__
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #endif
 #include "dali/core/api_helper.h"
 
 namespace dali {
 namespace kernels {
-
 
 struct ResamplingFilter {
   float *coeffs;
@@ -37,12 +36,12 @@ struct ResamplingFilter {
 
   __host__ __device__ void rescale(float support) {
     float old_scale = scale;
-    scale = (num_coeffs-1) / support;
+    scale = (num_coeffs - 1) / support;
     anchor = anchor * old_scale / scale;
   }
 
   __host__ __device__ int support() const {
-    return ceilf((num_coeffs-1) / scale);
+    return ceilf((num_coeffs - 1) / scale);
   }
 
   __host__ __device__ float operator()(float x) const {
@@ -68,7 +67,7 @@ struct ResamplingFilter {
 };
 
 struct DLL_PUBLIC ResamplingFilters {
-  std::unique_ptr<float, std::function<void(void*)>> filter_data;
+  std::unique_ptr<float, std::function<void(void *)>> filter_data;
 
   DLL_PUBLIC ResamplingFilter Cubic() const noexcept;
   DLL_PUBLIC ResamplingFilter Gaussian(float sigma) const noexcept;

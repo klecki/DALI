@@ -27,17 +27,16 @@ namespace impl {
 
 struct ComplexSpectrumCalculator {
   template <typename OutputType = std::complex<float>, typename InputType = std::complex<float>>
-  void Calculate(OutputType *out, const InputType *in,
-                 int64_t nfft, int64_t out_stride = 1, int64_t in_stride = 1,
-                 bool reconstruct_second_half = false) {
+  void Calculate(OutputType *out, const InputType *in, int64_t nfft, int64_t out_stride = 1,
+                 int64_t in_stride = 1, bool reconstruct_second_half = false) {
     for (int i = 0; i <= nfft / 2; i++) {
-      out[i*out_stride] = in[i*in_stride];
+      out[i * out_stride] = in[i * in_stride];
     }
 
     if (reconstruct_second_half) {
       for (int i = nfft / 2 + 1; i < nfft; i++) {
         // mirroring nfft/2+1+i -> nfft/2-1-i
-        out[i*out_stride] = in[(nfft - i)*in_stride].conj();
+        out[i * out_stride] = in[(nfft - i) * in_stride].conj();
       }
     }
   }
@@ -50,12 +49,12 @@ struct MagnitudeSpectrumCalculator {
     switch (spectrum_type) {
       case FFT_SPECTRUM_MAGNITUDE:
         for (int i = 0; i < length; i++) {
-          out[i*out_stride] = std::abs(in[i*in_stride]);
+          out[i * out_stride] = std::abs(in[i * in_stride]);
         }
         break;
       case FFT_SPECTRUM_POWER:
         for (int i = 0; i < length; i++) {
-          out[i*out_stride] = std::norm(in[i*in_stride]);
+          out[i * out_stride] = std::norm(in[i * in_stride]);
         }
         break;
       default:

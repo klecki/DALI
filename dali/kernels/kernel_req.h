@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef  DALI_KERNELS_KERNEL_REQ_H_
-#define  DALI_KERNELS_KERNEL_REQ_H_
+#ifndef DALI_KERNELS_KERNEL_REQ_H_
+#define DALI_KERNELS_KERNEL_REQ_H_
 
+#include <algorithm>
 #include <array>
 #include <vector>
-#include <algorithm>
-#include "dali/kernels/context.h"
 #include "dali/core/tuple_helpers.h"
 #include "dali/core/util.h"
+#include "dali/kernels/context.h"
 
 namespace dali {
 namespace kernels {

@@ -103,20 +103,20 @@ inline void CollapseAdjacentDims(TensorShape<> &shape, SmallVector<int, static_s
 }
 
 template <size_t static_size>
-inline void SimplifyPermute(
-    TensorShape<> &simplified_shape, SmallVector<int, static_size> &simplified_perm,
-    const int64_t *shape, const int *perm, int ndim) {
-  simplified_shape = { shape, shape + ndim };
-  simplified_perm = { perm, perm + ndim };
+inline void SimplifyPermute(TensorShape<> &simplified_shape,
+                            SmallVector<int, static_size> &simplified_perm, const int64_t *shape,
+                            const int *perm, int ndim) {
+  simplified_shape = {shape, shape + ndim};
+  simplified_perm = {perm, perm + ndim};
 
   CollapseUnitDims(simplified_shape, simplified_perm);
   CollapseAdjacentDims(simplified_shape, simplified_perm);
 }
 
 template <size_t static_size, int in_ndim>
-inline void SimplifyPermute(
-    TensorShape<> &simplified_shape, SmallVector<int, static_size> &simplified_perm,
-    const TensorShape<in_ndim> &shape, span<const int> perm) {
+inline void SimplifyPermute(TensorShape<> &simplified_shape,
+                            SmallVector<int, static_size> &simplified_perm,
+                            const TensorShape<in_ndim> &shape, span<const int> perm) {
   assert(static_cast<int>(perm.size()) == shape.size());
   SimplifyPermute(simplified_shape, simplified_perm, shape.data(), perm.data(), shape.size());
 }

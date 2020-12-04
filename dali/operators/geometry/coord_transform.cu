@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/geometry/coord_transform.h"
 #include "dali/kernels/math/transform_points.cuh"
+#include "dali/operators/geometry/coord_transform.h"
 #include "dali/pipeline/data/views.h"
 
 namespace dali {

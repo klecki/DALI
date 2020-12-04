@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/pipeline/util/copy_with_stride.h"
 #include <cuda_runtime.h>
-#include <dali/core/util.h>
 #include <dali/core/dev_array.h>
+#include <dali/core/util.h>
+#include "dali/pipeline/util/copy_with_stride.h"
 
 namespace dali {
 
@@ -23,8 +23,7 @@ constexpr int MAX_DIMS = 15;
 
 __global__ void CopyWithStrideKernel(uint8_t *output, const uint8_t *input, Index size,
                                      DeviceArray<Index, MAX_DIMS> out_strides,
-                                     DeviceArray<Index, MAX_DIMS> in_strides,
-                                     int ndim) {
+                                     DeviceArray<Index, MAX_DIMS> in_strides, int ndim) {
   auto out_idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (out_idx >= size)
     return;
@@ -39,11 +38,8 @@ __global__ void CopyWithStrideKernel(uint8_t *output, const uint8_t *input, Inde
 }
 
 template <>
-void CopyWithStride<GPUBackend>(void *output, const void *input,
-                                const Index *in_strides,
-                                const Index *shape,
-                                int ndim,
-                                size_t item_size,
+void CopyWithStride<GPUBackend>(void *output, const void *input, const Index *in_strides,
+                                const Index *shape, int ndim, size_t item_size,
                                 cudaStream_t stream) {
   if (!in_strides) {
     cudaMemcpyAsync(output, input, volume(shape, shape + ndim) * item_size,
@@ -60,9 +56,9 @@ void CopyWithStride<GPUBackend>(void *output, const void *input,
   Index size = volume(shape, shape + ndim) * item_size;
   auto blocks_num = (size + 1023) / 1024;
   auto block_size = (size < 1024) ? size : 1024;
-  CopyWithStrideKernel<<<blocks_num, block_size, 0, stream>>>
-      (static_cast<uint8_t*>(output), static_cast<const uint8_t*>(input),
-       size, out_strides, in_strides_arr, ndim);
+  CopyWithStrideKernel<<<blocks_num, block_size, 0, stream>>>(
+      static_cast<uint8_t *>(output), static_cast<const uint8_t *>(input), size, out_strides,
+      in_strides_arr, ndim);
 }
 
 }  // namespace dali

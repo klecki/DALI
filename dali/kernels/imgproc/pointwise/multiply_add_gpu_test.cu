@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include <vector>
 #include <tuple>
-#include "dali/kernels/scratch.h"
+#include <vector>
 #include "dali/core/tensor_shape.h"
 #include "dali/kernels/common/copy.h"
-#include "dali/test/tensor_test_utils.h"
-#include "dali/kernels/test/kernel_test_utils.h"
 #include "dali/kernels/imgproc/pointwise/multiply_add_gpu.h"
+#include "dali/kernels/scratch.h"
+#include "dali/kernels/test/kernel_test_utils.h"
+#include "dali/test/tensor_test_utils.h"
 
 namespace dali {
 namespace kernels {
@@ -31,7 +31,6 @@ namespace {
 
 constexpr size_t kNdims = 3;
 
-
 /**
  * Rounding to nearest even (like GPU does it)
  */
@@ -40,12 +39,10 @@ std::enable_if_t<std::is_integral<Out>::value, Out> custom_round(float val) {
   return static_cast<Out>(std::nearbyint(val));
 }
 
-
 template <class In, class Out>
 std::enable_if_t<!std::is_integral<Out>::value, Out> custom_round(float val) {
   return val;
 }
-
 
 }  // namespace
 
@@ -58,7 +55,6 @@ class MultiplyAddGpuTest : public ::testing::Test {
   MultiplyAddGpuTest() {
     input_host_.resize(dataset_size());
   }
-
 
   void SetUp() final {
     std::mt19937_64 rng;
@@ -73,7 +69,6 @@ class MultiplyAddGpuTest : public ::testing::Test {
     verify_test();
   }
 
-
   In *input_device_;
   Out *output_;
   std::vector<In> input_host_;
@@ -82,7 +77,6 @@ class MultiplyAddGpuTest : public ::testing::Test {
   std::vector<float> addends_ = {4};
   std::vector<float> multipliers_ = {3};
 
-
   void verify_test() {
     assert(shapes_.size() == addends_.size());
     assert(addends_.size() == multipliers_.size());
@@ -90,13 +84,11 @@ class MultiplyAddGpuTest : public ::testing::Test {
     assert(dataset_size() == ref_output_.size());
   }
 
-
   void calc_output(int idx) {
     for (auto in : input_host_) {
       ref_output_.push_back(custom_round<In, Out>(in * multipliers_[idx] + addends_[idx]));
     }
   }
-
 
   size_t dataset_size() {
     int ret = 0;
@@ -116,16 +108,13 @@ INPUT_OUTPUT_TYPED_TEST_SUITE(MultiplyAddGpuTest, TestTypes);
 namespace {
 
 template <class GtestTypeParam>
-using TheKernel = MultiplyAddGpu
-        <typename GtestTypeParam::Out, typename GtestTypeParam::In, kNdims>;
+using TheKernel = MultiplyAddGpu<typename GtestTypeParam::Out, typename GtestTypeParam::In, kNdims>;
 
 }  // namespace
-
 
 TYPED_TEST(MultiplyAddGpuTest, check_kernel) {
   check_kernel<TheKernel<TypeParam>>();
 }
-
 
 TYPED_TEST(MultiplyAddGpuTest, setup_test) {
   TheKernel<TypeParam> kernel;
@@ -133,13 +122,12 @@ TYPED_TEST(MultiplyAddGpuTest, setup_test) {
   InListGPU<typename TypeParam::In, kNdims> in(this->input_device_, this->shapes_);
   auto reqs = kernel.Setup(ctx, in, this->addends_, this->multipliers_);
   ASSERT_EQ(this->shapes_.size(), static_cast<size_t>(reqs.output_shapes[0].num_samples()))
-                        << "Kernel::Setup provides incorrect shape";
+      << "Kernel::Setup provides incorrect shape";
   for (size_t i = 0; i < this->shapes_.size(); i++) {
     EXPECT_EQ(this->shapes_[i], reqs.output_shapes[0][i])
-                  << "Kernel::Setup provides incorrect shape";
+        << "Kernel::Setup provides incorrect shape";
   }
 }
-
 
 TYPED_TEST(MultiplyAddGpuTest, run_test) {
   TheKernel<TypeParam> kernel;
@@ -164,13 +152,12 @@ TYPED_TEST(MultiplyAddGpuTest, run_test) {
   }
 }
 
-
 TYPED_TEST(MultiplyAddGpuTest, sample_descriptors) {
   using InType = typename TypeParam::In;
   using OutType = typename TypeParam::Out;
   InListGPU<InType, kNdims> in(this->input_device_, this->shapes_);
   OutListGPU<OutType, kNdims> out(this->output_, TensorListShape<3>(this->shapes_));
-  std::vector<SampleDescriptor<OutType, InType, kNdims-1>> res(in.num_samples());
+  std::vector<SampleDescriptor<OutType, InType, kNdims - 1>> res(in.num_samples());
   CreateSampleDescriptors(make_span(res), out, in, this->addends_, this->multipliers_);
   EXPECT_EQ(this->input_device_, res[0].in);
   EXPECT_EQ(this->output_, res[0].out);
@@ -180,7 +167,6 @@ TYPED_TEST(MultiplyAddGpuTest, sample_descriptors) {
   EXPECT_EQ(this->addends_[0], res[0].addend);
   EXPECT_EQ(this->multipliers_[0], res[0].multiplier);
 }
-
 
 }  // namespace test
 }  // namespace multiply_add

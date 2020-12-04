@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/core/fast_div.h"  // NOLINT
 #include <gtest/gtest.h>
 #include <cmath>
-#include <random>
 #include <iostream>
-#include "dali/test/device_test.h"
-#include "dali/core/dev_buffer.h"
+#include <random>
 #include "dali/core/cuda_event.h"
+#include "dali/core/dev_buffer.h"
+#include "dali/core/fast_div.h"  // NOLINT
+#include "dali/test/device_test.h"
 
 namespace dali {
 
@@ -28,11 +28,9 @@ void TestDiv32(bool quick_test) {
   fast_div<uint32_t> fast = divisor;
 
   std::cerr << "Testing x / " << divisor << std::endl;
-  uint32_t range = quick_test ? (1<<20) : 0xFFFFFFFFu;
+  uint32_t range = quick_test ? (1 << 20) : 0xFFFFFFFFu;
   for (uint32_t xx = 0; xx < range; xx++) {
-    uint32_t x = quick_test
-      ? ((xx >> 12) << 24) | (xx & 0xfff)
-      : xx;
+    uint32_t x = quick_test ? ((xx >> 12) << 24) | (xx & 0xfff) : xx;
     ASSERT_EQ(x / divisor, x / fast) << " when dividing " << x << " / " << divisor;
   }
 
@@ -44,11 +42,9 @@ template <uint64_t divisor>
 void TestDiv64(bool quick_test) {
   fast_div<uint64_t> fast = divisor;
   std::cerr << "Testing x / " << divisor << std::endl;
-  uint64_t range = quick_test ? (1<<20) : 0xFFFFFFFFu;
+  uint64_t range = quick_test ? (1 << 20) : 0xFFFFFFFFu;
   for (uint64_t xx = 0; xx < range; xx++) {
-    uint64_t x = quick_test
-      ? ((xx >> 12) << 56) + (xx & 0xfff)
-      : ((xx >> 12) << 44) + (xx & 0xfff);
+    uint64_t x = quick_test ? ((xx >> 12) << 56) + (xx & 0xfff) : ((xx >> 12) << 44) + (xx & 0xfff);
     ASSERT_EQ(x / divisor, x / fast) << " when dividing " << x << " / " << divisor;
   }
   uint64_t x = 0xFFFFFFFFFFFFFFFEuL;
@@ -103,11 +99,11 @@ TEST(FastDiv, U64_Host) {
 }
 
 // This test is disabled because it's ridiculously slow - only run when touching fast_div
-DEVICE_TEST(FastDiv, DISABLED_U32_GPU, dim3(1<<10, 1<<10), (1<<10)) {
+DEVICE_TEST(FastDiv, DISABLED_U32_GPU, dim3(1 << 10, 1 << 10), (1 << 10)) {
   uint32_t start = (blockIdx.x * blockDim.x + threadIdx.x) << 12;
   uint32_t divisor = blockIdx.y + 1;
   fast_div<uint32_t> fast = divisor;
-  uint32_t end = start + (1<<12);
+  uint32_t end = start + (1 << 12);
   if (end == 0)
     end--;
   for (uint32_t value = start; value < end; value++) {
@@ -116,14 +112,14 @@ DEVICE_TEST(FastDiv, DISABLED_U32_GPU, dim3(1<<10, 1<<10), (1<<10)) {
 }
 
 // This test is disabled because it's ridiculously slow - only run when touching fast_div
-DEVICE_TEST(FastDiv, DISABLED_U64_GPU_Slow, dim3(1<<10, 1<<10), (1<<10)) {
+DEVICE_TEST(FastDiv, DISABLED_U64_GPU_Slow, dim3(1 << 10, 1 << 10), (1 << 10)) {
   uint64_t start = static_cast<uint64_t>(blockIdx.x * blockDim.x + threadIdx.x) << 44;
   uint64_t divisor = blockIdx.y + 1;
   fast_div<uint64_t> fast;
   fast.init(divisor);
-  uint64_t end = start + (1<<12);
-  if (blockIdx.x == gridDim.x - 1 && threadIdx.x == blockDim.x-1) {
-    start = 0xfffffffffffffffeuL - (1<<12);
+  uint64_t end = start + (1 << 12);
+  if (blockIdx.x == gridDim.x - 1 && threadIdx.x == blockDim.x - 1) {
+    start = 0xfffffffffffffffeuL - (1 << 12);
     end = 0xffffffffffffffffuL;
   }
   for (uint64_t value = start; value < end; value++) {
@@ -136,15 +132,13 @@ DEVICE_TEST(FastDiv, DISABLED_U64_GPU_Slow, dim3(1<<10, 1<<10), (1<<10)) {
   }
 }
 
-DEVICE_TEST(FastDiv, U32_GPU, dim3(1<<10, 11), (1<<10)) {
-  static constexpr uint32_t divisors[11] = {
-    1, 2, 3, 5, 7, 14, 19, 42,
-    0x7fffffffu, 0x80000000u, 0xfffffffeu
-  };
+DEVICE_TEST(FastDiv, U32_GPU, dim3(1 << 10, 11), (1 << 10)) {
+  static constexpr uint32_t divisors[11] = {1,  2,  3,           5,           7,          14,
+                                            19, 42, 0x7fffffffu, 0x80000000u, 0xfffffffeu};
   uint32_t start = (blockIdx.x * blockDim.x + threadIdx.x) << 12;
   uint32_t divisor = divisors[blockIdx.y];
   fast_div<uint32_t> fast = divisor;
-  uint32_t end = start + (1<<12);
+  uint32_t end = start + (1 << 12);
   if (end == 0)
     end--;
   for (uint32_t value = start; value < end; value++) {
@@ -157,18 +151,16 @@ DEVICE_TEST(FastDiv, U32_GPU, dim3(1<<10, 11), (1<<10)) {
   }
 }
 
-DEVICE_TEST(FastDiv, U64_GPU, dim3(1<<10, 11), (1<<10)) {
+DEVICE_TEST(FastDiv, U64_GPU, dim3(1 << 10, 11), (1 << 10)) {
   static constexpr uint64_t divisors[11] = {
-    1, 2, 3, 5, 7, 14, 19, 42,
-    0x7fffffffffffffffuL, 0x8000000000000000uL, 0xfffffffffffffffeuL
-  };
+      1, 2, 3, 5, 7, 14, 19, 42, 0x7fffffffffffffffuL, 0x8000000000000000uL, 0xfffffffffffffffeuL};
   uint64_t start = static_cast<uint64_t>(blockIdx.x * blockDim.x + threadIdx.x) << 44;
   uint64_t divisor = divisors[blockIdx.y];
   fast_div<uint64_t> fast;
   fast.init(divisor);
-  uint64_t end = start + (1<<12);
-  if (blockIdx.x == gridDim.x - 1 && threadIdx.x == blockDim.x-1) {
-    start = 0xfffffffffffffffeuL - (1<<12);
+  uint64_t end = start + (1 << 12);
+  if (blockIdx.x == gridDim.x - 1 && threadIdx.x == blockDim.x - 1) {
+    start = 0xfffffffffffffffeuL - (1 << 12);
     end = 0xffffffffffffffffuL;
   }
   for (uint64_t value = start; value < end; value++) {
@@ -188,10 +180,7 @@ DALI_HOST_DEV DALI_FORCEINLINE integer div_mod(integer &mod, integer dividend, i
 }
 
 template <typename T>
-__global__ void NormalDivMod(T *out,
-                             T divisor1,
-                             T divisor2,
-                             T divisor3) {
+__global__ void NormalDivMod(T *out, T divisor1, T divisor2, T divisor3) {
   T x = static_cast<T>(blockIdx.x) * blockDim.x + threadIdx.x;
   for (int i = 0; i < 6; i++) {
     T q1, r1, q2, r2, q3, r3;
@@ -204,9 +193,7 @@ __global__ void NormalDivMod(T *out,
 }
 
 template <typename T>
-__global__ void FastDivMod(T *out,
-                           fast_div<T> divisor1,
-                           fast_div<T> divisor2,
+__global__ void FastDivMod(T *out, fast_div<T> divisor1, fast_div<T> divisor2,
                            fast_div<T> divisor3) {
   T x = static_cast<T>(blockIdx.x) * blockDim.x + threadIdx.x;
   for (int i = 0; i < 6; i++) {
@@ -228,13 +215,13 @@ TYPED_TEST_SUITE(FastDivPerf, FastDivTypes);
 TEST(FastDiv_Host, div_lohi) {
   detail::lohi<uint64_t> num;
   uint64_t den, ref, q;
-  num = { 0, 1 };
+  num = {0, 1};
   den = 2;
   q = detail::div_lohi(num.lo, num.hi, den);
   ref = 1uL << 63;
   EXPECT_EQ(q, ref);
 
-  num = { 0xCAFEBABEFACEFEEDuL, 0x600DF00DuL };
+  num = {0xCAFEBABEFACEFEEDuL, 0x600DF00DuL};
   den = 0x600DF00EuL;  // this divisor is only slightly larger than the high word which
                        // makes the division more prone to errors, should there be any
   // reference is calculated off-line as ((unsigned __int128)num.hi << 64 | num.lo) / den;
@@ -246,13 +233,13 @@ TEST(FastDiv_Host, div_lohi) {
 DEVICE_TEST(FastDiv_Dev, div_lohi, 1, 1) {
   detail::lohi<uint64_t> num;
   uint64_t den, ref, q;
-  num = { 0, 1 };
+  num = {0, 1};
   den = 2;
   q = detail::div_lohi(num.lo, num.hi, den);
   ref = 1uL << 63;
   DEV_EXPECT_EQ(q, ref);
 
-  num = { 0xCAFEBABEFACEFEEDuL, 0x600DF00DuL };
+  num = {0xCAFEBABEFACEFEEDuL, 0x600DF00DuL};
   den = 0x600DF00EuL;  // this divisor is only slightly larger than the high word which
                        // makes the division more prone to errors, should there be any
   // reference is calculated off-line as ((unsigned __int128)num.hi << 64 | num.lo) / den;
@@ -269,7 +256,7 @@ TYPED_TEST(FastDivPerf, Perf) {
   int64_t N = 1000000;
 
   std::mt19937_64 rng;
-  std::uniform_int_distribution<T> dist(0, 1<<24);
+  std::uniform_int_distribution<T> dist(0, 1 << 24);
 
   DeviceBuffer<T> m;
   m.resize(2048);

@@ -15,13 +15,13 @@
 #ifndef DALI_KERNELS_KERNEL_MANAGER_H_
 #define DALI_KERNELS_KERNEL_MANAGER_H_
 
+#include <atomic>
 #include <memory>
 #include <utility>
-#include <atomic>
-#include "dali/kernels/scratch.h"
+#include "dali/core/small_vector.h"
 #include "dali/kernels/context.h"
 #include "dali/kernels/kernel_req.h"
-#include "dali/core/small_vector.h"
+#include "dali/kernels/scratch.h"
 
 namespace dali {
 namespace kernels {
@@ -40,16 +40,16 @@ T atomic_max(std::atomic<T> &value, const T &store_if_greater) {
 
 struct AnyKernelInstance {
   KernelRequirements requirements;
-  std::unique_ptr<void, void(*)(void*)> instance = { nullptr, free };
+  std::unique_ptr<void, void (*)(void *)> instance = {nullptr, free};
 
   template <typename Kernel, typename... Args>
-  Kernel &create_or_get(Args&&... args) {
+  Kernel &create_or_get(Args &&...args) {
     void (*deleter)(void *) = delete_kernel<Kernel>;
     if (!instance || instance.get_deleter() != deleter) {
       instance.reset();
-      instance = { new Kernel{std::forward<Args>(args)...}, deleter };
+      instance = {new Kernel{std::forward<Args>(args)...}, deleter};
     }
-    return *static_cast<Kernel*>(instance.get());
+    return *static_cast<Kernel *>(instance.get());
   }
 
   template <typename Kernel>
@@ -60,15 +60,17 @@ struct AnyKernelInstance {
     if (instance.get_deleter() != deleter)
       throw std::logic_error("The kernel instance is of different type than requested");
 
-    return *static_cast<Kernel*>(instance.get());
+    return *static_cast<Kernel *>(instance.get());
   }
 
   template <typename Kernel>
   static void delete_kernel(void *ptr) {
-    delete static_cast<Kernel*>(ptr);
+    delete static_cast<Kernel *>(ptr);
   }
 
-  explicit operator bool() const noexcept { return static_cast<bool>(instance); }
+  explicit operator bool() const noexcept {
+    return static_cast<bool>(instance);
+  }
 };
 
 /**
@@ -111,7 +113,7 @@ class DLL_PUBLIC KernelManager {
    * @tparam Kernel        - type of the kernel to be created
    */
   template <typename Kernel, typename... Args>
-  void Resize(size_t num_threads, size_t num_instances, const Args&... args) {
+  void Resize(size_t num_threads, size_t num_instances, const Args &...args) {
     Resize(num_threads, num_instances);
     Initialize<Kernel>(args...);
   }
@@ -123,7 +125,7 @@ class DLL_PUBLIC KernelManager {
    * @tparam Kernel        - type of the kernel to be created
    */
   template <typename Kernel, typename... Args>
-  void Initialize(const Args&... args) {
+  void Initialize(const Args &...args) {
     for (size_t i = 0; i < NumInstances(); i++)
       CreateOrGet<Kernel>(i, args...);
   }
@@ -140,7 +142,6 @@ class DLL_PUBLIC KernelManager {
   Kernel &CreateOrGet(int instance_idx, ConstructorArgs &&...args) {
     return instances[instance_idx].create_or_get<Kernel>(std::forward<ConstructorArgs>(args)...);
   }
-
 
   /**
    * @brief Gets a Kernel instance
@@ -168,8 +169,12 @@ class DLL_PUBLIC KernelManager {
     return instances[instance_idx].requirements;
   }
 
-  size_t NumInstances() const noexcept { return instances.size(); }
-  size_t NumThreads() const noexcept { return scratchpads.size(); }
+  size_t NumInstances() const noexcept {
+    return instances.size();
+  }
+  size_t NumThreads() const noexcept {
+    return scratchpads.size();
+  }
 
   /**
    * @brief Gets a scratchpad allocator assigned to a given thread.
@@ -235,12 +240,9 @@ class DLL_PUBLIC KernelManager {
    * @param out_in_args    - pack of arguments (outputs, inputs, arguments) used in Kernel::Run
    */
   template <typename Kernel, typename... OutInArgs>
-  void Run(ScratchpadAllocator &sa,
-           int instance_idx,
-           KernelContext &context,
+  void Run(ScratchpadAllocator &sa, int instance_idx, KernelContext &context,
            OutInArgs &&...out_in_args) {
-    assert(instance_idx >= 0 &&
-           static_cast<size_t>(instance_idx) < NumInstances() &&
+    assert(instance_idx >= 0 && static_cast<size_t>(instance_idx) < NumInstances() &&
            "Kernel instance index (instance_idx) out of range");
     auto &inst = instances[instance_idx];
     auto scratchpad = ReserveScratchpad(sa, inst.requirements.scratch_sizes);
@@ -260,8 +262,8 @@ class DLL_PUBLIC KernelManager {
    * If reallocation is necessary, it allocates `sizes` or that maximum
    * whichever is larger.
    */
-  auto ReserveScratchpad(ScratchpadAllocator &sa, const ScratchSizes &sizes)->
-  decltype(sa.GetScratchpad());
+  auto ReserveScratchpad(ScratchpadAllocator &sa, const ScratchSizes &sizes)
+      -> decltype(sa.GetScratchpad());
 
   /**
    * @brief Calls ReserveScratchpad on ScratchpadAllocator associated with given thread_idx

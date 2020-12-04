@@ -16,37 +16,36 @@
 #define DALI_OPERATORS_READER_LOADER_NUMPY_LOADER_GPU_H_
 
 #include <dirent.h>
-#include <sys/stat.h>
 #include <errno.h>
+#include <sys/stat.h>
 
+#include <algorithm>
 #include <fstream>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <set>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include <algorithm>
-#include <map>
-#include <memory>
-#include <set>
-#include <mutex>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/data/types.h"
 #include "dali/operators/reader/loader/cufile_loader.h"
 #include "dali/operators/reader/loader/numpy_loader.h"
+#include "dali/pipeline/data/types.h"
 #include "dali/util/cufile.h"
 
 namespace dali {
 
 class NumpyLoaderGPU : public CUFileLoader {
  public:
-  explicit inline NumpyLoaderGPU(
-    const OpSpec& spec,
-    vector<std::string> images = std::vector<std::string>(),
-    bool shuffle_after_epoch = false) :
-      CUFileLoader(spec, images, shuffle_after_epoch),
-      register_buffers_(spec.GetArgument<bool>("register_buffers")),
-      header_cache_(spec.GetArgument<bool>("cache_header_information")) {}
+  explicit inline NumpyLoaderGPU(const OpSpec& spec,
+                                 vector<std::string> images = std::vector<std::string>(),
+                                 bool shuffle_after_epoch = false)
+      : CUFileLoader(spec, images, shuffle_after_epoch),
+        register_buffers_(spec.GetArgument<bool>("register_buffers")),
+        header_cache_(spec.GetArgument<bool>("cache_header_information")) {}
 
   ~NumpyLoaderGPU() override {
     // set device
@@ -64,11 +63,11 @@ class NumpyLoaderGPU : public CUFileLoader {
 
  protected:
   // register input tensor
-  void RegisterBuffer(void *buffer, size_t total_size);
+  void RegisterBuffer(void* buffer, size_t total_size);
 
   // read the full sample
-  void ReadSampleHelper(CUFileStream *file, ImageFileWrapperGPU& imfile,
-                        void *buffer, Index offset, size_t total_size);
+  void ReadSampleHelper(CUFileStream* file, ImageFileWrapperGPU& imfile, void* buffer, Index offset,
+                        size_t total_size);
 
   // do we want to register device buffers:
   bool register_buffers_;

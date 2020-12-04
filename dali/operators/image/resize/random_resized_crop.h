@@ -15,29 +15,26 @@
 #ifndef DALI_OPERATORS_IMAGE_RESIZE_RANDOM_RESIZED_CROP_H_
 #define DALI_OPERATORS_IMAGE_RESIZE_RANDOM_RESIZED_CROP_H_
 
-#include <vector>
-#include <random>
 #include <memory>
+#include <random>
 #include <utility>
+#include <vector>
 
-#include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/operator/op_spec.h"
-#include "dali/pipeline/operator/common.h"
-#include "dali/operators/image/resize/resize_base.h"
-#include "dali/operators/image/resize/resize_attr.h"
-#include "dali/operators/image/crop/random_crop_attr.h"
 #include "dali/kernels/imgproc/resample/params.h"
+#include "dali/operators/image/crop/random_crop_attr.h"
+#include "dali/operators/image/resize/resize_attr.h"
+#include "dali/operators/image/resize/resize_base.h"
+#include "dali/pipeline/operator/common.h"
+#include "dali/pipeline/operator/op_spec.h"
+#include "dali/pipeline/operator/operator.h"
 
 namespace dali {
 
 template <typename Backend>
-class RandomResizedCrop : public Operator<Backend>
-                        , protected ResizeBase<Backend> {
+class RandomResizedCrop : public Operator<Backend>, protected ResizeBase<Backend> {
  public:
   explicit inline RandomResizedCrop(const OpSpec &spec)
-      : Operator<Backend>(spec)
-      , ResizeBase<Backend>(spec)
-      , crop_attr_(spec) {
+      : Operator<Backend>(spec), ResizeBase<Backend>(spec), crop_attr_(spec) {
     GetSingleOrRepeatedArg(spec, size_, "size", 2);
     InitParams(spec);
     BackendInit();
@@ -50,7 +47,9 @@ class RandomResizedCrop : public Operator<Backend>
   USE_OPERATOR_MEMBERS();
   using Operator<Backend>::RunImpl;
 
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
 
  protected:
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
@@ -67,7 +66,7 @@ class RandomResizedCrop : public Operator<Backend>
 
     auto out_type = resampling_attr_.GetOutputType(in_type);
 
-    int width_idx  = layout.find('W');
+    int width_idx = layout.find('W');
     int height_idx = layout.find('H');
     assert(width_idx >= 0 && "Width dimension not found");
     assert(height_idx >= 0 && "Height dimension not found");
@@ -105,7 +104,7 @@ class RandomResizedCrop : public Operator<Backend>
     auto &wnd = crops_[index];
     auto params = shared_params_;
     for (int d = 0; d < 2; d++) {
-      params[d].roi = kernels::ResamplingParams::ROI(wnd.anchor[d], wnd.anchor[d]+wnd.shape[d]);
+      params[d].roi = kernels::ResamplingParams::ROI(wnd.anchor[d], wnd.anchor[d] + wnd.shape[d]);
     }
     return params;
   }

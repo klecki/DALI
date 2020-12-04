@@ -16,17 +16,17 @@
 #define DALI_KERNELS_SLICE_SLICE_GPU_H_
 
 #include <cuda_runtime.h>
-#include <vector>
 #include <utility>
-#include "dali/kernels/slice/slice_kernel_utils.h"
-#include "dali/kernels/kernel.h"
+#include <vector>
 #include "dali/core/common.h"
-#include "dali/core/fast_div.h"
 #include "dali/core/convert.h"
+#include "dali/core/cuda_error.h"
 #include "dali/core/dev_array.h"
 #include "dali/core/error_handling.h"
-#include "dali/core/cuda_error.h"
+#include "dali/core/fast_div.h"
 #include "dali/kernels/common/copy.h"
+#include "dali/kernels/kernel.h"
+#include "dali/kernels/slice/slice_kernel_utils.h"
 
 namespace dali {
 namespace kernels {
@@ -76,7 +76,7 @@ __device__ void SliceFuncNoPad(OutputType *__restrict__ out, const InputType *__
     uint64_t out_idx = idx;
     uint64_t in_idx = 0;
 
-    #pragma unroll
+#pragma unroll
     for (int d = 0; d < Dims; d++) {
       int i_d = div_mod(idx, idx, out_strides[d]);
       in_idx += i_d * in_strides[d];
@@ -90,7 +90,6 @@ DALI_HOST_DEV DALI_FORCEINLINE bool is_out_of_bounds(int64_t idx, int64_t data_e
   // check idx < 0 and idx >= data_extent at once
   return static_cast<uint64_t>(idx) >= static_cast<uint64_t>(data_extent);
 }
-
 
 /**
  * @brief General algorithm that allows for padding in any dimension
@@ -132,7 +131,7 @@ __device__ void SliceFunc(OutputType *__restrict__ out, const InputType *__restr
     bool out_of_bounds = false;
     uint64_t in_idx = 0;
 
-    #pragma unroll
+#pragma unroll
     for (int d = 0; d < Dims - 1; d++) {
       i_d = div_mod(idx, idx, out_strides[d]);
       if (d == channel_dim)
@@ -161,15 +160,15 @@ __global__ void SliceKernel(const SliceSampleDesc<Dims> *samples, const BlockDes
   uint64_t offset = blocks[blockIdx.x].offset + threadIdx.x;
   uint64_t block_end = blocks[blockIdx.x].offset + blocks[blockIdx.x].size;
   auto sample = samples[sampleIdx];
-  auto *out = static_cast<OutputType*>(sample.out);
-  auto *in = static_cast<const InputType*>(sample.in);
+  auto *out = static_cast<OutputType *>(sample.out);
+  auto *in = static_cast<const InputType *>(sample.in);
   auto *out_strides = sample.out_strides;
   auto *in_strides = sample.in_strides.data();
   if (SupportPad && sample.need_pad) {
     auto *anchor = sample.anchor.data();
     auto *in_shape = sample.in_shape.data();
     auto *out_shape = sample.out_shape.data();
-    auto *fill_values = static_cast<const OutputType*>(sample.fill_values);
+    auto *fill_values = static_cast<const OutputType *>(sample.fill_values);
     auto channel_dim = sample.channel_dim;
     SliceFunc<Dims>(out, in, out_strides, in_strides, out_shape, in_shape, anchor, fill_values,
                     channel_dim, offset, block_end);
@@ -188,15 +187,14 @@ class SliceGPU {
   int64_t block_count_ = 0;
 
  public:
-  KernelRequirements Setup(KernelContext &context,
-                           const InListGPU<InputType, Dims> &in,
+  KernelRequirements Setup(KernelContext &context, const InListGPU<InputType, Dims> &in,
                            const std::vector<SliceArgs<OutputType, Dims>> &slice_args) {
     KernelRequirements req;
     ScratchpadEstimator se;
     auto num_samples = in.size();
 
     nfill_values_ = 0;
-    for (const auto& args : slice_args) {
+    for (const auto &args : slice_args) {
       if (nfill_values_ == 0) {
         nfill_values_ = args.fill_values.size();
       } else {
@@ -209,10 +207,9 @@ class SliceGPU {
       default_fill_values_ = true;
       nfill_values_ = 1;
     } else if (nfill_values_ > 1) {
-      for (const auto& args : slice_args) {
+      for (const auto &args : slice_args) {
         if (args.channel_dim < 0 || args.channel_dim >= Dims)
-          throw std::invalid_argument(
-              "Channel dim must be valid for multi-channel fill values");
+          throw std::invalid_argument("Channel dim must be valid for multi-channel fill values");
         if (nfill_values_ != args.shape[args.channel_dim])
           throw std::invalid_argument(
               "The number of fill values should match the number of channels in the output slice");
@@ -233,20 +230,18 @@ class SliceGPU {
 
     block_count_ = 0;
     for (auto sample_size : sample_sizes) {
-      block_count_ += std::ceil(
-        sample_size / static_cast<float>(kBlockSize));
+      block_count_ += std::ceil(sample_size / static_cast<float>(kBlockSize));
     }
 
     se.add<detail::BlockDesc>(AllocType::Host, block_count_);
     se.add<detail::BlockDesc>(AllocType::GPU, block_count_);
     req.scratch_sizes = se.sizes;
 
-    req.output_shapes = { GetOutputShapes<Dims>(in.shape, slice_args) };
+    req.output_shapes = {GetOutputShapes<Dims>(in.shape, slice_args)};
     return req;
   }
 
-  void Run(KernelContext &context,
-           OutListGPU<OutputType, Dims> &out,
+  void Run(KernelContext &context, OutListGPU<OutputType, Dims> &out,
            const InListGPU<InputType, Dims> &in,
            const std::vector<SliceArgs<OutputType, Dims>> &slice_args) {
     const auto num_samples = in.size();
@@ -316,19 +311,18 @@ class SliceGPU {
 
     detail::SliceSampleDesc<Dims> *sample_descs;
     detail::BlockDesc *block_descs;
-    std::tie(sample_descs, block_descs) =
-        context.scratchpad->ToContiguousGPU(context.gpu.stream,
-                                            make_cspan(sample_descs_cpu, num_samples),
-                                            make_cspan(block_descs_cpu, block_count_));
+    std::tie(sample_descs, block_descs) = context.scratchpad->ToContiguousGPU(
+        context.gpu.stream, make_cspan(sample_descs_cpu, num_samples),
+        make_cspan(block_descs_cpu, block_count_));
     CUDA_CALL(cudaGetLastError());
 
     const auto grid = block_count_;
     if (any_padded_sample)
       detail::SliceKernel<to_gpu_t<OutputType>, to_gpu_t<InputType>, Dims, true>
-        <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs, block_descs);
+          <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs, block_descs);
     else
       detail::SliceKernel<to_gpu_t<OutputType>, to_gpu_t<InputType>, Dims, false>
-        <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs, block_descs);
+          <<<grid, kBlockDim, 0, context.gpu.stream>>>(sample_descs, block_descs);
     CUDA_CALL(cudaGetLastError());
   }
 

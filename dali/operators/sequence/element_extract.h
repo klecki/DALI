@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 #ifndef DALI_OPERATORS_SEQUENCE_ELEMENT_EXTRACT_H_
 #define DALI_OPERATORS_SEQUENCE_ELEMENT_EXTRACT_H_
 
@@ -24,30 +23,26 @@
 namespace dali {
 
 namespace detail {
-  static void CheckInputShape(const TensorShape<>& tensor_shape,
-                              const std::vector<int>& element_map) {
-    DALI_ENFORCE(tensor_shape.size() > 0);
-    auto N_input = tensor_shape[0];
+static void CheckInputShape(const TensorShape<> &tensor_shape,
+                            const std::vector<int> &element_map) {
+  DALI_ENFORCE(tensor_shape.size() > 0);
+  auto N_input = tensor_shape[0];
 
-    int N_output = element_map.size();
-    DALI_ENFORCE(N_input >= N_output,
-        "Requested more elements than available");
+  int N_output = element_map.size();
+  DALI_ENFORCE(N_input >= N_output, "Requested more elements than available");
 
-    for (auto elem : element_map)
-        DALI_ENFORCE(elem < N_input,
-            "index " + std::to_string(elem) + " out of bounds");
-  }
+  for (auto elem : element_map)
+    DALI_ENFORCE(elem < N_input, "index " + std::to_string(elem) + " out of bounds");
+}
 }  // namespace detail
 
 template <typename Backend>
 class ElementExtract : public Operator<Backend> {
  public:
-  inline explicit ElementExtract(const OpSpec &spec)
-    : Operator<Backend>(spec) {
+  inline explicit ElementExtract(const OpSpec &spec) : Operator<Backend>(spec) {
     element_map_ = spec.GetRepeatedArgument<int>("element_map");
 
-    DALI_ENFORCE(!element_map_.empty(),
-        "No 'element_map' indexes provided");
+    DALI_ENFORCE(!element_map_.empty(), "No 'element_map' indexes provided");
   }
 
  protected:

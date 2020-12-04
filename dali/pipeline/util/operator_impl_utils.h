@@ -18,10 +18,10 @@
 #include <vector>
 #include "dali/core/common.h"
 #include "dali/pipeline/data/backend.h"
-#include "dali/pipeline/workspace/workspace.h"
 #include "dali/pipeline/util/backend2workspace_map.h"
 #include "dali/pipeline/workspace/device_workspace.h"
 #include "dali/pipeline/workspace/sample_workspace.h"
+#include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {
 
@@ -32,8 +32,7 @@ template <typename Backend>
 class OpImplBase {
  public:
   virtual ~OpImplBase() = default;
-  virtual bool SetupImpl(std::vector<OutputDesc> &output_desc,
-                         const workspace_t<Backend> &ws) = 0;
+  virtual bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) = 0;
   virtual void RunImpl(workspace_t<Backend> &ws) = 0;
 };
 

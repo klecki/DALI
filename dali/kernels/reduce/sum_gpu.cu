@@ -20,8 +20,7 @@ namespace dali {
 namespace kernels {
 
 template <typename Out, typename In>
-class SumGPU<Out, In>::Impl : public reduce_impl::SumImplGPU<Out, In> {
-};
+class SumGPU<Out, In>::Impl : public reduce_impl::SumImplGPU<Out, In> {};
 
 template <typename Out, typename In>
 SumGPU<Out, In>::SumGPU() {}
@@ -30,9 +29,8 @@ template <typename Out, typename In>
 SumGPU<Out, In>::~SumGPU() {}
 
 template <typename Out, typename In>
-KernelRequirements SumGPU<Out, In>::Setup(
-    KernelContext &ctx,
-    const TensorListShape<> &in_shape, span<const int> axes, bool keep_dims, bool reduce_batch) {
+KernelRequirements SumGPU<Out, In>::Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
+                                          span<const int> axes, bool keep_dims, bool reduce_batch) {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }

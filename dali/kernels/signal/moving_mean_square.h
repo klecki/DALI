@@ -15,15 +15,15 @@
 #ifndef DALI_KERNELS_SIGNAL_MOVING_MEAN_SQUARE_H_
 #define DALI_KERNELS_SIGNAL_MOVING_MEAN_SQUARE_H_
 
-#include "dali/kernels/kernel.h"
 #include "dali/core/format.h"
+#include "dali/kernels/kernel.h"
 #include "dali/kernels/signal/moving_mean_square_args.h"
 
 namespace dali {
 namespace kernels {
 namespace signal {
 
-template<typename InputType>
+template <typename InputType>
 class DLL_PUBLIC MovingMeanSquareCpu {
  public:
   DLL_PUBLIC ~MovingMeanSquareCpu();

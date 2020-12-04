@@ -27,8 +27,7 @@ namespace dali {
 template <typename Backend>
 class BBoxPaste : public Operator<Backend> {
  public:
-  explicit inline BBoxPaste(const OpSpec &spec) :
-    Operator<Backend>(spec) {
+  explicit inline BBoxPaste(const OpSpec &spec) : Operator<Backend>(spec) {
     use_ltrb_ = spec.GetArgument<bool>("ltrb");
   }
 

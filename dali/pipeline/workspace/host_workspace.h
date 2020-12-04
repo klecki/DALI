@@ -15,16 +15,16 @@
 #ifndef DALI_PIPELINE_WORKSPACE_HOST_WORKSPACE_H_
 #define DALI_PIPELINE_WORKSPACE_HOST_WORKSPACE_H_
 
+#include <memory>
 #include <utility>
 #include <vector>
-#include <memory>
 
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/tensor.h"
-#include "dali/pipeline/util/thread_pool.h"
 #include "dali/pipeline/data/tensor_vector.h"
+#include "dali/pipeline/util/thread_pool.h"
 #include "dali/pipeline/workspace/workspace.h"
 
 namespace dali {
@@ -52,7 +52,7 @@ class DLL_PUBLIC HostWorkspace : public WorkspaceBase<HostInputType, HostOutputT
    * @brief Returns a sample workspace for the given sample
    * index and thread index
    */
-  DLL_PUBLIC void GetSample(SampleWorkspace *ws, int data_idx, int thread_idx);
+  DLL_PUBLIC void GetSample(SampleWorkspace* ws, int data_idx, int thread_idx);
 
   /**
    * @brief Returns the number of Tensors in the input set of
@@ -86,8 +86,7 @@ class DLL_PUBLIC HostWorkspace : public WorkspaceBase<HostInputType, HostOutputT
   template <typename Backend>
   DLL_PUBLIC Tensor<Backend>& Output(int idx, int data_idx);
 
-
-  DLL_PUBLIC inline void SetThreadPool(ThreadPool *pool) {
+  DLL_PUBLIC inline void SetThreadPool(ThreadPool* pool) {
     thread_pool_ = pool;
   }
 
@@ -95,7 +94,7 @@ class DLL_PUBLIC HostWorkspace : public WorkspaceBase<HostInputType, HostOutputT
     return thread_pool_ != nullptr;
   }
 
-  DLL_PUBLIC inline ThreadPool &GetThreadPool() const {
+  DLL_PUBLIC inline ThreadPool& GetThreadPool() const {
     DALI_ENFORCE(HasThreadPool(), "Workspace does not have a Thread Pool.");
     return *thread_pool_;
   }

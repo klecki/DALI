@@ -26,15 +26,14 @@
 #include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/slice/slice_kernel_utils.h"
 #include "dali/operators/generic/slice/out_of_bounds_policy.h"
+#include "dali/pipeline/data/views.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
-#include "dali/pipeline/data/views.h"
 #include "dali/pipeline/util/operator_impl_utils.h"
 #include "dali/util/crop_window.h"
 
-#define SLICE_TYPES (uint8_t, uint16_t, uint32_t, uint64_t, \
-                     int8_t,  int16_t,  int32_t,  int64_t, \
-                     float16, float, double)
+#define SLICE_TYPES \
+  (uint8_t, uint16_t, uint32_t, uint64_t, int8_t, int16_t, int32_t, int64_t, float16, float, double)
 #define SLICE_DIMS (1, 2, 3, 4)
 
 namespace dali {
@@ -52,7 +51,7 @@ class SliceBase : public Operator<Backend> {
   }
 
   template <typename OutputType, int Dims>
-  void FillArgs(std::vector<kernels::SliceArgs<OutputType, Dims>>& slice_args,
+  void FillArgs(std::vector<kernels::SliceArgs<OutputType, Dims>> &slice_args,
                 const workspace_t<Backend> &ws) {
     this->ProcessCroppingAttrs(ws);
     const auto &input = ws.template InputRef<Backend>(0);
@@ -74,13 +73,12 @@ class SliceBase : public Operator<Backend> {
     }
   }
 
-
  protected:
-   /**
+  /**
    * @brief Implementation specific (Crop, Slice, ...)
    */
   virtual void ProcessCroppingAttrs(const workspace_t<Backend> &ws) = 0;
-  virtual const CropWindowGenerator& GetCropWindowGenerator(std::size_t data_idx) const = 0;
+  virtual const CropWindowGenerator &GetCropWindowGenerator(std::size_t data_idx) const = 0;
 
   bool CanInferOutputs() const override {
     return true;
@@ -113,8 +111,8 @@ class SliceBase : public Operator<Backend> {
         args.fill_values.push_back(static_cast<OutputType>(val));
       if (fill_values_.size() > 1) {
         DALI_ENFORCE((channel_dim >= 0 && channel_dim < Dims),
-                      "Multi-channel fill_values was provided but channel dimension could not be "
-                      "found in layout");
+                     "Multi-channel fill_values was provided but channel dimension could not be "
+                     "found in layout");
         args.channel_dim = channel_dim;
       }
     }

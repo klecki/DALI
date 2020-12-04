@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/core/per_stream_pool.h"  // NOLINT
 #include <gtest/gtest.h>
-#include <atomic>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <thread>
 #include <vector>
 #include "dali/core/cuda_stream.h"
+#include "dali/core/per_stream_pool.h"  // NOLINT
 
 namespace dali {
 
 void wait_func(void *pvflag) {
-  auto *flag = reinterpret_cast<std::atomic_flag*>(pvflag);
+  auto *flag = reinterpret_cast<std::atomic_flag *>(pvflag);
   while (flag->test_and_set()) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
@@ -160,7 +160,6 @@ TEST(PerStreamPool, MultiStream) {
   cudaStreamSynchronize(ssync);
 }
 
-
 TEST(PerStreamPool, Massive) {
   std::atomic_flag flag;
   flag.test_and_set();
@@ -170,7 +169,7 @@ TEST(PerStreamPool, Massive) {
   std::vector<CUDAStream> s(N);
   std::vector<int *> p1(N), p2(N);
 
-  for (int  i = 0; i < N; i++) {
+  for (int i = 0; i < N; i++) {
     s[i] = CUDAStream::Create(true);
   }
 
@@ -190,7 +189,7 @@ TEST(PerStreamPool, Massive) {
         if (auto lease = pool.Get(s[i])) {
           if (j == 0) {
             p1[i] = lease;
-          cudaStreamWaitEvent(s[i], e, 0);  // block s[i]
+            cudaStreamWaitEvent(s[i], e, 0);  // block s[i]
           } else {
             if (lease != p1[i]) {
               std::cerr << "Failure in worker thread " << i
@@ -213,7 +212,7 @@ TEST(PerStreamPool, Massive) {
 
   std::sort(p1.begin(), p1.end());
   for (int i = 1; i < N; i++)
-    EXPECT_NE(p1[i], p1[i-1]) << "Duplicate object found - this shouldn't have happened";
+    EXPECT_NE(p1[i], p1[i - 1]) << "Duplicate object found - this shouldn't have happened";
 
   for (int i = 0; i < N; i++)
     cudaStreamSynchronize(s[i]);

@@ -67,8 +67,7 @@ struct SeparableConvolutionCpu<Out, In, W, 1, has_channels> {
 
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
-           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows,
-           W scale = 1) {
+           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows, W scale = 1) {
     conv_.Run(ctx, out, in, windows[0], scale);
   }
 
@@ -102,9 +101,8 @@ struct SeparableConvolutionCpu<Out, In, W, 2, has_channels> {
 
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
-           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows,
-           W scale = 1) {
-    auto *tmp = ctx.scratchpad->Allocate<Intermediate>(AllocType::Host, volume(in.shape));
+           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows, W scale = 1) {
+    auto* tmp = ctx.scratchpad->Allocate<Intermediate>(AllocType::Host, volume(in.shape));
     auto intermediate = TensorView<StorageCPU, Intermediate, ndim>(tmp, in.shape);
 
     // Prepare the scratchpad with all the remaining memory requested by sub-kernels
@@ -158,8 +156,7 @@ struct SeparableConvolutionCpu<Out, In, W, 3, has_channels> {
 
   void Run(KernelContext& ctx, const TensorView<StorageCPU, Out, ndim> out,
            const TensorView<StorageCPU, const In, ndim>& in,
-           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows,
-           W scale = 1) {
+           const std::array<TensorView<StorageCPU, const W, 1>, axes>& windows, W scale = 1) {
     auto* tmp = ctx.scratchpad->Allocate<Intermediate>(AllocType::Host, volume(in.shape));
     auto intermediate = TensorView<StorageCPU, Intermediate, ndim>(tmp, in.shape);
 

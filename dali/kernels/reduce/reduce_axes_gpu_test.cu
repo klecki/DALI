@@ -1,7 +1,7 @@
 // Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
-  // you may not use this file except in compliance with the License.
+// you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
@@ -16,15 +16,15 @@
 #include <random>
 #include <utility>
 #include <vector>
+#include "dali/core/cuda_event.h"
 #include "dali/core/dev_buffer.h"
-#include "dali/kernels/reduce/reduce_axes_gpu_impl.cuh"
-#include "dali/kernels/reduce/reduce_test.h"
-#include "dali/kernels/alloc.h"
-#include "dali/test/test_tensors.h"
-#include "dali/test/tensor_test_utils.h"
 #include "dali/core/format.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/core/cuda_event.h"
+#include "dali/kernels/alloc.h"
+#include "dali/kernels/reduce/reduce_axes_gpu_impl.cuh"
+#include "dali/kernels/reduce/reduce_test.h"
+#include "dali/test/tensor_test_utils.h"
+#include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
@@ -37,8 +37,7 @@ void RefReduceInner(Out *out, const T *in, int64_t n_outer, int64_t n_inner, con
 }
 
 template <typename Out, typename Reduction, typename T>
-void RefReduceMiddle(Out *out, const T *in,
-                     int64_t n_outer, int64_t n_reduced, int64_t n_inner,
+void RefReduceMiddle(Out *out, const T *in, int64_t n_outer, int64_t n_reduced, int64_t n_inner,
                      const Reduction &R) {
   int64_t outer_stride = n_reduced * n_inner;
   for (int64_t outer = 0; outer < n_outer; outer++) {
@@ -48,7 +47,6 @@ void RefReduceMiddle(Out *out, const T *in,
     }
   }
 }
-
 
 using int_dist = std::uniform_int_distribution<int>;
 
@@ -69,7 +67,7 @@ class ReduceInnerGPUTest : public ::testing::Test {
     for (int i = 0; i < N; i++) {
       int outer = outer_shape_dist(rng);
       int inner = inner_shape_dist(rng);
-      tls.set_tensor_shape(i, { outer, inner });
+      tls.set_tensor_shape(i, {outer, inner});
     }
     in.reshape(tls);
     auto cpu_in = in.cpu();
@@ -87,7 +85,7 @@ class ReduceInnerGPUTest : public ::testing::Test {
         desc.num_macroblocks <<= 1;
         desc.macroblock_size = div_ceil(desc.n_reduced, desc.num_macroblocks);
       }
-      out_tls.set_tensor_shape(i, { desc.n_outer, desc.num_macroblocks });
+      out_tls.set_tensor_shape(i, {desc.n_outer, desc.num_macroblocks});
       cpu_descs.push_back(desc);
     }
     out.reshape(out_tls);
@@ -109,7 +107,7 @@ class ReduceInnerGPUTest : public ::testing::Test {
     dim3 grid(xgrid, N);
     dim3 block(32, 32);
     auto start = CUDAEvent::CreateWithFlags(0);
-    auto end =   CUDAEvent::CreateWithFlags(0);
+    auto end = CUDAEvent::CreateWithFlags(0);
     gpu_descs.from_host(cpu_descs);
     cudaEventRecord(start);
     ReduceInnerKernel<float><<<grid, block>>>(gpu_descs.data(), reduction);
@@ -142,9 +140,9 @@ class ReduceInnerGPUTest : public ::testing::Test {
       if (out.shape[1] > 1) {
         full_out.resize(outer);
         RefReduceInner(full_out.data(), out.data, outer, out.shape[1], reduction);
-        out = make_tensor_cpu<2>(full_out.data(), { outer, 1 });
+        out = make_tensor_cpu<2>(full_out.data(), {outer, 1});
       }
-      auto ref = make_tensor_cpu<2>(ref_out.data(), { outer, 1 });
+      auto ref = make_tensor_cpu<2>(ref_out.data(), {outer, 1});
       Check(out, ref, EqualEpsRel(1e-6, 1e-6));
     }
   }
@@ -155,7 +153,6 @@ class ReduceInnerGPUTest : public ::testing::Test {
   std::vector<SampleDesc> cpu_descs;
   DeviceBuffer<SampleDesc> gpu_descs;
 };
-
 
 using ReductionTestTypes = ::testing::Types<reductions::sum, reductions::min, reductions::max>;
 
@@ -177,25 +174,21 @@ TYPED_TEST(ReduceInnerGPUTest, ReduceInner_64_1024) {
 }
 
 TYPED_TEST(ReduceInnerGPUTest, ReduceInner_1k_32k) {
-  this->PrepareData(10, int_dist(1, 100), int_dist(1024, 32*1024));
+  this->PrepareData(10, int_dist(1, 100), int_dist(1024, 32 * 1024));
   this->Run();
 }
 
 TYPED_TEST(ReduceInnerGPUTest, ReduceInner_16k_1M) {
-  this->PrepareData(10, int_dist(1, 10), int_dist(16*1024, 1024*1024));
+  this->PrepareData(10, int_dist(1, 10), int_dist(16 * 1024, 1024 * 1024));
   this->Run();
 }
-
-
 
 template <typename Reduction>
 class ReduceMiddleGPUTest : public ::testing::Test {
  public:
   using SampleDesc = ReduceSampleDesc<float, float>;
 
-  void PrepareData(int N,
-                   int_dist outer_shape_dist,
-                   int_dist reduced_shape_dist,
+  void PrepareData(int N, int_dist outer_shape_dist, int_dist reduced_shape_dist,
                    int_dist inner_shape_dist) {
     std::uniform_real_distribution<float> dist(0, 1);
     std::mt19937_64 rng;
@@ -210,7 +203,7 @@ class ReduceMiddleGPUTest : public ::testing::Test {
       int outer = outer_shape_dist(rng);
       int reduced = reduced_shape_dist(rng);
       int inner = inner_shape_dist(rng);
-      tls.set_tensor_shape(i, { outer, reduced, inner });
+      tls.set_tensor_shape(i, {outer, reduced, inner});
     }
     in.reshape(tls);
     auto cpu_in = in.cpu();
@@ -228,7 +221,7 @@ class ReduceMiddleGPUTest : public ::testing::Test {
         desc.num_macroblocks <<= 1;
         desc.macroblock_size = div_ceil(desc.n_reduced, desc.num_macroblocks);
       }
-      out_tls.set_tensor_shape(i, { desc.n_outer, desc.num_macroblocks, desc.n_inner });
+      out_tls.set_tensor_shape(i, {desc.n_outer, desc.num_macroblocks, desc.n_inner});
       cpu_descs.push_back(desc);
     }
     out.reshape(out_tls);
@@ -251,9 +244,10 @@ class ReduceMiddleGPUTest : public ::testing::Test {
     dim3 grid(xgrid, N);
     dim3 block(32, 24);
     auto start = CUDAEvent::CreateWithFlags(0);
-    auto end =   CUDAEvent::CreateWithFlags(0);
+    auto end = CUDAEvent::CreateWithFlags(0);
     cudaEventRecord(start);
-    ReduceMiddleKernel<float><<<grid, block, sizeof(float)*32*33>>>(gpu_descs.data(), reduction);
+    ReduceMiddleKernel<float>
+        <<<grid, block, sizeof(float) * 32 * 33>>>(gpu_descs.data(), reduction);
     CUDA_CALL(cudaGetLastError());
     cudaEventRecord(end);
     CUDA_CALL(cudaDeviceSynchronize());
@@ -286,9 +280,9 @@ class ReduceMiddleGPUTest : public ::testing::Test {
       if (out.shape[1] > 1) {
         full_out.resize(outer * inner);
         RefReduceMiddle(full_out.data(), out.data, outer, out.shape[1], inner, reduction);
-        out = make_tensor_cpu<3>(full_out.data(), { outer, 1, inner });
+        out = make_tensor_cpu<3>(full_out.data(), {outer, 1, inner});
       }
-      auto ref = make_tensor_cpu<3>(ref_out.data(), { outer, 1, inner });
+      auto ref = make_tensor_cpu<3>(ref_out.data(), {outer, 1, inner});
       Check(out, ref, EqualEpsRel(1e-6, 1e-6));
     }
   }
@@ -299,7 +293,6 @@ class ReduceMiddleGPUTest : public ::testing::Test {
   std::vector<SampleDesc> cpu_descs;
   DeviceBuffer<SampleDesc> gpu_descs;
 };
-
 
 using ReductionTestTypes = ::testing::Types<reductions::sum, reductions::min, reductions::max>;
 
@@ -319,32 +312,32 @@ TYPED_TEST(ReduceMiddleGPUTest, ReduceMiddle_Small_Large_Small) {
 #ifdef NDEBUG
   this->PrepareData(10, int_dist(10, 20), int_dist(20480, 102400), int_dist(10, 32));
 #else
-  this->PrepareData(10, int_dist(3, 5), int_dist(2<<10, 5<<10), int_dist(10, 32));
+  this->PrepareData(10, int_dist(3, 5), int_dist(2 << 10, 5 << 10), int_dist(10, 32));
 #endif
   this->Run();
 }
 
 TYPED_TEST(ReduceMiddleGPUTest, ReduceMiddle_Small_Large_Medium) {
 #ifdef NDEBUG
-  this->PrepareData(10, int_dist(3, 5), int_dist(16<<10, 100<<10), int_dist(32, 256));
+  this->PrepareData(10, int_dist(3, 5), int_dist(16 << 10, 100 << 10), int_dist(32, 256));
 #else
-  this->PrepareData(10, int_dist(3, 5), int_dist(2<<10, 5<<10), int_dist(32, 256));
+  this->PrepareData(10, int_dist(3, 5), int_dist(2 << 10, 5 << 10), int_dist(32, 256));
 #endif
   this->Run();
 }
 
 TYPED_TEST(ReduceMiddleGPUTest, ReduceOuter_Large_Small) {
 #ifdef NDEBUG
-  this->PrepareData(10, int_dist(1, 1), int_dist(1<<18, 1<<20), int_dist(3, 8));
+  this->PrepareData(10, int_dist(1, 1), int_dist(1 << 18, 1 << 20), int_dist(3, 8));
 #else
-  this->PrepareData(10, int_dist(1, 1), int_dist(1<<15, 1<<18), int_dist(3, 8));
+  this->PrepareData(10, int_dist(1, 1), int_dist(1 << 15, 1 << 18), int_dist(3, 8));
 #endif
   this->Run();
 }
 
 #ifdef NDEBUG
 TYPED_TEST(ReduceMiddleGPUTest, ReduceOuter_B1_16M_3) {
-  this->PrepareData(1, int_dist(1, 1), int_dist(16<<20, 16<<20), int_dist(3, 3));
+  this->PrepareData(1, int_dist(1, 1), int_dist(16 << 20, 16 << 20), int_dist(3, 3));
   this->Run();
 }
 #endif
@@ -352,7 +345,7 @@ TYPED_TEST(ReduceMiddleGPUTest, ReduceOuter_B1_16M_3) {
 TEST(ReduceSamples, Sum) {
   std::mt19937_64 rng(12345);
   TestTensorList<float, 2> in, out;
-  TensorShape<2> sample_shape = { 480, 640 };
+  TensorShape<2> sample_shape = {480, 640};
 #ifdef NDEBUG
   int N = 64;
 #else
@@ -375,7 +368,7 @@ TEST(ReduceSamples, Sum) {
   auto gpu_out = out.gpu();
 
   auto start = CUDAEvent::CreateWithFlags(0);
-  auto end =   CUDAEvent::CreateWithFlags(0);
+  auto end = CUDAEvent::CreateWithFlags(0);
   sample_ptrs.from_host(gpu_in.data);
   cudaEventRecord(start);
   ReduceSamplesKernel<float><<<256, 1024>>>(gpu_out.data[0], sample_ptrs.data(), n, N, R);
@@ -398,7 +391,6 @@ TEST(ReduceSamples, Sum) {
     EXPECT_NEAR(cpu_out.data[0][j], ref, 1e-6f) << " at offset " << j;
   }
 }
-
 
 }  // namespace kernels
 }  // namespace dali

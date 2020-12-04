@@ -42,5 +42,4 @@ struct SphereMapping {
 }  // namespace kernels
 }  // namespace dali
 
-
 #endif  // DALI_KERNELS_IMGPROC_WARP_SPHERE_H_

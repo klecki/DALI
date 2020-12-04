@@ -15,21 +15,20 @@
 #ifndef DALI_OPERATORS_READER_CAFFE_READER_OP_H_
 #define DALI_OPERATORS_READER_CAFFE_READER_OP_H_
 
-#include "dali/operators/reader/reader_op.h"
 #include "dali/operators/reader/loader/lmdb.h"
 #include "dali/operators/reader/parser/caffe_parser.h"
+#include "dali/operators/reader/reader_op.h"
 
 namespace dali {
 
 class CaffeReader : public DataReader<CPUBackend, Tensor<CPUBackend>> {
  public:
-  explicit CaffeReader(const OpSpec& spec)
-  : DataReader<CPUBackend, Tensor<CPUBackend>>(spec) {
+  explicit CaffeReader(const OpSpec& spec) : DataReader<CPUBackend, Tensor<CPUBackend>>(spec) {
     loader_ = InitLoader<LMDBLoader>(spec);
     parser_.reset(new CaffeParser(spec));
   }
 
-  void RunImpl(SampleWorkspace &ws) override {
+  void RunImpl(SampleWorkspace& ws) override {
     const auto& tensor = GetSample(ws.data_idx());
     ParseIfNeeded(tensor, &ws);
   }

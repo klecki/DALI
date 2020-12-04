@@ -47,12 +47,12 @@ namespace signal {
  * @remarks The operation can be done in place if output and input are of the same type.
  */
 template <int static_channels = -1, typename Out, typename In>
-void DownmixChannels(
-    Out *out, const In *in, int64_t samples, int channels,
-    const float *weights, bool normalize_weights = false) {
+void DownmixChannels(Out *out, const In *in, int64_t samples, int channels, const float *weights,
+                     bool normalize_weights = false) {
   SmallVector<float, 8> normalized_weights;  // 8 channels should be enough for 7.1 audio
-  static_assert(static_channels != 0, "Number of channels cannot be zero."
-                                      "Use negative values to use run-time value");
+  static_assert(static_channels != 0,
+                "Number of channels cannot be zero."
+                "Use negative values to use run-time value");
   int actual_channels = static_channels < 0 ? channels : static_channels;
   assert(actual_channels == channels);
   assert(actual_channels > 0);
@@ -95,9 +95,8 @@ void DownmixChannels(
  * @remarks The operation can be done in place if output and input are of the same type.
  */
 template <typename Out, typename In>
-void Downmix(
-    Out *out, const In *in, int64_t samples, int channels,
-    const float *weights, bool normalize_weights = false) {
+void Downmix(Out *out, const In *in, int64_t samples, int channels, const float *weights,
+             bool normalize_weights = false) {
   VALUE_SWITCH(channels, static_channels, (1, 2, 3, 4, 5, 6, 7, 8),
     (DownmixChannels<static_channels>(out, in, samples, static_channels,
                                       weights, normalize_weights);),
@@ -112,15 +111,13 @@ void Downmix(Out *out, const In *in, int64_t num_samples, int num_channels) {
   Downmix(out, in, num_samples, num_channels, weights.data());
 }
 
-
 template <typename Out, typename In>
-void Downmix(span<Out> out, span<const In> in,
-             const std::vector<float> &weights, bool normalize_weights = false) {
+void Downmix(span<Out> out, span<const In> in, const std::vector<float> &weights,
+             bool normalize_weights = false) {
   int num_channels = weights.size();
   assert(in.size() % num_channels == 0);
   Downmix(out.data(), in.data(), in.size() / num_channels, weights, normalize_weights);
 }
-
 
 template <typename Out, typename In>
 void Downmix(span<Out> out, span<const In> in, int num_channels) {

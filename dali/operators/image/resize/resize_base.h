@@ -21,12 +21,12 @@
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
 #include "dali/core/span.h"
-#include "dali/kernels/scratch.h"
 #include "dali/kernels/kernel.h"
 #include "dali/kernels/kernel_manager.h"
+#include "dali/kernels/scratch.h"
+#include "dali/operators/image/resize/resampling_attr.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/operator/operator.h"
-#include "dali/operators/image/resize/resampling_attr.h"
 
 namespace dali {
 
@@ -41,7 +41,7 @@ class DLL_PUBLIC ResizeBase {
 
   using Workspace = workspace_t<Backend>;
 
-  using InputBufferType =  typename Workspace::template input_t<Backend>::element_type;
+  using InputBufferType = typename Workspace::template input_t<Backend>::element_type;
   using OutputBufferType = typename Workspace::template output_t<Backend>::element_type;
 
   void RunResize(Workspace &ws, OutputBufferType &output, const InputBufferType &input);
@@ -59,38 +59,29 @@ class DLL_PUBLIC ResizeBase {
    * @param spatial_ndim      number of resized dimensions - these need to form a
    *                          contiguous block in th layout
    */
-  void SetupResize(TensorListShape<> &out_shape,
-                   DALIDataType out_type,
-                   const TensorListShape<> &in_shape,
-                   DALIDataType in_type,
-                   span<const kernels::ResamplingParams> params,
-                   int spatial_ndim,
+  void SetupResize(TensorListShape<> &out_shape, DALIDataType out_type,
+                   const TensorListShape<> &in_shape, DALIDataType in_type,
+                   span<const kernels::ResamplingParams> params, int spatial_ndim,
                    int first_spatial_dim = 0);
 
   template <size_t spatial_ndim>
-  void SetupResize(TensorListShape<> &out_shape,
-                   DALIDataType out_type,
-                   const TensorListShape<> &in_shape,
-                   DALIDataType in_type,
+  void SetupResize(TensorListShape<> &out_shape, DALIDataType out_type,
+                   const TensorListShape<> &in_shape, DALIDataType in_type,
                    span<const kernels::ResamplingParamsND<spatial_ndim>> params,
                    int first_spatial_dim = 0) {
-    SetupResize(out_shape, out_type, in_shape, in_type, flatten(params),
-                spatial_ndim, first_spatial_dim);
+    SetupResize(out_shape, out_type, in_shape, in_type, flatten(params), spatial_ndim,
+                first_spatial_dim);
   }
 
   struct Impl;  // this needs to be public, because implementations inherit from it
  private:
   template <typename OutType, typename InType, int spatial_ndim>
-  void SetupResizeStatic(TensorListShape<> &out_shape,
-                         const TensorListShape<> &in_shape,
-                         span<const kernels::ResamplingParams> params,
-                         int first_spatial_dim = 0);
+  void SetupResizeStatic(TensorListShape<> &out_shape, const TensorListShape<> &in_shape,
+                         span<const kernels::ResamplingParams> params, int first_spatial_dim = 0);
 
   template <typename OutType, typename InType>
-  void SetupResizeTyped(TensorListShape<> &out_shape,
-                        const TensorListShape<> &in_shape,
-                        span<const kernels::ResamplingParams> params,
-                        int spatial_ndim,
+  void SetupResizeTyped(TensorListShape<> &out_shape, const TensorListShape<> &in_shape,
+                        span<const kernels::ResamplingParams> params, int spatial_ndim,
                         int first_spatial_dim = 0);
 
   int num_threads_ = 1;

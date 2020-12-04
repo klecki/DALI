@@ -15,8 +15,8 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include "dali/kernels/kernel_manager.h"
-#include "dali/kernels/math/transform_points.h"
 #include "dali/kernels/math/transform_points.cuh"
+#include "dali/kernels/math/transform_points.h"
 #include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
 
@@ -31,15 +31,9 @@ struct TransformPointsTest : ::testing::Test {
   static const int out_dim = 2;
 
   void PrepareData() {
-    TensorListShape<3> shape = {{
-      { 480, 640, in_dim },
-      { 100, 120, in_dim }
-    }};
+    TensorListShape<3> shape = {{{480, 640, in_dim}, {100, 120, in_dim}}};
 
-    TensorListShape<3> out_shape = {{
-      { 480, 640, out_dim },
-      { 100, 120, out_dim }
-    }};
+    TensorListShape<3> out_shape = {{{480, 640, out_dim}, {100, 120, out_dim}}};
 
     in_data_.reshape(shape);
     out_data_.reshape(out_shape);

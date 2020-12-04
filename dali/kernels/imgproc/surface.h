@@ -23,7 +23,6 @@
 namespace dali {
 namespace kernels {
 
-
 template <int _spatial_ndim, typename T>
 struct Surface {
   static constexpr int spatial_ndim = _spatial_ndim;
@@ -31,29 +30,32 @@ struct Surface {
   constexpr Surface() = default;
 
   template <int N = spatial_ndim, std::enable_if_t<N == 2, int> = 0>
-  DALI_HOST_DEV
-  constexpr Surface(T *data,
-                    int width, int height, int channels,
-                    int pixel_stride, int row_stride, int channel_stride)
-  : data(data), size(width, height), channels(channels),
-    strides(pixel_stride, row_stride), channel_stride(channel_stride) {
-  }
+  DALI_HOST_DEV constexpr Surface(T *data, int width, int height, int channels, int pixel_stride,
+                                  int row_stride, int channel_stride)
+      : data(data),
+        size(width, height),
+        channels(channels),
+        strides(pixel_stride, row_stride),
+        channel_stride(channel_stride) {}
 
   template <int N = spatial_ndim, std::enable_if_t<N == 3, int> = 0>
-  DALI_HOST_DEV
-  constexpr Surface(T *data,
-                    int width, int height, int depth, int channels,
-                    int pixel_stride, int row_stride, int slice_stride, int channel_stride)
-  : data(data), size(width, height, depth), channels(channels),
-    strides(pixel_stride, row_stride, slice_stride), channel_stride(channel_stride) {
-  }
+  DALI_HOST_DEV constexpr Surface(T *data, int width, int height, int depth, int channels,
+                                  int pixel_stride, int row_stride, int slice_stride,
+                                  int channel_stride)
+      : data(data),
+        size(width, height, depth),
+        channels(channels),
+        strides(pixel_stride, row_stride, slice_stride),
+        channel_stride(channel_stride) {}
 
   DALI_HOST_DEV
-  constexpr Surface(T *data,
-                    ivec<spatial_ndim> size, int channels,
-                    ivec<spatial_ndim> strides, int channel_stride)
-  : data(data), size(size), channels(channels), strides(strides), channel_stride(channel_stride) {
-  }
+  constexpr Surface(T *data, ivec<spatial_ndim> size, int channels, ivec<spatial_ndim> strides,
+                    int channel_stride)
+      : data(data),
+        size(size),
+        channels(channels),
+        strides(strides),
+        channel_stride(channel_stride) {}
 
   T *data;
   ivec<spatial_ndim> size;
@@ -66,22 +68,20 @@ struct Surface {
   }
 
   template <int N = spatial_ndim>
-  DALI_HOST_DEV
-  constexpr std::enable_if_t<N == 1, T &> operator()(int x, int c = 0) const {
+  DALI_HOST_DEV constexpr std::enable_if_t<N == 1, T &> operator()(int x, int c = 0) const {
     static_assert(N == spatial_ndim, "N mustn't be explicitly set");
     return (*this)({x, c});
   }
 
   template <int N = spatial_ndim>
-  DALI_HOST_DEV
-  constexpr std::enable_if_t<N == 2, T &> operator()(int x, int y, int c = 0) const {
+  DALI_HOST_DEV constexpr std::enable_if_t<N == 2, T &> operator()(int x, int y, int c = 0) const {
     static_assert(N == spatial_ndim, "N mustn't be explicitly set");
     return (*this)({x, y, c});
   }
 
   template <int N = spatial_ndim>
-  DALI_HOST_DEV
-  constexpr std::enable_if_t<N == 3, T &> operator()(int x, int y, int z, int c = 0) const {
+  DALI_HOST_DEV constexpr std::enable_if_t<N == 3, T &> operator()(int x, int y, int z,
+                                                                   int c = 0) const {
     static_assert(N == spatial_ndim, "N mustn't be explicitly set");
     return (*this)({x, y, z, c});
   }
@@ -95,13 +95,8 @@ struct Surface {
   }
 
   DALI_HOST_DEV constexpr Surface<spatial_ndim - 1, T> slice(int outermost_pos = 0) const {
-    return {
-      &data[strides[spatial_ndim-1] * outermost_pos],
-      sub<spatial_ndim - 1>(size),
-      channels,
-      sub<spatial_ndim - 1>(strides),
-      channel_stride
-    };
+    return {&data[strides[spatial_ndim - 1] * outermost_pos], sub<spatial_ndim - 1>(size), channels,
+            sub<spatial_ndim - 1>(strides), channel_stride};
   }
 
   /**
@@ -111,10 +106,9 @@ struct Surface {
    * @remarks The template magic is a workaround to avoid conversion to self
    *          when T is already const
    */
-  template <typename U = T,
-            typename V = std::enable_if_t<!std::is_const<U>::value, const U>>
-  DALI_HOST_DEV operator Surface<spatial_ndim, V>&() {
-    return *reinterpret_cast<Surface<spatial_ndim, V>*>(this);
+  template <typename U = T, typename V = std::enable_if_t<!std::is_const<U>::value, const U>>
+  DALI_HOST_DEV operator Surface<spatial_ndim, V> &() {
+    return *reinterpret_cast<Surface<spatial_ndim, V> *>(this);
   }
 
   /**
@@ -124,10 +118,9 @@ struct Surface {
    * @remarks The template magic is a workaround to avoid conversion to self
    *          when T is already const
    */
-  template <typename U = T,
-            typename V = std::enable_if_t<!std::is_const<U>::value, const U>>
-  DALI_HOST_DEV constexpr operator const Surface<spatial_ndim, V>&() const {
-    return *reinterpret_cast<const Surface<spatial_ndim, V>*>(this);
+  template <typename U = T, typename V = std::enable_if_t<!std::is_const<U>::value, const U>>
+  DALI_HOST_DEV constexpr operator const Surface<spatial_ndim, V> &() const {
+    return *reinterpret_cast<const Surface<spatial_ndim, V> *>(this);
   }
 };
 
@@ -138,15 +131,15 @@ template <typename T>
 using Surface3D = Surface<3, T>;
 
 template <int channel_dim = -1, int n, typename T, typename Storage>
-DALI_HOST_DEV
-constexpr Surface<(channel_dim < 0 ? n : n-1), T> as_surface(const TensorView<Storage, T, n> &t) {
-  const int spatial_ndim = (channel_dim < 0 ? n : n-1);
+DALI_HOST_DEV constexpr Surface<(channel_dim < 0 ? n : n - 1), T> as_surface(
+    const TensorView<Storage, T, n> &t) {
+  const int spatial_ndim = (channel_dim < 0 ? n : n - 1);
   ivec<spatial_ndim> size = shape2vec(skip_dim<channel_dim>(t.shape));
   ivec<spatial_ndim> strides = {};
   int stride = 1;
   int channel_stride = 0;
   int channels = 1;
-  for (int d = n - 1, i = 0; d >=0; d--) {
+  for (int d = n - 1, i = 0; d >= 0; d--) {
     if (d == channel_dim) {
       channel_stride = stride;
       channels = t.shape[d];
@@ -156,30 +149,28 @@ constexpr Surface<(channel_dim < 0 ? n : n-1), T> as_surface(const TensorView<St
     stride *= t.shape[d];
   }
 
-  return { t.data, size, channels, strides, channel_stride };
+  return {t.data, size, channels, strides, channel_stride};
 }
 
 template <int n, typename T, typename Storage>
-DALI_HOST_DEV
-constexpr Surface<n-1, T> as_surface_channel_first(const TensorView<Storage, T, n> &t) {
+DALI_HOST_DEV constexpr Surface<n - 1, T> as_surface_channel_first(
+    const TensorView<Storage, T, n> &t) {
   return as_surface<0>(t);
 }
 
 template <int n, typename T, typename Storage>
-DALI_HOST_DEV
-constexpr Surface<n-1, T> as_surface_channel_last(const TensorView<Storage, T, n> &t) {
-  return as_surface<n-1>(t);
+DALI_HOST_DEV constexpr Surface<n - 1, T> as_surface_channel_last(
+    const TensorView<Storage, T, n> &t) {
+  return as_surface<n - 1>(t);
 }
 
 template <typename T, typename Storage>
-DALI_HOST_DEV
-constexpr Surface2D<T> as_surface_HWC(const TensorView<Storage, T, 3> &t) {
+DALI_HOST_DEV constexpr Surface2D<T> as_surface_HWC(const TensorView<Storage, T, 3> &t) {
   return as_surface_channel_last(t);
 }
 
 template <typename T, typename Storage>
-DALI_HOST_DEV
-constexpr Surface2D<T> as_surface_CHW(const TensorView<Storage, T, 3> &t) {
+DALI_HOST_DEV constexpr Surface2D<T> as_surface_CHW(const TensorView<Storage, T, 3> &t) {
   return as_surface_channel_first(t);
 }
 
@@ -197,4 +188,4 @@ DALI_HOST_DEV constexpr Surface<n, T> crop(const Surface<n, T> &surface, const R
 }  // namespace kernels
 }  // namespace dali
 
-#endif   // DALI_KERNELS_IMGPROC_SURFACE_H_
+#endif  // DALI_KERNELS_IMGPROC_SURFACE_H_

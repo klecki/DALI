@@ -16,8 +16,8 @@
 #define DALI_KERNELS_MATH_TRANSFORM_POINTS_CUH_
 
 #include "dali/core/convert.h"
-#include "dali/core/geom/mat.h"
 #include "dali/core/format.h"
+#include "dali/core/geom/mat.h"
 #include "dali/kernels/kernel.h"
 
 namespace dali {
@@ -25,33 +25,32 @@ namespace kernels {
 
 template <typename OutCoord, typename InCoord, int out_pt_dim, int in_pt_dim>
 struct TransformPointsSampleDesc {
-  OutCoord *__restrict__ out;       // output point coordinates
-  const InCoord *__restrict__ in;   // input point coordinates
-  int64_t size;                     // number of points
+  OutCoord *__restrict__ out;      // output point coordinates
+  const InCoord *__restrict__ in;  // input point coordinates
+  int64_t size;                    // number of points
   mat<out_pt_dim, in_pt_dim> M;
   vec<out_pt_dim> T;
 };
 
 template <typename Out, typename In, int out_pt_dim, int in_pt_dim>
 __global__ void TransformPointsKernel(
-      const TransformPointsSampleDesc<Out, In, out_pt_dim, in_pt_dim> *descs) {
+    const TransformPointsSampleDesc<Out, In, out_pt_dim, in_pt_dim> *descs) {
   auto desc = descs[blockIdx.y];
   int64_t grid_stride = static_cast<int64_t>(gridDim.x) * blockDim.x;
   int64_t start_idx = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   for (int64_t idx = start_idx; idx < desc.size; idx += grid_stride) {
     vec<in_pt_dim> v_in;
-    #pragma unroll
+#pragma unroll
     for (int c = 0; c < in_pt_dim; c++)
       v_in[c] = desc.in[idx * in_pt_dim + c];  // put the input in a vector
 
     vec<out_pt_dim> v_out = desc.M * v_in + desc.T;
 
-    #pragma unroll
+#pragma unroll
     for (int c = 0; c < out_pt_dim; c++)
       desc.out[idx * out_pt_dim + c] = ConvertSat<Out>(v_out[c]);  // unpack the vector and convert
   }
 }
-
 
 template <typename Out, typename In, int out_pt_dim, int in_pt_dim>
 class TransformPointsGPU {
@@ -60,7 +59,7 @@ class TransformPointsGPU {
  public:
   KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &in_shape) {
     KernelRequirements req;
-    req.output_shapes = { GetOutputShape(in_shape) };
+    req.output_shapes = {GetOutputShape(in_shape)};
 
     ScratchpadEstimator se;
     int N = in_shape.num_samples();
@@ -78,9 +77,9 @@ class TransformPointsGPU {
     int64_t max_size = 0;
     for (int i = 0, i_m = 0, i_t = 0; i < N; i++) {
       host_descs[i].out = out.data[i];
-      host_descs[i].in  = in.data[i];
+      host_descs[i].in = in.data[i];
       auto sample_shape = in.shape[i];
-      host_descs[i].size  = volume(sample_shape.begin(), sample_shape.end() - 1);
+      host_descs[i].size = volume(sample_shape.begin(), sample_shape.end() - 1);
 
       host_descs[i].M = M.empty() ? 1.0f : M[i_m];
       host_descs[i].T = T.empty() ? 0.0f : T[i_t];
@@ -107,9 +106,11 @@ class TransformPointsGPU {
     TensorShape<> tshape;
     for (int i = 0; i < N; i++) {
       tshape = in_shape[i];
-      DALI_ENFORCE(tshape[D-1] == in_pt_dim, make_string("Input contains points "
-        "of incompatible dimensionality: ", tshape[D-1], " (expected ", in_pt_dim, ")"));
-      tshape[D-1] = out_pt_dim;
+      DALI_ENFORCE(tshape[D - 1] == in_pt_dim,
+                   make_string("Input contains points "
+                               "of incompatible dimensionality: ",
+                               tshape[D - 1], " (expected ", in_pt_dim, ")"));
+      tshape[D - 1] = out_pt_dim;
       out_shape.set_tensor_shape(i, tshape);
     }
     return out_shape;

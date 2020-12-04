@@ -24,36 +24,15 @@ namespace testing {
 namespace {  // NOLINT(build/namespaces)
 // All 4-element permutations
 const int Permutations4[][4] = {
-  { 0, 1, 2, 3 },
-  { 0, 1, 3, 2 },
-  { 0, 2, 1, 3 },
-  { 0, 2, 3, 1 },
-  { 0, 3, 1, 2 },
-  { 0, 3, 2, 1 },
-  { 1, 0, 2, 3 },
-  { 1, 0, 3, 2 },
-  { 1, 2, 0, 3 },
-  { 1, 2, 3, 0 },
-  { 1, 3, 0, 2 },
-  { 1, 3, 2, 0 },
-  { 2, 0, 1, 3 },
-  { 2, 0, 3, 1 },
-  { 2, 1, 0, 3 },
-  { 2, 1, 3, 0 },
-  { 2, 3, 0, 1 },
-  { 2, 3, 1, 0 },
-  { 3, 0, 1, 2 },
-  { 3, 0, 2, 1 },
-  { 3, 1, 0, 2 },
-  { 3, 1, 2, 0 },
-  { 3, 2, 0, 1 },
-  { 3, 2, 1, 0 }
-};
+    {0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 1, 2}, {0, 3, 2, 1},
+    {1, 0, 2, 3}, {1, 0, 3, 2}, {1, 2, 0, 3}, {1, 2, 3, 0}, {1, 3, 0, 2}, {1, 3, 2, 0},
+    {2, 0, 1, 3}, {2, 0, 3, 1}, {2, 1, 0, 3}, {2, 1, 3, 0}, {2, 3, 0, 1}, {2, 3, 1, 0},
+    {3, 0, 1, 2}, {3, 0, 2, 1}, {3, 1, 0, 2}, {3, 1, 2, 0}, {3, 2, 0, 1}, {3, 2, 1, 0}};
 }  // namespace
 
 template <typename T, typename Extent>
-void RefTranspose(T *out, const uint64_t *out_strides,
-                  const T *in, const uint64_t *in_strides, const Extent *shape, int ndim) {
+void RefTranspose(T *out, const uint64_t *out_strides, const T *in, const uint64_t *in_strides,
+                  const Extent *shape, int ndim) {
   if (ndim == 0) {
     *out = *in;
   } else {

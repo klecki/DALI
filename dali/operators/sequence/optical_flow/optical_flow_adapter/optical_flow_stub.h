@@ -27,52 +27,46 @@ namespace optical_flow {
  * Stub implementation for OpticalFlow.
  * All it does is assign two values: 666.f and 333.f to output_image
  */
-template<typename ComputeBackend>
+template <typename ComputeBackend>
 class DLL_PUBLIC OpticalFlowStub : public OpticalFlowAdapter<ComputeBackend> {
   using StorageBackend = typename OpticalFlowAdapter<ComputeBackend>::StorageBackend;
- public:
-  explicit OpticalFlowStub(OpticalFlowParams params) :
-          OpticalFlowAdapter<ComputeBackend>(params) {}
 
+ public:
+  explicit OpticalFlowStub(OpticalFlowParams params) : OpticalFlowAdapter<ComputeBackend>(params) {}
 
   TensorShape<DynamicDimensions> GetOutputShape() override {
     return {2, 3, 4};
   }
-
 
   void CalcOpticalFlow(TensorView<StorageBackend, const uint8_t, 3> reference_image,
                        TensorView<StorageBackend, const uint8_t, 3> input_image,
                        TensorView<StorageBackend, float, 3> output_image,
                        TensorView<StorageBackend, const float, 3> external_hints) override;
 
-
   static constexpr float kStubValue = 666.f;  /// Stub output value for Optical Flow
 };
 
-
-template<>
+template <>
 inline void OpticalFlowStub<ComputeCPU>::CalcOpticalFlow(
-        dali::TensorView<dali::StorageCPU, const uint8_t, 3> reference_image,
-        dali::TensorView<dali::StorageCPU, const uint8_t, 3> input_image,
-        dali::TensorView<dali::StorageCPU, float, 3> output_image,
-        dali::TensorView<dali::StorageCPU, const float, 3> external_hints) {
+    dali::TensorView<dali::StorageCPU, const uint8_t, 3> reference_image,
+    dali::TensorView<dali::StorageCPU, const uint8_t, 3> input_image,
+    dali::TensorView<dali::StorageCPU, float, 3> output_image,
+    dali::TensorView<dali::StorageCPU, const float, 3> external_hints) {
   auto ptr = output_image.data;
   ptr[0] = kStubValue;
   ptr[1] = kStubValue / 2;
 }
 
-
-template<>
+template <>
 inline void OpticalFlowStub<ComputeGPU>::CalcOpticalFlow(
-        dali::TensorView<dali::StorageGPU, const uint8_t, 3> reference_image,
-        dali::TensorView<dali::StorageGPU, const uint8_t, 3> input_image,
-        dali::TensorView<dali::StorageGPU, float, 3> output_image,
-        dali::TensorView<dali::StorageGPU, const float, 3> external_hints) {
+    dali::TensorView<dali::StorageGPU, const uint8_t, 3> reference_image,
+    dali::TensorView<dali::StorageGPU, const uint8_t, 3> input_image,
+    dali::TensorView<dali::StorageGPU, float, 3> output_image,
+    dali::TensorView<dali::StorageGPU, const float, 3> external_hints) {
   auto ptr = output_image.data;
   std::vector<float> data = {kStubValue, kStubValue / 2};
   CUDA_CALL(cudaMemcpy(ptr, data.data(), data.size() * sizeof(float), cudaMemcpyHostToDevice));
 }
-
 
 }  // namespace optical_flow
 }  // namespace dali

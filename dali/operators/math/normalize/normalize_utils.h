@@ -19,8 +19,8 @@
 #include <xmmintrin.h>
 #endif
 #include <algorithm>
-#include "dali/core/tensor_view.h"
 #include "dali/core/math_util.h"
+#include "dali/core/tensor_view.h"
 #include "dali/pipeline/data/tensor_list.h"
 
 namespace dali {
@@ -78,7 +78,6 @@ inline int64_t ReducedVolume(const TensorListShape<> &shape, span<const int> axe
   return v;
 }
 
-
 template <typename T>
 void UniformFill(TensorList<CPUBackend> &tl, const T &value) {
   T *data = tl.mutable_data<T>();
@@ -100,8 +99,7 @@ void UniformFill(TensorList<CPUBackend> &tl, const T &value) {
  * @param scale   a multiplier, applied to the final result
  */
 static void CalcInvStdDev(const TensorListView<StorageCPU, float> &inv,
-                          const TensorListView<StorageCPU, const float> &stddev,
-                          float epsilon,
+                          const TensorListView<StorageCPU, const float> &stddev, float epsilon,
                           float scale) {
   assert(inv.shape == stddev.shape);
   for (int i = 0; i < inv.shape.num_samples(); i++) {
@@ -188,16 +186,14 @@ static void ScaleRSqrtKeepZero(float *data, int64_t n, float eps, float rdiv, fl
   }
 }
 
-static void ScaleRSqrtKeepZero(const TensorView<StorageCPU, float> &inout,
-                               float eps, float rdiv, float mul) {
+static void ScaleRSqrtKeepZero(const TensorView<StorageCPU, float> &inout, float eps, float rdiv,
+                               float mul) {
   ScaleRSqrtKeepZero(inout.data, inout.num_elements(), eps, rdiv, mul);
 }
 
 static void SumSquare2InvStdDev(const TensorView<StorageCPU, float> &inout,
-                                const TensorShape<> &data_shape,
-                                int degrees_of_freedom,
-                                double epsilon,
-                                double scale) {
+                                const TensorShape<> &data_shape, int degrees_of_freedom,
+                                double epsilon, double scale) {
   if (inout.num_elements() == 0) {
     return;
   }
@@ -215,7 +211,6 @@ static void SumSquare2InvStdDev(const TensorView<StorageCPU, float> &inout,
   }
   ScaleRSqrtKeepZero(inout, static_cast<float>(epsilon), rdiv, scale);
 }
-
 
 }  // namespace normalize
 }  // namespace dali

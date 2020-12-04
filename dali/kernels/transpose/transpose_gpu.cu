@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/transpose/transpose_gpu.h"
 #include <cuda_runtime.h>
 #include <memory>
 #include <vector>
 #include "dali/core/util.h"
 #include "dali/kernels/common/type_erasure.h"
+#include "dali/kernels/transpose/transpose_gpu.h"
 #include "dali/kernels/transpose/transpose_gpu_def.h"
 #include "dali/kernels/transpose/transpose_gpu_impl.cuh"
 #include "dali/kernels/transpose/transpose_gpu_setup.cuh"
@@ -27,9 +27,9 @@ namespace kernels {
 namespace transpose_impl {
 
 struct TransposeInfo {
-  int                 element_size;
-  TransposeMethod     method;
-  TensorShape<>       shape;
+  int element_size;
+  TransposeMethod method;
+  TensorShape<> shape;
   SmallVector<int, 6> perm;
 };
 
@@ -37,15 +37,15 @@ constexpr int kMaxInterleaveSize = 32;
 constexpr int kMaxDeinterleaveSize = kMaxInterleaveSize;
 
 inline bool UseTiledTranspose(const int64_t *shape, const int *perm, int ndim, int element_size) {
-  if (perm[ndim-1] == ndim - 1) {
+  if (perm[ndim - 1] == ndim - 1) {
     assert(ndim >= 3);
-    if (shape[ndim-1] * element_size >= kTiledTransposeMaxVectorSize)
+    if (shape[ndim - 1] * element_size >= kTiledTransposeMaxVectorSize)
       return false;
 
     ndim--;  // ignore last dimension - it will be treated as vector lanes
   }
 
-  int xdim = ndim-1;
+  int xdim = ndim - 1;
   int ydim = 0;
   for (; ydim < xdim; ydim++) {
     if (perm[ydim] == xdim)
@@ -56,9 +56,7 @@ inline bool UseTiledTranspose(const int64_t *shape, const int *perm, int ndim, i
   return tile_coverage > 0.4;  // for now, it's an educated guess
 }
 
-TransposeMethod GetTransposeMethod(const int64_t *shape,
-                                   const int *perm,
-                                   int ndim,
+TransposeMethod GetTransposeMethod(const int64_t *shape, const int *perm, int ndim,
                                    int element_size) {
   if (ndim == 1)
     return TransposeMethod::Copy;
@@ -66,18 +64,18 @@ TransposeMethod GetTransposeMethod(const int64_t *shape,
   if (UseTiledTranspose(shape, perm, ndim, element_size))
     return TransposeMethod::Tiled;
 
-  if (perm[ndim-1] != ndim - 1) {
-    if (shape[ndim-1] * element_size <= kMaxDeinterleaveSize)
+  if (perm[ndim - 1] != ndim - 1) {
+    if (shape[ndim - 1] * element_size <= kMaxDeinterleaveSize)
       return TransposeMethod::Deinterleave;
-    else if (shape[perm[ndim-1]] * element_size <= kMaxInterleaveSize)
+    else if (shape[perm[ndim - 1]] * element_size <= kMaxInterleaveSize)
       return TransposeMethod::Interleave;
   }
 
   return TransposeMethod::Generic;
 }
 
-void GetTransposeInfo(TransposeInfo &info, int element_size,
-                      span<const int64_t> in_shape, span<const int> perm) {
+void GetTransposeInfo(TransposeInfo &info, int element_size, span<const int64_t> in_shape,
+                      span<const int> perm) {
   SimplifyPermute(info.shape, info.perm, in_shape.data(), perm.data(), in_shape.size());
   info.element_size = element_size;
   int ndim = info.shape.size();
@@ -86,8 +84,8 @@ void GetTransposeInfo(TransposeInfo &info, int element_size,
   info.method = GetTransposeMethod(info.shape.data(), info.perm.data(), ndim, element_size);
 }
 
-void GetTransposeInfo(TransposeInfo *infos, int element_size,
-                      const TensorListShape<> &tls, span<const int> perm) {
+void GetTransposeInfo(TransposeInfo *infos, int element_size, const TensorListShape<> &tls,
+                      span<const int> perm) {
   int N = tls.num_samples();
   for (int i = 0; i < N; i++) {
     GetTransposeInfo(infos[i], element_size, tls.tensor_shape_span(i), perm);
@@ -101,9 +99,7 @@ using namespace transpose_impl;  // NOLINT
 class TransposeGPU::Impl {
  public:
   template <typename T>
-  KernelRequirements SetupTyped(
-      const TensorListShape<> &in_shape,
-      span<const int> permutation) {
+  KernelRequirements SetupTyped(const TensorListShape<> &in_shape, span<const int> permutation) {
     int N = in_shape.num_samples();
     int ndim = in_shape_.sample_dim();
     element_size_ = sizeof(T);
@@ -128,37 +124,31 @@ class TransposeGPU::Impl {
       auto &shape = infos_[i].shape;
       auto perm = make_span(infos_[i].perm);
       switch (infos_[i].method) {
-        case TransposeMethod::Tiled:
-          {
-            TiledTransposeDesc<T> desc;
-            InitTiledTranspose(desc, shape, perm);
-            AddDesc(desc);
-            idx_tiled_.push_back(i);
-          }
-          break;
-        case TransposeMethod::Deinterleave:
-          {
-            DeinterleaveDesc<T> desc;
-            InitDeinterleave(desc, shape, perm);
-            AddDesc(desc);
-            idx_deinterleave_.push_back(i);
-          }
-          break;
+        case TransposeMethod::Tiled: {
+          TiledTransposeDesc<T> desc;
+          InitTiledTranspose(desc, shape, perm);
+          AddDesc(desc);
+          idx_tiled_.push_back(i);
+        } break;
+        case TransposeMethod::Deinterleave: {
+          DeinterleaveDesc<T> desc;
+          InitDeinterleave(desc, shape, perm);
+          AddDesc(desc);
+          idx_deinterleave_.push_back(i);
+        } break;
         case TransposeMethod::Interleave:  // no specialized implementation yet
-        case TransposeMethod::Copy:  // generic kernel does a good job at just copying
-        default:
-          {
-            GenericTransposeDesc<T> desc;
-            InitGenericTranspose(desc, shape, perm);
-            AddDesc(desc);
-            idx_generic_.push_back(i);
-          }
-          break;
+        case TransposeMethod::Copy:        // generic kernel does a good job at just copying
+        default: {
+          GenericTransposeDesc<T> desc;
+          InitGenericTranspose(desc, shape, perm);
+          AddDesc(desc);
+          idx_generic_.push_back(i);
+        } break;
       }
     }
 
     KernelRequirements req;
-    req.output_shapes = { out_shape_ };
+    req.output_shapes = {out_shape_};
     ScratchpadEstimator se;
 
     se.add<TiledTransposeDesc<T>>(AllocType::GPU, tiled_descs_.size());
@@ -170,10 +160,8 @@ class TransposeGPU::Impl {
     return req;
   }
 
-  KernelRequirements Setup(
-      const TensorListShape<> &in_shape,
-      span<const int> permutation,
-      int element_size) {
+  KernelRequirements Setup(const TensorListShape<> &in_shape, span<const int> permutation,
+                           int element_size) {
     KernelRequirements req;
     VALUE_SWITCH(element_size, static_el_size, (1, 2, 4, 8, 16),
       (req = SetupTyped<type_of_size<static_el_size>>(in_shape, permutation)),
@@ -198,9 +186,8 @@ class TransposeGPU::Impl {
         throw std::range_error("Transpose: Unexpected tensor element size."
                                "Must be one of (1,2,4,8,16)")
       )  // NOLINT
-    );   // NOLINT
+    );  // NOLINT
   }
-
 
   template <typename T>
   void AddDesc(const GenericTransposeDesc<T> &desc) {
@@ -222,12 +209,12 @@ class TransposeGPU::Impl {
       int block_size = 256;
       for (size_t i = 0; i < generic_descs_.size(); i++) {
         generic_descs_[i].out = out[idx_generic_[i]];
-        generic_descs_[i].in =  in[idx_generic_[i]];
+        generic_descs_[i].in = in[idx_generic_[i]];
         if (generic_descs_[i].size > max_size)
           max_size = generic_descs_[i].size;
       }
-      auto *gpu_descs = reinterpret_cast<GenericTransposeDesc<T>*>(
-        ctx.scratchpad->ToGPU(ctx.gpu.stream, generic_descs_));
+      auto *gpu_descs = reinterpret_cast<GenericTransposeDesc<T> *>(
+          ctx.scratchpad->ToGPU(ctx.gpu.stream, generic_descs_));
 
       dim3 grid(div_ceil(max_size, block_size * 8), generic_descs_.size());
 
@@ -251,8 +238,8 @@ class TransposeGPU::Impl {
       for (size_t i = 0; i < tiled_descs_.size(); i++) {
         UpdateTiledTranspose(tiled_descs_[i], out[idx_tiled_[i]], in[idx_tiled_[i]], grid_x);
       }
-      auto *gpu_descs = reinterpret_cast<TiledTransposeDesc<T>*>(
-        ctx.scratchpad->ToGPU(ctx.gpu.stream, tiled_descs_));
+      auto *gpu_descs = reinterpret_cast<TiledTransposeDesc<T> *>(
+          ctx.scratchpad->ToGPU(ctx.gpu.stream, tiled_descs_));
 
       int max_threads = MaxThreadsPerBlock(TransposeTiledBatch<T>);
       assert(max_threads >= kTileSize);
@@ -278,16 +265,16 @@ class TransposeGPU::Impl {
       for (size_t i = 0; i < deinterleave_descs_.size(); i++) {
         auto &desc = deinterleave_descs_[i];
         desc.out = out[idx_deinterleave_[i]];
-        desc.in =  in[idx_deinterleave_[i]];
-        int64_t outer_size = desc.size / desc.in_strides[desc.ndim-2];
+        desc.in = in[idx_deinterleave_[i]];
+        int64_t outer_size = desc.size / desc.in_strides[desc.ndim - 2];
         if (outer_size > max_size)
           max_size = outer_size;
       }
 
-      auto *gpu_descs = reinterpret_cast<DeinterleaveDesc<T>*>(
-        ctx.scratchpad->ToGPU(ctx.gpu.stream, deinterleave_descs_));
+      auto *gpu_descs = reinterpret_cast<DeinterleaveDesc<T> *>(
+          ctx.scratchpad->ToGPU(ctx.gpu.stream, deinterleave_descs_));
 
-      dim3 grid(div_ceil(max_size, 4*block_size), deinterleave_descs_.size());
+      dim3 grid(div_ceil(max_size, 4 * block_size), deinterleave_descs_.size());
       TransposeDeinterleaveBatch<<<grid, block_size, 0, ctx.gpu.stream>>>(gpu_descs);
     }
   }
@@ -296,8 +283,8 @@ class TransposeGPU::Impl {
   TensorListShape<> in_shape_, out_shape_;
   std::vector<TransposeInfo> infos_;
   std::vector<GenericTransposeDesc<void>> generic_descs_;
-  std::vector<TiledTransposeDesc<void>>   tiled_descs_;
-  std::vector<DeinterleaveDesc<void>>     deinterleave_descs_;
+  std::vector<TiledTransposeDesc<void>> tiled_descs_;
+  std::vector<DeinterleaveDesc<void>> deinterleave_descs_;
   std::vector<int> idx_generic_, idx_tiled_, idx_deinterleave_;  // sample indices
 };
 
@@ -308,21 +295,16 @@ TransposeGPU::TransposeGPU() {
 TransposeGPU::~TransposeGPU() = default;
 
 void TransposeGPU::CheckShapes(const TensorListShape<> &in_shape,
-                               const TensorListShape<> &out_shape,
-                               int element_size) {
+                               const TensorListShape<> &out_shape, int element_size) {
   assert(impl_ != nullptr);
   DALI_ENFORCE(impl_->in_shape_ == in_shape, "Input shape different than used in Setup");
   DALI_ENFORCE(impl_->out_shape_ == out_shape,
-    "Output shape does not match the one produced in Setup");
-  DALI_ENFORCE(impl_->element_size_ == element_size,
-                "Different element size than used in Setup");
+               "Output shape does not match the one produced in Setup");
+  DALI_ENFORCE(impl_->element_size_ == element_size, "Different element size than used in Setup");
 }
 
-KernelRequirements TransposeGPU::Setup(
-    KernelContext &ctx,
-    const TensorListShape<> &in_shape,
-    span<const int> permutation,
-    int element_size) {
+KernelRequirements TransposeGPU::Setup(KernelContext &ctx, const TensorListShape<> &in_shape,
+                                       span<const int> permutation, int element_size) {
   assert(impl_ != nullptr);
   return impl_->Setup(in_shape, permutation, element_size);
 }

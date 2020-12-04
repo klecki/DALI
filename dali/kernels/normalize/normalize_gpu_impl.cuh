@@ -16,14 +16,14 @@
 #define DALI_KERNELS_NORMALIZE_NORMALIZE_GPU_IMPL_CUH_
 
 #include <cuda_runtime.h>
-#include <utility>
 #include <string>
+#include <utility>
 #include "dali/core/convert.h"
 #include "dali/core/format.h"
 #include "dali/core/small_vector.h"
 #include "dali/core/tensor_shape_print.h"
-#include "dali/kernels/reduce/reduce_drop_dims.h"
 #include "dali/kernels/kernel.h"
+#include "dali/kernels/reduce/reduce_drop_dims.h"
 
 namespace dali {
 namespace kernels {
@@ -41,16 +41,16 @@ struct NormalizeNonScalar {
   const Scale *__restrict__ scale;
   DropDims<max_dims> dd;
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void apply(int64_t offset, float global_scale, float global_shift) {
+  DALI_HOST_DEV DALI_FORCEINLINE void apply(int64_t offset, float global_scale,
+                                            float global_shift) {
     int64_t param_offset = dd.reindex(offset);
-  #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     float sub = __ldg(base + param_offset);
     float mul = __ldg(scale + param_offset) * global_scale;
-  #else
+#else
     float sub = base[param_offset];
     float mul = scale[param_offset] * global_scale;
-  #endif
+#endif
     out[offset] = ConvertSat<Out>(fmaf(in[offset] - sub, mul, global_shift));
   }
 };
@@ -64,14 +64,14 @@ struct NormalizeScalarScale {
   DropDims<max_dims> dd;
   float scale;
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void apply(int64_t offset, float global_scale, float global_shift) {
+  DALI_HOST_DEV DALI_FORCEINLINE void apply(int64_t offset, float global_scale,
+                                            float global_shift) {
     int64_t param_offset = dd.reindex(offset);
-  #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     float sub = __ldg(base + param_offset);
-  #else
+#else
     float sub = base[param_offset];
-  #endif
+#endif
     float mul = scale * global_scale;
     out[offset] = ConvertSat<Out>(fmaf(in[offset] - sub, mul, global_shift));
   }
@@ -86,14 +86,14 @@ struct NormalizeScalarBase {
   DropDims<max_dims> dd;
   float base;
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void apply(int64_t offset, float global_scale, float global_shift) {
+  DALI_HOST_DEV DALI_FORCEINLINE void apply(int64_t offset, float global_scale,
+                                            float global_shift) {
     int64_t param_offset = dd.reindex(offset);
-  #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     float mul = __ldg(scale + param_offset) * global_scale;
-  #else
+#else
     float mul = scale[param_offset] * global_scale;
-  #endif
+#endif
     out[offset] = ConvertSat<Out>(fmaf(in[offset] - base, mul, global_shift));
   }
 };
@@ -105,8 +105,8 @@ struct NormalizeScalar {
   int64_t size;
   float base, scale;
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void apply(int64_t offset, float global_scale, float global_shift) {
+  DALI_HOST_DEV DALI_FORCEINLINE void apply(int64_t offset, float global_scale,
+                                            float global_shift) {
     out[offset] = ConvertSat<Out>(fmaf(in[offset] - base, scale * global_scale, global_shift));
   }
 };
@@ -128,16 +128,16 @@ struct NormalizeInvStdDevNonScalar {
   const StdDev *__restrict__ scale;
   DropDims<max_dims> dd;
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void apply(int64_t offset, float epsilon, float global_scale, float global_shift) {
+  DALI_HOST_DEV DALI_FORCEINLINE void apply(int64_t offset, float epsilon, float global_scale,
+                                            float global_shift) {
     int64_t param_offset = dd.reindex(offset);
-  #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     float mean = __ldg(base + param_offset);
     float stddev = __ldg(scale + param_offset);
-  #else
+#else
     float mean = base[param_offset];
     float stddev = scale[param_offset];
-  #endif
+#endif
     float x = fmaf(stddev, stddev, epsilon);
     float mul = x ? rsqrt(x) * global_scale : 0;
     out[offset] = ConvertSat<Out>(fmaf(in[offset] - mean, mul, global_shift));
@@ -161,14 +161,14 @@ struct NormalizeInvStdDevScalarMean {
   DropDims<max_dims> dd;
   float base;
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void apply(int64_t offset, float epsilon, float global_scale, float global_shift) {
+  DALI_HOST_DEV DALI_FORCEINLINE void apply(int64_t offset, float epsilon, float global_scale,
+                                            float global_shift) {
     int64_t param_offset = dd.reindex(offset);
-  #ifdef __CUDA_ARCH__
+#ifdef __CUDA_ARCH__
     float stddev = __ldg(scale + param_offset);
-  #else
+#else
     float stddev = scale[param_offset];
-  #endif
+#endif
     float x = fmaf(stddev, stddev, epsilon);
     float mul = x ? rsqrt(x) * global_scale : 0;
     out[offset] = ConvertSat<Out>(fmaf(in[offset] - base, mul, global_shift));
@@ -176,8 +176,7 @@ struct NormalizeInvStdDevScalarMean {
 };
 
 template <typename NormalizeParams>
-__global__ void NormalizeKernel(const NormalizeParams *sample_params,
-                                float scale, float shift) {
+__global__ void NormalizeKernel(const NormalizeParams *sample_params, float scale, float shift) {
   auto params = sample_params[blockIdx.y];
   int64_t start_ofs = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   int64_t grid_stride = static_cast<int64_t>(gridDim.x) * blockDim.x;
@@ -187,8 +186,8 @@ __global__ void NormalizeKernel(const NormalizeParams *sample_params,
 }
 
 template <typename NormalizeParams>
-__global__ void NormalizeInvStdDevKernel(const NormalizeParams *sample_params,
-                                         float epsilon, float scale, float shift) {
+__global__ void NormalizeInvStdDevKernel(const NormalizeParams *sample_params, float epsilon,
+                                         float scale, float shift) {
   auto params = sample_params[blockIdx.y];
   int64_t start_ofs = static_cast<int64_t>(blockIdx.x) * blockDim.x + threadIdx.x;
   int64_t grid_stride = static_cast<int64_t>(gridDim.x) * blockDim.x;
@@ -228,22 +227,21 @@ class NormalizeImplGPU {
   using Op_InvStdDevScalarBase = NormalizeInvStdDevScalarMean<kMaxDims, Out, In, Scale>;
 
  public:
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &data_shape,
-                           const TensorListShape<> &param_shape,
-                           bool scalar_base,
-                           bool scalar_scale,
-                           bool scale_is_stddev) {
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &data_shape,
+                           const TensorListShape<> &param_shape, bool scalar_base,
+                           bool scalar_scale, bool scale_is_stddev) {
     ndim_ = data_shape.sample_dim();
     num_samples_ = data_shape.num_samples();
     if (!scalar_base || !scalar_scale) {
       if (param_shape.sample_dim() != ndim_) {
-        throw std::invalid_argument("Normalization parameters must have the same "
-          "dimensionality as the data");
+        throw std::invalid_argument(
+            "Normalization parameters must have the same "
+            "dimensionality as the data");
       }
       if (param_shape.num_samples() != data_shape.num_samples() && param_shape.num_samples() != 1) {
-        throw std::invalid_argument("Normalization parameters must have either the same number "
-          "of samples as the input or just one sample.");
+        throw std::invalid_argument(
+            "Normalization parameters must have either the same number "
+            "of samples as the input or just one sample.");
       }
 
       axes_.clear();
@@ -259,18 +257,15 @@ class NormalizeImplGPU {
     return Setup(ctx, data_shape, make_span(axes_), scalar_base, scalar_scale, scale_is_stddev);
   }
 
-  KernelRequirements Setup(KernelContext &ctx,
-                           const TensorListShape<> &data_shape,
-                           span<const int> axes,
-                           bool scalar_base,
-                           bool scalar_scale,
+  KernelRequirements Setup(KernelContext &ctx, const TensorListShape<> &data_shape,
+                           span<const int> axes, bool scalar_base, bool scalar_scale,
                            bool scale_is_stddev) {
     ndim_ = data_shape.sample_dim();
     num_samples_ = data_shape.num_samples();
 
     // this condition is false when the other Setup overload was used
     if (axes_.data() != axes.data())
-      axes_ = { axes.begin(), axes.end() };
+      axes_ = {axes.begin(), axes.end()};
     axis_mask_ = to_bit_mask<uint64_t>(axes_);
     if (scalar_base && scalar_scale) {
       assert(axis_mask_ == (1 << ndim_) - 1 &&
@@ -282,7 +277,7 @@ class NormalizeImplGPU {
     scalar_scale_ = scalar_scale;
 
     KernelRequirements req;
-    req.output_shapes = { data_shape };
+    req.output_shapes = {data_shape};
     ScratchpadEstimator se;
 
     if (scalar_scale_) {
@@ -312,10 +307,9 @@ class NormalizeImplGPU {
     return req;
   }
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           const InListGPU<Base> &base, const InListGPU<Scale> &scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0) {
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Base> &base, const InListGPU<Scale> &scale, float global_scale = 1,
+           float shift = 0, float epsilon = 0) {
     CheckDataShape(out.shape, in.shape);
 
     if (scalar_base_ || scalar_scale_)
@@ -330,11 +324,9 @@ class NormalizeImplGPU {
       RunScale<Op_NonScalar>(ctx, out, in, base, scale, global_scale, shift);
   }
 
-
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           const InListGPU<Base> &base, float scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0) {
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+           const InListGPU<Base> &base, float scale, float global_scale = 1, float shift = 0,
+           float epsilon = 0) {
     CheckDataShape(out.shape, in.shape);
 
     if (scalar_base_ || !scalar_scale_)
@@ -347,11 +339,9 @@ class NormalizeImplGPU {
     RunScale<Op_ScalarScale>(ctx, out, in, base, scale, global_scale, shift);
   }
 
-
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           float base, const InListGPU<Scale> &scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0) {
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in, float base,
+           const InListGPU<Scale> &scale, float global_scale = 1, float shift = 0,
+           float epsilon = 0) {
     CheckDataShape(out.shape, in.shape);
 
     if (!scalar_base_ || scalar_scale_)
@@ -365,10 +355,8 @@ class NormalizeImplGPU {
       RunScale<Op_ScalarBase>(ctx, out, in, base, scale, global_scale, shift);
   }
 
-  void Run(KernelContext &ctx,
-           const OutListGPU<Out> &out, const InListGPU<In> &in,
-           float base, float scale,
-           float global_scale = 1, float shift = 0, float epsilon = 0) {
+  void Run(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in, float base,
+           float scale, float global_scale = 1, float shift = 0, float epsilon = 0) {
     CheckDataShape(out.shape, in.shape);
 
     if (!scalar_base_ || !scalar_scale_)
@@ -390,18 +378,19 @@ class NormalizeImplGPU {
       for (int d = 0; d < D; d++) {
         if (axis_mask_ & (1 << d)) {
           if (pshape[d] != 1) {
-            throw std::invalid_argument(make_string("Parameter tensor must have extent 1 "
-              "in reduced axes. Got:"
-              "\nparameter shape: ", pshape,
-              "\nreduced axes:    ", axes_str()));
+            throw std::invalid_argument(
+                make_string("Parameter tensor must have extent 1 "
+                            "in reduced axes. Got:"
+                            "\nparameter shape: ",
+                            pshape, "\nreduced axes:    ", axes_str()));
           }
         } else {
           if (pshape[d] != dshape[d]) {
-            throw std::invalid_argument(make_string("Parameter tensor must have extent "
-              "equal to input shape in non reduced axes. Got:"
-              "\nparameter shape: ", pshape,
-              "\ndata shape: ", dshape,
-              "\nreduced axes:    ", axes_str()));
+            throw std::invalid_argument(
+                make_string("Parameter tensor must have extent "
+                            "equal to input shape in non reduced axes. Got:"
+                            "\nparameter shape: ",
+                            pshape, "\ndata shape: ", dshape, "\nreduced axes:    ", axes_str()));
           }
         }
       }
@@ -412,16 +401,18 @@ class NormalizeImplGPU {
     if (out_shape != in_shape)
       throw std::invalid_argument("Output and input must have the same shape");
     if (in_shape.sample_dim() != ndim_)
-      throw std::invalid_argument("The input tensor list has different dimensionality than the "
-        "shape passed to Setup");
+      throw std::invalid_argument(
+          "The input tensor list has different dimensionality than the "
+          "shape passed to Setup");
     if (in_shape.num_samples() != num_samples_)
-      throw std::invalid_argument("The input tensor list has different number of samples than the "
-        "shape passed to Setup");
+      throw std::invalid_argument(
+          "The input tensor list has different number of samples than the "
+          "shape passed to Setup");
   }
 
   template <typename Desc, typename KernelFunc>
-  std::pair<dim3, dim3>
-  GetLaunchParams(const TensorListShape<> &data_shape, KernelFunc func) const {
+  std::pair<dim3, dim3> GetLaunchParams(const TensorListShape<> &data_shape,
+                                        KernelFunc func) const {
     int max_block = MaxThreadsPerBlock(func);
     int optimum_block = std::is_same<Desc, Op_Scalar>::value ? 1024 : 256;
     int64_t block = std::min(max_block, optimum_block);
@@ -435,14 +426,12 @@ class NormalizeImplGPU {
       block = max_size;
     int max_blocks_per_sample = div_ceil(max_size, block);
     dim3 grid(std::min(max_blocks_per_sample, std::max(32, 2048 / num_samples_)), num_samples_);
-    return { grid, dim3(block) };
+    return {grid, dim3(block)};
   }
 
   template <typename Desc, typename BaseParam, typename ScaleParam>
-  void RunScale(KernelContext &ctx,
-                const OutListGPU<Out> &out, const InListGPU<In> &in,
-                const BaseParam &base, const ScaleParam &scale,
-                float global_scale, float shift) {
+  void RunScale(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+                const BaseParam &base, const ScaleParam &scale, float global_scale, float shift) {
     Desc *cpu_descs = ctx.scratchpad->Allocate<Desc>(AllocType::Host, num_samples_);
     FillDescs(cpu_descs, out, in, base, scale);
     Desc *gpu_descs = ctx.scratchpad->ToGPU(ctx.gpu.stream, make_span(cpu_descs, num_samples_));
@@ -453,17 +442,16 @@ class NormalizeImplGPU {
   }
 
   template <typename Desc, typename BaseParam, typename ScaleParam>
-  void RunInvStdDev(KernelContext &ctx,
-                    const OutListGPU<Out> &out, const InListGPU<In> &in,
-                    const BaseParam &base, const ScaleParam &scale,
-                    float epsilon, float global_scale, float shift) {
+  void RunInvStdDev(KernelContext &ctx, const OutListGPU<Out> &out, const InListGPU<In> &in,
+                    const BaseParam &base, const ScaleParam &scale, float epsilon,
+                    float global_scale, float shift) {
     Desc *cpu_descs = ctx.scratchpad->Allocate<Desc>(AllocType::Host, num_samples_);
     FillDescs(cpu_descs, out, in, base, scale);
     Desc *gpu_descs = ctx.scratchpad->ToGPU(ctx.gpu.stream, make_span(cpu_descs, num_samples_));
     dim3 grid, block;
     std::tie(grid, block) = GetLaunchParams<Desc>(in.shape, NormalizeInvStdDevKernel<Desc>);
-    NormalizeInvStdDevKernel<<<grid, block, 0, ctx.gpu.stream>>>(
-      gpu_descs, epsilon, global_scale, shift);
+    NormalizeInvStdDevKernel<<<grid, block, 0, ctx.gpu.stream>>>(gpu_descs, epsilon, global_scale,
+                                                                 shift);
     CUDA_CALL(cudaGetLastError());
   }
 
@@ -489,11 +477,8 @@ class NormalizeImplGPU {
   }
 
   template <typename Desc>
-  void FillDescs(Desc *descs,
-                 const OutListGPU<Out> &out,
-                 const InListGPU<In> &in,
-                 const InListGPU<Base> &base,
-                 const InListGPU<Scale> &scale) {
+  void FillDescs(Desc *descs, const OutListGPU<Out> &out, const InListGPU<In> &in,
+                 const InListGPU<Base> &base, const InListGPU<Scale> &scale) {
     int base_idx_delta = base.num_samples() == 1 ? 0 : 1;
     int scale_idx_delta = scale.num_samples() == 1 ? 0 : 1;
     for (int i = 0, b = 0, s = 0; i < num_samples_;
@@ -510,10 +495,7 @@ class NormalizeImplGPU {
   }
 
   template <typename Desc>
-  void FillDescs(Desc *descs,
-                 const OutListGPU<Out> &out,
-                 const InListGPU<In> &in,
-                 float base,
+  void FillDescs(Desc *descs, const OutListGPU<Out> &out, const InListGPU<In> &in, float base,
                  const InListGPU<Scale> &scale) {
     int scale_idx_delta = scale.num_samples() == 1 ? 0 : 1;
     for (int i = 0, s = 0; i < num_samples_; i++, s += scale_idx_delta) {
@@ -529,11 +511,8 @@ class NormalizeImplGPU {
   }
 
   template <typename Desc>
-  void FillDescs(Desc *descs,
-                 const OutListGPU<Out> &out,
-                 const InListGPU<In> &in,
-                 const InListGPU<Base> &base,
-                 float scale) {
+  void FillDescs(Desc *descs, const OutListGPU<Out> &out, const InListGPU<In> &in,
+                 const InListGPU<Base> &base, float scale) {
     int base_idx_delta = base.num_samples() == 1 ? 0 : 1;
     for (int i = 0, b = 0; i < num_samples_; i++, b += base_idx_delta) {
       auto sample_shape = in.shape.tensor_shape_span(i);
@@ -548,10 +527,7 @@ class NormalizeImplGPU {
   }
 
   template <typename Desc>
-  void FillDescs(Desc *descs,
-                 const OutListGPU<Out> &out,
-                 const InListGPU<In> &in,
-                 float base,
+  void FillDescs(Desc *descs, const OutListGPU<Out> &out, const InListGPU<In> &in, float base,
                  float scale) {
     for (int i = 0; i < num_samples_; i++) {
       auto sample_shape = in.shape.tensor_shape_span(i);
@@ -563,7 +539,6 @@ class NormalizeImplGPU {
       desc.base = base;
     }
   }
-
 
   SmallVector<int, DynamicTensorShapeContainer::static_size> axes_;
   uint64_t axis_mask_;

@@ -19,11 +19,11 @@
 #include <string>
 #include <vector>
 #include "dali/core/common.h"
+#include "dali/core/dev_buffer.h"
 #include "dali/kernels/kernel_manager.h"
 #include "dali/kernels/signal/dct/dct_args.h"
 #include "dali/pipeline/operator/common.h"
 #include "dali/pipeline/operator/operator.h"
-#include "dali/core/dev_buffer.h"
 
 #define MFCC_SUPPORTED_TYPES (float)
 
@@ -36,14 +36,14 @@ namespace detail {
  */
 template <typename Backend>
 class LifterCoeffs {
-  using Buffer = std::conditional_t<std::is_same<Backend, CPUBackend>::value,
-                                    std::vector<float>, DeviceBuffer<float>>;
+  using Buffer = std::conditional_t<std::is_same<Backend, CPUBackend>::value, std::vector<float>,
+                                    DeviceBuffer<float>>;
 
   void CalculateCoeffs(float *coeffs, int64_t offset, int64_t length) {
     float ampl_mult = lifter_ / 2;
     float phase_mult = static_cast<float>(M_PI) / lifter_;
     for (int64_t idx = 0, i = offset; idx < length; ++idx, ++i)
-    coeffs[idx] = 1.f + ampl_mult * sin(phase_mult * (i + 1));
+      coeffs[idx] = 1.f + ampl_mult * sin(phase_mult * (i + 1));
   }
 
  public:
@@ -57,7 +57,7 @@ class LifterCoeffs {
     return coeffs_.size();
   }
 
-  const float* data() const {
+  const float *data() const {
     return coeffs_.data();
   }
 
@@ -68,17 +68,17 @@ class LifterCoeffs {
 
 }  // namespace detail
 
-
 template <typename Backend>
 class MFCC : public Operator<Backend> {
  public:
   using DctArgs = kernels::signal::dct::DctArgs;
 
-  explicit MFCC(const OpSpec &spec)
-      : Operator<Backend>(spec) {}
+  explicit MFCC(const OpSpec &spec) : Operator<Backend>(spec) {}
 
  protected:
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override;
   void RunImpl(workspace_t<Backend> &ws) override;
 
@@ -92,8 +92,9 @@ class MFCC : public Operator<Backend> {
     DALI_ENFORCE(arg.ndct > 0, "number of MFCCs should be > 0");
 
     arg.dct_type = spec_.template GetArgument<int>("dct_type");
-    DALI_ENFORCE(arg.dct_type >= 1 && arg.dct_type <= 4,
-      make_string("Unsupported DCT type: ", arg.dct_type, ". Supported types are: 1, 2, 3, 4."));
+    DALI_ENFORCE(
+        arg.dct_type >= 1 && arg.dct_type <= 4,
+        make_string("Unsupported DCT type: ", arg.dct_type, ". Supported types are: 1, 2, 3, 4."));
 
     arg.normalize = spec_.template GetArgument<bool>("normalize");
     if (arg.normalize) {
@@ -116,8 +117,6 @@ class MFCC : public Operator<Backend> {
   float lifter_ = 0.0f;
   detail::LifterCoeffs<Backend> lifter_coeffs_;
 };
-
-
 
 }  // namespace dali
 

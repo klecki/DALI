@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <vector>
-#include "dali/operators/image/color/color_twist.h"
 #include "dali/kernels/imgproc/pointwise/linear_transformation_gpu.h"
+#include "dali/operators/image/color/color_twist.h"
 
 namespace dali {
 namespace {
@@ -50,7 +50,6 @@ bool ColorTwistGpu::SetupImpl(std::vector<OutputDesc> &output_desc, const Device
   return true;
 }
 
-
 void ColorTwistGpu::RunImpl(workspace_t<GPUBackend> &ws) {
   const auto &input = ws.template Input<GPUBackend>(0);
   auto &output = ws.template Output<GPUBackend>(0);
@@ -69,6 +68,5 @@ void ColorTwistGpu::RunImpl(workspace_t<GPUBackend> &ws) {
       ), DALI_FAIL(make_string("Unsupported output type: ", output_type_)))  // NOLINT
   ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())))  // NOLINT
 }
-
 
 }  // namespace dali

@@ -15,8 +15,8 @@
 #ifndef DALI_OPERATORS_RANDOM_NORMAL_DISTRIBUTION_OP_CUH_
 #define DALI_OPERATORS_RANDOM_NORMAL_DISTRIBUTION_OP_CUH_
 
-#include <vector>
 #include <utility>
+#include <vector>
 #include "dali/kernels/alloc.h"
 #include "dali/operators/random/normal_distribution_op.h"
 #include "dali/operators/util/randomizer.cuh"
@@ -25,7 +25,7 @@ namespace dali {
 
 namespace detail {
 DLL_PUBLIC std::pair<std::vector<int>, int> DistributeBlocksPerSample(
-  const TensorListShape<> &shape, int block_size, int max_blocks);
+    const TensorListShape<> &shape, int block_size, int max_blocks);
 }
 
 namespace mem = kernels::memory;

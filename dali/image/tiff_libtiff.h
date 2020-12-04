@@ -16,8 +16,8 @@
 #define DALI_IMAGE_TIFF_LIBTIFF_H_
 
 #include <tiffio.h>
-#include <utility>
 #include <memory>
+#include <utility>
 #include "dali/core/span.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/image/generic_image.h"
@@ -30,8 +30,9 @@ class TiffImage_Libtiff : public GenericImage {
   bool CanDecode(DALIImageType image_type) const;
 
  protected:
-  std::pair<std::shared_ptr<uint8_t>, Image::Shape>
-  DecodeImpl(DALIImageType image_type, const uint8_t *encoded_buffer, size_t length) const override;
+  std::pair<std::shared_ptr<uint8_t>, Image::Shape> DecodeImpl(DALIImageType image_type,
+                                                               const uint8_t *encoded_buffer,
+                                                               size_t length) const override;
 
   Image::Shape PeekShapeImpl(const uint8_t *encoded_buffer, size_t length) const override;
 

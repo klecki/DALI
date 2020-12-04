@@ -13,13 +13,13 @@
 // limitations under the License.
 
 #include <limits>
-#include <vector>
 #include <memory>
+#include <vector>
+#include "dali/core/convert.h"
+#include "dali/operators/image/color/brightness_contrast.h"
 #include "dali/test/dali_operator_test.h"
 #include "dali/test/dali_operator_test_utils.h"
 #include "dali/test/tensor_test_utils.h"
-#include "dali/core/convert.h"
-#include "dali/operators/image/color/brightness_contrast.h"
 
 namespace dali {
 
@@ -31,26 +31,22 @@ using dali::brightness_contrast::detail::HalfRange;
 
 using InputDataType = float;
 
-
 class BrightnessContrastTest : public testing::DaliOperatorTest {
  public:
   BrightnessContrastTest() {
     Init(input_, volume(shape_));
   }
 
-
   GraphDescr GenerateOperatorGraph() const override {
     GraphDescr g("BrightnessContrast");
     return g;
   }
-
 
   void Init(std::vector<InputDataType> &input, size_t n) {
     std::mt19937_64 rng;
     input.resize(n);
     UniformRandomFill(input, rng, 0.f, 10.f);
   }
-
 
   template <typename Backend>
   std::unique_ptr<TensorList<Backend>> ToTensorList(std::vector<InputDataType> data) {
@@ -61,7 +57,6 @@ class BrightnessContrastTest : public testing::DaliOperatorTest {
     std::memcpy(ptr, data.data(), data.size() * sizeof(InputDataType));
     return tl;
   }
-
 
   std::vector<InputDataType> input_;
   TensorShape<3> shape_ = {2, 4, 3};
@@ -76,7 +71,6 @@ static_assert(HalfRange<float>() == 0.5f, "Half range of float should be 0.5f");
 static_assert(FullRange<uint8_t>() == 255.0f, "Full range of uint8_t should be 255");
 static_assert(FullRange<int16_t>() == 32767.0f, "Full range of int16_t should be 2^15-1");
 static_assert(FullRange<float>() == 1.0f, "Full range of float should be 1.0f");
-
 
 template <class OutputType>
 void BrightnessContrastVerify(TensorListWrapper input, TensorListWrapper output, Arguments args) {
@@ -98,7 +92,7 @@ void BrightnessContrastVerify(TensorListWrapper input, TensorListWrapper output,
     auto in_tensor = input_tl->tensor<InputDataType>(t);
     ASSERT_EQ(in_shape, out_shape);
     for (int i = 0; i < volume(out_shape); i++) {
-      float with_contrast = contrast_offset + contrast*(in_tensor[i] - contrast_offset);
+      float with_contrast = contrast_offset + contrast * (in_tensor[i] - contrast_offset);
       float with_brighness = brightness * with_contrast;
       float with_shift = out_range * brightness_shift + with_brighness;
       EXPECT_EQ(out_tensor[i], ConvertSat<OutputType>(with_shift));
@@ -106,25 +100,12 @@ void BrightnessContrastVerify(TensorListWrapper input, TensorListWrapper output,
   }
 }
 
-
 Arguments args1 = {
-        {"dtype",             DALI_UINT8},
-        {"brightness" ,       1.f},
-        {"brightness_shift",  0.f},
-        {"contrast",          1.f}
-};
+    {"dtype", DALI_UINT8}, {"brightness", 1.f}, {"brightness_shift", 0.f}, {"contrast", 1.f}};
 Arguments args2 = {
-        {"dtype",             DALI_UINT8},
-        {"brightness" ,       1.f},
-        {"brightness_shift",  0.1f},
-        {"contrast",          2.f}
-};
+    {"dtype", DALI_UINT8}, {"brightness", 1.f}, {"brightness_shift", 0.1f}, {"contrast", 2.f}};
 Arguments args3 = {
-        {"dtype",             DALI_UINT8},
-        {"brightness" ,       0.5f},
-        {"brightness_shift",  0.051f},
-        {"contrast",          1.f}
-};
+    {"dtype", DALI_UINT8}, {"brightness", 0.5f}, {"brightness_shift", 0.051f}, {"contrast", 1.f}};
 
 std::vector<Arguments> args_for_types = {args1, args2, args3};
 
@@ -133,14 +114,12 @@ std::vector<Arguments> args_for_types = {args1, args2, args3};
 INSTANTIATE_TEST_SUITE_P(BrightnessContrastTest, BrightnessContrastTest,
                          ::testing::ValuesIn(testing::cartesian(utils::kDevices, args_for_types)));
 
-
 TEST_P(BrightnessContrastTest, basic_test_float) {
   auto tl = ToTensorList<CPUBackend>(this->input_);
   auto args = GetParam();
   TensorListWrapper tlout;
   this->RunTest(tl.get(), tlout, args, BrightnessContrastVerify<uint8_t>);
 }
-
 
 TEST_P(BrightnessContrastTest, basic_test_int16) {
   auto tl = ToTensorList<CPUBackend>(this->input_);
@@ -149,14 +128,12 @@ TEST_P(BrightnessContrastTest, basic_test_int16) {
   this->RunTest(tl.get(), tlout, args, BrightnessContrastVerify<uint8_t>);
 }
 
-
 TEST_P(BrightnessContrastTest, basic_test_uint8) {
   auto tl = ToTensorList<CPUBackend>(this->input_);
   auto args = GetParam();
   TensorListWrapper tlout;
   this->RunTest(tl.get(), tlout, args, BrightnessContrastVerify<uint8_t>);
 }
-
 
 }  // namespace brightness_contrast
 }  // namespace testing

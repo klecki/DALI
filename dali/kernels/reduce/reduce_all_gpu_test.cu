@@ -15,20 +15,19 @@
 #include <gtest/gtest.h>
 #include <random>
 #include <vector>
+#include "dali/core/cuda_event.h"
+#include "dali/core/span.h"
+#include "dali/core/util.h"
 #include "dali/kernels/alloc.h"
 #include "dali/kernels/reduce/reduce_all_gpu_impl.cuh"
 #include "dali/kernels/reduce/reduce_all_kernel_gpu.h"
 #include "dali/kernels/reduce/reduce_test.h"
 #include "dali/kernels/scratch.h"
-#include "dali/core/cuda_event.h"
-#include "dali/core/span.h"
-#include "dali/core/util.h"
 #include "dali/test/tensor_test_utils.h"
 #include "dali/test/test_tensors.h"
 
 namespace dali {
 namespace kernels {
-
 
 using ReductionTestTypes = ::testing::Types<reductions::sum, reductions::min, reductions::max>;
 
@@ -54,7 +53,7 @@ void ReduceAllGPUTest<Reduction>::TestReduceAll() {
   std::mt19937_64 rng(1234);
   std::uniform_real_distribution<float> dist(0, 1);
 
-  int n_in = 1<<23;  // 8M numbers
+  int n_in = 1 << 23;  // 8M numbers
   dim3 block(32, 32);
   int nblock = 1024;
   int n_out0 = std::min<int>(div_ceil(n_in, nblock), 1024);
@@ -72,7 +71,7 @@ void ReduceAllGPUTest<Reduction>::TestReduceAll() {
   ReduceAllKernel<float><<<1, block>>>(out_data.get(), in_data.get(), n_in);
   cudaDeviceSynchronize();
   auto start = CUDAEvent::CreateWithFlags(0);
-  auto end =   CUDAEvent::CreateWithFlags(0);
+  auto end = CUDAEvent::CreateWithFlags(0);
   cudaEventRecord(start);
   ReduceAllKernel<float><<<grid, block>>>(out_data.get() + 1, in_data.get(), n_in, R);
   ReduceAllKernel<float><<<1, block>>>(out_data.get(), out_data.get() + 1, n_out0, R);
@@ -100,7 +99,6 @@ TYPED_TEST(ReduceAllGPUTest, ReduceAllKernel) {
   this->TestReduceAll();
 }
 
-
 template <typename Reduction>
 void ReduceAllGPUTest<Reduction>::TestReduceBatched() {
   std::mt19937_64 rng(1234);
@@ -126,7 +124,7 @@ void ReduceAllGPUTest<Reduction>::TestReduceBatched() {
   for (auto &x : in_cpu)
     x = dist(rng);
 
-  auto gpu_dev_ptrs = memory::alloc_unique<const float*>(AllocType::GPU, samples);
+  auto gpu_dev_ptrs = memory::alloc_unique<const float *>(AllocType::GPU, samples);
   auto gpu_sizes = memory::alloc_unique<int64_t>(AllocType::GPU, samples);
   vector<const float *> host_ptrs(samples);
   vector<const float *> cpu_dev_ptrs(samples);
@@ -146,19 +144,18 @@ void ReduceAllGPUTest<Reduction>::TestReduceBatched() {
   cudaMemcpy(gpu_sizes.get(), sizes.data(), samples * sizeof(*gpu_sizes), cudaMemcpyHostToDevice);
 
   // warm-up
-  ReduceAllBatchedKernel<float><<<1, block>>>(
-      out_data.get(), gpu_dev_ptrs.get(), gpu_sizes.get(), R);
+  ReduceAllBatchedKernel<float>
+      <<<1, block>>>(out_data.get(), gpu_dev_ptrs.get(), gpu_sizes.get(), R);
   cudaDeviceSynchronize();
   auto start = CUDAEvent::CreateWithFlags(0);
-  auto end =   CUDAEvent::CreateWithFlags(0);
+  auto end = CUDAEvent::CreateWithFlags(0);
   cudaEventRecord(start);
-  ReduceAllBatchedKernel<float><<<grid, block>>>(out_data.get() + samples,
-                                                 gpu_dev_ptrs.get(), gpu_sizes.get(), R);
+  ReduceAllBatchedKernel<float>
+      <<<grid, block>>>(out_data.get() + samples, gpu_dev_ptrs.get(), gpu_sizes.get(), R);
 
   dim3 grid2(1, samples);
-  ReduceAllBlockwiseKernel<float><<<grid2, block>>>(out_data.get(),
-                                                    out_data.get() + samples, n_out_per_sample,
-                                                    R);
+  ReduceAllBlockwiseKernel<float>
+      <<<grid2, block>>>(out_data.get(), out_data.get() + samples, n_out_per_sample, R);
   cudaEventRecord(end);
   cudaMemcpy(out_cpu.data(), out_data.get(), n_out * sizeof(*out_data), cudaMemcpyDeviceToHost);
   cudaDeviceSynchronize();

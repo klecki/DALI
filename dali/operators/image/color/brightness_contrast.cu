@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/image/color/brightness_contrast.h"
 #include <vector>
 #include "dali/kernels/imgproc/pointwise/multiply_add_gpu.h"
+#include "dali/operators/image/color/brightness_contrast.h"
 
 namespace dali {
 namespace {
@@ -25,7 +25,6 @@ using TheKernel = kernels::MultiplyAddGpu<Out, In, 3>;
 }  // namespace
 
 DALI_REGISTER_OPERATOR(BrightnessContrast, BrightnessContrastGpu, GPU)
-
 
 bool BrightnessContrastGpu::SetupImpl(std::vector<OutputDesc> &output_desc,
                                       const workspace_t<GPUBackend> &ws) {
@@ -50,7 +49,6 @@ bool BrightnessContrastGpu::SetupImpl(std::vector<OutputDesc> &output_desc,
   ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())))  // NOLINT
   return true;
 }
-
 
 void BrightnessContrastGpu::RunImpl(workspace_t<GPUBackend> &ws) {
   const auto &input = ws.template Input<GPUBackend>(0);

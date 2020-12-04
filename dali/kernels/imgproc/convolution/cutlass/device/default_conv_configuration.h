@@ -26,7 +26,6 @@
     \brief Definitions for GEMM structures
 */
 
-
 #ifndef DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_DEFAULT_CONV_CONFIGURATION_H_
 #define DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_DEFAULT_CONV_CONFIGURATION_H_
 
@@ -76,6 +75,5 @@ struct DefaultConvConfiguration {
 }  // namespace cutlass
 
 ////////////////////////////////////////////////////////////////////////////////
-
 
 #endif  // DALI_KERNELS_IMGPROC_CONVOLUTION_CUTLASS_DEVICE_DEFAULT_CONV_CONFIGURATION_H_

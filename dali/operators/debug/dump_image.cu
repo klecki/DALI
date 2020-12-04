@@ -17,7 +17,7 @@
 
 namespace dali {
 
-template<>
+template <>
 void DumpImage<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   auto &input = ws.Input<GPUBackend>(0);
   auto &output = ws.Output<GPUBackend>(0);

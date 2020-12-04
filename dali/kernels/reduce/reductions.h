@@ -18,10 +18,10 @@
 #include <cassert>
 #include <utility>
 #include <vector>
-#include "dali/kernels/kernel.h"
-#include "dali/kernels/common/utils.h"
-#include "dali/core/util.h"
 #include "dali/core/convert.h"
+#include "dali/core/util.h"
+#include "dali/kernels/common/utils.h"
+#include "dali/kernels/kernel.h"
 
 namespace dali {
 namespace kernels {
@@ -29,18 +29,15 @@ namespace reductions {
 
 struct square {
   template <typename T>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  auto operator()(const T &x) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE auto operator()(const T &x) const noexcept {
     return x * x;
   }
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  int64_t operator()(int32_t x) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE int64_t operator()(int32_t x) const noexcept {
     return static_cast<int64_t>(x) * x;
   }
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  uint64_t operator()(uint32_t x) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE uint64_t operator()(uint32_t x) const noexcept {
     return static_cast<uint64_t>(x) * x;
   }
 };
@@ -49,8 +46,7 @@ template <typename Mean>
 struct variance {
   Mean mean = 0;
   template <typename T>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  auto operator()(const T &x) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE auto operator()(const T &x) const noexcept {
     auto d = x - mean;
     return d * d;
   }
@@ -58,40 +54,40 @@ struct variance {
 
 struct sum {
   template <typename Acc, typename Addend>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void operator()(Acc &acc, const Addend &val) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE void operator()(Acc &acc, const Addend &val) const noexcept {
     acc += val;
   }
 
   template <typename T>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  static constexpr T neutral() noexcept { return 0; }
+  DALI_HOST_DEV DALI_FORCEINLINE static constexpr T neutral() noexcept {
+    return 0;
+  }
 };
 
 struct min {
   template <typename T, typename U>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void operator()(T &min_val, const U &val) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE void operator()(T &min_val, const U &val) const noexcept {
     if (val < min_val)
       min_val = val;
   }
 
   template <typename T>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  static constexpr T neutral() noexcept { return max_value<T>(); }
+  DALI_HOST_DEV DALI_FORCEINLINE static constexpr T neutral() noexcept {
+    return max_value<T>();
+  }
 };
 
 struct max {
   template <typename T, typename U>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  void operator()(T &max_val, const U &val) const noexcept {
+  DALI_HOST_DEV DALI_FORCEINLINE void operator()(T &max_val, const U &val) const noexcept {
     if (val > max_val)
       max_val = val;
   }
 
   template <typename T>
-  DALI_HOST_DEV DALI_FORCEINLINE
-  static constexpr T neutral() noexcept { return min_value<T>(); }
+  DALI_HOST_DEV DALI_FORCEINLINE static constexpr T neutral() noexcept {
+    return min_value<T>();
+  }
 };
 
 template <typename Reduction>
@@ -103,7 +99,9 @@ template <>
 struct is_accurate<max> : std::true_type {};
 
 template <typename Reduction>
-constexpr bool IsAccurate(const Reduction &) { return is_accurate<Reduction>::value; }
+constexpr bool IsAccurate(const Reduction &) {
+  return is_accurate<Reduction>::value;
+}
 
 }  // namespace reductions
 }  // namespace kernels

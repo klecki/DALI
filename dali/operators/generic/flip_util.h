@@ -68,7 +68,7 @@ inline TensorShape<flip_ndim> TransformShapeCHW(const TensorShape<> &shape) {
 }
 
 inline TensorListShape<flip_ndim> TransformShapes(const TensorListShape<> &shapes,
-                                          const TensorLayout &layout) {
+                                                  const TensorLayout &layout) {
   TensorListShape<flip_ndim> result(shapes.size());
   if (ImageLayoutInfo::IsChannelLast(layout)) {
     if (layout.find('D') >= 0) {

@@ -15,18 +15,17 @@
 #ifndef DALI_OPERATORS_READER_FILE_READER_OP_H_
 #define DALI_OPERATORS_READER_FILE_READER_OP_H_
 
-#include <utility>
 #include <string>
+#include <utility>
 #include <vector>
-#include "dali/operators/reader/reader_op.h"
 #include "dali/operators/reader/loader/file_label_loader.h"
+#include "dali/operators/reader/reader_op.h"
 
 namespace dali {
 
 class FileReader : public DataReader<CPUBackend, ImageLabelWrapper> {
  public:
-  explicit FileReader(const OpSpec& spec)
-    : DataReader<CPUBackend, ImageLabelWrapper>(spec) {
+  explicit FileReader(const OpSpec &spec) : DataReader<CPUBackend, ImageLabelWrapper>(spec) {
     bool shuffle_after_epoch = spec.GetArgument<bool>("shuffle_after_epoch");
     loader_ = InitLoader<FileLabelLoader>(spec, shuffle_after_epoch);
   }
@@ -34,7 +33,7 @@ class FileReader : public DataReader<CPUBackend, ImageLabelWrapper> {
   void RunImpl(SampleWorkspace &ws) override {
     const int idx = ws.data_idx();
 
-    const auto& image_label = GetSample(idx);
+    const auto &image_label = GetSample(idx);
 
     // copy from raw_data -> outputs directly
     auto &image_output = ws.Output<CPUBackend>(0);
@@ -46,9 +45,7 @@ class FileReader : public DataReader<CPUBackend, ImageLabelWrapper> {
     image_output.mutable_data<uint8_t>();
     label_output.Resize({1});
 
-    std::memcpy(image_output.raw_mutable_data(),
-                image_label.image.raw_data(),
-                image_size);
+    std::memcpy(image_output.raw_mutable_data(), image_label.image.raw_data(), image_size);
     image_output.SetSourceInfo(image_label.image.GetSourceInfo());
 
     label_output.mutable_data<int>()[0] = image_label.label;

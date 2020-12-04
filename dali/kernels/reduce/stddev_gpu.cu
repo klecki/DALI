@@ -13,15 +13,14 @@
 // limitations under the License.
 
 #include <memory>
-#include "dali/kernels/reduce/reduce_gpu.h"
 #include "dali/kernels/reduce/mean_stddev_gpu_impl.cuh"
+#include "dali/kernels/reduce/reduce_gpu.h"
 
 namespace dali {
 namespace kernels {
 
 template <typename Out, typename In, typename Mean>
-class StdDevGPU<Out, In, Mean>::Impl : public reduce_impl::StdDevImplGPU<Out, In, Mean> {
-};
+class StdDevGPU<Out, In, Mean>::Impl : public reduce_impl::StdDevImplGPU<Out, In, Mean> {};
 
 template <typename Out, typename In, typename Mean>
 StdDevGPU<Out, In, Mean>::StdDevGPU() {}
@@ -30,9 +29,10 @@ template <typename Out, typename In, typename Mean>
 StdDevGPU<Out, In, Mean>::~StdDevGPU() {}
 
 template <typename Out, typename In, typename Mean>
-KernelRequirements StdDevGPU<Out, In, Mean>::Setup(
-    KernelContext &ctx,
-    const TensorListShape<> &in_shape, span<const int> axes, bool keep_dims, bool reduce_batch) {
+KernelRequirements StdDevGPU<Out, In, Mean>::Setup(KernelContext &ctx,
+                                                   const TensorListShape<> &in_shape,
+                                                   span<const int> axes, bool keep_dims,
+                                                   bool reduce_batch) {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
@@ -41,12 +41,10 @@ KernelRequirements StdDevGPU<Out, In, Mean>::Setup(
 
 template <typename Out, typename In, typename Mean>
 void StdDevGPU<Out, In, Mean>::Run(KernelContext &ctx, const OutListGPU<Out> &out,
-                             const InListGPU<In> &in, const InListGPU<Mean> &mean,
-                             int ddof) {
+                                   const InListGPU<In> &in, const InListGPU<Mean> &mean, int ddof) {
   assert(impl_ != nullptr);
   impl_->Run(ctx, out, in, mean, ddof);
 }
-
 
 template class StdDevGPU<uint8_t, uint8_t>;
 template class StdDevGPU<float, uint8_t>;
@@ -70,10 +68,8 @@ template class StdDevGPU<float, int64_t>;
 
 template class StdDevGPU<float, float>;
 
-
 template <typename Out, typename In, typename Mean>
-class VarianceGPU<Out, In, Mean>::Impl : public reduce_impl::VarianceImplGPU<Out, In, Mean> {
-};
+class VarianceGPU<Out, In, Mean>::Impl : public reduce_impl::VarianceImplGPU<Out, In, Mean> {};
 
 template <typename Out, typename In, typename Mean>
 VarianceGPU<Out, In, Mean>::VarianceGPU() {}
@@ -82,9 +78,10 @@ template <typename Out, typename In, typename Mean>
 VarianceGPU<Out, In, Mean>::~VarianceGPU() {}
 
 template <typename Out, typename In, typename Mean>
-KernelRequirements VarianceGPU<Out, In, Mean>::Setup(
-    KernelContext &ctx,
-    const TensorListShape<> &in_shape, span<const int> axes, bool keep_dims, bool reduce_batch) {
+KernelRequirements VarianceGPU<Out, In, Mean>::Setup(KernelContext &ctx,
+                                                     const TensorListShape<> &in_shape,
+                                                     span<const int> axes, bool keep_dims,
+                                                     bool reduce_batch) {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
@@ -93,12 +90,11 @@ KernelRequirements VarianceGPU<Out, In, Mean>::Setup(
 
 template <typename Out, typename In, typename Mean>
 void VarianceGPU<Out, In, Mean>::Run(KernelContext &ctx, const OutListGPU<Out> &out,
-                             const InListGPU<In> &in, const InListGPU<Mean> &mean,
-                             int ddof) {
+                                     const InListGPU<In> &in, const InListGPU<Mean> &mean,
+                                     int ddof) {
   assert(impl_ != nullptr);
   impl_->Run(ctx, out, in, mean, ddof);
 }
-
 
 template class VarianceGPU<uint8_t, uint8_t>;
 template class VarianceGPU<float, uint8_t>;
@@ -122,10 +118,8 @@ template class VarianceGPU<float, int64_t>;
 
 template class VarianceGPU<float, float>;
 
-
 template <typename Out, typename In, typename Mean>
-class InvStdDevGPU<Out, In, Mean>::Impl : public reduce_impl::InvStdDevImplGPU<Out, In, Mean> {
-};
+class InvStdDevGPU<Out, In, Mean>::Impl : public reduce_impl::InvStdDevImplGPU<Out, In, Mean> {};
 
 template <typename Out, typename In, typename Mean>
 InvStdDevGPU<Out, In, Mean>::InvStdDevGPU() {}
@@ -134,9 +128,10 @@ template <typename Out, typename In, typename Mean>
 InvStdDevGPU<Out, In, Mean>::~InvStdDevGPU() {}
 
 template <typename Out, typename In, typename Mean>
-KernelRequirements InvStdDevGPU<Out, In, Mean>::Setup(
-    KernelContext &ctx,
-    const TensorListShape<> &in_shape, span<const int> axes, bool keep_dims, bool reduce_batch) {
+KernelRequirements InvStdDevGPU<Out, In, Mean>::Setup(KernelContext &ctx,
+                                                      const TensorListShape<> &in_shape,
+                                                      span<const int> axes, bool keep_dims,
+                                                      bool reduce_batch) {
   if (!impl_) {
     impl_ = std::make_unique<Impl>();
   }
@@ -144,9 +139,9 @@ KernelRequirements InvStdDevGPU<Out, In, Mean>::Setup(
 }
 
 template <typename Out, typename In, typename Mean>
-void InvStdDevGPU<Out, In, Mean>::Run(
-    KernelContext &ctx, const OutListGPU<Out> &out,
-    const InListGPU<In> &in, const InListGPU<Mean> &mean, int ddof, param_t epsilon) {
+void InvStdDevGPU<Out, In, Mean>::Run(KernelContext &ctx, const OutListGPU<Out> &out,
+                                      const InListGPU<In> &in, const InListGPU<Mean> &mean,
+                                      int ddof, param_t epsilon) {
   assert(impl_ != nullptr);
   impl_->Run(ctx, out, in, mean, ddof, epsilon);
 }

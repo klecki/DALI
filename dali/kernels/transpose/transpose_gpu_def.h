@@ -24,10 +24,10 @@ static constexpr int kTileSize = 32;
 static constexpr int kTiledTransposeMaxVectorSize = 32;
 
 static constexpr int kTiledTransposeMaxSharedMem =
-  kTiledTransposeMaxVectorSize * kTileSize * (kTileSize+1);
+    kTiledTransposeMaxVectorSize * kTileSize * (kTileSize + 1);
 
-static_assert(kTiledTransposeMaxSharedMem <= 48<<10,
-  "Tile won't fit in shared memory on some supported archs.");
+static_assert(kTiledTransposeMaxSharedMem <= 48 << 10,
+              "Tile won't fit in shared memory on some supported archs.");
 
 }  // namespace transpose_impl
 }  // namespace kernels

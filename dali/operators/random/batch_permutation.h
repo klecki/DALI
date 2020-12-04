@@ -24,7 +24,7 @@ namespace dali {
 class BatchPermutation : public Operator<CPUBackend> {
  public:
   explicit BatchPermutation(const OpSpec &spec)
-  : Operator<CPUBackend>(spec), rng_(spec.GetArgument<int64_t>("seed")) {}
+      : Operator<CPUBackend>(spec), rng_(spec.GetArgument<int64_t>("seed")) {}
 
   int GetBatchSize(const HostWorkspace &) {
     return spec_.GetArgument<int>("batch_size");
@@ -37,7 +37,10 @@ class BatchPermutation : public Operator<CPUBackend> {
     return true;
   }
   void RunImpl(HostWorkspace &ws) override;
-  bool CanInferOutputs() const override { return true; }
+  bool CanInferOutputs() const override {
+    return true;
+  }
+
  private:
   void NoRepetitions(int N);
   void WithRepetitions(int N);

@@ -25,17 +25,16 @@ namespace signal {
 template <typename T>
 struct MagnitudeToDecibel {
  public:
-  DALI_HOST_DEV DALI_FORCEINLINE
-  explicit MagnitudeToDecibel(T mul = 10.0, T s_ref = 1.0, T min_ratio = 1e-8)
-      : mul_log2_(mul * kLog2Factor)
-      , inv_s_ref_(s_ref == T(1) ? T(1) : T(1) / s_ref)
-      , min_ratio_(min_ratio) {
+  DALI_HOST_DEV DALI_FORCEINLINE explicit MagnitudeToDecibel(T mul = 10.0, T s_ref = 1.0,
+                                                             T min_ratio = 1e-8)
+      : mul_log2_(mul * kLog2Factor),
+        inv_s_ref_(s_ref == T(1) ? T(1) : T(1) / s_ref),
+        min_ratio_(min_ratio) {
     assert(min_ratio_ > T(0));
     assert(inv_s_ref_ > T(0));
   }
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  T operator()(T s) const {
+  DALI_HOST_DEV DALI_FORCEINLINE T operator()(T s) const {
     T ratio = s * inv_s_ref_;
 #ifndef __CUDA_ARCH__
     using std::log2;
@@ -59,13 +58,11 @@ struct MagnitudeToDecibel {
 template <typename T>
 struct DecibelToMagnitude {
  public:
-  DALI_HOST_DEV DALI_FORCEINLINE
-  explicit DecibelToMagnitude(T mul = 10.0, T s_ref = 1.0, T min_ratio = 1e-8)
-      : inv_mul_(T(1) / mul)
-      , s_ref_(s_ref) {}
+  DALI_HOST_DEV DALI_FORCEINLINE explicit DecibelToMagnitude(T mul = 10.0, T s_ref = 1.0,
+                                                             T min_ratio = 1e-8)
+      : inv_mul_(T(1) / mul), s_ref_(s_ref) {}
 
-  DALI_HOST_DEV DALI_FORCEINLINE
-  T operator()(T db) const {
+  DALI_HOST_DEV DALI_FORCEINLINE T operator()(T db) const {
 #ifndef __CUDA_ARCH__
     using std::pow;
 #endif

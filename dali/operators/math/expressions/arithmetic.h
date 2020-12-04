@@ -91,11 +91,10 @@ DLL_PUBLIC TensorLayout GetCommonLayout(ExprNode &expr, const workspace_t<Backen
     if (next_layout.empty()) {
       continue;
     }
-    DALI_ENFORCE(
-        result_layout == next_layout,
-        make_string("Layouts of subexpressions ", i - 1, " and ", i, " for atihmetic operation",
-                    func.GetFuncName(), " do not match. Expected ", result_layout, " got ",
-                    next_layout, "."));
+    DALI_ENFORCE(result_layout == next_layout,
+                 make_string("Layouts of subexpressions ", i - 1, " and ", i,
+                             " for atihmetic operation", func.GetFuncName(),
+                             " do not match. Expected ", result_layout, " got ", next_layout, "."));
   }
   return result_layout;
 }
@@ -169,8 +168,8 @@ inline TensorListShape<> ShapePromotion(std::string op, span<const TensorListSha
     } else {
       DALI_ENFORCE(scalar_input || *out_shape == *shapes[i],
                    make_string("Input shapes of elemenetwise arithemtic operator \"", op,
-                               "\" do not match. Expected equal shapes, got: ", op, "(",
-                               *out_shape, ", ", *shapes[i], ")."));
+                               "\" do not match. Expected equal shapes, got: ", op, "(", *out_shape,
+                               ", ", *shapes[i], ")."));
     }
   }
   return *out_shape;
@@ -222,7 +221,6 @@ inline void GetConstantNodes(ExprNode &expr, std::vector<ExprConstant *> &nodes)
   }
 }
 
-
 /**
  * @brief Provide an error when the node is an bitwise operator that has any floating point
  *        inputs
@@ -238,7 +236,6 @@ inline void CheckBitwise(ExprFunc &func) {
                                                   "` must be of integral type."));
   }
 }
-
 
 /**
  * @brief Provide an error when the node is an arithmetic operator (other than `*`)
@@ -366,8 +363,7 @@ class ArithmeticGenericOp : public Operator<Backend> {
   ExprImplCache cache_;
   // For CPU we limit the tile size to limit the sizes of intermediate buffers
   // For GPU it's better to execute more at one time.
-  static constexpr int kTileSize =
-      std::is_same<Backend, CPUBackend>::value ? 4096 : 65536;
+  static constexpr int kTileSize = std::is_same<Backend, CPUBackend>::value ? 4096 : 65536;
   // CPU packs up to 64 tiles in one task, GPU porcesses all of them in one task
   static constexpr int kTaskSize =
       std::is_same<Backend, CPUBackend>::value ? 64 : std::numeric_limits<int>::max();

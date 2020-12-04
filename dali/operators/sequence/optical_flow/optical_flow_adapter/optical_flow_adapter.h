@@ -24,7 +24,8 @@
 namespace dali {
 namespace optical_flow {
 
-enum struct VectorGridSize {
+enum struct VectorGridSize
+{
   UNDEF,
   SIZE_4 = 4,  /// 4x4 grid
   MAX,
@@ -39,7 +40,7 @@ struct OpticalFlowParams {
 
 using dali::TensorView;
 
-template<typename ComputeBackend>
+template <typename ComputeBackend>
 class DLL_PUBLIC OpticalFlowAdapter {
  protected:
   using StorageBackend = typename compute_to_storage<ComputeBackend>::type;
@@ -47,12 +48,10 @@ class DLL_PUBLIC OpticalFlowAdapter {
  public:
   explicit OpticalFlowAdapter(OpticalFlowParams params) : of_params_(params) {}
 
-
   /**
    * Return shape of output tensor for given OpticalFlow class
    */
   virtual TensorShape<DynamicDimensions> GetOutputShape() = 0;
-
 
   /**
    * Perform OpticalFlow calculation.
@@ -60,8 +59,8 @@ class DLL_PUBLIC OpticalFlowAdapter {
   virtual void CalcOpticalFlow(TensorView<StorageBackend, const uint8_t, 3> reference_image,
                                TensorView<StorageBackend, const uint8_t, 3> input_image,
                                TensorView<StorageBackend, float, 3> output_image,
-                               TensorView<StorageBackend, const float, 3> external_hints = TensorView<StorageBackend, const float, 3>()) = 0;  // NOLINT
-
+                               TensorView<StorageBackend, const float, 3> external_hints =
+                                   TensorView<StorageBackend, const float, 3>()) = 0;  // NOLINT
 
   virtual ~OpticalFlowAdapter() = default;
 

@@ -20,19 +20,18 @@ namespace dali {
 namespace kernels {
 
 static_assert(sizeof(DeviceArray<int, 41>) == sizeof(int[41]),
-  "Size of DeviceArray must match exactly the size of equally-sized C array");
-static_assert(DeviceArray<float, 123>().size() == 123,
-  "DeviceArray<T, N>::size() must return N");
+              "Size of DeviceArray must match exactly the size of equally-sized C array");
+static_assert(DeviceArray<float, 123>().size() == 123, "DeviceArray<T, N>::size() must return N");
 
 TEST(DeviceArray, StdArray) {
   const int N = 42;
 
   std::array<int, N> arr;
   for (int i = 0; i < N; i++)
-    arr[i] = 3*i + 5;
+    arr[i] = 3 * i + 5;
 
   DeviceArray<int, N> devarr = arr;
-  std::array<int , N> arr2 = devarr;
+  std::array<int, N> arr2 = devarr;
   EXPECT_EQ(arr2, arr);
 }
 
@@ -43,7 +42,7 @@ TEST(DeviceArray, Indexing) {
   DeviceArray<int, N> devarr;
   const auto &cdevarr = devarr;
   for (size_t i = 0; i < N; i++)
-    arr[i] = devarr[i] = 5*i + 3;
+    arr[i] = devarr[i] = 5 * i + 3;
 
   EXPECT_EQ(devarr.size(), N);
 
@@ -60,7 +59,7 @@ TEST(DeviceArray, Iteration) {
   DeviceArray<int, N> devarr;
   const auto &cdevarr = devarr;
   for (int i = 0; i < N; i++)
-    arr[i] = devarr[i] = 5*i + 3;
+    arr[i] = devarr[i] = 5 * i + 3;
 
   EXPECT_EQ(devarr.begin(), cdevarr.begin());
   EXPECT_EQ(devarr.cbegin(), cdevarr.begin());
@@ -85,7 +84,7 @@ TEST(DeviceArray, Comparison) {
   const int N = 31;
   DeviceArray<float, N> arr1, arr2;
   for (int i = 0; i < N; i++)
-    arr1[i] = 0.5f*i + 3.25f;
+    arr1[i] = 0.5f * i + 3.25f;
   arr2 = arr1;
 
   EXPECT_TRUE(arr1 == arr2);

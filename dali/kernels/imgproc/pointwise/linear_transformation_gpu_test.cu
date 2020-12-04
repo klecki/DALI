@@ -13,23 +13,22 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
-#include <vector>
 #include <tuple>
+#include <vector>
 #include "dali/core/geom/mat.h"
-#include "dali/kernels/scratch.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/kernels/common/copy.h"
+#include "dali/kernels/imgproc/pointwise/linear_transformation_gpu.h"
+#include "dali/kernels/imgproc/roi.h"
+#include "dali/kernels/scratch.h"
+#include "dali/kernels/test/kernel_test_utils.h"
+#include "dali/test/cv_mat_utils.h"
 #include "dali/test/mat2tensor.h"
 #include "dali/test/tensor_test_utils.h"
-#include "dali/kernels/test/kernel_test_utils.h"
-#include "dali/kernels/imgproc/pointwise/linear_transformation_gpu.h"
-#include "dali/test/cv_mat_utils.h"
-#include "dali/kernels/imgproc/roi.h"
 
 namespace dali {
 namespace kernels {
 namespace test {
-
 
 namespace {
 
@@ -49,7 +48,6 @@ class LinearTransformationGpuTest : public ::testing::Test {
     input_host_.resize(dataset_size(in_shapes_));
   }
 
-
   void SetUp() final {
     std::mt19937_64 rng;
     UniformRandomFill(input_host_, rng, 0., 10.);
@@ -66,7 +64,6 @@ class LinearTransformationGpuTest : public ::testing::Test {
     CUDA_CALL(cudaFree(output_));
   }
 
-
   In *input_device_;
   Out *output_;
   std::vector<In> input_host_;
@@ -77,9 +74,7 @@ class LinearTransformationGpuTest : public ::testing::Test {
   vec<kNChannelsOut, float> vec_{42, 69};
   std::vector<mat<kNChannelsOut, kNChannelsIn, float>> vmat_ = {mat_, mat_ + 1.f};
   std::vector<vec<kNChannelsOut, float>> vvec_ = {vec_, vec_ + 1.f};
-  std::vector<Roi<2>> rois_ = {{{1, 1}, {2, 2}},
-                               {{0, 1}, {1, 2}}};
-
+  std::vector<Roi<2>> rois_ = {{{1, 1}, {2, 2}}, {{0, 1}, {1, 2}}};
 
   void calc_output() {
     for (size_t i = 0; i < input_host_.size(); i += kNChannelsIn) {
@@ -92,7 +87,6 @@ class LinearTransformationGpuTest : public ::testing::Test {
       }
     }
   }
-
 
   size_t dataset_size(const std::vector<TensorShape<kNDims>> &shapes) {
     int ret = 0;
@@ -113,15 +107,13 @@ namespace {
 
 template <class GtestTypeParam>
 using TheKernel = LinearTransformationGpu<typename GtestTypeParam::Out, typename GtestTypeParam::In,
-        kNChannelsOut, kNChannelsIn, kNDims - 1>;
+                                          kNChannelsOut, kNChannelsIn, kNDims - 1>;
 
 }  // namespace
-
 
 TYPED_TEST(LinearTransformationGpuTest, check_kernel) {
   check_kernel<TheKernel<TypeParam>>();
 }
-
 
 TYPED_TEST(LinearTransformationGpuTest, setup_test) {
   TheKernel<TypeParam> kernel;
@@ -129,13 +121,12 @@ TYPED_TEST(LinearTransformationGpuTest, setup_test) {
   InListGPU<typename TypeParam::In, kNDims> in(this->input_device_, this->in_shapes_);
   auto reqs = kernel.Setup(ctx, in, make_cspan(this->vmat_), make_cspan(this->vvec_));
   ASSERT_EQ(this->out_shapes_.size(), static_cast<size_t>(reqs.output_shapes[0].num_samples()))
-                        << "Kernel::Setup provides incorrect shape";
+      << "Kernel::Setup provides incorrect shape";
   for (size_t i = 0; i < this->out_shapes_.size(); i++) {
     EXPECT_EQ(this->out_shapes_[i], reqs.output_shapes[0][i])
-                  << "Kernel::Setup provides incorrect shape";
+        << "Kernel::Setup provides incorrect shape";
   }
 }
-
 
 TYPED_TEST(LinearTransformationGpuTest, setup_test_with_roi) {
   TheKernel<TypeParam> kernel;
@@ -146,7 +137,6 @@ TYPED_TEST(LinearTransformationGpuTest, setup_test_with_roi) {
   auto ref_shape = ShapeFromRoi(this->rois_[0], kNChannelsOut);
   ASSERT_EQ(ref_shape, reqs.output_shapes[0][0]);
 }
-
 
 TYPED_TEST(LinearTransformationGpuTest, run_test) {
   TheKernel<TypeParam> kernel;
@@ -161,7 +151,7 @@ TYPED_TEST(LinearTransformationGpuTest, run_test) {
   c.scratchpad = &scratchpad;
 
   OutListGPU<typename TypeParam::Out, kNDims> out(
-          this->output_, reqs.output_shapes[0].template to_static<kNDims>());
+      this->output_, reqs.output_shapes[0].template to_static<kNDims>());
 
   kernel.Run(c, out, in, make_cspan(this->vmat_), make_cspan(this->vvec_));
   cudaDeviceSynchronize();
@@ -172,14 +162,12 @@ TYPED_TEST(LinearTransformationGpuTest, run_test) {
   Check(res.first, ref_tv, EqualUlp());
 }
 
-
 TYPED_TEST(LinearTransformationGpuTest, run_test_with_roi) {
   TheKernel<TypeParam> kernel;
   KernelContext c;
   InListGPU<typename TypeParam::In, kNDims> in(this->input_device_, this->in_shapes_);
 
-  auto reqs = kernel.Setup(c, in,
-                           make_cspan(this->vmat_), make_cspan(this->vvec_),
+  auto reqs = kernel.Setup(c, in, make_cspan(this->vmat_), make_cspan(this->vvec_),
                            make_cspan(this->rois_));
 
   ScratchpadAllocator sa;
@@ -188,21 +176,17 @@ TYPED_TEST(LinearTransformationGpuTest, run_test_with_roi) {
   c.scratchpad = &scratchpad;
 
   OutListGPU<typename TypeParam::Out, kNDims> out(
-          this->output_, reqs.output_shapes[0].template to_static<kNDims>());
+      this->output_, reqs.output_shapes[0].template to_static<kNDims>());
 
   kernel.Run(c, out, in, make_cspan(this->vmat_), make_cspan(this->vvec_), make_cspan(this->rois_));
   cudaDeviceSynchronize();
 
   auto res = copy<AllocType::Host>(out[0]);
-  auto mat = testing::copy_to_mat<kNChannelsOut>(
-      this->rois_[0],
-      this->ref_output_.data(),
-      this->out_shapes_[0][0],
-      this->out_shapes_[0][1]);
+  auto mat = testing::copy_to_mat<kNChannelsOut>(this->rois_[0], this->ref_output_.data(),
+                                                 this->out_shapes_[0][0], this->out_shapes_[0][1]);
   Check(view_as_tensor<typename TypeParam::Out>(mat), res.first, EqualUlp());
 }
 
 }  // namespace test
 }  // namespace kernels
 }  // namespace dali
-

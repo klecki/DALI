@@ -24,22 +24,18 @@
 namespace dali {
 
 template <typename T, class Displacement, DALIInterpType interp_type>
-__device__ inline T GetPixelValueSingleC(int h, int w, int c,
-                                         int H, int W, int C,
-                                         const T * input,
-                                         Displacement& displace, const T fill_value) {
-  kernels::Surface2D<const T> in_surface = { input, W, H, C, C, C*W, 1 };
+__device__ inline T GetPixelValueSingleC(int h, int w, int c, int H, int W, int C, const T *input,
+                                         Displacement &displace, const T fill_value) {
+  kernels::Surface2D<const T> in_surface = {input, W, H, C, C, C * W, 1};
   auto sampler = kernels::make_sampler<interp_type>(in_surface);
   auto p = displace(h, w, c, H, W, C);
   return sampler.template at<T>(p, c, fill_value);
 }
 
 template <typename T, class Displacement, DALIInterpType interp_type>
-__device__ inline void GetPixelValueMultiC(int h, int w,
-                                           int H, int W, int C,
-                                           const T * input, T * output,
-                                           Displacement& displace, const T fill_value) {
-  kernels::Surface2D<const T> in_surface = { input, W, H, C, C, C*W, 1 };
+__device__ inline void GetPixelValueMultiC(int h, int w, int H, int W, int C, const T *input,
+                                           T *output, Displacement &displace, const T fill_value) {
+  kernels::Surface2D<const T> in_surface = {input, W, H, C, C, C * W, 1};
   auto sampler = kernels::make_sampler<interp_type>(in_surface);
   auto p = displace(h, w, 0, H, W, C);
   sampler(output, p, fill_value);
@@ -48,27 +44,24 @@ __device__ inline void GetPixelValueMultiC(int h, int w,
 template <class Displacement, bool has_param = HasParam<Displacement>::value>
 struct PrepareParam {
  public:
-  __device__ __host__ inline void operator() (Displacement &, const void *, const int) {}
+  __device__ __host__ inline void operator()(Displacement &, const void *, const int) {}
 };
 
 template <class Displacement>
 struct PrepareParam<Displacement, true> {
  public:
-  __device__ __host__ inline void operator() (Displacement &displace,  // NOLINT(*)
-                                              const void * raw_params, const int n) {
-    const typename Displacement::Param * const params =
-      reinterpret_cast<const typename Displacement::Param *>(raw_params);
+  __device__ __host__ inline void operator()(Displacement &displace,  // NOLINT(*)
+                                             const void *raw_params, const int n) {
+    const typename Displacement::Param *const params =
+        reinterpret_cast<const typename Displacement::Param *>(raw_params);
     displace.param = params[n];
   }
 };
 
 template <typename T, bool per_channel_transform, class Displacement, DALIInterpType interp_type>
-__global__
-void DisplacementKernel(const T *in, T* out,
-                        const int N, const Index * shapes, const bool has_mask,
-                        const int * mask, const void * raw_params, const Index pitch,
-                        const T fill_value,
-                        Displacement displace) {
+__global__ void DisplacementKernel(const T *in, T *out, const int N, const Index *shapes,
+                                   const bool has_mask, const int *mask, const void *raw_params,
+                                   const Index pitch, const T fill_value, Displacement displace) {
   // block per image
   for (int n = blockIdx.x; n < N; n += gridDim.x) {
     const int H = shapes[n * pitch + 0];
@@ -87,8 +80,8 @@ void DisplacementKernel(const T *in, T* out,
         const int w = (out_idx / C) % W;
         const int h = (out_idx / W / C);
 
-        image_out[out_idx] = GetPixelValueSingleC<T, Displacement, interp_type>(h, w, c, H, W, C,
-            image_in, displace, fill_value);
+        image_out[out_idx] = GetPixelValueSingleC<T, Displacement, interp_type>(
+            h, w, c, H, W, C, image_in, displace, fill_value);
       } else {
         image_out[out_idx] = image_in[out_idx];
       }
@@ -96,17 +89,14 @@ void DisplacementKernel(const T *in, T* out,
   }
 }
 
-template <typename T, int C, bool per_channel_transform,
-          int nThreads, class Displacement, DALIInterpType interp_type>
-__global__
-void DisplacementKernel_aligned32bit(const T *in, T* out,
-                        const size_t N, const Index * shapes,
-                        const bool has_mask, const int * mask,
-                        const void * raw_params,
-                        const Index pitch,
-                        const T fill_value,
-                        Displacement displace) {
-  constexpr int nPixelsPerThread = sizeof(uint32_t)/sizeof(T);
+template <typename T, int C, bool per_channel_transform, int nThreads, class Displacement,
+          DALIInterpType interp_type>
+__global__ void DisplacementKernel_aligned32bit(const T *in, T *out, const size_t N,
+                                                const Index *shapes, const bool has_mask,
+                                                const int *mask, const void *raw_params,
+                                                const Index pitch, const T fill_value,
+                                                Displacement displace) {
+  constexpr int nPixelsPerThread = sizeof(uint32_t) / sizeof(T);
   __shared__ T scratch[nThreads * C * nPixelsPerThread];
   // block per image
   for (size_t n = blockIdx.x; n < N; n += gridDim.x) {
@@ -118,16 +108,16 @@ void DisplacementKernel_aligned32bit(const T *in, T* out,
     pp(displace, raw_params, n);
     if (m) {
       // thread per pixel
-      const T * const image_in = in + offset;
-      uint32_t * const image_out = reinterpret_cast<uint32_t*>(out + offset);
+      const T *const image_in = in + offset;
+      uint32_t *const image_out = reinterpret_cast<uint32_t *>(out + offset);
       const int nElements = (H * W) / nPixelsPerThread;
       const int loopCount = nElements / nThreads;
-      T * const my_scratch = scratch + threadIdx.x * C * nPixelsPerThread;
-      uint32_t * const scratch_32 = reinterpret_cast<uint32_t*>(scratch);
+      T *const my_scratch = scratch + threadIdx.x * C * nPixelsPerThread;
+      uint32_t *const scratch_32 = reinterpret_cast<uint32_t *>(scratch);
 
       for (int lidx = 0; lidx < loopCount; ++lidx) {
         const int hw0 = (lidx * nThreads + threadIdx.x) * nPixelsPerThread;
-        uint32_t * const current_image_out = image_out + lidx * nThreads * C;
+        uint32_t *const current_image_out = image_out + lidx * nThreads * C;
         if (per_channel_transform) {
 #pragma unroll
           for (int j = 0; j < nPixelsPerThread; ++j) {
@@ -136,9 +126,8 @@ void DisplacementKernel_aligned32bit(const T *in, T* out,
             const int h = hw / W;
 #pragma unroll
             for (int c = 0; c < C; ++c) {
-              my_scratch[j * C + c] = GetPixelValueSingleC<T, Displacement, interp_type>(h, w, c,
-                  H, W, C,
-                  image_in, displace, fill_value);
+              my_scratch[j * C + c] = GetPixelValueSingleC<T, Displacement, interp_type>(
+                  h, w, c, H, W, C, image_in, displace, fill_value);
             }
           }
         } else {
@@ -147,8 +136,8 @@ void DisplacementKernel_aligned32bit(const T *in, T* out,
             const int hw = hw0 + j;
             const int w = hw % W;
             const int h = hw / W;
-            GetPixelValueMultiC<T, Displacement, interp_type>(h, w, H, W, C,
-                image_in, my_scratch + j * C, displace, fill_value);
+            GetPixelValueMultiC<T, Displacement, interp_type>(
+                h, w, H, W, C, image_in, my_scratch + j * C, displace, fill_value);
           }
         }
         __syncthreads();
@@ -172,10 +161,8 @@ void DisplacementKernel_aligned32bit(const T *in, T* out,
 #pragma unroll
             for (int c = 0; c < C; ++c) {
               out[offset + h * W * C + w * C + c] =
-                GetPixelValueSingleC<T, Displacement, interp_type>(
-                  h, w, c,
-                  H, W, C,
-                  image_in, displace, fill_value);
+                  GetPixelValueSingleC<T, Displacement, interp_type>(h, w, c, H, W, C, image_in,
+                                                                     displace, fill_value);
             }
           }
         } else {
@@ -184,14 +171,14 @@ void DisplacementKernel_aligned32bit(const T *in, T* out,
             const int hw = hw0 + j;
             const int w = hw % W;
             const int h = hw / W;
-            GetPixelValueMultiC<T, Displacement, interp_type>(h, w, H, W, C,
-                image_in, out + offset + h * W * C + w * C, displace, fill_value);
+            GetPixelValueMultiC<T, Displacement, interp_type>(
+                h, w, H, W, C, image_in, out + offset + h * W * C + w * C, displace, fill_value);
           }
         }
       }
     } else {
-      const uint32_t * const image_in = reinterpret_cast<const uint32_t *>(in + offset);
-      uint32_t * const image_out = reinterpret_cast<uint32_t *>(out + offset);
+      const uint32_t *const image_in = reinterpret_cast<const uint32_t *>(in + offset);
+      uint32_t *const image_out = reinterpret_cast<uint32_t *>(out + offset);
       const int nElements = (H * W * C) / nPixelsPerThread;
       for (int i = threadIdx.x; i < nElements; i += nThreads) {
         image_out[i] = image_in[i];
@@ -200,17 +187,17 @@ void DisplacementKernel_aligned32bit(const T *in, T* out,
   }
 }
 
-template <class Displacement,
-          bool per_channel_transform>
-class DisplacementFilter<GPUBackend, Displacement,
-                         per_channel_transform> : public Operator<GPUBackend> {
+template <class Displacement, bool per_channel_transform>
+class DisplacementFilter<GPUBackend, Displacement, per_channel_transform>
+    : public Operator<GPUBackend> {
  public:
-  explicit DisplacementFilter(const OpSpec &spec) :
-      Operator(spec),
-      displace_(spec),
-      interp_type_(spec.GetArgument<DALIInterpType>("interp_type")) {
+  explicit DisplacementFilter(const OpSpec &spec)
+      : Operator(spec),
+        displace_(spec),
+        interp_type_(spec.GetArgument<DALIInterpType>("interp_type")) {
     has_mask_ = spec.HasTensorArgument("mask");
-    DALI_ENFORCE(interp_type_ == DALI_INTERP_NN || interp_type_ == DALI_INTERP_LINEAR,
+    DALI_ENFORCE(
+        interp_type_ == DALI_INTERP_NN || interp_type_ == DALI_INTERP_LINEAR,
         "Unsupported interpolation type, only NN and LINEAR are supported for this operation");
 
     if (!spec.TryGetArgument<float>(fill_value_, "fill_value")) {
@@ -223,14 +210,14 @@ class DisplacementFilter<GPUBackend, Displacement,
   }
 
   virtual ~DisplacementFilter() {
-     displace_.Cleanup();
+    displace_.Cleanup();
   }
 
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const DeviceWorkspace &ws) override {
     return false;
   }
 
-  void RunImpl(DeviceWorkspace& ws) override {
+  void RunImpl(DeviceWorkspace &ws) override {
     DataDependentSetup(ws);
 
     auto &input = ws.Input<GPUBackend>(0);
@@ -293,7 +280,7 @@ class DisplacementFilter<GPUBackend, Displacement,
     const int pitch = nDims + 1;  // shape and offset
 
     meta_cpu.Resize({static_cast<int>(N), pitch});
-    Index * meta = meta_cpu.template mutable_data<Index>();
+    Index *meta = meta_cpu.template mutable_data<Index>();
     meta_gpu.ResizeLike(meta_cpu);
     meta_gpu.template mutable_data<Index>();
 
@@ -301,7 +288,7 @@ class DisplacementFilter<GPUBackend, Displacement,
     for (size_t i = 0; i < N; ++i) {
       auto shape = input.tensor_shape(i);
       DALI_ENFORCE(shape.size() == nDims,
-          "All augmented tensors need to have the same number of dimensions");
+                   "All augmented tensors need to have the same number of dimensions");
       Index current_size = nDims != 0 ? 1 : 0;
       for (size_t j = 0; j < nDims; ++j) {
         meta[i * pitch + j] = shape[j];
@@ -313,8 +300,7 @@ class DisplacementFilter<GPUBackend, Displacement,
 
     output.ResizeLike(input);
 
-    DALI_ENFORCE(pitch == 4,
-            "DisplacementKernel requires pitch to be 4.");
+    DALI_ENFORCE(pitch == 4, "DisplacementKernel requires pitch to be 4.");
 
     meta_gpu.Copy(meta_cpu, ws->stream());
     // Find if C is the same for all images and
@@ -337,16 +323,17 @@ class DisplacementFilter<GPUBackend, Displacement,
     switch (interp_type_) {
       case DALI_INTERP_NN:
         DisplacementKernelLauncher<T, DALI_INTERP_NN>(ws, input.template data<T>(),
-            output.template mutable_data<T>(),
-            input.ntensor(), pitch, C, maxPower2);
+                                                      output.template mutable_data<T>(),
+                                                      input.ntensor(), pitch, C, maxPower2);
         break;
       case DALI_INTERP_LINEAR:
         DisplacementKernelLauncher<T, DALI_INTERP_LINEAR>(ws, input.template data<T>(),
-            output.template mutable_data<T>(),
-            input.ntensor(), pitch, C, maxPower2);
+                                                          output.template mutable_data<T>(),
+                                                          input.ntensor(), pitch, C, maxPower2);
         break;
       default:
-        DALI_FAIL("Unsupported interpolation type,"
+        DALI_FAIL(
+            "Unsupported interpolation type,"
             " only NN and LINEAR are supported for this operation");
     }
 
@@ -354,47 +341,31 @@ class DisplacementFilter<GPUBackend, Displacement,
   }
 
   template <typename U, DALIInterpType interp_type>
-  void DisplacementKernelLauncher(DeviceWorkspace * ws,
-                                  const U* in, U* out,
-                                  const size_t N, const int pitch,
-                                  const int C, const uint64_t maxPower2) {
-    void * param_ptr = params_gpu_.capacity() > 0 ? params_gpu_.raw_mutable_data() : nullptr;
-    if (maxPower2 >= sizeof(uint32_t)/sizeof(U)) {
+  void DisplacementKernelLauncher(DeviceWorkspace *ws, const U *in, U *out, const size_t N,
+                                  const int pitch, const int C, const uint64_t maxPower2) {
+    void *param_ptr = params_gpu_.capacity() > 0 ? params_gpu_.raw_mutable_data() : nullptr;
+    if (maxPower2 >= sizeof(uint32_t) / sizeof(U)) {
       switch (C) {
         case 1:
-          DisplacementKernel_aligned32bit<U, 1, per_channel_transform,
-            256, Displacement, interp_type>
-              <<<N, 256, 0, ws->stream()>>>(
-                  in, out, N,
-                  meta_gpu.template mutable_data<Index>(),
-                  has_mask_,
-                  mask_gpu_.template mutable_data<int>(),
-                  param_ptr,
-                  pitch, fill_value_, displace_);
+          DisplacementKernel_aligned32bit<U, 1, per_channel_transform, 256, Displacement,
+                                          interp_type><<<N, 256, 0, ws->stream()>>>(
+              in, out, N, meta_gpu.template mutable_data<Index>(), has_mask_,
+              mask_gpu_.template mutable_data<int>(), param_ptr, pitch, fill_value_, displace_);
           return;
         case 3:
-          DisplacementKernel_aligned32bit<U, 3, per_channel_transform,
-            256, Displacement, interp_type>
-              <<<N, 256, 0, ws->stream()>>>(
-                  in, out, N,
-                  meta_gpu.template mutable_data<Index>(),
-                  has_mask_,
-                  mask_gpu_.template mutable_data<int>(),
-                  param_ptr,
-                  pitch, fill_value_, displace_);
+          DisplacementKernel_aligned32bit<U, 3, per_channel_transform, 256, Displacement,
+                                          interp_type><<<N, 256, 0, ws->stream()>>>(
+              in, out, N, meta_gpu.template mutable_data<Index>(), has_mask_,
+              mask_gpu_.template mutable_data<int>(), param_ptr, pitch, fill_value_, displace_);
           return;
         default:
           break;
       }
     }
     DisplacementKernel<U, per_channel_transform, Displacement, interp_type>
-      <<<N, 256, 0, ws->stream()>>>(
-          in, out, N,
-          meta_gpu.template mutable_data<Index>(),
-          has_mask_,
-          mask_gpu_.template mutable_data<int>(),
-          param_ptr,
-          pitch, fill_value_, displace_);
+        <<<N, 256, 0, ws->stream()>>>(in, out, N, meta_gpu.template mutable_data<Index>(),
+                                      has_mask_, mask_gpu_.template mutable_data<int>(), param_ptr,
+                                      pitch, fill_value_, displace_);
   }
 
   Displacement displace_;

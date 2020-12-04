@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/operators/math/normalize/normalize.h"
 #include "dali/core/math_util.h"
 #include "dali/core/tensor_layout.h"
+#include "dali/kernels/common/copy.h"
 #include "dali/kernels/normalize/normalize_gpu.h"
 #include "dali/kernels/reduce/reduce_gpu.h"
-#include "dali/kernels/common/copy.h"
+#include "dali/operators/math/normalize/normalize.h"
 
 namespace dali {
 
-using namespace kernels; // NOLINT
+using namespace kernels;  // NOLINT
 
 template <>
 class Normalize<GPUBackend> : public NormalizeBase<GPUBackend> {
@@ -61,7 +61,6 @@ class Normalize<GPUBackend> : public NormalizeBase<GPUBackend> {
   AnyKernelInstance mean_kernel_, stddev_kernel_, normalize_kernel_;
   ScratchpadAllocator alloc_;
 };
-
 
 DALI_REGISTER_OPERATOR(Normalize, Normalize<GPUBackend>, GPU);
 
@@ -124,8 +123,8 @@ __global__ void Fill(T *data, size_t count, T value) {
 
 }  // namespace
 
-TensorListView<StorageGPU, float>
-Normalize<GPUBackend>::BroadcastMean(KernelContext &ctx, float value) const {
+TensorListView<StorageGPU, float> Normalize<GPUBackend>::BroadcastMean(KernelContext &ctx,
+                                                                       float value) const {
   TensorListView<StorageGPU, float> mean_gpu;
   mean_gpu.shape = param_shape_;
   mean_gpu.data.resize(param_shape_.num_samples());
@@ -176,8 +175,8 @@ void Normalize<GPUBackend>::SetupTyped(const DeviceWorkspace &ws) {
   auto &norm = GetNormalizeKernel<OutputType, InputType>();
   // if stddev is calculated internally, it's already inverse
   bool scale_is_stddev = !ShouldCalcStdDev();
-  auto req = norm.Setup(ctx, data_shape_, make_span(axes_),
-                        has_scalar_mean_, has_scalar_stddev_, scale_is_stddev);
+  auto req = norm.Setup(ctx, data_shape_, make_span(axes_), has_scalar_mean_, has_scalar_stddev_,
+                        scale_is_stddev);
 
   if (ShouldCalcMean()) {
     auto &mean = GetMeanKernel<float, InputType>();
@@ -219,7 +218,7 @@ void Normalize<GPUBackend>::RunTyped(DeviceWorkspace &ws) {
 
   // Prepare mean and stddev
 
-  float scalar_mean   = has_scalar_mean_   ? spec_.GetArgument<float>("mean")   : 0;
+  float scalar_mean = has_scalar_mean_ ? spec_.GetArgument<float>("mean") : 0;
   float scalar_stddev = has_scalar_stddev_ ? spec_.GetArgument<float>("stddev") : 1;
 
   OutListGPU<float> mean_gpu, stddev_gpu;
@@ -263,19 +262,16 @@ void Normalize<GPUBackend>::RunTyped(DeviceWorkspace &ws) {
 
     if (has_scalar_mean_) {
       if (has_scalar_stddev_) {
-        norm_kernel.Run(ctx, out_view, in_view, scalar_mean, scalar_stddev,
-                        scale_, shift_, epsilon);
+        norm_kernel.Run(ctx, out_view, in_view, scalar_mean, scalar_stddev, scale_, shift_,
+                        epsilon);
       } else {
-        norm_kernel.Run(ctx, out_view, in_view, scalar_mean, stddev_gpu,
-                        scale_, shift_, epsilon);
+        norm_kernel.Run(ctx, out_view, in_view, scalar_mean, stddev_gpu, scale_, shift_, epsilon);
       }
     } else {
       if (has_scalar_stddev_) {
-        norm_kernel.Run(ctx, out_view, in_view, mean_gpu, scalar_stddev,
-                        scale_, shift_, epsilon);
+        norm_kernel.Run(ctx, out_view, in_view, mean_gpu, scalar_stddev, scale_, shift_, epsilon);
       } else {
-        norm_kernel.Run(ctx, out_view, in_view, mean_gpu, stddev_gpu,
-                        scale_, shift_, epsilon);
+        norm_kernel.Run(ctx, out_view, in_view, mean_gpu, stddev_gpu, scale_, shift_, epsilon);
       }
     }
   }

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "dali/kernels/signal/decibel/to_decibels_gpu.h"
 #include <cmath>
 #include <complex>
 #include <vector>
@@ -21,6 +20,7 @@
 #include "dali/core/format.h"
 #include "dali/kernels/kernel.h"
 #include "dali/kernels/signal/decibel/decibel_calculator.h"
+#include "dali/kernels/signal/decibel/to_decibels_gpu.h"
 
 namespace dali {
 namespace kernels {
@@ -34,9 +34,8 @@ struct SampleDesc {
 };
 
 template <typename T>
-__global__ void ToDecibelsKernel(const SampleDesc<T>* sample_data,
-                                 ToDecibelsArgs<T> args,
-                                 const T* max_values = nullptr) {
+__global__ void ToDecibelsKernel(const SampleDesc<T> *sample_data, ToDecibelsArgs<T> args,
+                                 const T *max_values = nullptr) {
   const int64_t block_size = blockDim.y * blockDim.x;
   const int64_t grid_size = gridDim.x * block_size;
   const int sample_idx = blockIdx.y;
@@ -73,11 +72,11 @@ void ToDecibelsGpu<T>::Run(KernelContext &context, const OutListGPU<T, DynamicDi
                            const InListGPU<T, DynamicDimensions> &in, const ToDecibelsArgs<T> &args,
                            InListGPU<T, 0> max_values) {
   DALI_ENFORCE(max_values.empty() || max_values.is_contiguous(),
-      "Reduce all kernel expects the output to be contiguous");
-  const T* max_values_data = max_values.empty() ? nullptr : max_values[0].data;
+               "Reduce all kernel expects the output to be contiguous");
+  const T *max_values_data = max_values.empty() ? nullptr : max_values[0].data;
 
   auto num_samples = in.size();
-  auto* sample_data = context.scratchpad->Allocate<SampleDesc<T>>(AllocType::Host, num_samples);
+  auto *sample_data = context.scratchpad->Allocate<SampleDesc<T>>(AllocType::Host, num_samples);
 
   for (int i = 0; i < num_samples; i++) {
     auto &sample = sample_data[i];
@@ -87,16 +86,15 @@ void ToDecibelsGpu<T>::Run(KernelContext &context, const OutListGPU<T, DynamicDi
     assert(sample.size == volume(out.tensor_shape(i)));
   }
 
-  auto* sample_data_gpu = context.scratchpad->Allocate<SampleDesc<T>>(AllocType::GPU, num_samples);
-  CUDA_CALL(
-    cudaMemcpyAsync(sample_data_gpu, sample_data, num_samples * sizeof(SampleDesc<T>),
-                    cudaMemcpyHostToDevice, context.gpu.stream));
+  auto *sample_data_gpu = context.scratchpad->Allocate<SampleDesc<T>>(AllocType::GPU, num_samples);
+  CUDA_CALL(cudaMemcpyAsync(sample_data_gpu, sample_data, num_samples * sizeof(SampleDesc<T>),
+                            cudaMemcpyHostToDevice, context.gpu.stream));
 
   dim3 block(32, 32);
   auto blocks_per_sample = std::max(32, 1024 / num_samples);
   dim3 grid(blocks_per_sample, num_samples);
-  ToDecibelsKernel<T><<<grid, block, 0, context.gpu.stream>>>(
-      sample_data_gpu, args, max_values_data);
+  ToDecibelsKernel<T>
+      <<<grid, block, 0, context.gpu.stream>>>(sample_data_gpu, args, max_values_data);
 }
 
 template class ToDecibelsGpu<float>;

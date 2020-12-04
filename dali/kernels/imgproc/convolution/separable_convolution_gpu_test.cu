@@ -50,7 +50,6 @@ class SepearableConvolutionGpuTestImpl {
   TensorListShape<kNdim> data_shape_;
   static const int num_samples_ = 4;
 
-
   TensorShape<> GetScaledShape(float scale) {
     TensorShape<> target_shape = {static_cast<int64_t>(32 * scale),
                                   static_cast<int64_t>(14 * scale),
@@ -161,7 +160,6 @@ class SepearableConvolutionGpuTestImpl {
           kernel_cpu.Run(ctx_cpu, out_view, in_view, windows);
         }
       }
-
 
       auto out_cpu_v = output_.cpu(0);
       cudaDeviceSynchronize();

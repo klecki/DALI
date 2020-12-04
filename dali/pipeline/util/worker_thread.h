@@ -34,47 +34,46 @@ namespace dali {
 
 class Barrier {
  public:
-    explicit Barrier(std::size_t count) : count_(count), current_(count) {}
-    void Wait(bool reset = false) {
-        std::unique_lock<std::mutex> lock(mutex_);
-        current_--;
-        if (current_ == 0 || count_ == 0) {
-            if (reset)
-              current_ = count_;
-            cv_.notify_all();
-        } else {
-            cv_.wait(lock, [this] { return current_ == 0; });
-        }
-    }
-    void Break() {
-      {
-        std::lock_guard<std::mutex> lock(mutex_);
-        count_ = 0;
+  explicit Barrier(std::size_t count) : count_(count), current_(count) {}
+  void Wait(bool reset = false) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    current_--;
+    if (current_ == 0 || count_ == 0) {
+      if (reset)
         current_ = count_;
-      }
       cv_.notify_all();
+    } else {
+      cv_.wait(lock, [this] { return current_ == 0; });
     }
+  }
+  void Break() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      count_ = 0;
+      current_ = count_;
+    }
+    cv_.notify_all();
+  }
 
  private:
-    std::mutex mutex_;
-    std::condition_variable cv_;
-    size_t count_;
-    size_t current_;
+  std::mutex mutex_;
+  std::condition_variable cv_;
+  size_t count_;
+  size_t current_;
 };
 
 class WorkerThread {
  public:
   typedef std::function<void(void)> Work;
 
-  inline WorkerThread(int device_id, bool set_affinity) :
-    running_(true), work_complete_(true), barrier_(2) {
+  inline WorkerThread(int device_id, bool set_affinity)
+      : running_(true), work_complete_(true), barrier_(2) {
 #if NVML_ENABLED
     if (device_id != CPU_ONLY_DEVICE_ID) {
       nvml::Init();
     }
 #endif
-    thread_ = std::thread(&WorkerThread::ThreadMain,
-        this, device_id, set_affinity);
+    thread_ = std::thread(&WorkerThread::ThreadMain, this, device_id, set_affinity);
   }
 
   inline ~WorkerThread() {
@@ -86,7 +85,8 @@ class WorkerThread {
   /*
    * Separate Shutdown function is needed as we cannot rely on destructor to stop the thread.
    * When the destructor is called other things that work() is using may have been gone long
-   * before causing a hang. Now when Shutdown is called we are sure that all things around still exist.
+   * before causing a hang. Now when Shutdown is called we are sure that all things around still
+   * exist.
    */
   inline void Shutdown(void) {
     // Wait for work to find errors
@@ -126,8 +126,7 @@ class WorkerThread {
 
     // Check for errors
     if (!errors_.empty()) {
-      string error = "Error in worker thread: " +
-        errors_.front();
+      string error = "Error in worker thread: " + errors_.front();
       errors_.pop();
       running_ = false;
       lock.unlock();
@@ -148,8 +147,7 @@ class WorkerThread {
   inline void CheckForErrors() {
     std::lock_guard<std::mutex> lock(mutex_);
     if (!errors_.empty()) {
-      string error = "Error in worker thread: " +
-        errors_.front();
+      string error = "Error in worker thread: " + errors_.front();
       errors_.pop();
     }
   }

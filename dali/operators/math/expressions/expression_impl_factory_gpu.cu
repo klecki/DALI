@@ -70,11 +70,11 @@ std::unique_ptr<ExprImplBase> ExprImplFactory(const DeviceWorkspace &ws, const E
 
   switch (expr.GetSubexpressionCount()) {
     case 1:
-      return ExprImplFactoryGpuUnary(dynamic_cast<const ExprFunc&>(expr));
+      return ExprImplFactoryGpuUnary(dynamic_cast<const ExprFunc &>(expr));
     case 2:
-      return ExprImplFactoryGpuBinary(dynamic_cast<const ExprFunc&>(expr));
+      return ExprImplFactoryGpuBinary(dynamic_cast<const ExprFunc &>(expr));
     case 3:
-      return ExprImplFactoryGpuTernary(dynamic_cast<const ExprFunc&>(expr));
+      return ExprImplFactoryGpuTernary(dynamic_cast<const ExprFunc &>(expr));
     default:
       DALI_FAIL("Expressions with " + std::to_string(expr.GetSubexpressionCount()) +
                 " subexpressions are not supported. No implementation found.");
