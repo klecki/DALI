@@ -201,7 +201,7 @@ def parse_args():
     parser.add_argument('--worker_init', default='fork', choices=['fork', 'spawn'], type=str,
                         help='Python workers initialization method')
     parser.add_argument('--prefetch', default=2, type=int, metavar='N',
-                        help='Pipeline cpu/gpu prefetch queue depth (default: 2)')
+                        help='Pipeline cpu/gpu prefetch queue depth')
     parser.add_argument('--reader_queue_depth', default=1, type=int, metavar='N',
                         help='Depth of prefetching queue for file reading operators (FileReader/parallel ExternalSource) (default: 1)')
     parser.add_argument('--training', default=False, type=bool,
@@ -231,6 +231,7 @@ def iteration_test(args):
 
         samples_no = pipe.epoch_size("Reader")
         expected_iters = samples_no // args.batch_size + (samples_no % args.batch_size != 0)
+        expected_iters = 300
 
         print("RUN {}".format(pipe_factory.__name__))
         for i in range(args.epochs):

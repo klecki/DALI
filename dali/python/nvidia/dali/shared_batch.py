@@ -115,6 +115,7 @@ memory chunk (``mem_batch``).
         offset = self.size
         self.size += sample_size
         if memview is None:  # dummy run without actually copying data, just for meta data
+            # TODO(KLECKI): fix this!!!
             return NPSerialized(offset, np_array.shape, np_array.dtype, sample_size)
         buffer = memview[offset:(offset + sample_size)]
         shared_array = np.ndarray(
