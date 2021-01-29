@@ -21,6 +21,7 @@ from collections import OrderedDict
 from nvidia.dali import backend as _b
 from nvidia.dali.worker import worker
 from nvidia.dali.messages import ScheduledTasks, CompletedTasks
+from nvidia.dali.shared_batch import SharedBatchMeta
 from nvidia.dali.shared_batch import deserialize_batch, import_numpy
 from nvidia.dali import shared_mem
 
@@ -38,7 +39,7 @@ class SharedBatchesConsumer:
         import_numpy()
         self.batch_pool = {}
 
-    def get_mem_chunk(self, sock: socket.socket, batch: CompletedTasks):
+    def get_mem_chunk(self, sock: socket.socket, batch: SharedBatchMeta) -> MemChunk:
         """Get the fd for shared memory through sock and mmap the memory based on metadata
         in `batch`. Adjust if it was previously mapped.
 
@@ -46,8 +47,9 @@ class SharedBatchesConsumer:
         ----------
         `sock` : socket.socket
             Socket used to transfer file descriptors.
-        `batch` : CompletedTasks
-            Metadata for batch computed by worker.
+        `batch` : SharedBatchMeta
+            Serialized batch metadata
+
         Returns
         -------
         MemChunk
@@ -76,8 +78,9 @@ class SharedBatchesConsumer:
         self.batch_pool[batch.mem_chunk_id] = chunk
         return chunk
 
-    def load_batch(self, sock: socket.socket, batch: CompletedTasks):
-        """Deserialize the part of the batch obtained through smem based on the CompletedTask
+    def load_batch(self, sock: socket.socket, batch: SharedBatchMeta):
+        """Based on the metadata in `batch` obtain the smem mapping, obtain the sample metadata
+        and deserialize the resulting data.
 
         Returns
         -------
@@ -86,6 +89,7 @@ class SharedBatchesConsumer:
         """
         chunk = self.get_mem_chunk(sock, batch)
         meta_data = chunk.shm_chunk.buf[batch.meta_offset:batch.meta_offset + batch.meta_size]
+        # Load list of indexed SampleMeta: (idx, SampleMeta) or (idx, tuple of SampleMeta)
         samples = pickle.loads(meta_data)
         return deserialize_batch(chunk.shm_chunk.buf, samples)
 
@@ -431,7 +435,9 @@ class WorkersPool:
                 context.set_error(batch_i, completed_tasks.exception)
             # received a valid chunk
             else:
-                context.receive_chunk(batch_i, self.pool.sock(worker_id), completed_tasks.batch_serialized)
+                context.receive_chunk(
+                    batch_i, self.pool.sock(worker_id),
+                    completed_tasks.batch_serialized)
 
     def reset(self):
         for context in self.contexts:

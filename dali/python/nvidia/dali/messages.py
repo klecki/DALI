@@ -44,7 +44,7 @@ class CompletedTasks:
         Index identifying the callback in the order of parallel callbacks passed to pool.
     `batch_i` : int
         Ordinal of the batch that tasks corresponds to.
-    `batch_serialized` :  nvidia.dali.shared_batch.SharedBatchSerialized
+    `batch_serialized` :  nvidia.dali.shared_batch.SharedBatchMeta
         Serialized result of computing the task.
     `exception`
         Exception if the task was failed.

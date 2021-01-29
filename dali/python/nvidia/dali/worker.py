@@ -14,7 +14,7 @@
 
 import threading
 from multiprocessing import reduction
-from nvidia.dali.shared_batch import SharedMemChunk, SharedBatchSerialized, SharedBatchWriter
+from nvidia.dali.shared_batch import SharedMemChunk, SharedBatchMeta, SharedBatchWriter
 from nvidia.dali.messages import CompletedTasks
 
 
@@ -73,7 +73,7 @@ class SharedBatchesDispatcher:
         mem_chunk = processed_tasks.mem_chunk
         writer = SharedBatchWriter(processed_tasks.mem_chunk)
         writer.write_batch(processed_tasks.data_batch)
-        batch_serialized = SharedBatchSerialized.from_writer(writer)
+        batch_serialized = SharedBatchMeta.from_writer(writer)
         completed_tasks = CompletedTasks.done(self.worker_id, processed_tasks, batch_serialized)
         self.res_pipe.send(completed_tasks)
         # send file descriptor for underlaying shared memory chunk if it hasn't been sent ever before
