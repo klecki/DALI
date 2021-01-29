@@ -84,8 +84,9 @@ class SharedBatchesDispatcher:
 
 
 class CallbackContext:
-    """Worker can run multiple Python callbacks, CallbackContext is used to (independently from other callbacks)
-    manage shared memory used to pass results of the callback calls.
+    """Worker can run multiple Python callbacks, CallbackContext is used to
+    (independently from other callbacks) manage shared memory used to pass
+    results of the callback calls.
     """
 
     def __init__(self, callback, mem_chunks):
@@ -93,13 +94,13 @@ class CallbackContext:
         self.mem_chunks = mem_chunks
         self.batch_i = 0
 
-    def next_batch_i(self):
+    def _next_batch_i(self):
         res = self.batch_i
         self.batch_i = (self.batch_i + 1) % len(self.mem_chunks)
         return res
 
     def next_mem_chunk(self):
-        batch_i = self.next_batch_i()
+        batch_i = self._next_batch_i()
         return self.mem_chunks[batch_i]
 
     def close(self):
@@ -180,10 +181,10 @@ def worker(worker_id, callbacks, prefetch_queue_depths, initial_chunk_size, task
     try:
         contexts = [
             CallbackContext(callback, [
-                SharedMemChunk("chunk_{}_{}_{}".format(worker_id, i, j), initial_chunk_size)
-                for j in range(prefetch_queue_depth)
+                SharedMemChunk("chunk_{}_{}_{}".format(worker_id, callback_idx, prefetch_idx), initial_chunk_size)
+                for prefetch_idx in range(prefetch_queue_depth)
             ])
-            for i, (callback, prefetch_queue_depth) in enumerate(zip(callbacks, prefetch_queue_depths))
+            for callback_idx, (callback, prefetch_queue_depth) in enumerate(zip(callbacks, prefetch_queue_depths))
         ]
         while True:
             with tasks_cv:

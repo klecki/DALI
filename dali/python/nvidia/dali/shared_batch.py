@@ -134,21 +134,22 @@ def _to_numpy(sample):
         "Unsupported callback return type. Expected numpy array, pytorch or mxnet cpu tensors, "
         "or list or tuple of them.")
 
+
 def _apply_to_sample(func, sample, *args):
-    """Apply to a sample that is  either numpy array or tuple/list of thereof (or any nesting).
+    """Apply to a sample traversing the nesting of the data (tuple/list).
 
     Parameters
     ----------
     func : callable
-        Function to be applied to every np.ndarray
-    sample : np.ndarray or any nesting of those in tuple/list
+        Function to be applied to every sample data object
+    sample : sample object or any nesting of those in tuple/list
         Representation of sample
     """
     if isinstance(sample, (tuple, list,)):
         return type(sample)(_apply_to_sample(func, part, *args) for part in sample)
-    if isinstance(sample, np.ndarray):
+    else:
+        # we unpacked all nesting levels, now is actual data:
         return func(sample, *args)
-    assert False  # samples are converted to numpy first, it should not take place
 
 
 class SharedBatchWriter:
@@ -177,7 +178,6 @@ class SharedBatchWriter:
             meta.append((idx, _apply_to_sample(make_meta, sample)))
         return meta, data_size
 
-
     def _add_array_to_batch(self, np_array, memview):
         sample_size = np_array.nbytes
         offset = self.written_size
@@ -186,14 +186,6 @@ class SharedBatchWriter:
         shared_array = np.ndarray(
             np_array.shape, dtype=np_array.dtype, buffer=buffer)
         shared_array[:] = np_array[:]
-
-    def _add_sample_to_batch(self, memview, sample):
-
-        if isinstance(sample, (tuple, list,)):
-            return type(sample)(self._add_sample_to_batch(memview, part) for part in sample)
-        if isinstance(sample, np.ndarray):
-            return self._add_array_to_batch(memview, sample)
-        assert False  # samples are converted to numpy first, it should not take place
 
     def write_batch(self, batch):
         if not batch:

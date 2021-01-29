@@ -19,7 +19,8 @@ class ExtCallback:
         if sample_info.idx_in_epoch >= self.epoch_size:
             raise self.exception_class
         if sample_info.idx_in_epoch not in self.ds:
-            self.ds[sample_info.idx_in_epoch] = np.zeros(self.dims, dtype=self.dtype) + sample_info.idx_in_epoch
+            self.ds[sample_info.idx_in_epoch] = np.zeros(
+                self.dims, dtype=self.dtype) + sample_info.idx_in_epoch
         return self.ds[sample_info.idx_in_epoch]
 
 
@@ -27,13 +28,6 @@ class ExtCallbackTensorCPU(ExtCallback):
 
     def __call__(self, sample_info):
         return dali.tensors.TensorCPU(super().__call__(sample_info))
-
-
-class ExtCallbackTorch(ExtCallback):
-
-    def __call__(self, sample_info):
-        import torch
-        return torch.tensor(super().__call__(sample_info))
 
 
 class ExtCallbackMX(ExtCallback):
@@ -44,9 +38,14 @@ class ExtCallbackMX(ExtCallback):
         return mxnd.array(a, dtype=a.dtype)
 
 
-def create_pipe(callback, device, batch_size, num_outputs=None, layout=None, py_workers_num=None, py_workers_init="fork", parallel=True):
-    pipe = dali.pipeline.Pipeline(batch_size, 1, 0, py_workers_num=py_workers_num, py_workers_init=py_workers_init)
-    inputs = dali.fn.external_source(callback, num_outputs=num_outputs, device=device, layout=layout, batch=False, parallel=parallel)
+def create_pipe(
+        callback, device, batch_size, num_outputs=None, layout=None, py_workers_num=None,
+        py_workers_init="fork", parallel=True):
+    pipe = dali.pipeline.Pipeline(
+        batch_size, 1, 0, py_workers_num=py_workers_num, py_workers_init=py_workers_init)
+    inputs = dali.fn.external_source(
+        callback, num_outputs=num_outputs, device=device, layout=layout, batch=False,
+        parallel=parallel)
     if num_outputs is None:
         pipe.set_outputs(inputs)
     else:
@@ -60,7 +59,8 @@ def _build_and_run_pipeline(pipe, *args):
         pipe.run()
 
 
-def _test_callback(parallel_pipe, pipe, epoch_size, batch_size, dtype=None):  # dtype is ignored but pass it so that is showed by nosetest
+# dtype is ignored but pass it so that is showed by nosetest
+def _test_callback(parallel_pipe, pipe, epoch_size, batch_size, dtype=None):
     iters_no = epoch_size // batch_size
     parallel_pipe.build()
     pipe.build()
@@ -84,11 +84,12 @@ def test_parallel_fork():
     for parallel_pipe, pipe, dtype, batch_size in pipes:
         yield _test_callback, parallel_pipe, pipe, epoch_size, batch_size, dtype
     # test that another pipline with forking initialization fails as there is CUDA contexts already initialized
-    parallel_pipe = create_pipe(callback, 'cpu', 16, py_workers_num=4, py_workers_init='fork', parallel=True)
+    parallel_pipe = create_pipe(callback, 'cpu', 16, py_workers_num=4,
+                                py_workers_init='fork', parallel=True)
     yield raises(RuntimeError)(_build_and_run_pipeline), parallel_pipe
 
 
-def _test_spawn_with_callback(
+def check_spawn_with_callback(
         callback_class, callback_ref_class=ExtCallback, num_outputs=None, layout=None,
         dtypes=['float64', 'int32', 'uint8']):
     epoch_size = 250
@@ -98,14 +99,15 @@ def _test_spawn_with_callback(
         for workers_num in [1, 4]:
             for batch_size in [1, 16, 150]:
                 pipe_parallel = create_pipe(
-                    callback, 'cpu', batch_size, py_workers_num=workers_num, py_workers_init='spawn',
-                    parallel=True, num_outputs=num_outputs, layout=layout)
-                pipe = create_pipe(callback_ref, 'cpu', batch_size, parallel=False, num_outputs=num_outputs, layout=layout)
+                    callback, 'cpu', batch_size, py_workers_num=workers_num,
+                    py_workers_init='spawn', parallel=True, num_outputs=num_outputs, layout=layout)
+                pipe = create_pipe(callback_ref, 'cpu', batch_size, parallel=False,
+                                   num_outputs=num_outputs, layout=layout)
                 yield _test_callback, pipe_parallel, pipe, epoch_size, batch_size, dtype
 
 
 def test_dtypes():
-    yield from _test_spawn_with_callback(ExtCallback)
+    yield from check_spawn_with_callback(ExtCallback)
 
 
 class ExtCallbackMultipleOutputs(ExtCallback):
@@ -117,19 +119,14 @@ class ExtCallbackMultipleOutputs(ExtCallback):
 
 
 def test_num_outputs():
-    yield from _test_spawn_with_callback(ExtCallbackMultipleOutputs, ExtCallbackMultipleOutputs, num_outputs=2, dtypes=['uint8', 'float64'])
+    yield from check_spawn_with_callback(ExtCallbackMultipleOutputs, ExtCallbackMultipleOutputs, num_outputs=2, dtypes=['uint8', 'float64'])
 
 
 def test_tensor_cpu():
-    yield from _test_spawn_with_callback(ExtCallbackTensorCPU)
-
-
-def test_pytorch():
-    yield from _test_spawn_with_callback(ExtCallbackTorch)
-
+    yield from check_spawn_with_callback(ExtCallbackTensorCPU)
 
 def test_mxnet():
-    yield from _test_spawn_with_callback(ExtCallbackMX)
+    yield from check_spawn_with_callback(ExtCallbackMX)
 
 
 class CustomException(Exception):
@@ -141,7 +138,9 @@ def test_exception_propagation():
         callback = ExtCallback((4, 4), 250, 'int32', exception_class=exception)
         for workers_num in [1, 4]:
             for batch_size in [1, 15, 150]:
-                pipe = create_pipe(callback, 'cpu', batch_size, py_workers_num=workers_num, py_workers_init='spawn', parallel=True)
+                pipe = create_pipe(
+                    callback, 'cpu', batch_size, py_workers_num=workers_num,
+                    py_workers_init='spawn', parallel=True)
                 yield raises(exception)(_build_and_run_pipeline), pipe, exception
 
 
@@ -156,7 +155,7 @@ def _test_stop_iteration_resume(pipe, batch_size, layout):
         except StopIteration:
             pipe.reset()
     assert len(outputs_epoch_1) == len(outputs_epoch_2), ("Epochs must have same number of iterations, "
-        "but they have {} {} respectively".format(len(outputs_epoch_1), len(outputs_epoch_2)))
+                                                          "but they have {} {} respectively".format(len(outputs_epoch_1), len(outputs_epoch_2)))
     for out_1, out_2 in zip(outputs_epoch_1, outputs_epoch_2):
         check_batch(out_1, out_2, batch_size, 0, None, expected_layout=layout, compare_layouts=True)
 
@@ -166,7 +165,8 @@ def test_stop_iteration_resume():
     layout = "XY"
     for workers_num in [1, 4]:
         for batch_size in [1, 15, 150]:
-            pipe = create_pipe(callback, 'cpu', batch_size, layout=layout, py_workers_num=workers_num, py_workers_init='spawn', parallel=True)
+            pipe = create_pipe(callback, 'cpu', batch_size, layout=layout,
+                               py_workers_num=workers_num, py_workers_init='spawn', parallel=True)
             yield _test_stop_iteration_resume, pipe, batch_size, layout
 
 
@@ -185,6 +185,7 @@ def test_layout():
         callback = ExtCallback(dims, 1024, 'int32')
         for workers_num in [1, 4]:
             for batch_size in [1, 256, 600]:
-                pipe = create_pipe(callback, 'cpu', batch_size, layout=layout, py_workers_num=workers_num,
-                       py_workers_init='spawn', parallel=True)
+                pipe = create_pipe(
+                    callback, 'cpu', batch_size, layout=layout, py_workers_num=workers_num,
+                    py_workers_init='spawn', parallel=True)
                 yield _test_layout, pipe, layout
