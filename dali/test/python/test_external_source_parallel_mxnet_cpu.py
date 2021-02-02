@@ -20,11 +20,12 @@
 from test_external_source_parallel import *
 
 
-class ExtCallbackTorch(ExtCallback):
+class ExtCallbackMX(ExtCallback):
     def __call__(self, sample_info):
-        import torch
-        return torch.tensor(super().__call__(sample_info))
+        from mxnet import ndarray as mxnd
+        a = super().__call__(sample_info)
+        return mxnd.array(a, dtype=a.dtype)
 
 
-def test_pytorch():
-    yield from check_spawn_with_callback(ExtCallbackTorch)
+def test_mxnet():
+    yield from check_spawn_with_callback(ExtCallbackMX)

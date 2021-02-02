@@ -1,3 +1,17 @@
+# Copyright (c) 2020-2021, NVIDIA CORPORATION. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import numpy as np
 from nose.tools import raises
 
@@ -28,14 +42,6 @@ class ExtCallbackTensorCPU(ExtCallback):
 
     def __call__(self, sample_info):
         return dali.tensors.TensorCPU(super().__call__(sample_info))
-
-
-class ExtCallbackMX(ExtCallback):
-
-    def __call__(self, sample_info):
-        from mxnet import ndarray as mxnd
-        a = super().__call__(sample_info)
-        return mxnd.array(a, dtype=a.dtype)
 
 
 def create_pipe(
@@ -124,9 +130,6 @@ def test_num_outputs():
 
 def test_tensor_cpu():
     yield from check_spawn_with_callback(ExtCallbackTensorCPU)
-
-def test_mxnet():
-    yield from check_spawn_with_callback(ExtCallbackMX)
 
 
 class CustomException(Exception):

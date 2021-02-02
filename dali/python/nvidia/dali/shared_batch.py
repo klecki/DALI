@@ -64,14 +64,25 @@ class SharedBatchMeta:
                    writer.meta_data_size)
 
 
-def deserialize_sample(buffer, sample):
+def deserialize_sample(buffer: shared_mem.SharedMem, sample):
     if isinstance(sample, SampleMeta):
         offset = sample.offset
-        buffer = buffer[offset:offset + sample.nbytes]
+        buffer = buffer.buf[offset:offset + sample.nbytes]
         return np.ndarray(sample.shape, dtype=sample.dtype, buffer=buffer)
     if isinstance(sample, (tuple, list,)):
         return type(sample)(deserialize_sample(buffer, part) for part in sample)
     return sample
+
+
+def deserialize_sample_meta(buffer: shared_mem.SharedMem, shared_batch_meta: SharedBatchMeta):
+    """Deserialize SampleMeta from memory based on SharedBatchMeta.
+    Deserialized SampleMeta can be used to reconstruct the batch data by passing it
+    to the `deserialize_batch`.
+    """
+    sbm = shared_batch_meta
+    pickled_meta = buffer.buf[sbm.meta_offset:sbm.meta_offset + sbm.meta_size]
+    samples_meta = pickle.loads(pickled_meta)
+    return samples_meta
 
 
 def deserialize_batch(buffer, samples):

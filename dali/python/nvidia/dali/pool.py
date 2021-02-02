@@ -22,7 +22,7 @@ from nvidia.dali import backend as _b
 from nvidia.dali.worker import worker
 from nvidia.dali.messages import ScheduledTasks, CompletedTasks
 from nvidia.dali.shared_batch import SharedBatchMeta
-from nvidia.dali.shared_batch import deserialize_batch, import_numpy
+from nvidia.dali.shared_batch import deserialize_sample_meta, deserialize_batch, import_numpy
 from nvidia.dali import shared_mem
 
 
@@ -78,7 +78,7 @@ class SharedBatchesConsumer:
         self.batch_pool[batch.mem_chunk_id] = chunk
         return chunk
 
-    def load_batch(self, sock: socket.socket, batch: SharedBatchMeta):
+    def load_batch(self, sock: socket.socket, batch_meta: SharedBatchMeta):
         """Based on the metadata in `batch` obtain the smem mapping, obtain the sample metadata
         and deserialize the resulting data.
 
@@ -87,11 +87,10 @@ class SharedBatchesConsumer:
         List of (sample id: int, sample)
             Indexed samples from the obtained part of batch
         """
-        chunk = self.get_mem_chunk(sock, batch)
-        meta_data = chunk.shm_chunk.buf[batch.meta_offset:batch.meta_offset + batch.meta_size]
+        chunk = self.get_mem_chunk(sock, batch_meta)
         # Load list of indexed SampleMeta: (idx, SampleMeta) or (idx, tuple of SampleMeta)
-        samples = pickle.loads(meta_data)
-        return deserialize_batch(chunk.shm_chunk.buf, samples)
+        sample_meta = deserialize_sample_meta(chunk.shm_chunk, batch_meta)
+        return deserialize_batch(chunk.shm_chunk, sample_meta)
 
 
 class CallbackContext:
