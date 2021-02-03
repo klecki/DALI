@@ -17,12 +17,12 @@
 # the test_internals_operator_external_source is 99% the same for cupy and numpy tests
 # so it is better to store everything in one file and just call `use_cupy` to switch between the default numpy and cupy
 
-from test_external_source_parallel import *
+from mxnet import ndarray as mxnd
 
+from test_external_source_parallel_utils import *
 
 class ExtCallbackMX(ExtCallback):
     def __call__(self, sample_info):
-        from mxnet import ndarray as mxnd
         a = super().__call__(sample_info)
         return mxnd.array(a, dtype=a.dtype)
 

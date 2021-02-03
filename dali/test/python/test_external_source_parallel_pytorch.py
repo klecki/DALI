@@ -17,12 +17,12 @@
 # the test_internals_operator_external_source is 99% the same for cupy and numpy tests
 # so it is better to store everything in one file and just call `use_cupy` to switch between the default numpy and cupy
 
-from test_external_source_parallel import *
+import torch
 
+from test_external_source_parallel_utils import *
 
 class ExtCallbackTorch(ExtCallback):
     def __call__(self, sample_info):
-        import torch
         return torch.tensor(super().__call__(sample_info))
 
 

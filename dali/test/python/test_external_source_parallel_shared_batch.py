@@ -20,7 +20,7 @@ import nvidia.dali as dali
 
 import nvidia.dali.shared_batch as sb
 
-from test_utils import compare_pipelines, check_batch
+from test_utils import RandomlyShapedDataIterator
 
 import pickle
 
@@ -39,7 +39,7 @@ def recursive_equals(left, right, top_level=True):
 
 
 def check_serialize_deserialize(indexed_batch):
-    mem_chunk = sb.SharedMemChunk("chunk_0", 10000)
+    mem_chunk = sb.SharedMemChunk("chunk_0", 100)
     shared_batch_writer = sb.SharedBatchWriter(mem_chunk)
     shared_batch_writer.write_batch(indexed_batch)
     shared_batch_meta = sb.SharedBatchMeta.from_writer(shared_batch_writer)
@@ -49,8 +49,22 @@ def check_serialize_deserialize(indexed_batch):
         deserlized_indexed_batch), "Lengths before and after should be the same"
     for i in range(len(deserlized_indexed_batch)):
         recursive_equals(indexed_batch[i], deserlized_indexed_batch[i])
+    mem_chunk.close()
 
 
 def test_serialize_deserialize():
-    for s in [(10, 20)]:
-        yield check_serialize_deserialize([(0, np.zeros(s))])
+    for shapes in [[(10)], [(10, 20)], [(10, 20, 3)], [(1), (2)], [(2), (2, 3)],
+                   [(2, 3, 4), (2, 3, 5), (3, 4, 5)], []]:
+        for dtype in [np.int8, np.float, np.int32]:
+            yield check_serialize_deserialize, [(i, np.full(s, 42, dtype=dtype)) for i, s in enumerate(shapes)]
+
+
+def test_serialize_deserialize_random():
+    for max_shape in [(12, 200, 100, 3), (200, 300, 3), (300, 2)]:
+        for dtype in [np.uint8, np.float]:
+            rsdi = RandomlyShapedDataIterator(10, max_shape=max_shape, dtype=dtype)
+            for i, batch in enumerate(rsdi):
+                if i == 10:
+                    break
+                indexed_batch = [(i, sample) for i, sample in enumerate(batch)]
+                yield check_serialize_deserialize, indexed_batch

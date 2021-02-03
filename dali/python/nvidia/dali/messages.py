@@ -50,12 +50,15 @@ class CompletedTasks:
         Exception if the task was failed.
     """
 
-    def __init__(self, worker_id, context_i, batch_i, batch_serialized=None, exception=None):
+    def __init__(
+            self, worker_id, context_i, batch_i, batch_serialized=None, exception=None,
+            traceback_str=None):
         self.worker_id = worker_id
         self.context_i = context_i
         self.batch_i = batch_i
         self.batch_serialized = batch_serialized
         self.exception = exception
+        self.traceback_str = traceback_str
 
     @classmethod
     def done(cls, worker_id, processed, batch_serialized):
@@ -64,7 +67,8 @@ class CompletedTasks:
 
     @classmethod
     def failed(cls, worker_id, processed):
-        return cls(worker_id, processed.context_i, processed.batch_i, exception=processed.exception)
+        return cls(worker_id, processed.context_i, processed.batch_i, exception=processed.exception,
+                   traceback_str=processed.traceback_str)
 
     def is_failed(self):
         return self.exception is not None

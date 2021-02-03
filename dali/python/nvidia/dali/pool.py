@@ -124,10 +124,14 @@ received so far.
     def handle_error(self, batch_i):
         """Check if given batch notified error and raise it"""
         if batch_i in self.iter_failed:
-            exception = self.iter_failed[batch_i]
+            exception, tb_str = self.iter_failed[batch_i]
             del self.iter_failed[batch_i]
             del self.partially_received[batch_i]
-            raise exception
+            if isinstance(exception, StopIteration):
+                raise exception
+            else:
+                raise Exception(
+                    "\n\nException traceback received from worker thread:\n\n" + tb_str) from exception
 
     def is_error(self, batch_i):
         return batch_i in self.iter_failed
@@ -431,7 +435,8 @@ class WorkersPool:
                 continue
             # iteration failed with exception
             if completed_tasks.is_failed():
-                context.set_error(batch_i, completed_tasks.exception)
+                context.set_error(batch_i, (completed_tasks.exception,
+                                            completed_tasks.traceback_str))
             # received a valid chunk
             else:
                 context.receive_chunk(

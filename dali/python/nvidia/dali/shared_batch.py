@@ -80,17 +80,19 @@ def deserialize_sample_meta(buffer: shared_mem.SharedMem, shared_batch_meta: Sha
     to the `deserialize_batch`.
     """
     sbm = shared_batch_meta
+    if sbm.meta_size == 0:
+        return []
     pickled_meta = buffer.buf[sbm.meta_offset:sbm.meta_offset + sbm.meta_size]
     samples_meta = pickle.loads(pickled_meta)
     return samples_meta
 
 
-def deserialize_batch(buffer, samples):
+def deserialize_batch(buffer: shared_mem.SharedMem, samples):
     """Deserialize samples from the smem buffer and SampleMeta descriptions.
 
     Parameters
     ----------
-    buffer : [type]
+    buffer : shared_mem.SharedMem
         Buffer with serialized sample data
     samples : List of (idx, SampleMeta) or list of (idx, tuple of SampleMeta).
         Metadata describing the samples

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import threading
+import traceback
 from multiprocessing import reduction
 from nvidia.dali.shared_batch import SharedMemChunk, SharedBatchMeta, SharedBatchWriter
 from nvidia.dali.messages import CompletedTasks
@@ -22,20 +23,22 @@ class _ProcessedTasks:
     """Internal worker message send to disptacher with completed tasks where it is
     serialized and dispatched to the pool"""
 
-    def __init__(self, scheduled, mem_chunk=None, data_batch=None, exception=None):
+    def __init__(self, scheduled, mem_chunk=None, data_batch=None, exception=None,
+                 traceback_str=None):
         self.context_i = scheduled.context_i
         self.batch_i = scheduled.batch_i
         self.mem_chunk = mem_chunk
         self.data_batch = data_batch
         self.exception = exception
+        self.traceback_str = traceback_str
 
     @classmethod
     def done(cls, scheduled, mem_chunk, data_batch):
         return cls(scheduled, mem_chunk, data_batch)
 
     @classmethod
-    def failed(cls, scheduled, exception):
-        return cls(scheduled, exception=exception)
+    def failed(cls, scheduled, exception, traceback_str=None):
+        return cls(scheduled, exception=exception, traceback_str=traceback_str)
 
     def is_failed(self):
         return self.exception is not None
@@ -107,7 +110,7 @@ class CallbackContext:
         for chunk in self.mem_chunks:
             chunk.close()
 
-
+# TODO(klecki): Add exception handling to this thread
 def dispatcher(batch_dispatcher, ready_cv, ready_queue):
     """Receives batches produced in the main thread and dispatches them to the parent process.
     It is run in a separate thread because both callback and dispatcher may
@@ -199,7 +202,8 @@ def worker(worker_id, callbacks, prefetch_queue_depths, initial_chunk_size, task
                 data_batch = [(task_id, callback(*task_args))
                               for (task_id, task_args) in scheduled.tasks]
             except Exception as exception:
-                processed = _ProcessedTasks.failed(scheduled, exception)
+                tb_str = traceback.format_exc()
+                processed = _ProcessedTasks.failed(scheduled, exception, tb_str)
             else:
                 mem_chunk = context.next_mem_chunk()
                 processed = _ProcessedTasks.done(scheduled, mem_chunk, data_batch)
