@@ -52,15 +52,16 @@ generated.
     .NumInput(0, 1)
     .NumOutput(1)
     .AddOptionalArg("range",
-      R"code(Range ``[min, max)`` of a continuous uniform distribution.
+                    R"code(Range ``[min, max)`` of a continuous uniform distribution.
 
 This argument is mutually exclusive with ``values``.)code",
-      std::vector<float>{-1.0f, 1.0f}, true)
-    .AddOptionalArg<std::vector<float>>("values",
-      R"code(The discrete values produced by a discrete uniform distribution.
+                    std::vector<float>{-1.0f, 1.0f}, true)
+    .AddOptionalArg<std::vector<float>>(
+        "values",
+        R"code(The discrete values produced by a discrete uniform distribution.
 
 This argument is mutually exclusive with ``range``.)code",
-      nullptr, true)
+        nullptr, true)
     .AddParent("RNGAttr")
     .Deprecate("random__Uniform");  // Deprecated in 0.30
 

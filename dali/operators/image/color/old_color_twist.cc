@@ -297,7 +297,8 @@ Example values:
 
 - `0` – Completely desaturated image.
 - `1` - No change to image's saturation.
-)code", 1.f, true)
+)code",
+                    1.f, true)
     .AddOptionalArg("contrast",
                     R"code(Contrast change factor.
 
@@ -308,7 +309,8 @@ Example values:
 * `0` - Uniform grey image.
 * `1` - No change.
 * `2` - Increase brightness twice.
-)code", 1.f, true)
+)code",
+                    1.f, true)
     .AddOptionalArg("brightness",
                     R"code(Brightness change factor.
 
@@ -319,7 +321,8 @@ Example values:
 * `0` - Black image.
 * `1` - No change.
 * `2` - Increase brightness twice.
-)code", 1.f, true)
+)code",
+                    1.f, true)
     .AddParent("ColorTransformBase")
     .InputLayout(0, "HWC");
 
