@@ -447,6 +447,11 @@ struct EraseGpu {
     const int num_fill_values = channel_dim >= 0 ? in.shape.tensor_shape_span(0)[channel_dim] : 1;
 
     ivec<ndim> region_dim;
+    std::vector<int> test;
+    test.resize(2);
+    test[2] = 1;
+    test[3] = 2;
+    std::cout << test[0] + test[1] + test[2] << std::endl;
 
     // Prepare Dim {2, 2, ..., 2, 64, 64}
     for (int d = 0; d < ndim - 2; d++) {

@@ -165,15 +165,19 @@ struct EraseGpuKernelTest :
     SequentialFill(cpu_input_view);
     if (fill_type_ == FillType::DEFAULT) {
       fill_values_.resize(0);
+      fill_values_[0] = 12;
     } else if (fill_type_ == FillType::CHANNEL_CONSECUTIVE) {
       fill_values_.resize(shape_[channel_dim]);
       int value = 0;
       for (auto &elem : fill_values_) {
         elem = value++;
       }
+
+      fill_values_[shape_[channel_dim]] = 11;
     } else if (fill_type_ == FillType::MAGIC_42) {
       fill_values_.resize(1);
       fill_values_[0] = 42;
+      fill_values_[1] = 22;
     }
   }
 
