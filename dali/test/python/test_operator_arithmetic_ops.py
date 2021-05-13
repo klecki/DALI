@@ -59,8 +59,7 @@ integer_types = [np.bool_,
                  np.int8, np.int16, np.int32, np.int64,
                  np.uint8, np.uint16, np.uint32, np.uint64]
 
-# float16 is marked as TODO in backend for gpu
-float_types = [np.float32, np.float64]
+float_types = [np.float16, np.float32, np.float64]
 
 input_types = integer_types + float_types
 
@@ -533,7 +532,7 @@ def test_bitwise_ops():
 # Comparisons - should always return bool
 def check_comparsion_op(kinds, types, op, shape, _):
     left_type, right_type = types
-    left_kind, right_kind = kinds
+    target_type = bin_promote(left_type, right_type)
     iterator = iter(ExternalInputIterator(batch_size, shape, types, kinds))
     pipe = ExprOpPipeline(kinds, types, iterator, op, batch_size = batch_size, num_threads = 2,
             device_id = 0)

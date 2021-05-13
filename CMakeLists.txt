@@ -331,6 +331,8 @@ else()
 endif()
 
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --compiler-options -fvisibility=hidden --Wno-deprecated-gpu-targets -Xfatbin -compress-all")
+# Supress warning: 'long double' is treated as 'double' in device code
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcudafe --diag_suppress=3244")
 
 # Include directories
 include_directories(
