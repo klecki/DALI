@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@ struct CDeleter {
 template <typename T>
 using AutoCPtr = std::unique_ptr<T, CDeleter>;
 
-static tensorflow::TensorShape DaliToShape(const AutoCPtr<int64_t>& ns) {
+static tensorflow::TensorShape DaliToShape(const AutoCPtr<int64_t>& nsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa) {
   tensorflow::TensorShape ts;
   for (int i = 0; ns.get()[i] != 0; ++i)
     ts.InsertDim(i, ns.get()[i]);
