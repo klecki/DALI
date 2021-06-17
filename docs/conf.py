@@ -174,9 +174,9 @@ html_favicon = favicon_rel_path
 
 subprocess.call(["wget", "-O", "dali.png", "https://raw.githubusercontent.com/NVIDIA/DALI/main/dali.png"])
 
-# html_js_files = [
-#     'js/quick-start-module.js',
-# ]
+html_js_files = [
+    'js/quick-start-module.js',
+]
 
 html_css_files = [
     'css/quick-start.css',
