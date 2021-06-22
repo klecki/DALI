@@ -21,6 +21,31 @@ import itertools
 
 tensorflow.compat.v1.disable_eager_execution()
 
+def foo(x):
+    print(x.idx_in_epoch)
+    # if x.iteration > 3:
+    #     raise StopIteration()
+    return np.int32([x.idx_in_epoch, x.idx_in_batch, x.iteration])
+
+
+def test_es():
+    pipe = Pipeline(10, 4, 0)
+    with pipe:
+        # es1 = fn.external_source(name="placeholder")
+        es2 = fn.external_source(source=foo)
+        pipe.set_outputs(es2.gpu())
+
+    with tf.device('/gpu:0'):
+        dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
+                input_datasets=None,
+                pipeline=pipe,
+                batch_size=pipe.max_batch_size,
+                output_shapes=None,
+                output_dtypes=tf.int32,
+                num_threads=pipe.num_threads,
+                device_id=pipe.device_id)
+    print(run_dataset_in_graph(dali_dataset, 10))
+
 
 def test_tf_dataset_gpu():
     run_tf_dataset_graph('gpu')

@@ -20,7 +20,7 @@ from tensorflow.python.framework import tensor_shape
 from nvidia.dali import types
 from nvidia.dali import internal as _internal
 
-from nvidia.dali.external_source import _is_external_source
+from nvidia.dali.external_source import _is_external_source, _is_external_source_with_callback, _SourceKind, _cycle_enabled
 
 from collections import Iterable
 from distutils.version import LooseVersion
@@ -282,6 +282,30 @@ def _get_external_source_param(input_name, input_value, name_es_map, param_name)
         return getattr(input_value, param_name)
 
 
+def _get_current_device_spec():
+    """Best guess at checking the current device string in eager and graph mode.
+
+    Using callable in `with tf.device(...)` for Graph mode will probably break it.
+    The graph in use is assumed to be current default graph.
+    """
+    if tf.executing_eagerly():
+        # We are not using this `tf.device` with `with ...`,
+        # so we do not change the context, it returns _EagerDeviceContext
+        dummy_context_manager = tf.device(None)
+        # Get the eager.context singleton instance for this thread
+        context = dummy_context_manager._ctx
+        # DeviceSpec
+        return context.device_spec
+    else:
+        # Get the default graf, we assume that it's the one in use
+        g = tf.compat.v1.get_default_graph()
+        # Get the top element of _UserDeviceSpec stack - `with tf.device()` pushes to the stack
+        # in graph mode.
+        spec = g._device_function_stack.peek_top_obj()
+        # Try to normalize to DeviceSpec
+        return tf.DeviceSpec.from_string(spec.display_name)
+
+
 if dataset_compatible_tensorflow():
     from tensorflow.python.framework import ops
     from tensorflow.python.data.ops import dataset_ops
@@ -358,31 +382,30 @@ if dataset_compatible_tensorflow():
 
             super(_DALIDatasetV2, self).__init__(self._as_variant_tensor())
 
-        def _setup_inputs(self, input_datasets):
-            """Verify the input specification and assign it to private members in
-            normalized form."""
+        def _input_lists_from_input_datasets(self, input_datasets, name_es_map):
+            """Extract the input specification from the input_datasets dictionary.
+
+            Validate if the inputs exist in the pipeline and the types are correct
+
+            Returns
+            -------
+            list, list, list, list
+                input_datasets, input_names, input_layouts, input_batched
+            """
+
             if input_datasets is None:
-                # Make them explicitly empty for the internal representations
-                self._input_datasets = ()
-                self._input_names = ()
-                self._input_layouts = ()
-                self._input_batched = ()
-                return
-
-            self._assert_pipeline_instance()
-
-            name_es_map = self._get_name_es_instance_map()
-
-            input_datasets_list = []
-            input_names_list = []
-            input_layouts_list = []
-            input_batched_list = []
+                return [], [], []
 
             def _get_dataset(value):
                 if isinstance(value, dataset_ops.DatasetV2):
                     return value
                 else:
                     return value.dataset
+
+            in_datasets_list = []
+            in_names_list = []
+            in_layouts_list = []
+            in_batched_list = []
 
             error_str = (
                 "`input_datasets` must be a dictionary that maps input names (the `name` "
@@ -419,8 +442,8 @@ if dataset_compatible_tensorflow():
                                       "Source nodes are: {}.").format(input_name,
                                                                       list(name_es_map.keys())))
 
-                input_names_list.append(input_name)
-                input_datasets_list.append(_get_dataset(input_value))
+                in_names_list.append(input_name)
+                in_datasets_list.append(_get_dataset(input_value))
 
                 if is_dataset_only:
                     # Set the defaults used in lookup
@@ -430,29 +453,212 @@ if dataset_compatible_tensorflow():
 
                 # TODO(klecki): Do we want all Python-only ES parameters to be overridable here?
                 layout = _get_external_source_param(input_name, as_input, name_es_map, 'layout')
-                input_layouts_list.append(layout or "")
+                in_layouts_list.append(layout or "")
 
                 # Batched mode is supported by default
                 batched = _get_external_source_param(input_name, as_input, name_es_map, 'batch')
-                input_batched_list.append(batched if batched is not None else True)
+                in_batched_list.append(batched if batched is not None else True)
+
+            return in_datasets_list, in_names_list, in_layouts_list
+
+        class _PeekFirstGenerator:
+            def __init__(self, source):
+                self.source = source
+                self.it = iter(self.source)
+                self.first = next(self.it)
+                self.first_consumed = False
+                self.type = tf.int32
+
+            def __iter__(self):
+                self.iter_calls += 1
+                return self
+
+            def __next__(self):
+                if not self.first_consumed:
+                    self.first_consumed = True
+                    return self.first
+                else:
+                    return next(self.it)
+
+        def _inspect_data(self, data):
+            # TODO(klecki): return actual type and shape
+            return tf.int32, None
+
+        # todo: move to another file
+        def _get_callback_from_source(self, source_desc):
+            if source_desc.kind == _SourceKind.CALLABLE:
+                if source_desc.has_inputs:
+                    first = source_desc.source(types.SampleInfo(0, 0, 0))
+                    dtype, shape = self._inspect_data(first)
+                    def get_iterable(source_desc, batch_size):
+                        class CallableIterator:
+                            def __init__(self):
+                                self.idx_in_epoch = 0
+                                self.idx_in_batch = 0
+                                self.iteration = 0
+                                self.source = source_desc.source
+
+                            def __iter__(self):
+                                self.idx_in_epoch = 0
+                                self.idx_in_batch = 0
+                                self.iteration = 0
+                                return self
+
+                            def __next__(self):
+                                # TODO(klecki): assuming non-statefull, todo, WAR for first
+                                result = self.source(types.SampleInfo(self.idx_in_epoch, self.idx_in_batch, self.iteration))
+                                self.idx_in_epoch += 1
+                                self.idx_in_batch += 1
+                                if self.idx_in_batch == batch_size:
+                                    self.idx_in_batch = 0
+                                    self.iteration += 1
+                                return result
+                        return CallableIterator
+                    return get_iterable(source_desc, self._batch_size), dtype, shape
+
+                    # Pack it into a wrapper that produces the sample info for every call
+                else:
+                    # Pack it into a wrapper that just calls it in `__next__`
+                    pass
+            elif source_desc.kind == _SourceKind.ITERABLE:
+                pass
+
+            else: # Generator Func:
+                pass
+            raise NotImplementedError("AAAA")
+
+
+            iterable = False
+            desc = None
+            if source is not None:
+                try:
+                    if _cycle_enabled(cycle):
+                        if inspect.isgenerator(source):
+                            raise TypeError("Cannot cycle through a generator - if the generator is a result "
+                                "of calling a generator function, pass that function instead as `source`.")
+                        if _is_generator_function(source):
+                            # We got a generator function, each call returns new "generator iterator"
+                            desc = _SourceDescription(source, _SourceKind.GENERATOR_FUNC, False, cycle)
+                            iterator = iter(_CycleGenFunc(source, cycle))
+                        else:
+                            # We hopefully got an iterable, iter(source) should return new iterator.
+                            # TODO(klecki): Iterators are self-iterable (they return self from `iter()`),
+                            #               add a check if we have iterable and not iterator here.
+                            desc = _SourceDescription(source, _SourceKind.ITERABLE, False, cycle)
+                            iterator = iter(_CycleIter(source, cycle))
+                    else:
+                        # In non-cycling case, we go over the data once.
+                        if _is_generator_function(source):
+                            # If we got a generator, we extract the "generator iterator"
+                            desc = _SourceDescription(source, _SourceKind.GENERATOR_FUNC, False, cycle)
+                            source = source()
+                        else:
+                            desc = _SourceDescription(source, _SourceKind.ITERABLE, False, cycle)
+
+                        # We try to use the iterable/iterator.
+                        # If this is callable instead, we will throw an error containing 'not iterable'
+                        # in the error message.
+                        iterator = iter(source)
+                    iterable = True
+                    callback = lambda: next(iterator)
+                except TypeError as err:
+                    if "not iterable" not in str(err):
+                        raise(err)
+                    if cycle is not None:
+                        raise ValueError("The argument `cycle` can only be specified if `source` is iterable")
+                    if not callable(source):
+                        raise TypeError("Source must be callable, iterable or a parameterless generator function")
+                    # We got a callable
+                    desc = _SourceDescription(source, _SourceKind.CALLABLE,
+                                            _accepted_arg_count(source) > 0, cycle)
+                    callback = source
+            else:
+                desc = None
+                callback = None
+
+            if not iterable and cycle:
+                raise ValueError("`cycle` argument is only valid for iterable `source`")
+            return callback, desc
+
+
+        def _input_lists_from_source(self, callbacked_es_map):
+
+            # TODO(klecki): Warn about this in the doc.
+            # We do it only when the users wants to use ExternalSource with `source` specified,
+            # as it has some additional limitations.
+
+            # Capture the device that DALI was placed, as we may need to copy the CPU callbacks
+            # to that device.
+            dali_device_spec = _get_current_device_spec()
+            is_dali_on_gpu = dali_device_spec.device_type == "GPU"
+
+            in_datasets_list = []
+            in_names_list = []
+            in_layouts_list = []
+
+            # print(">>>>", callbacked_es_map, callbacked_es_map['__ExternalSource_1']._op._source_desc)
+            for input_name, external_source in callbacked_es_map.items():
+                in_names_list.append(input_name)
+                in_layouts_list.append(self._get_layout_from_pipeline(input_name, callbacked_es_map))
+
+                # All generator datasets must be placed on CPU.
+                with tf.device('/cpu:0'):
+                    source_desc = external_source._op._source_desc
+                    tf_gen, dtype, shape = self._get_callback_from_source(source_desc)
+                    dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
+                    if _cycle_enabled(source_desc.cycle):
+                        dataset = dataset.repeat()
+                    # if DALIDataset was placed on GPU, we need to add the copy targetting
+                    # that device (with proper id).
+                    if is_dali_on_gpu:
+                        dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
+                    in_datasets_list.append(dataset)
+
+            return in_datasets_list, in_names_list, in_layouts_list
+
+
+        def _setup_inputs(self, input_datasets):
+            """Verify the input specification and assign it to private members in
+            normalized form."""
+
+            self._assert_pipeline_instance()
+
+            # To not check everywhere for None
+            if input_datasets is None:
+                input_datasets = {}
+
+            name_es_map, callbacked_es_map = self._get_name_es_instance_map()
+
+            inputs_from_dict = self._input_lists_from_input_datasets(input_datasets, name_es_map)
+
+            inputs_from_source = self._input_lists_from_source(callbacked_es_map)
+
+            # Check if someone passed an entry in `input_datasets` for the ES with callback
+            if not input_datasets.keys().isdisjoint(callbacked_es_map.keys()):
+                overlapped = input_datasets.keys().intersection(callbacked_es_map.keys())
+                raise ValueError(("Double specification of External Source input is not allowed. "
+                                  "External Source nodes named: `{}` got inputs specified via "
+                                  "`input_datasets` DALIDataset argument and ExternalSource "
+                                  "`source` argument at the same time.").format(overlapped))
 
             # We covered all inputs
-            non_matched = set(name_es_map.keys()) - set(input_datasets.keys())
+            non_matched = set(name_es_map.keys()) - set(input_datasets.keys()) - set(callbacked_es_map.keys())
             if len(non_matched) != 0:
                 raise ValueError(("Found External Source nodes in the Pipeline, that were not "
                                   "assigned any inputs. Nodes without inputs: \n{}.\nNodes that "
                                   "were assigned inputs:\n{}.").format(list(non_matched), list(input_datasets.keys())))
 
-            self._input_datasets = tuple(input_datasets_list)
-            self._input_names = tuple(input_names_list)
-            self._input_layouts = tuple(input_layouts_list)
+
+            self._input_datasets = tuple(inputs_from_dict[0] + inputs_from_source[0])
+            self._input_names = tuple(inputs_from_dict[1] + inputs_from_source[1])
+            self._input_layouts = tuple(inputs_from_dict[2] + inputs_from_source[2])
             # Map it to integers, to pass as vector<int> instead of vector<bool> to C++
-            self._input_batched = tuple(int(b) for b in input_batched_list)
+            # TODO(klecki): FIX FIX FIX
+            self._input_batched = tuple(int(b) for b in inputs_from_dict[3])
 
         def _assert_pipeline_instance(self):
             """Ensure that the pipeline is built, and check if the Python part is available.
             """
-            #
             self._pipeline_instance.build()
             if not self._pipeline_instance._py_graph_built and self._pipeline_instance._built:
                 raise ValueError("Deserialized pipelines cannot be used with `input_datasets`. "
@@ -467,9 +673,9 @@ if dataset_compatible_tensorflow():
                                  "(with `num_outputs=None`), named (with `name` argument "
                                  "specified) External Source nodes are supported as inputs "
                                  "for DALIDataset integration.")
-            if external_source._op._callback is not None:
-                raise NotImplementedError("External Source with `callback` specified as input "
-                                          "for DALIDataset are not supported yet.")
+            # if external_source._op._callback is not None:
+            #     raise NotImplementedError("External Source with `callback` specified as input "
+            #                               "for DALIDataset are not supported yet.")
             if external_source._op._name is None:
                 raise ValueError("Found External Source node in the Pipeline that was "
                                  "not named (no `name` argument set). Only single-output "
@@ -478,12 +684,28 @@ if dataset_compatible_tensorflow():
                                  "for DALIDataset integration.")
 
         def _get_name_es_instance_map(self):
+            """Return mappings between name of External Source and the op.
+
+            Check if the
+
+            Returns
+            -------
+            mapping for placeholders nodes, mapping for nodes with Python source
+                Two mappings are returned, separating the placeholder nodes without a `source`
+                and nodes that got a `source` parameter.
+            """
             name_es = {}
+            name_es_with_callback = {}
             for op in self._pipeline_instance._ops:
-                if _is_external_source(op):
+                if _is_external_source_with_callback(op):
+                    # USE THE INTERNAL OP NAME
+                    print("internal name:", op.name, op._op._name)
+                    name_es_with_callback[op.name] = op
+                elif _is_external_source(op):
                     self._assert_correct_external_sources(op)
+                    print("defined name:", op.name, op._op._name)
                     name_es[op._op._name] = op
-            return name_es
+            return name_es, name_es_with_callback
 
         def _check_dtypes(self, values, expected_elem_type):
             """Check whether `values` is instance of `expected_elem_type`

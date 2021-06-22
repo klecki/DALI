@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
+logging.getLogger('tensorflow').disabled = True
+
 import tensorflow as tf
 from nvidia.dali import Pipeline, pipeline_def
 import nvidia.dali.plugin.tf as dali_tf
@@ -288,6 +291,31 @@ def check_layout(kwargs, input_datasets, layout):
                 device_id=pipe.device_id)
 
     run_dataset_eager_mode(dali_dataset, 10)
+
+def foo(x):
+    print(x.idx_in_epoch)
+    if x.iteration > 3:
+        raise StopIteration()
+    return np.int32([x.idx_in_epoch, x.idx_in_batch, x.iteration])
+
+
+def test_es():
+    pipe = Pipeline(10, 4, 0)
+    with pipe:
+        # es1 = fn.external_source(name="placeholder")
+        es2 = fn.external_source(source=foo)
+        pipe.set_outputs(es2.gpu())
+
+    with tf.device('/gpu:0'):
+        dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
+                input_datasets=None,
+                pipeline=pipe,
+                batch_size=pipe.max_batch_size,
+                output_shapes=None,
+                output_dtypes=tf.int32,
+                num_threads=pipe.num_threads,
+                device_id=pipe.device_id)
+    print(run_dataset_eager_mode(dali_dataset, 10))
 
 
 @with_setup(skip_inputs_for_incompatible_tf)
