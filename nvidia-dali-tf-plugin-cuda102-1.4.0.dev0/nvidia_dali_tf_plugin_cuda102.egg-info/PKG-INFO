@@ -1,0 +1,10 @@
+Metadata-Version: 1.0
+Name: nvidia-dali-tf-plugin-cuda102
+Version: 1.4.0.dev0
+Summary: NVIDIA DALI  Tensorflow plugin for CUDA 10.2. Git SHA: 5cb3fe114cfc4986098a765374ef6eee117c15a3
+Home-page: https://github.com/NVIDIA/dali
+Author: NVIDIA Corporation
+Author-email: UNKNOWN
+License: Apache License 2.0
+Description: UNKNOWN
+Platform: UNKNOWN
