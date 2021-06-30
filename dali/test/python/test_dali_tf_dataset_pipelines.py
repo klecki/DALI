@@ -126,6 +126,8 @@ def one_input_pipeline(def_for_dataset, device, source, external_source_device, 
                                    source=source,
                                    batch=False,
                                    device=external_source_device)
+    # return input, input
+    print(f">>>>>>>>>>>>>>>>>>>>>>>>{device}")
     input = input if device == 'cpu' else input.gpu()
     processed = fn.cast(input + 10, dtype=dali.types.INT32)
     input_padded, processed_padded = fn.pad([input, processed])
@@ -180,9 +182,11 @@ def external_source_converter_with_callback(
             input_dataset = tf.data.Dataset.from_generator(
                 input_iterator, output_types=tf_type, output_shapes=out_shape, args=_args)
             if batch is None or batch == True:
+                print(">>>>>>>>>>>>>>> BATCHING")
                 input_dataset = input_dataset.batch(dataset_pipeline.max_batch_size)
             # If we place DALIDataset on GPU we need the remote call + manual data transfer
             if "gpu" in device_str:
+                print(f">>>>>>>>>>>>>>> COPYING TO {device_str}")
                 input_dataset = input_dataset.apply(tf.data.experimental.copy_to_device('/gpu:0'))
 
         if batch == "dataset":

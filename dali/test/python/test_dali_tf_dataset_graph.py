@@ -88,6 +88,29 @@ def run_tf_dataset_with_random_input_gpu(max_shape, dtype, batch):
                                                            min_shape,
                                                            batch=batch))
 
+def test_es_gpu():
+    pipe = Pipeline(10, 4, 0)
+    with pipe:
+        input = fn.external_source(name="in", device="gpu", batch=True)
+        pipe.set_outputs(input)
+
+    with tf.device('/cpu:0'):
+        in_dataset = tf.data.Dataset.from_generator(lambda: [np.full((2,), 42, dtype=np.uint8)], output_types=tf.uint8).repeat()
+        in_dataset = in_dataset.batch(10)
+        in_dataset = in_dataset.apply(tf.data.experimental.copy_to_device('/gpu:0'))
+
+    with tf.device('/gpu:0'):
+        dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
+                input_datasets={"in": dali_tf.experimental.Input(in_dataset, batch=True)},
+                pipeline=pipe,
+                batch_size=pipe.max_batch_size,
+                output_shapes=None,
+                output_dtypes=tf.uint8,
+                num_threads=pipe.num_threads,
+                device_id=pipe.device_id)
+
+    print(run_dataset_in_graph(dali_dataset, 3))
+
 
 def test_tf_dataset_with_random_input_gpu():
     for max_shape in [(10, 20), (120, 120, 3), (3, 40, 40, 4)]:
