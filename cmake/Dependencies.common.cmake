@@ -201,7 +201,7 @@ list(APPEND DALI_EXCLUDES libcocoapi.a)
 ##################################################################
 # RAPIDS Memory Manager
 ##################################################################
-include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/third_party/rmm/include)
+include_directories(BEFORE ${PROJECT_SOURCE_DIR}/third_party/rmm/include)
 
 ##################################################################
 # spdlog and fmt
