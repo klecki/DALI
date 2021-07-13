@@ -16,8 +16,8 @@
 from nvidia.dali import backend as _b
 import inspect
 import functools
-from enum import Enum
 import nvidia.dali.types
+from nvidia.dali._utils.callbacks import _SourceKind, _SourceDescription
 
 
 def _get_batch_shape(data):
@@ -255,29 +255,6 @@ def _accepted_arg_count(callable):
         implicit_args = 1
         callable = callable.__func__
     return callable.__code__.co_argcount - implicit_args
-
-class _SourceKind(Enum):
-    CALLABLE       = 0
-    ITERABLE       = 1
-    GENERATOR_FUNC = 2
-
-class _SourceDescription:
-    """Keep the metadata about the source parameter that was orginally passed
-    """
-    def __init__(self, source, kind: _SourceKind, has_inputs: bool, cycle: str):
-        self.source = source
-        self.kind = kind
-        self.has_inputs = has_inputs
-        self.cycle = cycle
-
-    def __str__(self) -> str:
-        if self.kind == _SourceKind.CALLABLE:
-            return "Callable source " + ("with" if self.has_inputs else "without") + " inputs: `{}`".format(self.source)
-        elif self.kind == _SourceKind.ITERABLE:
-            return "Iterable (or iterator) source: `{}` with cycle: `{}`.".format(self.source, self.cycle)
-        else:
-            return "Generator function source: `{}` with cycle: `{}`.".format(self.source, self.cycle)
-
 
 def _get_callback_from_source(source, cycle):
     """Repack the source into a unified callback function. Additionally prepare the _SourceDescription.

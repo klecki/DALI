@@ -20,7 +20,9 @@ from tensorflow.python.framework import tensor_shape
 from nvidia.dali import types
 from nvidia.dali import internal as _internal
 
-from nvidia.dali.external_source import _is_external_source, _is_external_source_with_callback, _SourceKind, _cycle_enabled
+from nvidia.dali.external_source import _is_external_source, _is_external_source_with_callback, _cycle_enabled
+
+from nvidia.dali._utils.callbacks import _SourceKind, _SourceDescription, _get_callback_from_source_desc
 
 from collections import Iterable
 from distutils.version import LooseVersion
@@ -267,6 +269,23 @@ def _insert_experimental_member(member, name):
     setattr(experimental_module, name, member)
 
 def _get_external_source_param(input_name, input_value, name_es_map, param_name):
+    """Get value of the parameter `param_name` specified for the External Source node
+       named `input_name`. It can be specified either via `input_value` or in the op instance
+       passed in `name_es_map`.
+       non-None value in input_value overwrites the one specified in Op instances, otherwise,
+       the one from pipeline definition (the op instance) is used.
+
+    Parameters
+    ----------
+    input_name : str
+        Name of the input
+    input_value : Input, optional
+        Description of input
+    name_es_map : dict[str, ExternalSource]
+        Mapping from External Source names to op nodes.
+    param_name : str
+        name of the parameter we want to access
+    """
     def get_param_from_pipe(input_name, name_es_map, param_name):
         es_op = name_es_map[input_name]
         # Check the OpInstance and the `_op`
@@ -394,7 +413,7 @@ if dataset_compatible_tensorflow():
             """
 
             if input_datasets is None:
-                return [], [], []
+                return [], [], [], []
 
             def _get_dataset(value):
                 if isinstance(value, dataset_ops.DatasetV2):
@@ -459,126 +478,7 @@ if dataset_compatible_tensorflow():
                 batched = _get_external_source_param(input_name, as_input, name_es_map, 'batch')
                 in_batched_list.append(batched if batched is not None else True)
 
-            return in_datasets_list, in_names_list, in_layouts_list
-
-        class _PeekFirstGenerator:
-            def __init__(self, source):
-                self.source = source
-                self.it = iter(self.source)
-                self.first = next(self.it)
-                self.first_consumed = False
-                self.type = tf.int32
-
-            def __iter__(self):
-                self.iter_calls += 1
-                return self
-
-            def __next__(self):
-                if not self.first_consumed:
-                    self.first_consumed = True
-                    return self.first
-                else:
-                    return next(self.it)
-
-        def _inspect_data(self, data):
-            # TODO(klecki): return actual type and shape
-            return tf.int32, None
-
-        # todo: move to another file
-        def _get_callback_from_source(self, source_desc):
-            if source_desc.kind == _SourceKind.CALLABLE:
-                if source_desc.has_inputs:
-                    first = source_desc.source(types.SampleInfo(0, 0, 0))
-                    dtype, shape = self._inspect_data(first)
-                    def get_iterable(source_desc, batch_size):
-                        class CallableIterator:
-                            def __init__(self):
-                                self.idx_in_epoch = 0
-                                self.idx_in_batch = 0
-                                self.iteration = 0
-                                self.source = source_desc.source
-
-                            def __iter__(self):
-                                self.idx_in_epoch = 0
-                                self.idx_in_batch = 0
-                                self.iteration = 0
-                                return self
-
-                            def __next__(self):
-                                # TODO(klecki): assuming non-statefull, todo, WAR for first
-                                result = self.source(types.SampleInfo(self.idx_in_epoch, self.idx_in_batch, self.iteration))
-                                self.idx_in_epoch += 1
-                                self.idx_in_batch += 1
-                                if self.idx_in_batch == batch_size:
-                                    self.idx_in_batch = 0
-                                    self.iteration += 1
-                                return result
-                        return CallableIterator
-                    return get_iterable(source_desc, self._batch_size), dtype, shape
-
-                    # Pack it into a wrapper that produces the sample info for every call
-                else:
-                    # Pack it into a wrapper that just calls it in `__next__`
-                    pass
-            elif source_desc.kind == _SourceKind.ITERABLE:
-                pass
-
-            else: # Generator Func:
-                pass
-            raise NotImplementedError("AAAA")
-
-
-            iterable = False
-            desc = None
-            if source is not None:
-                try:
-                    if _cycle_enabled(cycle):
-                        if inspect.isgenerator(source):
-                            raise TypeError("Cannot cycle through a generator - if the generator is a result "
-                                "of calling a generator function, pass that function instead as `source`.")
-                        if _is_generator_function(source):
-                            # We got a generator function, each call returns new "generator iterator"
-                            desc = _SourceDescription(source, _SourceKind.GENERATOR_FUNC, False, cycle)
-                            iterator = iter(_CycleGenFunc(source, cycle))
-                        else:
-                            # We hopefully got an iterable, iter(source) should return new iterator.
-                            # TODO(klecki): Iterators are self-iterable (they return self from `iter()`),
-                            #               add a check if we have iterable and not iterator here.
-                            desc = _SourceDescription(source, _SourceKind.ITERABLE, False, cycle)
-                            iterator = iter(_CycleIter(source, cycle))
-                    else:
-                        # In non-cycling case, we go over the data once.
-                        if _is_generator_function(source):
-                            # If we got a generator, we extract the "generator iterator"
-                            desc = _SourceDescription(source, _SourceKind.GENERATOR_FUNC, False, cycle)
-                            source = source()
-                        else:
-                            desc = _SourceDescription(source, _SourceKind.ITERABLE, False, cycle)
-
-                        # We try to use the iterable/iterator.
-                        # If this is callable instead, we will throw an error containing 'not iterable'
-                        # in the error message.
-                        iterator = iter(source)
-                    iterable = True
-                    callback = lambda: next(iterator)
-                except TypeError as err:
-                    if "not iterable" not in str(err):
-                        raise(err)
-                    if cycle is not None:
-                        raise ValueError("The argument `cycle` can only be specified if `source` is iterable")
-                    if not callable(source):
-                        raise TypeError("Source must be callable, iterable or a parameterless generator function")
-                    # We got a callable
-                    desc = _SourceDescription(source, _SourceKind.CALLABLE,
-                                            _accepted_arg_count(source) > 0, cycle)
-                    callback = source
-            else:
-                desc = None
-                callback = None
-
-            if not iterable and cycle:
-                raise ValueError("`cycle` argument is only valid for iterable `source`")
-            return callback, desc
+            return in_datasets_list, in_names_list, in_layouts_list, in_batched_list
 
 
         def _input_lists_from_source(self, callbacked_es_map):
@@ -595,16 +495,23 @@ if dataset_compatible_tensorflow():
             in_datasets_list = []
             in_names_list = []
             in_layouts_list = []
+            in_batched_list = []
 
             # print(">>>>", callbacked_es_map, callbacked_es_map['__ExternalSource_1']._op._source_desc)
             for input_name, external_source in callbacked_es_map.items():
                 in_names_list.append(input_name)
-                in_layouts_list.append(self._get_layout_from_pipeline(input_name, callbacked_es_map))
+                layout = _get_external_source_param(input_name, None, callbacked_es_map, 'layout')
+                in_layouts_list.append(layout or "")
+
+                # Batched mode is supported by default
+                batched = _get_external_source_param(input_name, None, callbacked_es_map, 'batch')
+                in_batched_list.append(batched if batched is not None else True)
+
 
                 # All generator datasets must be placed on CPU.
                 with tf.device('/cpu:0'):
                     source_desc = external_source._op._source_desc
-                    tf_gen, dtype, shape = self._get_callback_from_source(source_desc)
+                    tf_gen, dtype, shape = _get_callback_from_source_desc(source_desc, self._batch_size)
                     dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
                     if _cycle_enabled(source_desc.cycle):
                         dataset = dataset.repeat()
@@ -614,7 +521,7 @@ if dataset_compatible_tensorflow():
                         dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     in_datasets_list.append(dataset)
 
-            return in_datasets_list, in_names_list, in_layouts_list
+            return in_datasets_list, in_names_list, in_layouts_list, in_batched_list
 
 
         def _setup_inputs(self, input_datasets):
@@ -653,8 +560,7 @@ if dataset_compatible_tensorflow():
             self._input_names = tuple(inputs_from_dict[1] + inputs_from_source[1])
             self._input_layouts = tuple(inputs_from_dict[2] + inputs_from_source[2])
             # Map it to integers, to pass as vector<int> instead of vector<bool> to C++
-            # TODO(klecki): FIX FIX FIX
-            self._input_batched = tuple(int(b) for b in inputs_from_dict[3])
+            self._input_batched = tuple(int(b) for b in inputs_from_dict[3] + inputs_from_source[3])
 
         def _assert_pipeline_instance(self):
             """Ensure that the pipeline is built, and check if the Python part is available.
