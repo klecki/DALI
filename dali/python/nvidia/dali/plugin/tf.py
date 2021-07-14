@@ -22,7 +22,7 @@ from nvidia.dali import internal as _internal
 
 from nvidia.dali.external_source import _is_external_source, _is_external_source_with_callback, _cycle_enabled
 
-from nvidia.dali._utils.callbacks import _SourceKind, _SourceDescription, _get_callback_from_source_desc
+from nvidia.dali._utils.callbacks import _SourceKind, _SourceDescription, _get_generator_from_source_desc
 
 from collections import Iterable
 from distutils.version import LooseVersion
@@ -511,7 +511,7 @@ if dataset_compatible_tensorflow():
                 # All generator datasets must be placed on CPU.
                 with tf.device('/cpu:0'):
                     source_desc = external_source._op._source_desc
-                    tf_gen, dtype, shape = _get_callback_from_source_desc(source_desc, self._batch_size)
+                    tf_gen, dtype, shape = _get_generator_from_source_desc(source_desc, self._batch_size, external_source._batch)
                     dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
                     if _cycle_enabled(source_desc.cycle):
                         dataset = dataset.repeat()

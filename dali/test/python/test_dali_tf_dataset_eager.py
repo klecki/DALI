@@ -293,18 +293,49 @@ def check_layout(kwargs, input_datasets, layout):
     run_dataset_eager_mode(dali_dataset, 10)
 
 def foo(x):
-    print(x.idx_in_epoch)
+    print("SAMPLE CALL", x.idx_in_epoch, x.idx_in_batch, x.iteration)
     if x.iteration > 3:
         raise StopIteration()
     return np.int32([x.idx_in_epoch, x.idx_in_batch, x.iteration])
 
+def foo_batch(x):
+    print("BATCH CALL", x)
+    if x > 3:
+        raise StopIteration()
+    return [np.int32([x])] * 10
+
+def magic():
+    try:
+        magic.counter += 1
+    except:
+        magic.counter = 0
+    print("MAGIC COUNTER", magic.counter)
+    if magic.counter > 30:
+        magic.counter = 0
+        raise StopIteration()
+    return np.int32([magic.counter])
+
+
+def magic_batch():
+    try:
+        magic_batch.counter += 1
+    except:
+        magic_batch.counter = 0
+    print("MAGIC COUNTER BATCH", magic_batch.counter)
+    if magic_batch.counter > 3:
+        magic_batch.counter = 0
+        raise StopIteration()
+    return [np.int32([magic_batch.counter])] * 10
 
 def test_es():
     pipe = Pipeline(10, 4, 0)
     with pipe:
-        # es1 = fn.external_source(name="placeholder")
-        es2 = fn.external_source(source=foo)
-        pipe.set_outputs(es2.gpu())
+        es1 = fn.external_source(source=foo_batch, batch=True)
+        es2 = fn.external_source(source=foo, batch=False)
+        es3 = fn.external_source(source=[np.int32(10)], batch=False, cycle=True)
+        es4 = fn.external_source(source=magic, batch=False)
+        es5 = fn.external_source(source=magic_batch, batch=True)
+        pipe.set_outputs(es1.gpu(), es2.gpu(), es3.gpu(), es4.gpu(), es5.gpu())
 
     with tf.device('/gpu:0'):
         dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
@@ -312,9 +343,9 @@ def test_es():
                 pipeline=pipe,
                 batch_size=pipe.max_batch_size,
                 output_shapes=None,
-                output_dtypes=tf.int32,
+                output_dtypes=(tf.int32, tf.int32, tf.int32, tf.int32, tf.int32),
                 num_threads=pipe.num_threads,
-                device_id=pipe.device_id)
+                device_id=pipe.device_id).repeat()
     print(run_dataset_eager_mode(dali_dataset, 10))
 
 
