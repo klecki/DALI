@@ -16,6 +16,7 @@ import logging
 logging.getLogger('tensorflow').disabled = True
 
 import tensorflow as tf
+import numpy as np
 from nvidia.dali import Pipeline, pipeline_def
 import nvidia.dali.plugin.tf as dali_tf
 from nvidia.dali.plugin.tf.experimental import DALIDatasetWithInputs, Input
@@ -302,7 +303,7 @@ def foo_batch(x):
     print("BATCH CALL", x)
     if x > 3:
         raise StopIteration()
-    return [np.int32([x])] * 10
+    return [np.int8([x])] * 10
 
 def magic():
     try:
@@ -331,11 +332,11 @@ def test_es():
     pipe = Pipeline(10, 4, 0)
     with pipe:
         es1 = fn.external_source(source=foo_batch, batch=True)
-        es2 = fn.external_source(source=foo, batch=False)
-        es3 = fn.external_source(source=[np.int32(10)], batch=False, cycle=True)
-        es4 = fn.external_source(source=magic, batch=False)
-        es5 = fn.external_source(source=magic_batch, batch=True)
-        pipe.set_outputs(es1.gpu(), es2.gpu(), es3.gpu(), es4.gpu(), es5.gpu())
+        # es2 = fn.external_source(source=foo, batch=False)
+        # es3 = fn.external_source(source=[np.int32(10)], batch=False, cycle=True)
+        # es4 = fn.external_source(source=magic, batch=False)
+        # es5 = fn.external_source(source=magic_batch, batch=True)
+        pipe.set_outputs(es1.gpu()) #, es2.gpu(), es3.gpu(), es4.gpu(), es5.gpu())
 
     with tf.device('/gpu:0'):
         dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
@@ -343,7 +344,7 @@ def test_es():
                 pipeline=pipe,
                 batch_size=pipe.max_batch_size,
                 output_shapes=None,
-                output_dtypes=(tf.int32, tf.int32, tf.int32, tf.int32, tf.int32),
+                output_dtypes=(tf.int8), #, tf.int32, tf.int32, tf.int32, tf.int32),
                 num_threads=pipe.num_threads,
                 device_id=pipe.device_id).repeat()
     print(run_dataset_eager_mode(dali_dataset, 10))

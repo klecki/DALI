@@ -14,10 +14,19 @@
 
 from enum import Enum
 from nvidia.dali import types
+from nvidia.dali import tensors
+np = None
 
-# TODO(klecki): Remove this dependency somehow?
-# Now it is used only for the dummy type
-import tensorflow as tf
+def import_numpy():
+    """Import numpy lazily, need to define global `np = None` variable"""
+    global np
+    if np is None:
+        try:
+            import numpy as np
+        except ImportError:
+            raise RuntimeError('Could not import numpy. Please make sure you have numpy '
+                               'installed before you use parallel mode.')
+
 
 class _SourceKind(Enum):
     CALLABLE       = 0
@@ -42,18 +51,102 @@ class _SourceDescription:
             return "Generator function source: `{}` with cycle: `{}`.".format(self.source, self.cycle)
 
 
+def _assert_cpu_sample_data_type(sample):
+    import_numpy()
+    if isinstance(sample, np.ndarray):
+        return True
+    if types._is_mxnet_array(sample):
+        if sample.ctx.device_type != 'cpu':
+            raise TypeError("Unsupported callback return type. "
+                            "GPU tensors are not supported. Got an MXNet GPU tensor.")
+        return True
+    if types._is_torch_tensor(sample):
+        if sample.device.type != 'cpu':
+            raise TypeError("Unsupported callback return type. "
+                            "GPU tensors are not supported. Got a PyTorch GPU tensor.")
+        return True
+    elif isinstance(sample, tensors.TensorCPU):
+        return True
+    raise TypeError((
+        "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
+        "DALI TensorCPU, or list or tuple of them. Got `{}` instead.").format(type(sample)))
+
+def _assert_cpu_batch_data_type(batch):
+    import_numpy()
+    try:
+        if isinstance(batch, tensors.TensorListCPU):
+            return True
+        elif isinstance(batch, list):
+            for sample in batch:
+                _assert_cpu_sample_data_type(sample)
+            return True
+        elif _assert_cpu_sample_data_type(batch):
+            # Bach can be repsented as dense tensor
+            return True
+    except TypeError:
+        # Swap the error for one including TensorList.
+        raise TypeError((
+            "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
+            "DALI TensorCPU, DALI TensorListCPU or list or tuple of them. Got `{}` instead.").format(type(batch)))
 
 
-def _inspect_data(data):
-    # TODO(klecki): return actual type and shape
-    return tf.int32, None
+def _sample_to_numpy(sample):
+    import_numpy()
+    if isinstance(sample, np.ndarray):
+        return sample
+    if types._is_mxnet_array(sample):
+        if sample.ctx.device_type != 'cpu':
+            raise TypeError("GPU tensors are not supported/ Got an MXNet GPU tensor.")
+        return sample.asnumpy()
+    if types._is_torch_tensor(sample):
+        if sample.device.type != 'cpu':
+            raise TypeError("GPU tensors are not supported. Got a PyTorch GPU tensor.")
+        return sample.numpy()
+    elif isinstance(sample, tensors.TensorCPU):
+        return np.array(sample)
+    raise TypeError(
+        "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
+        "DALI TensorCPU, or list or tuple of them.")
+
+
+def _batch_to_numpy(batch):
+    import_numpy()
+    if isinstance(batch, tensors.TensorListCPU):
+        return batch.as_array() # TODO, samples
+    elif isinstance(batch, list):
+        return [_sample_to_numpy(sample) for sample in batch]
+    else:
+        return _sample_to_numpy(batch)
+
+# # Make everything ingestible by TF by converting it to NumPy
+# def to_numpy(x):
+#     if types._is_mxnet_array(x):
+#         return x.asnumpy()
+#     elif types._is_torch_tensor(x):
+#         return x.numpy()
+#     else:
+#         return x
+
+
+# TODO(klecki): Maybe keep this data here instead of doing the copy for first
+def _inspect_data(data, is_batched):
+    if is_batched:
+        print("DDDD", data)
+        as_numpy = _batch_to_numpy(data)
+        if isinstance(as_numpy, list):
+            return as_numpy[0].dtype, None
+        else:
+            return as_numpy.dtype, None
+    else:
+        as_numpy = _sample_to_numpy(data)
+        return as_numpy.dtype, None
 
 
 def get_batch_iterable_from_callback(source_desc):
     """Transform batch callback accepting one argument into an Iterable
     """
     first = source_desc.source(0)
-    dtype, shape = _inspect_data(first)
+    dtype, shape = _inspect_data(first, True)
 
     class CallableBatchIterator:
         first_value = first
@@ -73,7 +166,7 @@ def get_batch_iterable_from_callback(source_desc):
             else:
                 result = self.source(self.iteration)
             self.iteration += 1
-            return result
+            return _batch_to_numpy(result)
 
     return CallableBatchIterator, dtype, shape
 
@@ -81,7 +174,7 @@ def get_sample_iterable_from_callback(source_desc, batch_size):
     """Transform sample callback accepting one argument into an Iterable
     """
     first = source_desc.source(types.SampleInfo(0, 0, 0))
-    dtype, shape = _inspect_data(first)
+    dtype, shape = _inspect_data(first, False)
 
     class CallableSampleIterator:
         first_value = first
@@ -109,15 +202,15 @@ def get_sample_iterable_from_callback(source_desc, batch_size):
             if self.idx_in_batch == batch_size:
                 self.idx_in_batch = 0
                 self.iteration += 1
-            return result
+            return _sample_to_numpy(result)
 
     return CallableSampleIterator, dtype, shape
 
-def get_iterable_from_callback(source_desc):
+def get_iterable_from_callback(source_desc, is_batched):
     """Transform callback that doesn't accept arguments into iterable
     """
     first = source_desc.source()
-    dtype, shape = _inspect_data(first)
+    dtype, shape = _inspect_data(first, is_batched)
 
     class CallableIterator:
         first_value = first
@@ -133,17 +226,20 @@ def get_iterable_from_callback(source_desc):
                 CallableIterator.first_value = None
             else:
                 result = self.source()
-            return result
+            if is_batched:
+                return _batch_to_numpy(result)
+            else:
+                return _sample_to_numpy(result)
 
     return CallableIterator, dtype, shape
 
 
-def get_iterable_from_iterable(source_desc):
+def get_iterable_from_iterable(source_desc, is_batched):
     """Wrap iterable into another iterable while peeking the first element
     """
     first_iter = iter(source_desc.source)
     first =  next(first_iter)
-    dtype, shape = _inspect_data(first)
+    dtype, shape = _inspect_data(first, is_batched)
 
     class PeekFirstGenerator:
         first_iterator = first_iter
@@ -163,19 +259,22 @@ def get_iterable_from_iterable(source_desc):
             if PeekFirstGenerator.first_value is not None:
                 result = PeekFirstGenerator.first_value
                 PeekFirstGenerator.first_value = None
-                return result
             else:
-                return next(self.it)
+                result = next(self.it)
+            if is_batched:
+                return _batch_to_numpy(result)
+            else:
+                return _sample_to_numpy(result)
 
     return PeekFirstGenerator, dtype, shape
 
-def get_iterable_from_generator(source_desc):
+def get_iterable_from_generator(source_desc, is_batched):
     """Wrap iterable into another iterable while peeking the first element
     """
     # TODO(klecki): difference from the get_iterable_from_iterable is we also need to call the source
     first_iter = iter(source_desc.source())
     first =  next(first_iter)
-    dtype, shape = _inspect_data(first)
+    dtype, shape = _inspect_data(first, is_batched)
 
     class PeekFirstGenerator:
         first_iterator = first_iter
@@ -195,9 +294,12 @@ def get_iterable_from_generator(source_desc):
             if PeekFirstGenerator.first_value is not None:
                 result = PeekFirstGenerator.first_value
                 PeekFirstGenerator.first_value = None
-                return result
             else:
-                return next(self.it)
+                result = next(self.it)
+            if is_batched:
+                return _batch_to_numpy(result)
+            else:
+                return _sample_to_numpy(result)
 
     return PeekFirstGenerator, dtype, shape
 
@@ -216,9 +318,9 @@ def _get_generator_from_source_desc(source_desc, batch_size, is_batched):
                 return get_sample_iterable_from_callback(source_desc, batch_size)
         else:
             # No inputs, plain iteration
-            return get_iterable_from_callback(source_desc)
+            return get_iterable_from_callback(source_desc, is_batched)
     elif source_desc.kind == _SourceKind.ITERABLE:
-        return get_iterable_from_iterable(source_desc)
+        return get_iterable_from_iterable(source_desc, is_batched)
     else:
         # Generator Func
-        return get_iterable_from_generator(source_desc.source)
+        return get_iterable_from_generator(source_desc.source, is_batched)

@@ -1,4 +1,4 @@
-# Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,10 +14,22 @@
 
 from nvidia.dali._multiproc import shared_mem
 from nvidia.dali import types, tensors
+# from nvidia.dali._utils.numpy import import_numpy
+from nvidia.dali._utils.callbacks import _assert_cpu_sample_data_type, _sample_to_numpy
 import pickle
 
 
 np = None
+
+def import_numpy():
+    """Import numpy lazily, need to define global `np = None` variable"""
+    global np
+    if np is None:
+        try:
+            import numpy as np
+        except ImportError:
+            raise RuntimeError('Could not import numpy. Please make sure you have numpy '
+                               'installed before you use parallel mode.')
 
 
 def _div_ceil(a, b):
@@ -27,17 +39,6 @@ def _div_ceil(a, b):
 def _align_up(x, alignment):
     """ Align x up to multiple of alignment"""
     return _div_ceil(x, alignment) * alignment
-
-
-def import_numpy():
-    global np
-    if np is None:
-        try:
-            import numpy as np
-        except ImportError:
-            raise RuntimeError('Could not import numpy. Please make sure you have numpy '
-                               'installed before you use parallel mode.')
-
 
 class SampleMeta:
     """Metadata describing serialized sample in a memory buffer.
@@ -139,48 +140,10 @@ class SharedMemChunk:
         self.shm_chunk.close()
 
 
-def _assert_valid_data_type(sample):
-    import_numpy()
-    if isinstance(sample, np.ndarray):
-        return
-    if types._is_mxnet_array(sample):
-        if sample.ctx.device_type != 'cpu':
-            raise TypeError("Unsupported callback return type. "
-                            "GPU tensors are not supported. Got an MXNet GPU tensor.")
-        return
-    if types._is_torch_tensor(sample):
-        if sample.device.type != 'cpu':
-            raise TypeError("Unsupported callback return type. "
-                            "GPU tensors are not supported. Got a PyTorch GPU tensor.")
-        return
-    elif isinstance(sample, tensors.TensorCPU):
-        return
-    raise TypeError((
-        "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
-        "DALI TensorCPU, or list or tuple of them. Got `{}` instead.").format(type(sample)))
-
 
 def assert_valid_data_type(sample):
     """Check if the output of the callback is type that can be serialized"""
-    _apply_to_sample(_assert_valid_data_type, sample)
-
-
-def _to_numpy(sample):
-    if isinstance(sample, np.ndarray):
-        return sample
-    if types._is_mxnet_array(sample):
-        if sample.ctx.device_type != 'cpu':
-            raise TypeError("GPU tensors are not supported/ Got an MXNet GPU tensor.")
-        return sample.asnumpy()
-    if types._is_torch_tensor(sample):
-        if sample.device.type != 'cpu':
-            raise TypeError("GPU tensors are not supported. Got a PyTorch GPU tensor.")
-        return sample.numpy()
-    elif isinstance(sample, tensors.TensorCPU):
-        return np.array(sample)
-    raise TypeError(
-        "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
-        "DALI TensorCPU, or list or tuple of them.")
+    _apply_to_sample(_assert_cpu_sample_data_type, sample)
 
 
 def _apply_to_sample(func, sample, *args, nest_with_sample=0):
@@ -249,7 +212,7 @@ class SharedBatchWriter:
     def _write_batch(self, batch):
         if not batch:
             return
-        batch = [(idx, _apply_to_sample(_to_numpy, sample)) for idx, sample in batch]
+        batch = [(idx, _apply_to_sample(_sample_to_numpy, sample)) for idx, sample in batch]
         meta, data_size = self._prepare_samples_meta(batch)
         serialized_meta = pickle.dumps(meta)
         self.meta_data_size = len(serialized_meta)
