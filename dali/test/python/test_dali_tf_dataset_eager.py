@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+
+import logging
+logging.getLogger('tensorflow').disabled = True
+
 import tensorflow as tf
 from nvidia.dali import Pipeline, pipeline_def
 import nvidia.dali.plugin.tf as dali_tf
@@ -23,6 +28,30 @@ import random as random
 import itertools
 
 tf.compat.v1.enable_eager_execution()
+
+
+def test_es_gpu():
+    pipe = Pipeline(10, 4, 0)
+    with pipe:
+        input = fn.external_source(name="in", device="gpu", batch=True)
+        pipe.set_outputs(input)
+
+    with tf.device('/cpu:0'):
+        in_dataset = tf.data.Dataset.from_generator(lambda: [np.full((2,), 42, dtype=np.uint8)], output_types=tf.uint8).repeat()
+        in_dataset = in_dataset.batch(10)
+        in_dataset = in_dataset.apply(dali_tf.pass_on_cpu('/cpu:0', '/cpu:0'))
+
+    with tf.device('/gpu:0'):
+        dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
+                input_datasets={"in": dali_tf.experimental.Input(in_dataset, batch=True)},
+                pipeline=pipe,
+                batch_size=pipe.max_batch_size,
+                output_shapes=None,
+                output_dtypes=tf.uint8,
+                num_threads=pipe.num_threads,
+                device_id=pipe.device_id)
+
+    print(run_dataset_eager_mode(dali_dataset, 3))
 
 
 def test_tf_dataset_gpu():
