@@ -105,8 +105,8 @@ def _sample_to_numpy(sample):
     elif isinstance(sample, tensors.TensorCPU):
         return np.array(sample)
     raise TypeError(
-        "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
-        "DALI TensorCPU, or list or tuple of them.")
+        ("Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
+         "DALI TensorCPU, or list or tuple of them. Got `{}` instead.").format(type(sample)))
 
 
 def _batch_to_numpy(batch):
@@ -130,8 +130,8 @@ def _batch_to_numpy(batch):
 
 # TODO(klecki): Maybe keep this data here instead of doing the copy for first
 def _inspect_data(data, is_batched):
+    print("DDDD", data, type(data))
     if is_batched:
-        print("DDDD", data)
         as_numpy = _batch_to_numpy(data)
         if isinstance(as_numpy, list):
             return as_numpy[0].dtype, None
@@ -238,7 +238,9 @@ def get_iterable_from_iterable(source_desc, is_batched):
     """Wrap iterable into another iterable while peeking the first element
     """
     first_iter = iter(source_desc.source)
+    print("first_iter: ", first_iter)
     first =  next(first_iter)
+    print("first: ", first, type(first))
     dtype, shape = _inspect_data(first, is_batched)
 
     class PeekFirstGenerator:
