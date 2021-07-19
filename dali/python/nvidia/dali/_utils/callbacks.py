@@ -92,6 +92,7 @@ def _assert_cpu_batch_data_type(batch):
 
 def _sample_to_numpy(sample):
     import_numpy()
+    _assert_cpu_sample_data_type(sample)
     if isinstance(sample, np.ndarray):
         return sample
     if types._is_mxnet_array(sample):
@@ -111,8 +112,9 @@ def _sample_to_numpy(sample):
 
 def _batch_to_numpy(batch):
     import_numpy()
+    _assert_cpu_batch_data_type(batch)
     if isinstance(batch, tensors.TensorListCPU):
-        return batch.as_array() # TODO, samples
+        return batch.as_array() # TODO(klecki): samples that are not uniform?
     elif isinstance(batch, list):
         return [_sample_to_numpy(sample) for sample in batch]
     else:
@@ -128,9 +130,8 @@ def _batch_to_numpy(batch):
 #         return x
 
 
-# TODO(klecki): Maybe keep this data here instead of doing the copy for first
+# TODO(klecki): Maybe keep this data here instead of doing the copy twice
 def _inspect_data(data, is_batched):
-    print("DDDD", data, type(data))
     if is_batched:
         as_numpy = _batch_to_numpy(data)
         if isinstance(as_numpy, list):

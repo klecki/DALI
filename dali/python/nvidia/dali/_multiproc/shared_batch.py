@@ -21,17 +21,6 @@ import pickle
 
 np = None
 
-def import_numpy():
-    """Import numpy lazily, need to define global `np = None` variable"""
-    global np
-    if np is None:
-        try:
-            import numpy as np
-        except ImportError:
-            raise RuntimeError('Could not import numpy. Please make sure you have numpy '
-                               'installed before you use parallel mode.')
-
-
 def _div_ceil(a, b):
     """Calculate ceil of a/b without decaying to float."""
     return -(-a // b)
@@ -39,6 +28,15 @@ def _div_ceil(a, b):
 def _align_up(x, alignment):
     """ Align x up to multiple of alignment"""
     return _div_ceil(x, alignment) * alignment
+
+def import_numpy():
+    global np
+    if np is None:
+        try:
+            import numpy as np
+        except ImportError:
+            raise RuntimeError('Could not import numpy. Please make sure you have numpy '
+                               'installed before you use parallel mode.')
 
 class SampleMeta:
     """Metadata describing serialized sample in a memory buffer.
