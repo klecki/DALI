@@ -146,6 +146,8 @@ def _inspect_data(data, is_batched):
 def get_batch_iterable_from_callback(source_desc):
     """Transform batch callback accepting one argument into an Iterable
     """
+    print("get_batch_iterable_from_callback")
+
     first = source_desc.source(0)
     dtype, shape = _inspect_data(first, True)
 
@@ -174,24 +176,28 @@ def get_batch_iterable_from_callback(source_desc):
 def get_sample_iterable_from_callback(source_desc, batch_size):
     """Transform sample callback accepting one argument into an Iterable
     """
+    print("get_sample_iterable_from_callback")
     first = source_desc.source(types.SampleInfo(0, 0, 0))
     dtype, shape = _inspect_data(first, False)
 
     class CallableSampleIterator:
         first_value = first
         def __init__(self):
+            print("get_sample_iterable_from_callback::__init__")
             self.idx_in_epoch = 0
             self.idx_in_batch = 0
             self.iteration = 0
             self.source = source_desc.source
 
         def __iter__(self):
+            print("get_sample_iterable_from_callback::__iter__")
             self.idx_in_epoch = 0
             self.idx_in_batch = 0
             self.iteration = 0
             return self
 
         def __next__(self):
+            print("get_sample_iterable_from_callback::__next__")
             if self.idx_in_epoch == 0 and CallableSampleIterator.first_value is not None:
                 result = CallableSampleIterator.first_value
                 CallableSampleIterator.first_value = None
@@ -203,6 +209,7 @@ def get_sample_iterable_from_callback(source_desc, batch_size):
             if self.idx_in_batch == batch_size:
                 self.idx_in_batch = 0
                 self.iteration += 1
+            print("get_sample_iterable_from_callback::__next__", result)
             return _sample_to_numpy(result)
 
     return CallableSampleIterator, dtype, shape
@@ -210,6 +217,7 @@ def get_sample_iterable_from_callback(source_desc, batch_size):
 def get_iterable_from_callback(source_desc, is_batched):
     """Transform callback that doesn't accept arguments into iterable
     """
+    print("get_iterable_from_callback")
     first = source_desc.source()
     dtype, shape = _inspect_data(first, is_batched)
 
@@ -238,6 +246,7 @@ def get_iterable_from_callback(source_desc, is_batched):
 def get_iterable_from_iterable(source_desc, is_batched):
     """Wrap iterable into another iterable while peeking the first element
     """
+    print("get_iterable_from_iterable")
     first_iter = iter(source_desc.source)
     print("first_iter: ", first_iter)
     first =  next(first_iter)
@@ -274,6 +283,7 @@ def get_iterable_from_iterable(source_desc, is_batched):
 def get_iterable_from_generator(source_desc, is_batched):
     """Wrap iterable into another iterable while peeking the first element
     """
+    print("get_iterable_from_generator")
     # TODO(klecki): difference from the get_iterable_from_iterable is we also need to call the source
     first_iter = iter(source_desc.source())
     first =  next(first_iter)
