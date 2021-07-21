@@ -368,7 +368,10 @@ def test_tf_with_dali_external_source():
     for dtype in [np.uint8, np.int32, np.float32]:
         for get_callback, is_batched in es_configurations:
             for dense in get_dense_options(is_batched):
-                for dev, es_dev in [("cpu", "cpu"), ("gpu", "cpu"), ("gpu", "gpu")]:
+            # for dense in [False]:
+                # for dev, es_dev in [("cpu", "cpu"), ("gpu", "cpu"), ("gpu", "gpu")]:
+                for dev, es_dev in [("cpu", "cpu"), ("gpu", "cpu")]:
+                # for dev, es_dev in [("gpu", "gpu")]:
                     for iter_limit in [10]: # TODO(klecki): Handle StopIteration!!!
                         bs = 12 if is_batched else None
                         es_args = {'source': get_callback(dtype, iter_limit, bs, dense),

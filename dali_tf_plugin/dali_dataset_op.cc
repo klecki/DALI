@@ -627,10 +627,11 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
       if ((input_device == CPU && ext_src_device == DALI_BACKEND_CPU) ||
           (input_device == GPU && ext_src_device == DALI_BACKEND_GPU)) {
         flag = DALI_ext_force_no_copy;
+        printf("FORCE NO COPY\n");
       } else {
         flag = DALI_ext_force_copy;
+        printf("FORCE COPY\n");
       }
-        flag = DALI_ext_force_copy;
 
       // TODO(klecki): Consider using other stream here: Dataset's stream_ or stream 0.
       if (batched) {
