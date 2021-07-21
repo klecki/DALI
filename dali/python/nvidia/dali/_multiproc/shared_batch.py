@@ -13,8 +13,6 @@
 # limitations under the License.
 
 from nvidia.dali._multiproc import shared_mem
-from nvidia.dali import types, tensors
-# from nvidia.dali._utils.numpy import import_numpy
 from nvidia.dali._utils.callbacks import _assert_cpu_sample_data_type, _sample_to_numpy
 import pickle
 
