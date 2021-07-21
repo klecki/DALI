@@ -549,7 +549,6 @@ Keyword Args
                     raise ValueError("The argument ``cycle`` can only be specified if ``source`` is a "
                                      "reusable iterable or a generator function.")
             callback = self._callback
-            source_desc = self._source_desc
         else:
             if self._callback is not None:
                 raise RuntimeError("``source`` already specified in constructor.")

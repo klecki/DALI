@@ -22,7 +22,7 @@ from nvidia.dali import internal as _internal
 
 from nvidia.dali.external_source import _is_external_source, _is_external_source_with_callback, _cycle_enabled
 
-from nvidia.dali._utils.callbacks import _SourceKind, _SourceDescription, _get_generator_from_source_desc
+from nvidia.dali._utils.callbacks import _get_generator_from_source_desc
 
 from collections import Iterable
 from distutils.version import LooseVersion
