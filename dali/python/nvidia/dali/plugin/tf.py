@@ -502,7 +502,6 @@ if dataset_compatible_tensorflow():
             in_layouts_list = []
             in_batched_list = []
 
-            # print(">>>>", callbacked_es_map, callbacked_es_map['__ExternalSource_1']._op._source_desc)
             for input_name, external_source in callbacked_es_map.items():
                 in_names_list.append(input_name)
                 layout = _get_external_source_param(input_name, None, callbacked_es_map, 'layout')
@@ -522,12 +521,10 @@ if dataset_compatible_tensorflow():
                     signature = _get_signature(dtype, shape)
                     dataset = tf.data.Dataset.from_generator(tf_gen, output_signature=signature)
                     if _cycle_enabled(source_desc.cycle):
-                        print("=========== Cycle is enabled")
                         dataset = dataset.repeat()
                     # if DALIDataset was placed on GPU, we need to add the copy targetting
                     # that device (with proper id).
                     if is_dali_on_gpu:
-                        print("??????????? copy_to_device(", dali_device_spec.to_string(), ")")
                         dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     in_datasets_list.append(dataset)
 
@@ -589,9 +586,6 @@ if dataset_compatible_tensorflow():
                                  "(with `num_outputs=None`), named (with `name` argument "
                                  "specified) External Source nodes are supported as inputs "
                                  "for DALIDataset integration.")
-            # if external_source._op._callback is not None:
-            #     raise NotImplementedError("External Source with `callback` specified as input "
-            #                               "for DALIDataset are not supported yet.")
             if external_source._op._name is None:
                 raise ValueError("Found External Source node in the Pipeline that was "
                                  "not named (no `name` argument set). Only single-output "
@@ -614,12 +608,11 @@ if dataset_compatible_tensorflow():
             name_es_with_callback = {}
             for op in self._pipeline_instance._ops:
                 if _is_external_source_with_callback(op):
-                    # USE THE INTERNAL OP NAME
-                    print("internal name:", op.name, op._op._name)
+                    # use the internal op name (generated automatically in most cases)
                     name_es_with_callback[op.name] = op
                 elif _is_external_source(op):
                     self._assert_correct_external_sources(op)
-                    print("defined name:", op.name, op._op._name)
+                    # use the user provided name
                     name_es[op._op._name] = op
             return name_es, name_es_with_callback
 

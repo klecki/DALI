@@ -149,16 +149,24 @@ def get_iterable_generator(dtype, iter_limit=1000, batch_size=None, dense=True):
     return generator
 
 
-# generator, is_batched, is_uniform
+# generator, is_batched, cycle
 es_configurations = [
-    (get_sample_one_arg_callback, False),
-    (get_batch_one_arg_callback, True),
-    (get_no_arg_callback, False),
-    (get_no_arg_callback, True),
-    (get_iterable, False),
-    (get_iterable, True),
-    (get_iterable_generator, False),
-    (get_iterable_generator, True),
+    (get_sample_one_arg_callback, False, None),
+    (get_batch_one_arg_callback, True, None),
+    (get_no_arg_callback, False, None),
+    (get_no_arg_callback, True, None),
+    (get_iterable, False, False),
+    (get_iterable, False, True),
+    (get_iterable, False, "raise"),
+    (get_iterable, True, False),
+    (get_iterable, True, True),
+    (get_iterable, True, "raise"),
+    (get_iterable_generator, False, False),
+    (get_iterable_generator, False, True),
+    (get_iterable_generator, False, "raise"),
+    (get_iterable_generator, True, False),
+    (get_iterable_generator, True, True),
+    (get_iterable_generator, True, "raise"),
 ]
 
 def get_external_source_pipe(es_args, dtype, es_device):
@@ -199,11 +207,12 @@ def get_dense_options(is_batched):
 
 def gen_tf_with_dali_external_source(test_run):
     for dtype in [np.uint8, np.int32, np.float32]:
-        for get_callback, is_batched in es_configurations:
+        for get_callback, is_batched, cycle in es_configurations:
             for dense in get_dense_options(is_batched):
                 for dev, es_dev in [("cpu", "cpu"), ("gpu", "cpu"), ("gpu", "gpu")]:
                     for iter_limit in [3, 9, 10, 11, 100]:
                         bs = 12 if is_batched else None
                         es_args = {'source': get_callback(dtype, iter_limit, bs, dense),
-                                   'batch': is_batched}
+                                    'batch': is_batched,
+                                    'cycle': cycle}
                         yield test_run, dev, es_args, es_dev, tf.dtypes.as_dtype(dtype), iter_limit, dense
