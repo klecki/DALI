@@ -56,7 +56,7 @@ def magic_batch():
         raise StopIteration()
     return [np.int32([magic_batch.counter])] * 10
 
-def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, uniform=None):
+def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
     def callback(x):
         if x.iteration > iter_limit:
             print("RAISING THE StopIteration")
@@ -68,7 +68,7 @@ def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, uniform
         return result
     return callback
 
-# def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, uniform=None):
+# def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
 #     def callback(x):
 #         # if x.iteration > iter_limit:
 #         #     print("RAISING THE StopIteration")
@@ -83,15 +83,16 @@ def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, uniform
 #         return np.array([x.idx_in_epoch, x.idx_in_batch, x.iteration], dtype=dtype)
 #     return callback
 
-def get_batch_one_arg_callback(dtype, iter_limit=1000, batch_size=None, uniform=True):
+def get_batch_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
     def callback(x):
         if x > iter_limit:
             raise StopIteration()
         size = (x % 16 + 1,)
-        return [np.full(size, x, dtype=dtype)] * batch_size
+        result = [np.full(size, x, dtype=dtype)] * batch_size
+        return np.stack(result) if dense else result
     return callback
 
-def get_no_arg_callback(dtype, iter_limit=1000, batch_size=None, uniform=None):
+def get_no_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
     class Callable:
         def __init__(self):
             self.counter = 0
@@ -120,19 +121,29 @@ class UnwrapIterator:
     def __next__(self):
         return next(self.iterator)[0]
 
-def get_iterable(dtype, iter_limit=1000, batch_size=None, uniform=True):
+class DenseIterator:
+    def __init__(self, iterator):
+        self.iterator = iterator
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return np.stack(next(self.iterator))
+
+def get_iterable(dtype, iter_limit=1000, batch_size=None, dense=True):
     bs = 1 if batch_size is None else batch_size
     max_shape = (20, 20)
-    min_shape = max_shape if uniform else None
+    min_shape = max_shape  # if dense else None
     result = RandomlyShapedDataIterator(bs, min_shape, max_shape, 42, dtype)
     if batch_size is None:
         return UnwrapIterator(iter(result))
     else:
-        return result
+        return DenseIterator(iter(result)) if dense else result
 
-def get_iterable_generator(dtype, iter_limit=1000, batch_size=None, uniform=True):
+def get_iterable_generator(dtype, iter_limit=1000, batch_size=None, dense=True):
     def generator():
-        iterator = iter(get_iterable(dtype, iter_limit, batch_size, uniform))
+        iterator = iter(get_iterable(dtype, iter_limit, batch_size, dense))
         for example in iterator:
             yield example
     return generator
@@ -148,7 +159,6 @@ es_configurations = [
     (get_iterable, True),
     (get_iterable_generator, False),
     (get_iterable_generator, True),
-    # (get_batch_non_uniform_iterable, True, False),
 ]
 
 def get_external_source_pipe(es_args, dtype, es_device):

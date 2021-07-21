@@ -137,12 +137,12 @@ def _inspect_data(data, is_batched):
     if is_batched:
         as_numpy = _batch_to_numpy(data)
         if isinstance(as_numpy, list):
-            return as_numpy[0].dtype, None
+            return as_numpy[0].dtype, (None,) * (as_numpy[0].ndim + 1) # TODO(klecki): HANDLE THE LISTS
         else:
-            return as_numpy.dtype, None
+            return as_numpy.dtype, (None,) * as_numpy.ndim
     else:
         as_numpy = _sample_to_numpy(data)
-        return as_numpy.dtype, None
+        return as_numpy.dtype, (None,) * as_numpy.ndim
 
 
 def get_batch_iterable_from_callback(source_desc):

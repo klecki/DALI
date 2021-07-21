@@ -301,6 +301,11 @@ def _get_external_source_param(input_name, input_value, name_es_map, param_name)
         return getattr(input_value, param_name)
 
 
+def _get_signature(dtype, shape):
+    # TODO(klecki): Find out how we can use ragged tensors for non-uniform batches
+    return tf.TensorSpec(shape=shape, dtype=dtype)
+
+
 def _get_current_device_spec():
     """Best guess at checking the current device string in eager and graph mode.
 
@@ -511,8 +516,11 @@ if dataset_compatible_tensorflow():
                 # All generator datasets must be placed on CPU.
                 with tf.device('/cpu:0'):
                     source_desc = external_source._op._source_desc
-                    tf_gen, dtype, shape = _get_generator_from_source_desc(source_desc, self._batch_size, external_source._batch)
-                    dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
+                    tf_gen, dtype, shape = _get_generator_from_source_desc(
+                        source_desc, self._batch_size, external_source._batch)
+                    # dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
+                    signature = _get_signature(dtype, shape)
+                    dataset = tf.data.Dataset.from_generator(tf_gen, output_signature=signature)
                     if _cycle_enabled(source_desc.cycle):
                         print("Cycle is enabled")
                         dataset = dataset.repeat()
