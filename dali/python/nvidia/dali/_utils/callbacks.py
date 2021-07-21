@@ -183,21 +183,21 @@ def get_sample_iterable_from_callback(source_desc, batch_size):
     class CallableSampleIterator:
         first_value = first
         def __init__(self):
-            print("get_sample_iterable_from_callback::__init__")
+            # print("get_sample_iterable_from_callback::__init__")
             self.idx_in_epoch = 0
             self.idx_in_batch = 0
             self.iteration = 0
             self.source = source_desc.source
 
         def __iter__(self):
-            print("get_sample_iterable_from_callback::__iter__")
+            # print("get_sample_iterable_from_callback::__iter__")
             self.idx_in_epoch = 0
             self.idx_in_batch = 0
             self.iteration = 0
             return self
 
         def __next__(self):
-            print("get_sample_iterable_from_callback::__next__")
+            # print("get_sample_iterable_from_callback::__next__")
             if self.idx_in_epoch == 0 and CallableSampleIterator.first_value is not None:
                 result = CallableSampleIterator.first_value
                 CallableSampleIterator.first_value = None
@@ -209,7 +209,7 @@ def get_sample_iterable_from_callback(source_desc, batch_size):
             if self.idx_in_batch == batch_size:
                 self.idx_in_batch = 0
                 self.iteration += 1
-            print("get_sample_iterable_from_callback::__next__", result)
+            # print("get_sample_iterable_from_callback::__next__", result)
             return _sample_to_numpy(result)
 
     return CallableSampleIterator, dtype, shape
@@ -224,17 +224,21 @@ def get_iterable_from_callback(source_desc, is_batched):
     class CallableIterator:
         first_value = first
         def __init__(self):
+            # print("get_iterable_from_callback::__init__")
             self.source = source_desc.source
 
         def __iter__(self):
+            # print("get_iterable_from_callback::__iter__")
             return self
 
         def __next__(self):
+            # print("get_iterable_from_callback::__next__")
             if CallableIterator.first_value is not None:
                 result = CallableIterator.first_value
                 CallableIterator.first_value = None
             else:
                 result = self.source()
+            # print("get_iterable_from_callback::__next__", result)
             if is_batched:
                 return _batch_to_numpy(result)
             else:

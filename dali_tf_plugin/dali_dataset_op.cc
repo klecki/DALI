@@ -630,6 +630,7 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
       } else {
         flag = DALI_ext_force_copy;
       }
+        flag = DALI_ext_force_copy;
 
       // TODO(klecki): Consider using other stream here: Dataset's stream_ or stream 0.
       if (batched) {

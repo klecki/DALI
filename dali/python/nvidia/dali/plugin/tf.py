@@ -517,9 +517,9 @@ if dataset_compatible_tensorflow():
                     #     dataset = dataset.repeat()
                     # if DALIDataset was placed on GPU, we need to add the copy targetting
                     # that device (with proper id).
-                    dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
-                    # if is_dali_on_gpu:
-                    #     dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
+                    # dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
+                    if is_dali_on_gpu:
+                        dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     in_datasets_list.append(dataset)
 
             return in_datasets_list, in_names_list, in_layouts_list, in_batched_list
