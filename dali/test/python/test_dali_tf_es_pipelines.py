@@ -186,5 +186,24 @@ def external_source_to_tf_dataset(pipe_desc, device_str): # -> tf.data.Dataset
                 output_shapes=None,
                 output_dtypes=dtypes,
                 num_threads=pipe.num_threads,
-                device_id=pipe.device_id).repeat()
+                device_id=pipe.device_id)
     return dali_dataset
+
+
+def get_dense_options(is_batched):
+    if is_batched:
+        return [True, False]
+    else:
+        return [True]
+
+
+def gen_tf_with_dali_external_source(test_run):
+    for dtype in [np.uint8, np.int32, np.float32]:
+        for get_callback, is_batched in es_configurations:
+            for dense in get_dense_options(is_batched):
+                for dev, es_dev in [("cpu", "cpu"), ("gpu", "cpu"), ("gpu", "gpu")]:
+                    for iter_limit in [3, 9, 10, 11, 100]:
+                        bs = 12 if is_batched else None
+                        es_args = {'source': get_callback(dtype, iter_limit, bs, dense),
+                                   'batch': is_batched}
+                        yield test_run, dev, es_args, es_dev, tf.dtypes.as_dtype(dtype), iter_limit, dense

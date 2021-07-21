@@ -232,6 +232,7 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
     if (dataset()->HasInputs()) {
       input_impls_.resize(dataset()->NumInputs());
       for (size_t i = 0; i < input_impls_.size(); ++i) {
+        std::cout << ">>> PREFIX: " << strings::StrCat(prefix(), "[", i, "]")<< std::endl;
 #if TF_MAJOR_VERSION > 2 || (TF_MAJOR_VERSION == 2 && TF_MINOR_VERSION >= 3)
         TF_RETURN_IF_ERROR(dataset()->input_desc_.inputs[i]->MakeIterator(
             context, this, strings::StrCat(prefix(), "[", i, "]"), &input_impls_[i]));
@@ -635,6 +636,7 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
 
       // TODO(klecki): Consider using other stream here: Dataset's stream_ or stream 0.
       if (batched) {
+        printf("BATCHED\n");
         const void *ptr = nullptr;
         TF_RETURN_IF_ERROR(input_batch.GetPtr(ptr));
         input_batch.GetShapes(shapes);
@@ -642,6 +644,7 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
                                           input_batch.dtype(), shapes.data(), input_batch.ndim(),
                                           input_layout.c_str(), flag));
       } else {
+        printf("NOT BATCHED\n");
         TF_RETURN_IF_ERROR(input_batch.GetPtrs(ptrs));
         input_batch.GetShapes(shapes);
         TF_DALI_CALL(daliSetExternalInputTensors(pipeline_handle, input_name.c_str(), input_device,

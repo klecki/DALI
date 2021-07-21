@@ -522,11 +522,12 @@ if dataset_compatible_tensorflow():
                     signature = _get_signature(dtype, shape)
                     dataset = tf.data.Dataset.from_generator(tf_gen, output_signature=signature)
                     if _cycle_enabled(source_desc.cycle):
-                        print("Cycle is enabled")
+                        print("=========== Cycle is enabled")
                         dataset = dataset.repeat()
                     # if DALIDataset was placed on GPU, we need to add the copy targetting
                     # that device (with proper id).
                     if is_dali_on_gpu:
+                        print("??????????? copy_to_device(", dali_device_spec.to_string(), ")")
                         dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     in_datasets_list.append(dataset)
 
