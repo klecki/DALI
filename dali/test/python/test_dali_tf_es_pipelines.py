@@ -21,41 +21,6 @@ import nvidia.dali.plugin.tf as dali_tf
 from test_utils import RandomlyShapedDataIterator
 
 
-def foo(x):
-    print("SAMPLE CALL", x.idx_in_epoch, x.idx_in_batch, x.iteration)
-    if x.iteration > 3:
-        raise StopIteration()
-    return np.int32([x.idx_in_epoch, x.idx_in_batch, x.iteration])
-
-def foo_batch(x):
-    print("BATCH CALL", x)
-    if x > 3:
-        raise StopIteration()
-    return [np.int8([x])] * 10
-
-def magic():
-    try:
-        magic.counter += 1
-    except:
-        magic.counter = 0
-    print("MAGIC COUNTER", magic.counter)
-    if magic.counter > 30:
-        magic.counter = 0
-        raise StopIteration()
-    return np.int32([magic.counter])
-
-
-def magic_batch():
-    try:
-        magic_batch.counter += 1
-    except:
-        magic_batch.counter = 0
-    print("MAGIC COUNTER BATCH", magic_batch.counter)
-    if magic_batch.counter > 3:
-        magic_batch.counter = 0
-        raise StopIteration()
-    return [np.int32([magic_batch.counter])] * 10
-
 def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
     def callback(x):
         if x.iteration > iter_limit:
@@ -66,21 +31,6 @@ def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=T
         result[0][1] = x.iteration
         return result
     return callback
-
-# def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
-#     def callback(x):
-#         # if x.iteration > iter_limit:
-#         #     print("RAISING THE StopIteration")
-#         #     raise StopIteration()
-#         size = x.idx_in_batch % 4 + 1, x.iteration % 4 + 3
-#         print(size)
-#         # size = (1, 4)
-#         result = np.full(size, x.idx_in_epoch, dtype=dtype)
-#         result[0][0] = x.idx_in_batch
-#         result[0][1] = x.iteration
-#         return np.array(result)
-#         return np.array([x.idx_in_epoch, x.idx_in_batch, x.iteration], dtype=dtype)
-#     return callback
 
 def get_batch_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
     def callback(x):
