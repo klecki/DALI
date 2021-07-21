@@ -37,6 +37,8 @@ class _SourceDescription:
     """Keep the metadata about the source parameter that was originally passed
     """
     def __init__(self, source, kind: _SourceKind, has_inputs: bool, cycle: str):
+        if kind == _SourceKind.GENERATOR_FUNC:
+            print("<<<<<<<<<<<<<>>>>>>>>>>>>>>>> GENERATOR FUNC")
         self.source = source
         self.kind = kind
         self.has_inputs = has_inputs
@@ -252,9 +254,9 @@ def get_iterable_from_iterable(source_desc, is_batched):
     """
     print("get_iterable_from_iterable")
     first_iter = iter(source_desc.source)
-    print("first_iter: ", first_iter)
+    # print("first_iter: ", first_iter)
     first =  next(first_iter)
-    print("first: ", first, type(first))
+    # print("first: ", first, type(first))
     dtype, shape = _inspect_data(first, is_batched)
 
     class PeekFirstGenerator:
@@ -288,7 +290,7 @@ def get_iterable_from_generator(source_desc, is_batched):
     """Wrap iterable into another iterable while peeking the first element
     """
     print("get_iterable_from_generator")
-    # TODO(klecki): difference from the get_iterable_from_iterable is we also need to call the source
+    # TODO(klecki): difference from the get_iterable_from_iterable is that we need to call the source
     first_iter = iter(source_desc.source())
     first =  next(first_iter)
     dtype, shape = _inspect_data(first, is_batched)
@@ -340,4 +342,4 @@ def _get_generator_from_source_desc(source_desc, batch_size, is_batched):
         return get_iterable_from_iterable(source_desc, is_batched)
     else:
         # Generator Func
-        return get_iterable_from_generator(source_desc.source, is_batched)
+        return get_iterable_from_generator(source_desc, is_batched)

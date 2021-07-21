@@ -120,15 +120,23 @@ class UnwrapIterator:
     def __next__(self):
         return next(self.iterator)[0]
 
-def get_sample_iterable(dtype, iter_limit=1000, batch_size=None, uniform=None):
+def get_iterable(dtype, iter_limit=1000, batch_size=None, uniform=True):
     bs = 1 if batch_size is None else batch_size
     max_shape = (20, 20)
     min_shape = max_shape if uniform else None
     result = RandomlyShapedDataIterator(bs, min_shape, max_shape, 42, dtype)
     if batch_size is None:
-        return UnwrapIterator(result)
+        return UnwrapIterator(iter(result))
     else:
         return result
+
+def get_iterable_generator(dtype, iter_limit=1000, batch_size=None, uniform=True):
+    def generator():
+        iterator = iter(get_iterable(dtype, iter_limit, batch_size, uniform))
+        for example in iterator:
+            yield example
+    return generator
+
 
 # generator, is_batched, is_uniform
 es_configurations = [
@@ -136,8 +144,10 @@ es_configurations = [
     (get_batch_one_arg_callback, True),
     (get_no_arg_callback, False),
     (get_no_arg_callback, True),
-    # (get_sample_iterable, False),
-    # (get_sample_iterable, True),
+    (get_iterable, False),
+    (get_iterable, True),
+    (get_iterable_generator, False),
+    (get_iterable_generator, True),
     # (get_batch_non_uniform_iterable, True, False),
 ]
 

@@ -513,11 +513,11 @@ if dataset_compatible_tensorflow():
                     source_desc = external_source._op._source_desc
                     tf_gen, dtype, shape = _get_generator_from_source_desc(source_desc, self._batch_size, external_source._batch)
                     dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
-                    # if _cycle_enabled(source_desc.cycle):
-                    #     dataset = dataset.repeat()
+                    if _cycle_enabled(source_desc.cycle):
+                        print("Cycle is enabled")
+                        dataset = dataset.repeat()
                     # if DALIDataset was placed on GPU, we need to add the copy targetting
                     # that device (with proper id).
-                    # dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     if is_dali_on_gpu:
                         dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     in_datasets_list.append(dataset)
