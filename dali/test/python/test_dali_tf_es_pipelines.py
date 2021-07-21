@@ -59,7 +59,6 @@ def magic_batch():
 def get_sample_one_arg_callback(dtype, iter_limit=1000, batch_size=None, dense=True):
     def callback(x):
         if x.iteration > iter_limit:
-            print("RAISING THE StopIteration")
             raise StopIteration()
         size = x.idx_in_batch % 16 + 1, x.iteration % 16 + 3
         result = np.full(size, x.idx_in_epoch, dtype=dtype)
@@ -131,11 +130,28 @@ class DenseIterator:
     def __next__(self):
         return np.stack(next(self.iterator))
 
+
+class FiniteIterator:
+    def __init__(self, iterator, iter_limit):
+        self.iterator = iterator
+        self.iter_limit = iter_limit
+
+    def __iter__(self):
+        self.i = 0
+        return self
+
+    def __next__(self):
+        if self.i > self.iter_limit:
+            raise StopIteration()
+        self.i += 1
+        return np.stack(next(self.iterator))
+
+
 def get_iterable(dtype, iter_limit=1000, batch_size=None, dense=True):
     bs = 1 if batch_size is None else batch_size
     max_shape = (20, 20)
     min_shape = max_shape  # if dense else None
-    result = RandomlyShapedDataIterator(bs, min_shape, max_shape, 42, dtype)
+    result = FiniteIterator(iter(RandomlyShapedDataIterator(bs, min_shape, max_shape, 42, dtype)), iter_limit)
     if batch_size is None:
         return UnwrapIterator(iter(result))
     else:
@@ -150,6 +166,7 @@ def get_iterable_generator(dtype, iter_limit=1000, batch_size=None, dense=True):
 
 
 # generator, is_batched, cycle
+# TODO(klecki): raise is currently broken
 es_configurations = [
     (get_sample_one_arg_callback, False, None),
     (get_batch_one_arg_callback, True, None),
@@ -157,16 +174,16 @@ es_configurations = [
     (get_no_arg_callback, True, None),
     (get_iterable, False, False),
     (get_iterable, False, True),
-    (get_iterable, False, "raise"),
+    # (get_iterable, False, "raise"),
     (get_iterable, True, False),
     (get_iterable, True, True),
-    (get_iterable, True, "raise"),
+    # (get_iterable, True, "raise"),
     (get_iterable_generator, False, False),
     (get_iterable_generator, False, True),
-    (get_iterable_generator, False, "raise"),
+    # (get_iterable_generator, False, "raise"),
     (get_iterable_generator, True, False),
     (get_iterable_generator, True, True),
-    (get_iterable_generator, True, "raise"),
+    # (get_iterable_generator, True, "raise"),
 ]
 
 def get_external_source_pipe(es_args, dtype, es_device):

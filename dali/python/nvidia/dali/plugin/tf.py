@@ -511,10 +511,13 @@ if dataset_compatible_tensorflow():
                 batched = _get_external_source_param(input_name, None, callbacked_es_map, 'batch')
                 in_batched_list.append(batched if batched is not None else True)
 
+                source_desc = external_source._op._source_desc
+                if source_desc.cycle == 'raise':
+                    raise NotImplementedError(("External Source node: '{}' got argument "
+                                               "cycle='raise' which is not supported.").format(input_name))
 
                 # All generator datasets must be placed on CPU.
                 with tf.device('/cpu:0'):
-                    source_desc = external_source._op._source_desc
                     tf_gen, dtype, shape = _get_generator_from_source_desc(
                         source_desc, self._batch_size, external_source._batch)
                     # dataset = tf.data.Dataset.from_generator(tf_gen, output_types=dtype)
