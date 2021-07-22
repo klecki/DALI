@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -249,28 +249,6 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-command-line-argument")
     # Ignore warnings coming from cutlass
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --system-header-prefix=cutlass/")
-  endif()
-
-  # CUDA does not support current Clang as host compiler, we need use gcc
-  # CMAKE_CUDA_HOST_COMPILER variable operates on paths
-  set(CUDA_UNSUPPORTED_COMPILER 0)
-  if (NOT DALI_CLANG_ONLY AND NOT CMAKE_CUDA_HOST_COMPILER)
-    if ("${CMAKE_CUDA_HOST_COMPILER}" MATCHES "clang")
-        set(CUDA_UNSUPPORTED_COMPILER 1)
-    elseif (CMAKE_CUDA_HOST_COMPILER STREQUAL "")
-        set(CUDA_UNSUPPORTED_COMPILER 1)
-    endif()
-    set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_C_COMPILER})
-  endif()
-
-  if(${CUDA_UNSUPPORTED_COMPILER})
-    message(STATUS "CMAKE_CUDA_HOST_COMPILER is set to ${CMAKE_C_COMPILER} - setting CMAKE_CUDA_HOST_COMPILER to gcc")
-    execute_process(COMMAND which gcc OUTPUT_VARIABLE PATH_TO_GCC OUTPUT_STRIP_TRAILING_WHITESPACE)
-    if (NOT PATH_TO_GCC)
-      message(FATAL_ERROR "gcc was not found in PATH")
-    else()
-      set(CMAKE_CUDA_HOST_COMPILER ${PATH_TO_GCC})
-    endif()
   endif()
 endif()
 
