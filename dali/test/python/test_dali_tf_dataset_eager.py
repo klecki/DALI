@@ -74,6 +74,8 @@ def test_es_gpu():
                 num_threads=pipe.num_threads,
                 device_id=pipe.device_id)
         # gpu_dataset = dali_dataset
+        dali_dataset = dali_dataset.apply(tf.data.experimental.copy_to_device('/cpu:0', '/gpu:0'))
+    with tf.device('/cpu:0'):
         gpu_dataset = dali_dataset.repeat()
         # gpu_dataset = dali_dataset.apply(tf.data.experimental.map_on_gpu(lambda x: x*2)).repeat()
         # gpu_dataset = in_dataset.apply(tf.data.experimental.map_on_gpu(lambda x: x*2)).repeat()

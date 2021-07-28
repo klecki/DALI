@@ -649,18 +649,18 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
       const void *ptr = nullptr;
       if (batched) {
         TF_RETURN_IF_ERROR(input_batch.GetPtr(ptr));
-        {
-          *(reinterpret_cast<uint8_t*>(const_cast<void*>(ptr))) = 666;
-          printf("LOOOL %d\n", *(reinterpret_cast<uint8_t*>(const_cast<void*>(ptr))));
-        }
-        {
-          int tmp = 777;
-          cudaMemcpy(const_cast<void*>(ptr), &tmp, sizeof(int), cudaMemcpyHostToDevice);
-          cudaDeviceSynchronize();
-          if (cudaGetLastError() != cudaSuccess) {
-            return errors::Aborted("CUDA ERROR IN POC OP");
-          }
-        }
+        // {
+        //   *(reinterpret_cast<uint8_t*>(const_cast<void*>(ptr))) = 666;
+        //   printf("LOOOL %d\n", *(reinterpret_cast<uint8_t*>(const_cast<void*>(ptr))));
+        // }
+        // {
+        //   int tmp = 777;
+        //   cudaMemcpy(const_cast<void*>(ptr), &tmp, sizeof(int), cudaMemcpyHostToDevice);
+        //   cudaDeviceSynchronize();
+        //   if (cudaGetLastError() != cudaSuccess) {
+        //     return errors::Aborted("CUDA ERROR IN POC OP");
+        //   }
+        // }
 
 
         input_batch.GetShapes(shapes);
