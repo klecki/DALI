@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import logging
+logging.getLogger('tensorflow').disabled = True
+
+
 import tensorflow as tf
 import numpy as np
 from nvidia.dali import Pipeline, pipeline_def
@@ -24,7 +29,56 @@ from nose.tools import raises, with_setup
 import random as random
 import itertools
 
+from nvidia.dali._utils.external_source_impl import _get_generator_from_source_desc, _cycle_enabled, SourceDescription, SourceKind
+
 tf.compat.v1.enable_eager_execution()
+
+# def get_gen():
+#     class Gen:
+#         def __init__(self):
+#             self.i = 0
+
+#         def __iter__(self):
+#             return self
+
+#         def __next__(self):
+#             return np.full((2,3), self.i, dtype=np.uint8)
+#     return Gen()
+
+tf_gen, dtype, shape = _get_generator_from_source_desc(
+    SourceDescription(get_batch_one_arg_callback(np.uint8, batch_size=10, iter_limit=5), SourceKind.CALLABLE,
+                      True, False), 10, True)
+
+# Let's see if I can break this
+
+# LOOKS LIKE NO-COPY problem
+# ONLY IN BATCH MODE!!
+def test_es_gpu():
+    pipe = Pipeline(10, 4, 0)
+    with pipe:
+        input = fn.external_source(name="in", device="gpu")
+        out = fn.pad(input)
+        pipe.set_outputs(out)
+    with tf.device('/cpu:0'):
+        # in_dataset = tf.data.Dataset.from_generator(tf_gen, output_types=tf.uint8)
+        in_dataset = tf.data.Dataset.from_tensors(np.full((10, 4, 4), 42, dtype=np.uint8)).repeat(1000)
+        # in_dataset = in_dataset.batch(10)
+        in_dataset = in_dataset.apply(tf.data.experimental.copy_to_device('/gpu:0'))
+    with tf.device('/gpu:0'):
+        dali_dataset = dali_tf.experimental.DALIDatasetWithInputs(
+                input_datasets={"in": dali_tf.experimental.Input(in_dataset, batch=True)},
+                pipeline=pipe,
+                batch_size=pipe.max_batch_size,
+                output_shapes=None,
+                output_dtypes=tf.uint8,
+                num_threads=pipe.num_threads,
+                device_id=pipe.device_id)
+        # gpu_dataset = dali_dataset
+        gpu_dataset = dali_dataset.repeat()
+        # gpu_dataset = dali_dataset.apply(tf.data.experimental.map_on_gpu(lambda x: x*2)).repeat()
+        # gpu_dataset = in_dataset.apply(tf.data.experimental.map_on_gpu(lambda x: x*2)).repeat()
+
+    print(run_dataset_eager_mode(gpu_dataset, 10))
 
 
 def test_tf_dataset_gpu():
@@ -100,8 +154,8 @@ def run_tf_dataset_with_random_input_gpu(max_shape, dtype, batch):
 def test_tf_dataset_with_random_input_gpu():
     for max_shape in [(10, 20), (120, 120, 3), (3, 40, 40, 4)]:
         for dtype in [np.uint8, np.int32, np.float32]:
-                for batch in ["dataset", False, True, None]:
-                    yield run_tf_dataset_with_random_input_gpu, max_shape, dtype, batch
+            for batch in ["dataset", False, True, None]:
+                yield run_tf_dataset_with_random_input_gpu, max_shape, dtype, batch
 
 
 def run_tf_dataset_no_copy(max_shape, dtype, dataset_dev, es_dev, no_copy):

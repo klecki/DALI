@@ -18,6 +18,11 @@
 #include <vector>
 
 
+
+#include "cuda.h"
+
+
+
 #include "tensorflow/core/public/version.h"
 
 #if TF_MAJOR_VERSION == 2 || (TF_MAJOR_VERSION == 1 && TF_MINOR_VERSION >= 15)
@@ -274,6 +279,9 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
   Status GetNextInternal(IteratorContext *context, std::vector<Tensor> *out_tensors,
                          bool *end_of_sequence) override {
     tensorflow::mutex_lock l(mu_);
+    static int count = 0;
+    printf("GetNextInternal number %d\n", count);
+    count++;
     *end_of_sequence = false;
 
     if (dataset()->HasInputs()) {
@@ -342,6 +350,7 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
       }
       daliFreeExecutorMetadata(meta, N);
     }
+    printf(">>>>>>>>>>>>>>>>>>>>>>>>>>> SOMEONE IS FREEING DALI\n");
     daliDeletePipeline(&pipeline_handle_);
   }
 
@@ -508,6 +517,9 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
    */
   Status ProduceOutputs(IteratorContext *context, std::vector<Tensor> *out_tensors,
                         bool &end_of_sequence) {
+    static int count = 0;
+    printf(">??????????????>>>>>>>>>>> Produce Outputs %d\n", count);
+    count++;
     TF_DALI_CALL(daliShareOutput(&pipeline_handle_));
 
     auto num_outputs = 0;
@@ -630,11 +642,27 @@ class DALIDatasetOp::Dataset::Iterator : public DatasetIterator<Dataset> {
       } else {
         flag = DALI_ext_force_copy;
       }
+      // THIS IS CURRENT WAR
+      // flag = DALI_ext_force_copy;
 
       // TODO(klecki): Consider using other stream here: Dataset's stream_ or stream 0.
+      const void *ptr = nullptr;
       if (batched) {
-        const void *ptr = nullptr;
         TF_RETURN_IF_ERROR(input_batch.GetPtr(ptr));
+        {
+          *(reinterpret_cast<uint8_t*>(const_cast<void*>(ptr))) = 666;
+          printf("LOOOL %d\n", *(reinterpret_cast<uint8_t*>(const_cast<void*>(ptr))));
+        }
+        {
+          int tmp = 777;
+          cudaMemcpy(const_cast<void*>(ptr), &tmp, sizeof(int), cudaMemcpyHostToDevice);
+          cudaDeviceSynchronize();
+          if (cudaGetLastError() != cudaSuccess) {
+            return errors::Aborted("CUDA ERROR IN POC OP");
+          }
+        }
+
+
         input_batch.GetShapes(shapes);
         TF_DALI_CALL(daliSetExternalInput(pipeline_handle, input_name.c_str(), input_device, ptr,
                                           input_batch.dtype(), shapes.data(), input_batch.ndim(),
