@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -79,8 +79,16 @@ inline void CopyToExternalImpl(void** dsts,
     type_info.template Copy<DstBackend, SrcBackend>(to.data(), from.data(), sizes.data(),
                                                     samples_to_copy, stream, use_copy_kernel);
   } else {
+          // TODO(klecki): CONTIGUOUS ERROR
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     type_info.template Copy<DstBackend, SrcBackend>(dsts, src.raw_data(), sizes.data(), nsamples,
                                                     stream, use_copy_kernel);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   }
 }
 

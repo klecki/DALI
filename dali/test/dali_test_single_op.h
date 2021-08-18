@@ -763,13 +763,28 @@ class DALISingleOpTest : public DALITest {
       }
     } else {
       if (floatType) {
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
         colorIdx = CheckBuffers<float>(t1->size(),
                           t1->data<float>(),
                           t2->data<float>(), checkAll, &mean);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       } else {
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
         colorIdx = CheckBuffers<unsigned char>(t1->size(),
                           t1->data<unsigned char>(),
                           t2->data<unsigned char>(), checkAll, &mean);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       }
       if (colorIdx >= 0)
         ReportTestFailure(mean, colorIdx);

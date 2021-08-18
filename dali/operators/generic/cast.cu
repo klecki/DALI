@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,6 +47,11 @@ void Cast<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   const auto &input = ws.Input<GPUBackend>(0);
   auto &output = ws.Output<GPUBackend>(0);
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   DALIDataType itype = input.type().id();
   TYPE_SWITCH(output_type_, type2id, OType, CAST_ALLOWED_TYPES, (
     output.SetLayout(input.GetLayout());
@@ -57,6 +62,8 @@ void Cast<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
       BatchedCast(output.mutable_data<OType>(), input.data<IType>(), input.size(), ws.stream());
     ), DALI_FAIL(make_string("Invalid input type: ", itype)););  // NOLINT(whitespace/parens)
   ), DALI_FAIL(make_string("Invalid output type: ", output_type_)););  // NOLINT(whitespace/parens)
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 DALI_REGISTER_OPERATOR(Cast, Cast<GPUBackend>, GPU);

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -276,11 +276,19 @@ void BoxEncoder<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
   assert(ws.GetInputBatchSize(kBoxesInId) == ws.GetInputBatchSize(kLabelsInId));
   auto curr_batch_size = ws.GetInputBatchSize(kBoxesInId);
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   const auto anchors_data = reinterpret_cast<const float4 *>(anchors_.data<float>());
   const auto anchors_as_cwh_data =
     reinterpret_cast<const float4 *>(anchors_as_center_wh_.data<float>());
   const auto boxes_data = reinterpret_cast<const float4 *>(boxes_input.data<float>());
   const auto labels_data = labels_input.data<int>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
   const auto buffers = ClearBuffers(ws.stream());
 
@@ -290,12 +298,21 @@ void BoxEncoder<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
   auto &boxes_output = ws.Output<GPUBackend>(kBoxesOutId);
   boxes_output.set_type(boxes_input.type());
   boxes_output.Resize(dims.first);
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   auto boxes_out_data = reinterpret_cast<float4 *>(boxes_output.mutable_data<float>());
 
   auto &labels_output = ws.Output<GPUBackend>(kLabelsOutId);
   labels_output.set_type(labels_input.type());
   labels_output.Resize(dims.second);
   auto labels_out_data = labels_output.mutable_data<int>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
   const auto means_data = means_.data<float>();
   const auto stds_data = stds_.data<float>();

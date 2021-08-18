@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,7 +55,14 @@ void FillTensorList(
     int64_t size = shape.num_elements();
     int64_t threads = 1024;
     int64_t blocks = div_ceil(size, threads);
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     Dst *data = dst.mutable_data<Dst>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
     Fill<<<dim3(blocks), dim3(threads), 0, stream>>>(data, size, opaque(ConvertSat<Dst>(src[0])));
   } else {

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,11 @@
 #include "dali/test/dali_test.h"
 
 namespace dali {
-
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
 template <typename Backend>
 class TensorListTest : public DALITest {
  public:
@@ -517,5 +521,7 @@ TYPED_TEST(TensorListTest, TestShareData) {
   ASSERT_EQ(tensor_list2.ntensor(), 0);
   ASSERT_EQ(tensor_list2.shape(), TensorListShape<>());
 }
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
 }  // namespace dali

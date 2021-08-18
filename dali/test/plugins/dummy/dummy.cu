@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,12 +24,19 @@ void Dummy<::dali::GPUBackend>::RunImpl(::dali::DeviceWorkspace &ws) {
   output.set_type(input.type());
   output.ResizeLike(input);
   output.SetLayout(input.GetLayout());
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   CUDA_CALL(cudaMemcpyAsync(
+    // TODO(klecki): CONTIGUOUS ERROR
           output.raw_mutable_data(),
           input.raw_data(),
           input.nbytes(),
           cudaMemcpyDeviceToDevice,
           ws.stream()));
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 }  // namespace other_ns

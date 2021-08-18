@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -144,17 +144,25 @@ void BbFlipGPU::RunImpl(workspace_t<GPUBackend> &ws) {
   const unsigned block = num_boxes < 1024 ? num_boxes : 1024;
   const unsigned grid = (num_boxes + block - 1) / block;
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   if (ltrb_) {
     BbFlipKernel<true><<<grid, block, 0, stream>>>(
+      // TODO(klecki): CONTIGUOUS ERROR
       output.mutable_data<float>(), input.data<float>(), num_boxes,
       global_horz, per_sample_horz, global_vert, per_sample_vert,
       sample_idx);
   } else {
     BbFlipKernel<false><<<grid, block, 0, stream>>>(
+      // TODO(klecki): CONTIGUOUS ERROR
       output.mutable_data<float>(), input.data<float>(), num_boxes,
       global_horz, per_sample_horz, global_vert, per_sample_vert,
       sample_idx);
   }
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   CUDA_CALL(cudaGetLastError());
 }
 

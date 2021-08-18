@@ -27,6 +27,12 @@
 #include "dali/test/dali_test_decoder.h"
 #include "dali/util/image.h"
 
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
 namespace dali {
 
 template <typename ThreadCount>
@@ -787,3 +793,6 @@ TEST(PipelineTest, AddOperator) {
 }
 
 }  // namespace dali
+
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop

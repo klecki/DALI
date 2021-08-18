@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -94,11 +94,19 @@ class Shapes : public Operator<Backend> {
   }
 
   void RunBackend(DeviceWorkspace &ws) {
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
     if (!tmp_.raw_data()) {
       auto &type = TypeTable::GetTypeInfo(output_type_);
       tmp_.set_type(type);
       tmp_.set_pinned(true);
     }
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
     auto &output = ws.OutputRef<GPUBackend>(0);
     tmp_.Resize(output.shape());

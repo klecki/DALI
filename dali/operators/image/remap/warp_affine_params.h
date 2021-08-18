@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -125,7 +125,15 @@ class WarpAffineParamProvider
         params[i] = static_cast<const MappingParams *>(input.raw_tensor(i))->inv();
       }
     } else {
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       params_cpu_.data = static_cast<const MappingParams *>(input.raw_data());
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       params_cpu_.shape = { num_samples_ };
     }
   }
@@ -154,7 +162,15 @@ class WarpAffineParamProvider
   void UseInputAsParams(const TensorList<GPUBackend> &input, bool invert) {
     CheckParamInput(input);
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
     auto input_mappings = static_cast<const MappingParams *>(input.raw_data());
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
     if (invert) {
       auto output = this->AllocParams(kernels::AllocType::GPU);
       InvertTransformsGPU<spatial_ndim>(output, input_mappings, num_samples_, this->GetStream());

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,18 +26,26 @@ Flip<GPUBackend>::Flip(const OpSpec &spec) : Operator<GPUBackend>(spec) {}
 void RunKernel(TensorList<GPUBackend> &output, const TensorList<GPUBackend> &input,
                const std::vector<int32> &depthwise, const std::vector<int32> &horizontal,
                const std::vector<int32> &vertical, cudaStream_t stream) {
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   DALI_TYPE_SWITCH(
       input.type().id(), DType,
       auto in_shape = TransformShapes(input.shape(), input.GetLayout());
+  // TODO(klecki): CONTIGUOUS ERROR
       kernels::InListGPU<DType, flip_ndim> in_view(input.data<DType>(), in_shape);
       kernels::KernelContext ctx;
       ctx.gpu.stream = stream;
       kernels::FlipGPU<DType> kernel;
       auto reqs = kernel.Setup(ctx, in_view);
+  // TODO(klecki): CONTIGUOUS ERROR
       kernels::OutListGPU<DType, flip_ndim> out_view(output.mutable_data<DType>(),
                                              reqs.output_shapes[0].to_static<flip_ndim>());
       kernel.Run(ctx, out_view, in_view, depthwise, vertical, horizontal);
   )
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 template <>

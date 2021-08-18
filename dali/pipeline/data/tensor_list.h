@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,6 +47,25 @@ class TensorVector;
 template <typename Backend>
 class DLL_PUBLIC TensorList : public Buffer<Backend> {
  public:
+
+  template <typename T>
+  [[deprecated]] inline T* mutable_data() {
+    return Buffer<Backend>::template mutable_data<T>();
+  }
+
+  template <typename T>
+  [[deprecated]] inline const T* data() const {
+    return Buffer<Backend>::template data<T>();
+  }
+
+  [[deprecated]] inline void* raw_mutable_data() {
+    return Buffer<Backend>::raw_mutable_data();
+  }
+
+  [[deprecated]] inline const void* raw_data() const {
+    return Buffer<Backend>::raw_data();
+  }
+
   DLL_PUBLIC TensorList() {}
 
   DLL_PUBLIC TensorList(int batch_size) {
@@ -109,7 +128,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
 
     use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || other.is_pinned()) &&
                        (std::is_same<Backend, GPUBackend>::value || pinned_);
-    type_.template Copy<Backend, SrcBackend>(this->raw_mutable_data(), other.raw_data(),
+    type_.template Copy<Backend, SrcBackend>(this->Buffer<Backend>::raw_mutable_data(), dynamic_cast<const Buffer<Backend>&>(other).raw_data(),
                                              this->size(), stream, use_copy_kernel);
   }
 
@@ -390,7 +409,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    */
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
-    return this->template mutable_data<T>() + tensor_offset(idx);
+    return this->Buffer<Backend>::template mutable_data<T>() + tensor_offset(idx);
   }
 
   /**
@@ -398,7 +417,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    */
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
-    return this->template data<T>() + tensor_offset(idx);
+    return this->Buffer<Backend>::template data<T>() + tensor_offset(idx);
   }
 
   /**
@@ -406,7 +425,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    */
   DLL_PUBLIC inline void* raw_mutable_tensor(int idx) {
     return static_cast<void*>(
-        static_cast<uint8*>(this->raw_mutable_data()) +
+        static_cast<uint8*>(this->Buffer<Backend>::raw_mutable_data()) +
         (tensor_offset(idx) * type_.size()));
   }
 
@@ -415,7 +434,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
    */
   DLL_PUBLIC inline const void* raw_tensor(int idx) const {
     return static_cast<const void*>(
-        static_cast<const uint8*>(this->raw_data()) +
+        static_cast<const uint8*>(this->Buffer<Backend>::raw_data()) +
         (tensor_offset(idx) * type_.size()));
   }
 

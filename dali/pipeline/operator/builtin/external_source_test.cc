@@ -562,7 +562,14 @@ void TestRunExternalSource(Pipeline &pipe, const std::string &name,
   TensorList<CPUBackend> input_cpu;
   input_cpu.Resize(input_shape, TypeInfo::Create<uint8_t>());
   for (int64_t i = 0; i < input_shape.num_elements(); i++) {
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     input_cpu.mutable_data<uint8_t>()[i] = i % 255;
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   }
   DeviceWorkspace ws;
   if (dev == "cpu") {
@@ -587,9 +594,16 @@ void TestRunExternalSource(Pipeline &pipe, const std::string &name,
   }
   ASSERT_EQ(input_cpu.shape(), output_cpu.shape());
   ASSERT_EQ(input_cpu.type(), output_cpu.type());
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   ASSERT_EQ(
       memcmp(input_cpu.data<uint8_t>(), output_cpu.data<uint8_t>(), input_shape.num_elements()),
       0);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 

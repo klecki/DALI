@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -352,7 +352,14 @@ TYPED_TEST(TensorTest, TestShareData) {
   TensorList<TypeParam> tl;
   auto shape = this->GetRandShapeList();
   tl.Resize(shape);
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   tl.template mutable_data<float>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
   // Create a tensor and wrap each tensor from the list
   Tensor<TypeParam> tensor;
@@ -398,7 +405,14 @@ TYPED_TEST(TensorTest, TestCopyEmptyToTensorList) {
   TensorVector<TypeParam> tensors(16);
   // Empty tensors
   TensorList<TypeParam> tl;
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   tl.template mutable_data<float>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   tl.Copy(tensors, 0);
 
   Tensor<TypeParam> tensor;

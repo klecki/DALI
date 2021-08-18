@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -273,7 +273,15 @@ class DisplacementFilter<GPUBackend, Displacement,
       const auto &mask = ws.ArgumentInput("mask");
       mask_gpu_.set_type(mask.type());
       mask_gpu_.Resize(mask.shape());
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       mask_gpu_.template mutable_data<int>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       mask_gpu_.Copy(mask, ws.stream());
     }
     PrepareDisplacement(&ws);
@@ -335,6 +343,11 @@ class DisplacementFilter<GPUBackend, Displacement,
       maxPower2 = maxPower2 > power2 ? power2 : maxPower2;
     }
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     switch (interp_type_) {
       case DALI_INTERP_NN:
         DisplacementKernelLauncher<T, DALI_INTERP_NN>(ws, input.template data<T>(),
@@ -350,6 +363,8 @@ class DisplacementFilter<GPUBackend, Displacement,
         DALI_FAIL("Unsupported interpolation type,"
             " only NN and LINEAR are supported for this operation");
     }
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 
     return true;
   }
@@ -361,6 +376,13 @@ class DisplacementFilter<GPUBackend, Displacement,
                                   const int C, const uint64_t maxPower2) {
     void * param_ptr = params_gpu_.capacity() > 0 ? params_gpu_.raw_mutable_data() : nullptr;
     if (maxPower2 >= sizeof(uint32_t)/sizeof(U)) {
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       switch (C) {
         case 1:
           DisplacementKernel_aligned32bit<U, 1, per_channel_transform,
@@ -396,6 +418,8 @@ class DisplacementFilter<GPUBackend, Displacement,
           mask_gpu_.template mutable_data<int>(),
           param_ptr,
           pitch, fill_value_, displace_);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   }
 
   Displacement displace_;

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -62,8 +62,13 @@ void LookupTable<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   const auto stream = ws.stream();
   Tensor<GPUBackend> lookup_table_gpu;
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   TYPE_SWITCH(input.type().id(), dali::type2id, InputType, LUT_IN_TYPES, (
     TYPE_SWITCH(output_type_, dali::type2id, OutputType, LUT_OUT_TYPES, (
+      // TODO(klecki): CONTIGUOUS ERROR
       auto *out_data = output.mutable_data<OutputType>();
       const auto *in_data = input.data<InputType>();
 
@@ -77,6 +82,8 @@ void LookupTable<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
         lookup_table, default_value);
     ), DALI_FAIL(make_string("Unsupported output type: ", output_type_)); );       // NOLINT
   ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())); );     // NOLINT
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 DALI_REGISTER_OPERATOR(LookupTable, LookupTable<GPUBackend>, GPU);

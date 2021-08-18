@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,19 @@ view(TensorList<Backend> &data) {
     return {};
   using U = std::remove_const_t<T>;
   detail::enforce_dim_in_view<ndim>(data.shape());
-  return { data.template mutable_data<U>(), convert_dim<ndim>(data.shape()) };
+
+
+
+  TensorListView<detail::storage_tag_map_t<Backend>, T, ndim> ret;
+  ret.shape = convert_dim<ndim>(data.shape());
+  ret.data.resize(ret.shape.num_samples());
+  for (int i = 0; i < ret.shape.num_samples(); i++) {
+    ret.data[i] = data.template mutable_tensor<U>(i);
+  }
+  return ret;
+
+  // TODO(klecki): CONTIGUOUS ERROR
+  // return { data.template mutable_data<U>(), convert_dim<ndim>(data.shape()) };
 }
 
 
@@ -95,7 +107,18 @@ view(const TensorList<Backend> &data) {
     return {};
   using U = std::remove_const_t<T>;
   detail::enforce_dim_in_view<ndim>(data.shape());
-  return { data.template data<U>(), convert_dim<ndim>(data.shape()) };
+
+
+  TensorListView<detail::storage_tag_map_t<Backend>, T, ndim> ret;
+  ret.shape = convert_dim<ndim>(data.shape());
+  ret.data.resize(ret.shape.num_samples());
+  for (int i = 0; i < ret.shape.num_samples(); i++) {
+    ret.data[i] = data.template tensor<U>(i);
+  }
+  return ret;
+
+  // TODO(klecki): CONTIGUOUS ERROR
+  // return { data.template data<U>(), convert_dim<ndim>(data.shape()) };
 }
 
 template <typename T, int ndim = DynamicDimensions, typename Backend>
@@ -120,7 +143,24 @@ view_as_tensor(TensorList<Backend> &data) {
   if (data.ntensor() == 0)
     return {};
   using U = std::remove_const_t<T>;
+
+
+  // TensorListView<detail::storage_tag_map_t<Backend>, T, ndim> ret;
+  // ret.shape = get_tensor_shape<ndim>(data);
+  // ret.data.resize(ret.shape.num_samples());
+  // // TODO(klecki): THIS DOESN'T WORK - CONTIGUOUS ERROR
+  // for (int i = 0; i < ret.shape.num_samples(); i++) {
+  //   ret.data[i] = data.template mutable_tensor<U>(i);
+  // }
+  // return ret;
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   return { data.template mutable_data<U>(), get_tensor_shape<ndim>(data) };
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 template <typename T, int ndim = DynamicDimensions, typename Backend>
@@ -151,7 +191,15 @@ view_as_tensor(const TensorList<Backend> &data) {
   if (data.ntensor() == 0)
     return {};
   using U = std::remove_const_t<T>;
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   return { data.template data<U>(), get_tensor_shape<ndim>(data) };
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -81,7 +81,15 @@ inline int64_t ReducedVolume(const TensorListShape<> &shape, span<const int> axe
 
 template <typename T>
 void UniformFill(TensorList<CPUBackend> &tl, const T &value) {
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   T *data = tl.mutable_data<T>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   std::fill(data, data + tl.size(), value);
 }
 
