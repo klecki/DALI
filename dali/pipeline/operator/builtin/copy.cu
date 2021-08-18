@@ -28,8 +28,6 @@ void Copy<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // #pragma clang diagnostic pop
-  #pragma gcc diagnostic pop
   CUDA_CALL(cudaMemcpyAsync(
           // TODO(klecki): CONTIGUOUS ERROR
           output.raw_mutable_data(),

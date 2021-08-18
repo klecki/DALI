@@ -381,8 +381,7 @@ class DisplacementFilter<GPUBackend, Displacement,
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // #pragma clang diagnostic pop
-  #pragma gcc diagnostic pop
+  // TODO(klecki): CONTIGUOUS ERROR
       switch (C) {
         case 1:
           DisplacementKernel_aligned32bit<U, 1, per_channel_transform,
