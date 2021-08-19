@@ -17,26 +17,9 @@
 
 namespace dali {
 
-template<>
-void Copy<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
-  auto &input = ws.Input<GPUBackend>(0);
-  auto &output = ws.Output<GPUBackend>(0);
-  output.set_type(input.type());
-  output.SetLayout(input.GetLayout());
-  output.ResizeLike(input);
-  #pragma clang diagnostic push
-  #pragma clang diagnostic ignored "-Wdeprecated"
-  #pragma gcc diagnostic push
-  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  CUDA_CALL(cudaMemcpyAsync(
-          // TODO(klecki): CONTIGUOUS ERROR
-          output.raw_mutable_data(),
-          input.raw_data(),
-          input.nbytes(),
-          cudaMemcpyDeviceToDevice,
-          ws.stream()));
-  #pragma clang diagnostic pop
-  #pragma gcc diagnostic pop
+template <>
+void Copy<GPUBackend>::RunCopies(DeviceWorkspace &ws) {
+  scatter_gather_.Run(ws.stream(), true);
 }
 
 DALI_REGISTER_OPERATOR(Copy, Copy<GPUBackend>, GPU);
