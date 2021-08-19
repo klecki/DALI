@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2018-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -101,7 +101,14 @@ template<size_t Idx, typename Backend, size_t N>
 std::unique_ptr<TensorList<Backend>> ToTensorList(const TestSample (&sample)[N]) {
   std::unique_ptr<TensorList<Backend>> tl(new TensorList<Backend>());
   tl->Resize(uniform_list_shape(N, {kBbStructSize}));
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   auto ptr = tl->template mutable_data<float>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   for (size_t n = 0; n < N; n++) {
     for (size_t i = 0; i < kBbStructSize; i++) {
       *ptr++ = sample[n][Idx][i];
@@ -112,7 +119,14 @@ std::unique_ptr<TensorList<Backend>> ToTensorList(const TestSample (&sample)[N])
 
 template <typename Backend>
 std::vector<Roi> FromTensorListPtr(const TensorList<Backend> *tl) {
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   auto ptr = tl->template data<float>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   std::vector<Roi> ret;
   for (size_t i = 0; i < tl->ntensor(); i++) {
     Roi roi;

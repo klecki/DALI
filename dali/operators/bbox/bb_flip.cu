@@ -161,8 +161,8 @@ void BbFlipGPU::RunImpl(workspace_t<GPUBackend> &ws) {
       global_horz, per_sample_horz, global_vert, per_sample_vert,
       sample_idx);
   }
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
   CUDA_CALL(cudaGetLastError());
 }
 

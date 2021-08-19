@@ -88,8 +88,8 @@ void UniformFill(TensorList<CPUBackend> &tl, const T &value) {
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   // TODO(klecki): CONTIGUOUS ERROR
   T *data = tl.mutable_data<T>();
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
   std::fill(data, data + tl.size(), value);
 }
 

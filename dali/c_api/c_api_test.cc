@@ -165,8 +165,15 @@ void ComparePipelinesOutputs(daliPipelineHandle &handle, Pipeline &baseline,
 
     TensorList<Backend> c_api_output;
     c_api_output.Resize(pipeline_output_cpu.shape(), TypeInfo::Create<uint8_t>());
+    #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     daliOutputCopy(&handle, c_api_output.raw_mutable_data(), 0,
                    backend_to_device_type<Backend>::value, 0, copy_output_flags);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
     // Unnecessary copy in case of CPUBackend, makes the code generic across Backends
     c_api_output_cpu.Copy(c_api_output, cuda_stream);
     CUDA_CALL(cudaDeviceSynchronize());
@@ -297,8 +304,15 @@ TYPED_TEST(CApiTest, ExternalSourceSingleAllocPipe) {
     input.Copy(input_cpu, cuda_stream);
     pipe_ptr->SetExternalInput(input_name, input);
     daliSetExternalInputBatchSize(&handle, input_name.c_str(), input_shape.num_samples());
+    #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     daliSetExternalInputAsync(&handle, input_name.c_str(), backend_to_device_type<TypeParam>::value,
                               input.raw_data(), dali_data_type_t::DALI_UINT8, input_shape.data(),
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
                               input_shape.sample_dim(), nullptr, cuda_stream, DALI_ext_default);
   }
 
@@ -317,9 +331,16 @@ TYPED_TEST(CApiTest, ExternalSourceSingleAllocPipe) {
   // Unnecessary copy in case of CPUBackend, makes the code generic across Backends
   input.Copy(input_cpu, cuda_stream);
   pipe_ptr->SetExternalInput(input_name, input);
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   daliSetExternalInputAsync(&handle, input_name.c_str(), backend_to_device_type<TypeParam>::value,
                             input.raw_data(), dali_data_type_t::DALI_UINT8, input_shape.data(),
                             input_shape.sample_dim(), "HWC", cuda_stream, DALI_ext_default);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   daliRun(&handle);
   pipe_ptr->RunCPU();
   pipe_ptr->RunGPU();
@@ -361,10 +382,17 @@ TYPED_TEST(CApiTest, ExternalSourceSingleAllocVariableBatchSizePipe) {
       input.Copy(input_cpu, cuda_stream);
       pipe_ptr->SetExternalInput(input_name, input);
       daliSetExternalInputBatchSize(&handle, input_name.c_str(), input_shape.num_samples());
+      #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
       daliSetExternalInputAsync(&handle, input_name.c_str(),
                                 backend_to_device_type<TypeParam>::value, input.raw_data(),
                                 dali_data_type_t::DALI_UINT8, input_shape.data(),
                                 input_shape.sample_dim(), nullptr, cuda_stream, DALI_ext_default);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
     }
 
     for (int i = 0; i < prefetch_queue_depth; i++) {
@@ -470,9 +498,16 @@ TYPED_TEST(CApiTest, ExternalSourceSingleAllocDifferentBackendsTest) {
     input.Copy(input_cpu, cuda_stream);
     CUDA_CALL(cudaStreamSynchronize(cuda_stream));
     pipe_ptr->SetExternalInput(input_name, input);
+    #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     daliSetExternalInput(&handle, input_name.c_str(), backend_to_device_type<DataBackend>::value,
                          input.raw_data(), dali_data_type_t::DALI_UINT8, input_shape.data(),
                          input_shape.sample_dim(), nullptr, DALI_ext_default);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   }
 
   for (int i = 0; i < prefetch_queue_depth; i++) {
@@ -491,9 +526,16 @@ TYPED_TEST(CApiTest, ExternalSourceSingleAllocDifferentBackendsTest) {
   input.Copy(input_cpu, cuda_stream);
   CUDA_CALL(cudaStreamSynchronize(cuda_stream));
   pipe_ptr->SetExternalInput(input_name, input);
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   daliSetExternalInput(&handle, input_name.c_str(), backend_to_device_type<DataBackend>::value,
                        input.raw_data(), dali_data_type_t::DALI_UINT8, input_shape.data(),
                        input_shape.sample_dim(), "HWC", DALI_ext_default);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   daliRun(&handle);
   pipe_ptr->RunCPU();
   pipe_ptr->RunGPU();
@@ -623,9 +665,16 @@ TYPED_TEST(CApiTest, UseCopyKernel) {
     // Unnecessary copy in case of CPUBackend, makes the code generic across Backends
     input.Copy(input_cpu, cuda_stream);
     pipe_ptr->SetExternalInput(input_name, input);
+    #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     daliSetExternalInputAsync(&handle, input_name.c_str(), backend_to_device_type<TypeParam>::value,
                               input.raw_data(), dali_data_type_t::DALI_UINT8, input_shape.data(),
                               input_shape.sample_dim(), nullptr, cuda_stream, flags);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   }
 
   for (int i = 0; i < prefetch_queue_depth; i++) {
@@ -673,11 +722,19 @@ TYPED_TEST(CApiTest, ForceNoCopyFail) {
   // Try to fill the pipeline placed on "other_device" with data placed on the current "device"
   // while forcing NO COPY. It's not allowed to do a no copy across backends and it should error
   // out.
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   ASSERT_THROW(daliSetExternalInputAsync(
                     &handle, input_name.c_str(), backend_to_device_type<TypeParam>::value,
                     input.raw_data(), dali_data_type_t::DALI_UINT8, input_shape.data(),
                     input_shape.sample_dim(), nullptr, cuda_stream, DALI_ext_force_no_copy),
                 std::runtime_error);
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 
@@ -712,6 +769,11 @@ void TestForceFlagRun(bool ext_src_no_copy, unsigned int flag_to_test) {
     // Unnecessary copy in case of CPUBackend, makes the code generic across Backends
     data[i].Copy(input_cpu, cuda_stream);
     pipe_ptr->SetExternalInput(input_name, data[i]);
+    #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
     if (flag_to_test == DALI_ext_force_no_copy) {
       // for no copy, we just pass the view to data
       daliSetExternalInputAsync(&handle, input_name.c_str(),
@@ -727,6 +789,8 @@ void TestForceFlagRun(bool ext_src_no_copy, unsigned int flag_to_test) {
                                 dali_data_type_t::DALI_UINT8, input_shape.data(),
                                 input_shape.sample_dim(), nullptr, cuda_stream, flag_to_test);
     }
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   }
 
   for (int i = 0; i < prefetch_queue_depth; i++) {

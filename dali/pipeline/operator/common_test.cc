@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -77,7 +77,14 @@ TEST(PipelineCommon, GetShapeLikeArgumentInput) {
 
   // specify the shape as a list of 1D tensors
   input->Resize(uniform_list_shape<1>(N, {D}));
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   float *shape_data = input->mutable_data<float>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   for (int i = 0; i < D*N; i++)
     shape_data[i] = i * 1.1f;
 
@@ -101,7 +108,14 @@ TEST(PipelineCommon, GetShapeLikeArgumentInput) {
   ws.Clear();
 
   input->Resize(TensorListShape<0>(N));
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   shape_data = input->mutable_data<float>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   for (int i = 0; i < N; i++)
     shape_data[i] = i * 1.1f;
 

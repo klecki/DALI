@@ -105,8 +105,8 @@ class Shapes : public Operator<Backend> {
       tmp_.set_type(type);
       tmp_.set_pinned(true);
     }
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 
     auto &output = ws.OutputRef<GPUBackend>(0);
     tmp_.Resize(output.shape());

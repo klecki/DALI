@@ -104,8 +104,8 @@ void Resize<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
   #pragma gcc diagnostic pop
     if (!attr_staging_.raw_data())
       attr_staging_.set_pinned(true);
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
     attr_staging_.ResizeLike(attr_out);
     auto attr_view = view<int, 1>(attr_staging_);
     SaveAttrs(attr_view, input.shape());

@@ -82,8 +82,8 @@ void LookupTable<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
         lookup_table, default_value);
     ), DALI_FAIL(make_string("Unsupported output type: ", output_type_)); );       // NOLINT
   ), DALI_FAIL(make_string("Unsupported input type: ", input.type().id())); );     // NOLINT
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 }
 
 DALI_REGISTER_OPERATOR(LookupTable, LookupTable<GPUBackend>, GPU);

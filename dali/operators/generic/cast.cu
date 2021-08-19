@@ -62,8 +62,8 @@ void Cast<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
       BatchedCast(output.mutable_data<OType>(), input.data<IType>(), input.size(), ws.stream());
     ), DALI_FAIL(make_string("Invalid input type: ", itype)););  // NOLINT(whitespace/parens)
   ), DALI_FAIL(make_string("Invalid output type: ", output_type_)););  // NOLINT(whitespace/parens)
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 }
 
 DALI_REGISTER_OPERATOR(Cast, Cast<GPUBackend>, GPU);

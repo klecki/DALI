@@ -87,8 +87,8 @@ inline void CopyToExternalImpl(void** dsts,
   // TODO(klecki): CONTIGUOUS ERROR
     type_info.template Copy<DstBackend, SrcBackend>(dsts, src.raw_data(), sizes.data(), nsamples,
                                                     stream, use_copy_kernel);
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
   }
 }
 

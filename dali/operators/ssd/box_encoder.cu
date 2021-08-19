@@ -287,8 +287,8 @@ void BoxEncoder<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
     reinterpret_cast<const float4 *>(anchors_as_center_wh_.data<float>());
   const auto boxes_data = reinterpret_cast<const float4 *>(boxes_input.data<float>());
   const auto labels_data = labels_input.data<int>();
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 
   const auto buffers = ClearBuffers(ws.stream());
 
@@ -311,8 +311,8 @@ void BoxEncoder<GPUBackend>::RunImpl(Workspace<GPUBackend> &ws) {
   labels_output.set_type(labels_input.type());
   labels_output.Resize(dims.second);
   auto labels_out_data = labels_output.mutable_data<int>();
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 
   const auto means_data = means_.data<float>();
   const auto stds_data = stds_.data<float>();

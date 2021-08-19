@@ -64,8 +64,8 @@ class DALIBenchmark : public benchmark::Fixture {
   // #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
     tl->template mutable_data<uint8>();
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
     tl->Resize(shape);
 
     for (int i = 0; i < n; ++i) {

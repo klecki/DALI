@@ -671,12 +671,18 @@ void ExposeTensorList(py::module &m) {
             stride[(stride.size()-1) - i] = tl.type().size()*dim_prod;
             dim_prod *= tl.tensor_shape(id)[(shape.size()-1) - i];
           }
-
+#pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
           return py::array(py::buffer_info(
               tl.raw_mutable_tensor(id),
               tl.type().size(),
               FormatStrFromType(tl.type()),
               shape.size(), shape, stride));
+  #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
         },
       R"code(
       Returns tensor at given position in the list.
@@ -712,7 +718,14 @@ void ExposeTensorList(py::module &m) {
                 "buffer info for tensor w/ invalid type.");
             DALI_ENFORCE(tl.IsDenseTensor(),
                         "Tensors in the list must have the same shape");
+                        #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
             raw_mutable_data = tl.raw_mutable_data();
+  #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
           }
 
           if (IsValidType(tl.type())) {
@@ -794,7 +807,14 @@ void ExposeTensorList(py::module &m) {
       py::return_value_policy::reference_internal)
     .def("data_ptr",
         [](TensorList<CPUBackend> &tl) {
+          #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
           return py::reinterpret_borrow<py::object>(PyLong_FromVoidPtr(tl.raw_mutable_data()));
+  #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
         },
       R"code(
       Returns the address of the first element of TensorList.
@@ -966,7 +986,14 @@ void ExposeTensorList(py::module &m) {
       py::return_value_policy::reference_internal)
     .def("data_ptr",
         [](TensorList<GPUBackend> &tl) {
+          #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
           return py::reinterpret_borrow<py::object>(PyLong_FromVoidPtr(tl.raw_mutable_data()));
+  #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
         },
       R"code(
       Returns the address of the first element of TensorList.

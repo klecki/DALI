@@ -280,8 +280,8 @@ class DisplacementFilter<GPUBackend, Displacement,
   // #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
       mask_gpu_.template mutable_data<int>();
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
       mask_gpu_.Copy(mask, ws.stream());
     }
     PrepareDisplacement(&ws);
@@ -363,8 +363,8 @@ class DisplacementFilter<GPUBackend, Displacement,
         DALI_FAIL("Unsupported interpolation type,"
             " only NN and LINEAR are supported for this operation");
     }
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 
     return true;
   }
@@ -417,8 +417,8 @@ class DisplacementFilter<GPUBackend, Displacement,
           mask_gpu_.template mutable_data<int>(),
           param_ptr,
           pitch, fill_value_, displace_);
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
   }
 
   Displacement displace_;

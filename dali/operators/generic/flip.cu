@@ -44,8 +44,8 @@ void RunKernel(TensorList<GPUBackend> &output, const TensorList<GPUBackend> &inp
                                              reqs.output_shapes[0].to_static<flip_ndim>());
       kernel.Run(ctx, out_view, in_view, depthwise, vertical, horizontal);
   )
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 }
 
 template <>

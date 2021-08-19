@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -338,6 +338,12 @@ TEST(ArithmeticOpsTest, GenericPipeline) {
   DeviceWorkspace ws;
   pipe.Outputs(&ws);
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
+
   const auto *data = batch.data<int>();
 
   auto *result = ws.OutputRef<CPUBackend>(0).data<int32_t>();
@@ -345,6 +351,8 @@ TEST(ArithmeticOpsTest, GenericPipeline) {
   vector<int32_t> result2_cpu(batch_size * tensor_elements);
 
   MemCopy(result2_cpu.data(), result2, batch_size * tensor_elements * sizeof(int));
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   CUDA_CALL(cudaStreamSynchronize(0));
   for (int i = 0; i < batch_size * tensor_elements; i++) {
     EXPECT_EQ(result[i], data[i] + data[i]);
@@ -395,6 +403,12 @@ TEST(ArithmeticOpsTest, FdivPipeline) {
   ASSERT_EQ(ws.OutputRef<CPUBackend>(0).type(), TypeInfo::Create<float>());
   ASSERT_EQ(ws.OutputRef<GPUBackend>(1).type(), TypeInfo::Create<float>());
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
+
   const auto *data0 = batch[0].data<int>();
   const auto *data1 = batch[1].data<int>();
 
@@ -403,6 +417,8 @@ TEST(ArithmeticOpsTest, FdivPipeline) {
   vector<float> result1_cpu(batch_size * tensor_elements);
 
   MemCopy(result1_cpu.data(), result1, batch_size * tensor_elements * sizeof(float));
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   CUDA_CALL(cudaStreamSynchronize(0));
   for (int i = 0; i < batch_size * tensor_elements; i++) {
     EXPECT_EQ(result0[i], static_cast<float>(data0[i]) / data1[i]);
@@ -449,6 +465,12 @@ TEST(ArithmeticOpsTest, ConstantsPipeline) {
   DeviceWorkspace ws;
   pipe.Outputs(&ws);
 
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
+
   const auto *data = batch.data<int>();
   auto *result0 = ws.OutputRef<CPUBackend>(0).data<int32_t>();
   auto *result1 = ws.OutputRef<CPUBackend>(1).data<float>();
@@ -457,6 +479,8 @@ TEST(ArithmeticOpsTest, ConstantsPipeline) {
     EXPECT_EQ(result0[i], data[i] + magic_int);
     EXPECT_EQ(result1[i], data[i] * magic_float);
   }
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 using shape_sequence = std::vector<std::array<TensorListShape<>, 3>>;
@@ -511,7 +535,11 @@ class ArithmeticOpsScalarTest :  public ::testing::TestWithParam<shape_sequence>
       DeviceWorkspace ws;
       pipe.Outputs(&ws);
 
-
+#pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
       const auto *data0 = batch[0].data<int>();
       const auto *data1 = batch[1].data<int>();
 
@@ -524,6 +552,8 @@ class ArithmeticOpsScalarTest :  public ::testing::TestWithParam<shape_sequence>
       vector<int> result1_cpu(result_shape.num_elements());
 
       MemCopy(result1_cpu.data(), result1, result_shape.num_elements() * sizeof(int));
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
       CUDA_CALL(cudaStreamSynchronize(0));
 
       int64_t offset_out = 0;
@@ -660,12 +690,20 @@ TEST(ArithmeticOpsTest, UnaryPipeline) {
   pipe.RunGPU();
   DeviceWorkspace ws;
   pipe.Outputs(&ws);
+
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   auto *result0 = ws.OutputRef<CPUBackend>(0).data<int32_t>();
 
   auto *result1 = ws.OutputRef<GPUBackend>(1).data<int32_t>();
   vector<int32_t> result1_cpu(batch_size * tensor_elements);
 
   MemCopy(result1_cpu.data(), result1, batch_size * tensor_elements * sizeof(int));
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
   CUDA_CALL(cudaStreamSynchronize(0));
   for (int i = 0; i < batch_size * tensor_elements; i++) {
     EXPECT_EQ(result0[i], -i);

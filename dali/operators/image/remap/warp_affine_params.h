@@ -129,11 +129,10 @@ class WarpAffineParamProvider
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // #pragma clang diagnostic pop
-  #pragma gcc diagnostic pop
+  // todo(klecki): CONTINUOUS ERROR
       params_cpu_.data = static_cast<const MappingParams *>(input.raw_data());
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
       params_cpu_.shape = { num_samples_ };
     }
   }
@@ -166,11 +165,10 @@ class WarpAffineParamProvider
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // #pragma clang diagnostic pop
-  #pragma gcc diagnostic pop
+  // todo(klecki): CONTINUOUS ERROR
     auto input_mappings = static_cast<const MappingParams *>(input.raw_data());
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
     if (invert) {
       auto output = this->AllocParams(kernels::AllocType::GPU);
       InvertTransformsGPU<spatial_ndim>(output, input_mappings, num_samples_, this->GetStream());

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -35,7 +35,14 @@ void GenerateShapeTestInputs(TensorList<Backend> &out, RNG &rng, int num_samples
   }
   out.Reset();
   out.Resize(shape);
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   (void)out.template mutable_data<uint8_t>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 template <typename OutputBackend, typename InputBackend, typename OutputType>

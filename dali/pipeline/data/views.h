@@ -159,8 +159,8 @@ view_as_tensor(TensorList<Backend> &data) {
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   // TODO(klecki): CONTIGUOUS ERROR
   return { data.template mutable_data<U>(), get_tensor_shape<ndim>(data) };
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 }
 
 template <typename T, int ndim = DynamicDimensions, typename Backend>
@@ -198,8 +198,8 @@ view_as_tensor(const TensorList<Backend> &data) {
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   // TODO(klecki): CONTIGUOUS ERROR
   return { data.template data<U>(), get_tensor_shape<ndim>(data) };
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 }
 
 

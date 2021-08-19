@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,14 @@ void pointer_to_data(const TensorList<Backend> &tl, T &destination) {
   static_assert(std::is_pointer<T>::value, "T is not a pointer");
   static_assert(std::is_fundamental<remove_cp<T>>::value,
                 "T is a pointer to non-fundamental type");
+                #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wdeprecated"
+  #pragma gcc diagnostic push
+  #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
+  // TODO(klecki): CONTIGUOUS ERROR
   destination = tl.template data<remove_cp<T>>();
+  #pragma clang diagnostic pop
+  #pragma gcc diagnostic pop
 }
 
 }  // namespace utils

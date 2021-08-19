@@ -61,8 +61,8 @@ void FillTensorList(
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   // TODO(klecki): CONTIGUOUS ERROR
     Dst *data = dst.mutable_data<Dst>();
-  #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
+  #pragma clang diagnostic pop
 
     Fill<<<dim3(blocks), dim3(threads), 0, stream>>>(data, size, opaque(ConvertSat<Dst>(src[0])));
   } else {
