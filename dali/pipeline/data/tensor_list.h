@@ -128,7 +128,7 @@ class DLL_PUBLIC TensorList : public Buffer<Backend> {
 
     use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || other.is_pinned()) &&
                        (std::is_same<Backend, GPUBackend>::value || pinned_);
-    type_.template Copy<Backend, SrcBackend>(this->Buffer<Backend>::raw_mutable_data(), dynamic_cast<const Buffer<Backend>&>(other).raw_data(),
+    type_.template Copy<Backend, SrcBackend>(this->Buffer<Backend>::raw_mutable_data(), dynamic_cast<const Buffer<SrcBackend>&>(other).raw_data(),
                                              this->size(), stream, use_copy_kernel);
   }
 
