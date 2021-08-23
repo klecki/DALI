@@ -195,15 +195,6 @@ class DLL_PUBLIC ScatterGatherCPU : public ScatterGatherBase {
 };
 
 
-/**
- * @brief Dummy class that can be used in conditional member definition for CPU backend
- *        to not use GPU implementation there.
- */
-struct NoOpScatterGatherPlaceholder {
-  explicit NoOpScatterGatherPlaceholder(size_t) {}
-};
-
-
 }  // namespace kernels
 }  // namespace dali
 
