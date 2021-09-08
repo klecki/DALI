@@ -61,7 +61,7 @@ class BrightnessContrastTest : public testing::DaliOperatorTest {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
     auto ptr = tl->template mutable_data<InputDataType>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

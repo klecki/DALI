@@ -105,7 +105,7 @@ std::unique_ptr<TensorList<Backend>> ToTensorList(const TestSample (&sample)[N])
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   auto ptr = tl->template mutable_data<float>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
@@ -123,7 +123,7 @@ std::vector<Roi> FromTensorListPtr(const TensorList<Backend> *tl) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   auto ptr = tl->template data<float>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

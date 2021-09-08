@@ -32,7 +32,7 @@
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
 namespace dali {
 
 template <typename ThreadCount>

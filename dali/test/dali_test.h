@@ -159,8 +159,7 @@ class DALITest : public ::testing::Test {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // #pragma clang diagnostic pop
-  #pragma gcc diagnostic pop
+  // TODO(klecki): Done
     tl->template mutable_data<uint8>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
@@ -193,7 +192,7 @@ class DALITest : public ::testing::Test {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
     tl->template mutable_data<uint8>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

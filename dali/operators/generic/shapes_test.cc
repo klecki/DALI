@@ -39,7 +39,7 @@ void GenerateShapeTestInputs(TensorList<Backend> &out, RNG &rng, int num_samples
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   (void)out.template mutable_data<uint8_t>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

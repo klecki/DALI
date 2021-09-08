@@ -51,7 +51,7 @@ void pointer_to_data(const TensorList<Backend> &tl, T &destination) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   destination = tl.template data<remove_cp<T>>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

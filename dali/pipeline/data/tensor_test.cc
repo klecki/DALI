@@ -356,7 +356,7 @@ TYPED_TEST(TensorTest, TestShareData) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   tl.template mutable_data<float>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
@@ -409,7 +409,7 @@ TYPED_TEST(TensorTest, TestCopyEmptyToTensorList) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   tl.template mutable_data<float>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

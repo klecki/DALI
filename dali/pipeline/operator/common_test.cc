@@ -81,7 +81,7 @@ TEST(PipelineCommon, GetShapeLikeArgumentInput) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   float *shape_data = input->mutable_data<float>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
@@ -112,7 +112,7 @@ TEST(PipelineCommon, GetShapeLikeArgumentInput) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   shape_data = input->mutable_data<float>();
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop

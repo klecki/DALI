@@ -566,7 +566,7 @@ void TestRunExternalSource(Pipeline &pipe, const std::string &name,
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): done
     input_cpu.mutable_data<uint8_t>()[i] = i % 255;
   #pragma clang diagnostic pop
   #pragma gcc diagnostic pop
@@ -598,7 +598,7 @@ void TestRunExternalSource(Pipeline &pipe, const std::string &name,
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): done
   ASSERT_EQ(
       memcmp(input_cpu.data<uint8_t>(), output_cpu.data<uint8_t>(), input_shape.num_elements()),
       0);

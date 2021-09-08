@@ -29,7 +29,7 @@ void Dummy<::dali::GPUBackend>::RunImpl(::dali::DeviceWorkspace &ws) {
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
   CUDA_CALL(cudaMemcpyAsync(
-    // TODO(klecki): CONTIGUOUS ERROR
+    // TODO(klecki): Done
           output.raw_mutable_data(),
           input.raw_data(),
           input.nbytes(),

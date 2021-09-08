@@ -342,7 +342,7 @@ TEST(ArithmeticOpsTest, GenericPipeline) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
 
   const auto *data = batch.data<int>();
 
@@ -407,7 +407,7 @@ TEST(ArithmeticOpsTest, FdivPipeline) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
 
   const auto *data0 = batch[0].data<int>();
   const auto *data1 = batch[1].data<int>();
@@ -469,7 +469,7 @@ TEST(ArithmeticOpsTest, ConstantsPipeline) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
 
   const auto *data = batch.data<int>();
   auto *result0 = ws.OutputRef<CPUBackend>(0).data<int32_t>();
@@ -539,7 +539,7 @@ class ArithmeticOpsScalarTest :  public ::testing::TestWithParam<shape_sequence>
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
       const auto *data0 = batch[0].data<int>();
       const auto *data1 = batch[1].data<int>();
 
@@ -695,7 +695,7 @@ TEST(ArithmeticOpsTest, UnaryPipeline) {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): Done
   auto *result0 = ws.OutputRef<CPUBackend>(0).data<int32_t>();
 
   auto *result1 = ws.OutputRef<GPUBackend>(1).data<int32_t>();

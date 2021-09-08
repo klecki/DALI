@@ -767,7 +767,7 @@ class DALISingleOpTest : public DALITest {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): done
         colorIdx = CheckBuffers<float>(t1->size(),
                           t1->data<float>(),
                           t2->data<float>(), checkAll, &mean);
@@ -779,7 +779,7 @@ class DALISingleOpTest : public DALITest {
   #pragma clang diagnostic ignored "-Wdeprecated"
   #pragma gcc diagnostic push
   #pragma gcc diagnostic ignored "-Wdeprecated-declarations"
-  // TODO(klecki): CONTIGUOUS ERROR
+  // TODO(klecki): done
         colorIdx = CheckBuffers<unsigned char>(t1->size(),
                           t1->data<unsigned char>(),
                           t2->data<unsigned char>(), checkAll, &mean);
