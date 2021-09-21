@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,25 +14,25 @@
 
 project(dali_operator CUDA CXX C)
 
-add_subdirectory(audio)
-add_subdirectory(bbox)
-add_subdirectory(geometry)
-add_subdirectory(debug)
+# add_subdirectory(audio)
+# add_subdirectory(bbox)
+# add_subdirectory(geometry)
+# add_subdirectory(debug)
 add_subdirectory(decoder)
 add_subdirectory(generic)
 add_subdirectory(image)
-add_subdirectory(math)
-add_subdirectory(random)
+# add_subdirectory(math)
+# add_subdirectory(random)
 add_subdirectory(reader)
-add_subdirectory(segmentation)
-add_subdirectory(sequence)
-add_subdirectory(signal)
-add_subdirectory(ssd)
+# add_subdirectory(segmentation)
+# add_subdirectory(sequence)
+# add_subdirectory(signal)
+# add_subdirectory(ssd)
 add_subdirectory(util)
-add_subdirectory(numba_function)
-if (BUILD_PYTHON)
-  add_subdirectory(python_function)
-endif()
+# add_subdirectory(numba_function)
+# if (BUILD_PYTHON)
+#   add_subdirectory(python_function)
+# endif()
 
 # Get all the source files and dump test files
 collect_headers(DALI_INST_HDRS PARENT_SCOPE)
