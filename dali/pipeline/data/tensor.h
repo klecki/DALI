@@ -88,6 +88,10 @@ class Tensor : public Buffer<Backend> {
 
   /**
    * Loads the Tensor with data from a span.
+   *
+   * TODO(klecki): get rid of member functions that are intended to be used for purpose of one
+   * operator.
+   * The Tensor interface can be rather simple.
    */
   template <typename T>
   inline void Copy(span<T> data, cudaStream_t stream) {
