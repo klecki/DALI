@@ -158,7 +158,7 @@ class DALITest : public ::testing::Test {
     tl->Resize(shape, DALI_UINT8);
     for (int i = 0; i < n; ++i) {
       std::memcpy(tl->template mutable_tensor<uint8>(i),
-                  images[i % images.size()].data(), volume(tl->tensor_shape(i)));
+                  images[i % images.size()].data(), volume(tl->shape()[i]));
     }
   }
 

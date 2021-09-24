@@ -177,11 +177,11 @@ class TransformShearCPU
     ArgValueFlags flags = ArgValue_EnforceUniform;
     if (shear_.HasExplicitValue()) {
       shear_.Acquire(spec, ws, nsamples_, flags, shape_from_size);
-      ndim_ = analyze_shape(shear_.get().tensor_shape(0));
+      ndim_ = analyze_shape(shear_.get().shape()[0]);
     } else {
       assert(angles_.HasExplicitValue());
       angles_.Acquire(spec, ws, nsamples_, flags, shape_from_size);
-      ndim_ = analyze_shape(angles_.get().tensor_shape(0));
+      ndim_ = analyze_shape(angles_.get().shape()[0]);
       for (int i = 0; i < angles_.size(); i++) {
         const auto& angles = angles_[i];
         for (int j = 0; j < angles.num_elements(); j++) {

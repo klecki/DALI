@@ -228,8 +228,8 @@ void TransposeVerify(const testing::TensorListWrapper& input,
   for (decltype(out->num_samples()) i = 0; i < out->num_samples(); i++) {
     CheckTransposition(in->tensor<int>(i),
                        out->tensor<int>(i),
-                       in->tensor_shape(i),
-                       out->tensor_shape(i),
+                       in->shape()[i],
+                       out->shape()[i],
                        perm);
   }
 }

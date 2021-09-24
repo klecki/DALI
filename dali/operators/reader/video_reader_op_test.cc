@@ -149,7 +149,7 @@ TEST_F(VideoReaderTest, MultipleVideoResolution) {
 
   for (int i = 0; i < batch_size; ++i) {
     const auto *labels = labels_cpu.tensor<int>(i);
-    auto frames_shape = frames_output.tensor_shape(i);
+    auto frames_shape = frames_output.shape()[i];
 
     switch (labels[0]) {
       case 0:
