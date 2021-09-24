@@ -189,7 +189,7 @@ class Tensor : public Buffer<Backend> {
    * a valid type, and the given index must be in the valid range
    * [0, tl.ntensor()).
    *
-   * If sucessful, the tensor object will wrap the target data and
+   * If successful, the tensor object will wrap the target data and
    * assume the datatype of the data stored in the TensorList.
    *
    * Because we are storing the pointer of the TensorList at an
@@ -228,7 +228,7 @@ class Tensor : public Buffer<Backend> {
 
   /**
    * @brief Wraps the data owned by the input tensor. The input
-   * tensor must have a valid type. If sucessful, the tensor
+   * tensor must have a valid type. If successful, the tensor
    * object will wrap the target data and assume the datatype
    * and shape of the data stored in the Tensor.
    *
