@@ -29,6 +29,21 @@
 
 namespace dali {
 
+
+template <typename Backend>
+class TensorVector : public TensorBatch<Backend> {
+  using TensorBatch<Backend>::TensorBatch;
+ public:
+  explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl) {}
+
+  shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true) {
+    return {};
+  }
+
+  // OH GOD WHY
+  void ShareWith(TensorList<Backend> *in_tl) const {}
+};
+
 /**
  * @brief Merges TensorList<Backend> and std::vector<std::shared_ptr<Tensor<Backend>>> APIs
  * providing an uniform way of handling a collection/batch of tensors_.
@@ -37,199 +52,196 @@ namespace dali {
  *
  * @tparam Backend
  */
-template <typename Backend>
-class DLL_PUBLIC TensorVector {
- public:
-  TensorVector();
+// template <typename Backend>
+// class DLL_PUBLIC TensorVector {
+//  public:
+//   TensorVector();
 
-  /**
-   * @brief This constructor allows to create a TensorVector with `batch_size` samples,
-   * that will be accessible as individual samples that can currently be individually resized which
-   * is still utilized by the legacy operators.
-   *
-   * TODO(klecki): The API for empty tensor batch container of given number of samples
-   * will be adjusted in next releases.
-   */
-  explicit TensorVector(int batch_size);
+//   explicit TensorVector(int batch_size);
 
-  explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl);
+//   explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl);
 
-  TensorVector(const TensorVector &) = delete;
-  TensorVector &operator=(const TensorVector &) = delete;
+//   TensorVector(const TensorVector &) = delete;
+//   TensorVector &operator=(const TensorVector &) = delete;
 
-  DLL_PUBLIC TensorVector<Backend>(TensorVector<Backend> &&other) noexcept;
+//   DLL_PUBLIC TensorVector<Backend>(TensorVector<Backend> &&other) noexcept;
 
-  Tensor<Backend> &operator[](size_t pos) {
-    return *(tensors_[pos]);
-  }
+//   Tensor<Backend> &operator[](size_t pos) {
+//     return *(tensors_[pos]);
+//   }
 
-  const Tensor<Backend> &operator[](size_t pos) const {
-    return *(tensors_[pos]);
-  }
+//   const Tensor<Backend> &operator[](size_t pos) const {
+//     return *(tensors_[pos]);
+//   }
 
-  auto tensor_handle(size_t pos) {
-    return tensors_[pos];
-  }
+//   auto tensor_handle(size_t pos) {
+//     return tensors_[pos];
+//   }
 
-  auto tensor_handle(size_t pos) const {
-    return tensors_[pos];
-  }
+//   auto tensor_handle(size_t pos) const {
+//     return tensors_[pos];
+//   }
 
-  auto begin() noexcept {
-    return tensors_.begin();
-  }
+//   auto begin() noexcept {
+//     return tensors_.begin();
+//   }
 
-  auto begin() const noexcept {
-    return tensors_.begin();
-  }
+//   auto begin() const noexcept {
+//     return tensors_.begin();
+//   }
 
-  auto cbegin() const noexcept {
-    return tensors_.cbegin();
-  }
+//   auto cbegin() const noexcept {
+//     return tensors_.cbegin();
+//   }
 
-  auto end() noexcept {
-    return tensors_.end();
-  }
+//   auto end() noexcept {
+//     return tensors_.end();
+//   }
 
-  auto end() const noexcept {
-    return tensors_.end();
-  }
+//   auto end() const noexcept {
+//     return tensors_.end();
+//   }
 
-  auto cend() const noexcept {
-    return tensors_.cend();
-  }
+//   auto cend() const noexcept {
+//     return tensors_.cend();
+//   }
 
-  size_t num_samples() const noexcept {
-    return curr_tensors_size_;
-  }
+//   auto size() const noexcept {
+//     return curr_tensors_size_;
+//   }
 
-  int sample_dim() const {
-    return IsContiguous() ? tl_->sample_dim() : num_samples() ? tensors_[0]->shape().size() : 0;
-  }
+//   size_t ntensor() const noexcept {
+//     return curr_tensors_size_;
+//   }
 
-  size_t nbytes() const noexcept;
+//   int sample_dim() const {
+//     return IsContiguous() ? tl_->sample_dim() : ntensor() ? tensors_[0]->shape().size() : 0;
+//   }
 
-  size_t capacity() const noexcept;
+//   size_t nbytes() const noexcept;
 
-  TensorListShape<> shape() const;
+//   size_t capacity() const noexcept;
 
-  const TensorShape<> &tensor_shape(int idx) const {
-    return tensors_[idx]->shape();
-  }
+//   TensorListShape<> shape() const;
 
-  const void *raw_tensor(int idx) const {
-    return tensors_[idx]->raw_data();
-  }
+//   const TensorShape<> &tensor_shape(int idx) const {
+//     return tensors_[idx]->shape();
+//   }
 
-  void* raw_mutable_tensor(int idx) {
-    return tensors_[idx]->raw_mutable_data();
-  }
+//   const void *raw_tensor(int idx) const {
+//     return tensors_[idx]->raw_data();
+//   }
 
-  DLL_PUBLIC void Resize(const TensorListShape<> &new_shape) {
-    DALI_ENFORCE(IsValidType(type()),
-                 "TensorVector has no type, 'set_type<T>()' or Resize(shape, type) must be called "
-                 "on the TensorVector to set a valid type before it can be resized.");
-    return Resize(new_shape, type());
-  }
+//   void* raw_mutable_tensor(int idx) {
+//     return tensors_[idx]->raw_mutable_data();
+//   }
 
-  DLL_PUBLIC void Resize(const TensorListShape<> &new_shape, DALIDataType new_type);
+//   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape) {
+//     return Resize(new_shape, type());
+//   }
 
-  /**
-   * Change the number of tensors that can be accessed as samples without the need to
-   * set them a size.
-   * @param new_size
-   */
-  void SetSize(int new_size);
+//   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape, DALIDataType new_type);
 
-  void set_type(DALIDataType new_type);
+//   /**
+//    * Change the number of tensors in the TensorVector, without the need of
+//    * specifying the shape of every such tensor. When setting the new size,
+//    * this function will retain the shapes that already exist. New tensors
+//    * are given a shape of 0-volume and appropriate dimension.
+//    * @param new_size
+//    */
+//   void SetSize(int new_size);
 
-  template <typename T>
-  void set_type() {
-    set_type(TypeTable::GetTypeId<T>());
-  }
+//   void set_type(DALIDataType new_type);
 
-  DALIDataType type() const;
+//   template <typename T>
+//   void set_type() {
+//     set_type(TypeTable::GetTypeID<T>());
+//   }
 
-  const TypeInfo &type_info() const;
+//   DALIDataType type() const;
 
-  /** @brief Set uniform layout for all samples in the list */
-  void SetLayout(const TensorLayout &layout);
+//   const TypeInfo &type_info() const;
 
-  TensorLayout GetLayout() const;
+//   /** @brief Set uniform layout for all samples in the list */
+//   void SetLayout(const TensorLayout &layout);
 
-  const DALIMeta &GetMeta(int idx) const;
+//   TensorLayout GetLayout() const;
 
-  void SetMeta(int idx, const DALIMeta &meta);
+//   const DALIMeta &GetMeta(int idx) const;
 
-  void set_pinned(bool pinned);
+//   void SetMeta(int idx, const DALIMeta &meta);
 
-  bool is_pinned() const;
+//   void set_pinned(bool pinned);
 
-  /**
-   * @brief Reserve as contiguous tensor list internally
-   */
-  void reserve(size_t total_bytes);
+//   bool is_pinned() const;
 
-  /**
-   * @brief Reserve as vector of `batch_size` tensors internally
-   */
-  void reserve(size_t bytes_per_sample, int batch_size);
+//   /**
+//    * @brief Reserve as contiguous tensor list internally
+//    */
+//   void reserve(size_t total_bytes);
 
-  /**
-   * @brief If the TensorVector is backed by TensorList (contiguous memory)
-   */
-  bool IsContiguous() const noexcept;
+//   /**
+//    * @brief Reserve as vector of `batch_size` tensors internally
+//    */
+//   void reserve(size_t bytes_per_sample, int batch_size);
 
-  /**
-   * @brief Set the current state if further calls like Resize() or set_type
-   *        should use TensorList or std::vector<Tensor> as backing memory
-   */
-  void SetContiguous(bool contiguous);
+//   /**
+//    * @brief If the TensorVector is backed by TensorList (contiguous memory)
+//    */
+//   bool IsContiguous() const noexcept;
 
-  void Reset();
+//   /**
+//    * @brief Set the current state if further calls like Resize() or set_type
+//    *        should use TensorList or std::vector<Tensor> as backing memory
+//    */
+//   void SetContiguous(bool contiguous);
 
-  template <typename SrcBackend>
-  void Copy(const TensorList<SrcBackend> &in_tl, cudaStream_t stream);
+//   void Reset();
 
-  template <typename SrcBackend>
-  void Copy(const TensorVector<SrcBackend> &in_tv, cudaStream_t stream);
+//   template <typename SrcBackend>
+//   void Copy(const TensorList<SrcBackend> &in_tl, cudaStream_t stream);
 
-  void ShareData(TensorList<Backend> &in_tl);
+//   template <typename SrcBackend>
+//   void Copy(const TensorVector<SrcBackend> &in_tv, cudaStream_t stream);
 
-  void ShareData(TensorVector<Backend> &tv);
+//   void ShareData(TensorList<Backend> *in_tl);
 
-  TensorVector<Backend> &operator=(TensorVector<Backend> &&other) noexcept;
+//   void ShareWith(TensorList<Backend> *in_tl) const;
 
-  void UpdateViews();
+//   void ShareData(TensorVector<Backend> *tv);
 
-  shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true);
+//   TensorVector<Backend> &operator=(TensorVector<Backend> &&other) noexcept;
 
- private:
-  enum class State { contiguous, noncontiguous };
+//   void UpdateViews();
 
-  struct ViewRefDeleter {
-    void operator()(void*) { --*ref; }
-    std::atomic<int> *ref;
-  };
+//   shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true);
 
-  void resize_tensors(int size);
+//  private:
+//   enum class State { contiguous, noncontiguous };
 
-  void update_view(int idx);
+//   struct ViewRefDeleter {
+//     void operator()(void*) { --*ref; }
+//     std::atomic<int> *ref;
+//   };
 
-  std::atomic<int> views_count_;
-  std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
-  size_t curr_tensors_size_;
-  std::shared_ptr<TensorList<Backend>> tl_;
-  State state_ = State::noncontiguous;
-  // pinned status and type info should be uniform
-  bool pinned_ = true;
-  TypeInfo type_{};
+//   void resize_tensors(int size);
 
-  // So we can access the members of other TensorVectors
-  // with different template types
-  template <typename InBackend>
-  friend class TensorVector;
-};
+//   void update_view(int idx);
+
+//   std::atomic<int> views_count_;
+//   std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
+//   size_t curr_tensors_size_;
+//   std::shared_ptr<TensorList<Backend>> tl_;
+//   State state_ = State::noncontiguous;
+//   // pinned status and type info should be uniform
+//   bool pinned_ = true;
+//   TypeInfo type_{};
+
+//   // So we can access the members of other TensorVectors
+//   // with different template types
+//   template <typename InBackend>
+//   friend class TensorVector;
+// };
 
 }  // namespace dali
 

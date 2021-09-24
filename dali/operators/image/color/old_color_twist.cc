@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -232,15 +232,15 @@ void OldColorTwistBase<GPUBackend>::RunImpl(DeviceWorkspace &ws) {
         (*augments_[j])(m);
       }
       NppiSize size;
-      size.height = input.tensor_shape(i)[0];
-      size.width = input.tensor_shape(i)[1];
+      size.height = input.shape()[i][0];
+      size.width = input.shape()[i][1];
       const int nStep = C_ * size.width;  // W * C
       colorTwistFunc twist_func = C_ == 3 ? nppiColorTwist32f_8u_C3R : nppiColorTwist32f_8u_C1R;
       DALI_CHECK_NPP(twist_func(input.tensor<uint8_t>(i), nStep, output.mutable_tensor<uint8_t>(i),
                                 nStep, size, matrix));
     } else {
       CUDA_CALL(cudaMemcpyAsync(output.raw_mutable_tensor(i), input.raw_tensor(i),
-                                volume(input.tensor_shape(i)), cudaMemcpyDefault, ws.stream()));
+                                volume(input.shape()[i]), cudaMemcpyDefault, ws.stream()));
     }
   }
   nppSetStream(old_stream);

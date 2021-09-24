@@ -55,6 +55,7 @@ class ArgumentWorkspace {
     argument_inputs_[arg_name] = { std::move(input), false };
   }
 
+  // TODO
   void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
     argument_inputs_[arg_name] = {
       std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
@@ -67,7 +68,8 @@ class ArgumentWorkspace {
     DALI_ENFORCE(it != argument_inputs_.end(), "Argument \"" + arg_name + "\" not found.");
     if (it->second.should_update) {
       // the underlying tensor list might have changed - update the views
-      it->second.tvec->UpdateViews();
+      // TODO: no need to update. it could not have changed that way?
+      // it->second.tvec->UpdateViews();
     }
     return *it->second.tvec;
   }

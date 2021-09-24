@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,7 +69,7 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
 
     for (size_t i = 0; i < encoded_data.num_samples(); ++i) {
       auto *data = encoded_data.tensor<unsigned char>(i);
-      auto data_size = volume(encoded_data.tensor_shape(i));
+      auto data_size = volume(encoded_data.shape()[i]);
       this->DecodeImage(
         data, data_size, c, this->ImageType(),
         &out[i], GetCropWindowGenerator(i));
