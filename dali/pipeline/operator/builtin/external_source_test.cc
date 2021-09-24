@@ -157,7 +157,7 @@ class ExternalSourceTest : public::testing::WithParamInterface<int>,
     tl_cpu_.Resize(shape, DALI_INT32);
     for (int j = 0; j < this->batch_size_; ++j) {
       auto data = tl_cpu_.template mutable_tensor<int>(j);
-      for (int i = 0; i < volume(tl_cpu_.tensor_shape(j)); ++i) {
+      for (int i = 0; i < volume(tl_cpu_.shape()[j]); ++i) {
         data[i] = fill_counter_;
         ++fill_counter_;
       }
@@ -173,7 +173,7 @@ class ExternalSourceTest : public::testing::WithParamInterface<int>,
     tensor_list.Resize(shape, DALI_INT32);
     for (int j = 0; j < this->batch_size_; ++j) {
       auto data = tensor_list.template mutable_tensor<int>(j);
-      for (int i = 0; i < volume(tensor_list.tensor_shape(j)); ++i) {
+      for (int i = 0; i < volume(tensor_list.shape()[j]); ++i) {
         data[i] = fill_counter_;
         ++fill_counter_;
       }
@@ -199,7 +199,7 @@ class ExternalSourceTest : public::testing::WithParamInterface<int>,
 
     for (int j = 0; j < this->batch_size_; ++j) {
       auto data = tensor_cpu_list.template mutable_tensor<int>(j);
-      for (int i = 0; i < volume(tensor_cpu_list.tensor_shape(j)); ++i) {
+      for (int i = 0; i < volume(tensor_cpu_list.shape()[j]); ++i) {
         if (data[i] != check_counter_) {
           return false;
         }

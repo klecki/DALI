@@ -668,15 +668,15 @@ void ExposeTensorList(py::module &m) {
           DALI_ENFORCE(static_cast<size_t>(id) < tl.num_samples(), "Index is out-of-range.");
           DALI_ENFORCE(id >= 0, "Index is out-of-range.");
 
-          std::vector<ssize_t> shape(tl.tensor_shape(id).size()),
-                                     stride(tl.tensor_shape(id).size());
+          std::vector<ssize_t> shape(tl.shape()[id].size()),
+                                     stride(tl.shape()[id].size());
           size_t dim_prod = 1;
           for (size_t i = 0; i < shape.size(); ++i) {
-            shape[i] = tl.tensor_shape(id)[i];
+            shape[i] = tl.shape()[id][i];
 
             // We iterate over stride backwards
             stride[(stride.size()-1) - i] = tl.type_info().size()*dim_prod;
-            dim_prod *= tl.tensor_shape(id)[(shape.size()-1) - i];
+            dim_prod *= tl.shape()[id][(shape.size()-1) - i];
           }
 
           return py::array(py::buffer_info(
@@ -731,7 +731,7 @@ void ExposeTensorList(py::module &m) {
             type_size = sizeof(float);
           }
 
-          auto shape_size = tl.shape().size() > 0 ? tl.tensor_shape(0).size() : 0;
+          auto shape_size = tl.shape().size() > 0 ? tl.shape()[0].size() : 0;
           std::vector<ssize_t> shape(shape_size + 1);
           std::vector<ssize_t> strides(shape_size + 1);
           size_t dim_prod = 1;
@@ -739,7 +739,7 @@ void ExposeTensorList(py::module &m) {
             if (i == 0) {
               shape[i] = tl.shape().size();
             } else {
-              shape[i] = tl.tensor_shape(0)[i - 1];
+              shape[i] = tl.shape()[0][i - 1];
             }
 
             // We iterate over stride backwards
@@ -747,7 +747,7 @@ void ExposeTensorList(py::module &m) {
             if (i == shape.size() - 1) {
               dim_prod *= tl.shape().size();
             } else {
-              dim_prod *= tl.tensor_shape(0)[(shape.size()-2) - i];
+              dim_prod *= tl.shape()[0][(shape.size()-2) - i];
             }
           }
 

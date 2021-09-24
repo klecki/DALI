@@ -68,9 +68,9 @@ class VideoReaderResize : public VideoReader,
     TensorListShape<> input_shape(1, sequence_dim);
     for (size_t data_idx = 0; data_idx < video_batch.num_samples(); ++data_idx) {
       TensorList<GPUBackend> input;
-      input_shape.set_tensor_shape(0, video_batch.tensor_shape(data_idx));
+      input_shape.set_tensor_shape(0, video_batch.shape()[data_idx]);
       input.ShareData(video_batch.raw_mutable_tensor(data_idx),
-                      volume(video_batch.tensor_shape(data_idx)) * video_batch.type_info().size(),
+                      volume(video_batch.shape()[data_idx]) * video_batch.type_info().size(),
                       input_shape, video_batch.type());
 
       TensorList<GPUBackend> output;

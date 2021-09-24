@@ -563,8 +563,8 @@ TYPED_TEST(ExecutorSyncTest, TestPrefetchedExecution) {
   TensorListShape<> shape1(batch_size, tl.shape().sample_dim()),
       shape2(batch_size, tl.shape().sample_dim());
   for (int i = 0; i < batch_size; ++i) {
-    shape1.set_tensor_shape(i, tl.tensor_shape(i));
-    shape2.set_tensor_shape(i, tl.tensor_shape(i+batch_size));
+    shape1.set_tensor_shape(i, tl.shape()[i]);
+    shape2.set_tensor_shape(i, tl.shape()[i+batch_size]);
   }
   tl1.Resize(shape1, DALI_UINT8);
   tl2.Resize(shape2, DALI_UINT8);
@@ -572,11 +572,11 @@ TYPED_TEST(ExecutorSyncTest, TestPrefetchedExecution) {
     std::memcpy(
         tl1.template mutable_tensor<uint8>(i),
         tl.template tensor<uint8>(i),
-        volume(tl.tensor_shape(i)));
+        volume(tl.shape()[i]));
     std::memcpy(
         tl2.template mutable_tensor<uint8>(i),
         tl.template tensor<uint8>(i+batch_size),
-        volume(tl.tensor_shape(i+batch_size)));
+        volume(tl.shape()[i+batch_size]));
   }
 
   // Run twice without getting the results
@@ -603,8 +603,8 @@ TYPED_TEST(ExecutorSyncTest, TestPrefetchedExecution) {
   for (int i = 0; i < batch_size; ++i) {
     this->VerifyDecode(
         res1.template tensor<uint8>(i),
-        res1.tensor_shape(i)[0],
-        res1.tensor_shape(i)[1], i);
+        res1.shape()[i][0],
+        res1.shape()[i][1], i);
   }
 
   exe->Outputs(&ws);
@@ -619,8 +619,8 @@ TYPED_TEST(ExecutorSyncTest, TestPrefetchedExecution) {
   for (int i = 0; i < batch_size; ++i) {
     this->VerifyDecode(
         res2.template tensor<uint8>(i),
-        res2.tensor_shape(i)[0],
-        res2.tensor_shape(i)[1],
+        res2.shape()[i][0],
+        res2.shape()[i][1],
         i+batch_size);
   }
 }
