@@ -71,7 +71,7 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
     int rsz_h, rsz_w;
     for (size_t i = 0; i < image_data.num_samples(); ++i) {
       auto *data = image_data.tensor<unsigned char>(i);
-      auto shape = image_data.tensor_shape(i);
+      auto shape = image_data.shape()[i];
       const int H = shape[0], W = shape[1];
 
       // determine resize parameters

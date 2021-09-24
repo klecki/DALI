@@ -77,7 +77,7 @@ class ElementExtractTest : public DaliOperatorTest {
             for (int k = 0; k < element_map_size; k++) {
                 auto idx = in_idx * element_map_size + k;
                 auto element_idx = element_map_[k];
-                auto shape = output_tl->tensor_shape(idx);
+                auto shape = output_tl->shape()[idx];
                 const auto *data = output_tl->tensor<T>(idx);
                 ASSERT_NE(nullptr, data);
                 TensorShape<> expected_shape{H_, W_, C_};

@@ -87,6 +87,10 @@ class Tensor : public Buffer<Backend> {
 
   /**
    * Loads the Tensor with data from a span.
+   *
+   * TODO(klecki): get rid of member functions that are intended to be used for purpose of one
+   * operator.
+   * The Tensor interface can be rather simple.
    */
   template <typename T>
   inline void Copy(span<T> data, cudaStream_t stream) {
@@ -115,7 +119,7 @@ class Tensor : public Buffer<Backend> {
   template <typename InBackend>
   inline void Copy(const TensorList<InBackend> &other, int idx, cudaStream_t stream) {
     this->Resize(shape_, other.type());
-    shape_ = other.tensor_shape(idx);
+    shape_ = other.shape()[idx];
     device_ = other.device_id();
     this->SetLayout(other.GetLayout());
     this->SetSourceInfo(other.GetSourceInfo(idx));
@@ -135,7 +139,7 @@ class Tensor : public Buffer<Backend> {
                  "Tensor has no type, 'set_type<T>()' or Resize(shape, type) must be called "
                  "on the Tensor to set a valid type before it can be resized.");
     Index new_size = volume(shape);
-    ResizeHelper(new_size);
+    resize(new_size);
     shape_ = shape;
   }
 
@@ -150,7 +154,7 @@ class Tensor : public Buffer<Backend> {
                  "Tensor cannot be resized with invalid type. To zero out the Tensor "
                  "Reset() can be used.");
     Index new_size = volume(shape);
-    ResizeHelper(new_size, new_type);
+    resize(new_size, new_type);
     shape_ = shape;
   }
 
@@ -190,7 +194,7 @@ class Tensor : public Buffer<Backend> {
    * shared data or the call will fail.
    * Size can be set to 0 and type to NoType as intermediate step.
    */
-  inline void ShareData(Tensor<Backend> &t) {
+  inline void ShareData(const Tensor<Backend> &t) {
     DALI_ENFORCE(IsValidType(t.type()), "To share data, "
         "the input Tensor must have a valid data type.");
 
@@ -383,8 +387,8 @@ class Tensor : public Buffer<Backend> {
     return true;
   }
 
-  Tensor<Backend>(const Tensor<Backend>&) = delete;
-  Tensor<Backend>& operator=(const Tensor<Backend>&) = delete;
+  Tensor<Backend>(const Tensor<Backend>&) = default;
+  Tensor<Backend>& operator=(const Tensor<Backend>&) = default;
 
   Tensor<Backend>(Tensor<Backend> &&t) noexcept {
     // Steal all data and set input to default state
@@ -440,10 +444,10 @@ class Tensor : public Buffer<Backend> {
     return meta_.ShouldSkipSample();
   }
 
+  USE_BUFFER_MEMBERS(); // TODO: some mebers should be public
  protected:
   TensorShape<> shape_ = { 0 };
   DALIMeta meta_;
-  USE_BUFFER_MEMBERS();
 
   // So TensorVector can access data_ of the tensor directly
   template <typename InBackend>
