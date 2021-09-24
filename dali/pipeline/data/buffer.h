@@ -401,6 +401,8 @@ class DLL_PUBLIC Buffer {
     }
   }
 
+
+ protected:
   void move_buffer(Buffer &&buffer) {
     type_         = std::move(buffer.type_);
     data_         = std::move(buffer.data_);
