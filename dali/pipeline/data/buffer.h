@@ -76,6 +76,13 @@ inline string ShapeString(vector<Index> shape) {
  *
  * Buffers should be used to store POD types only. No construction or
  * destruction is provided, only raw memory allocation.
+ *
+ *
+ * We enable move & copy for Buffer. Buffer should behave as shared_ptr + some metadata.
+ * Details about who now is the owner of allocation and who shares the memory might get fuzzy
+ * and some may go out of the use in that case.
+ *
+ * TODO(klecki): consider writing copy and move by hand - shared_ptr should behave in sane way.
  */
 template <typename Backend>
 class DLL_PUBLIC Buffer {
@@ -322,7 +329,8 @@ class DLL_PUBLIC Buffer {
     return shares_data_;
   }
 
-  DISABLE_COPY_MOVE_ASSIGN(Buffer);
+  // here be dragons
+  // DISABLE_COPY_MOVE_ASSIGN(Buffer);
 
   static void SetGrowthFactor(double factor) {
     assert(factor >= 1.0);
