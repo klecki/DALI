@@ -82,6 +82,14 @@ class TensorBatch {
 
   }
 
+  void BuildBatch(std::vector<Tensor<Backend>> &&batch) {
+
+  }
+
+  std::vector<Tensor<Backend>> MoveToSamples() {
+
+  }
+
   void ClearBatch() {
     state_ = Status::contiguous;
     local_buffer_.reset();
@@ -173,6 +181,10 @@ class TensorProxy {
   TensorShape<> shape_;
 };
 
+template <typename Backend>
+class Tensor : public TensorProxy<Backend> {
+
+};
 
 
 }  // namespace dali
