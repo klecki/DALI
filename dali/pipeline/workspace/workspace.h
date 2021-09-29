@@ -56,12 +56,12 @@ class ArgumentWorkspace {
   }
 
   // TODO
-  // void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
-  //   argument_inputs_[arg_name] = {
-  //     std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
-  //     true
-  //   };
-  // }
+  void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
+    argument_inputs_[arg_name] = {
+      std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
+      true
+    };
+  }
 
   const TensorVector<CPUBackend>& ArgumentInput(const std::string &arg_name) const {
     auto it = argument_inputs_.find(arg_name);

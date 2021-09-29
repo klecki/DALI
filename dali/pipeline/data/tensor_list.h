@@ -36,7 +36,9 @@ class Tensor;
 
 
 template <typename Backend>
-class TensorList : public TensorBatch<Backend> {};
+class TensorList : public TensorBatch<Backend> {
+  using TensorBatch<Backend>::TensorBatch;
+};
 
 // /**
 //  * @brief Stores a number of Tensors in a contiguous buffer.

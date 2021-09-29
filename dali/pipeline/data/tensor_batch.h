@@ -20,7 +20,7 @@
 
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
-#include "dali/pipeline/data/tensor.h"
+// #include "dali/pipeline/data/tensor.h"
 
 #include "dali/core/tensor_shape.h"
 
@@ -48,11 +48,11 @@ template <typename Backend>
 using TensorProxy = Tensor<Backend>;
 
 template <typename DstBackend, typename SrcBackend>
-void SimpleCopy(TensorBatch<DstBackend> &dst, TensorBatch<SrcBackend> &src, cudaStream_t stream,
+void SimpleCopy(TensorBatch<DstBackend> &dst, const TensorBatch<SrcBackend> &src, cudaStream_t stream,
                 bool use_copy_kernel);
 
 template <typename DstBackend, typename SrcBackend>
-void RichCopy(TensorBatch<DstBackend> &dst, TensorBatch<SrcBackend> &src, cudaStream_t stream,
+void RichCopy(TensorBatch<DstBackend> &dst, const TensorBatch<SrcBackend> &src, cudaStream_t stream,
           bool use_copy_kernel);
 
 
@@ -62,9 +62,20 @@ void RichCopy(TensorBatch<DstBackend> &dst, TensorBatch<SrcBackend> &src, cudaSt
 template <typename Backend>
 class TensorBatch {
  public:
-  TensorBatch() = default;
-  TensorBatch(const TensorBatch &) = default;
-  TensorBatch(TensorBatch &&) = default;
+
+  DLL_PUBLIC TensorBatch() = default;
+  DLL_PUBLIC TensorBatch(const TensorBatch &) = default;
+  DLL_PUBLIC TensorBatch& operator=(const TensorBatch&) = default;
+  DLL_PUBLIC TensorBatch(TensorBatch &&) = default;
+  DLL_PUBLIC TensorBatch& operator=(TensorBatch&&) = default;
+
+  DLL_PUBLIC explicit TensorBatch(int batch_size) {}
+
+
+  // Weird TV constructor
+  // explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl;
+
+
   // can we make it copyable? let it share more and that's it?
   // yes we can! :D
 
@@ -132,6 +143,7 @@ class TensorBatch {
 
 
   inline void reserve(size_t new_num_bytes) {}
+  inline void reserve(size_t bytes_per_tensor, int batch_size)  {}
 
   void reset() {}
 
@@ -376,16 +388,36 @@ class TensorBatch {
 
   inline bool ShouldSkipSample(int idx) const {
     // return meta_[idx].ShouldSkipSample();
+    return false;
   }
 
   inline const DALIMeta &GetMeta(int idx) const {
     // return meta_[idx];
+    static DALIMeta meta = {};
+    return meta;
   }
 
   inline void SetMeta(int idx, const DALIMeta &meta) {
     // meta_[idx] = meta;
   }
 
+
+  static void SetGrowthFactor(double factor) {
+    // assert(factor >= 1.0);
+    // growth_factor_ = factor;
+  }
+  static void SetShrinkThreshold(double ratio) {
+    // assert(ratio >= 0 && ratio <= 1);
+    // shrink_threshold_ = ratio;
+  }
+  static double GetGrowthFactor() {
+    // return growth_factor_;
+    return 1.0;
+  }
+  static double GetShrinkThreshold() {
+    // return shrink_threshold_;
+    return 1.0;
+  }
 
 
   /** @} */  // end of LegacyBuffer
@@ -394,9 +426,6 @@ class TensorBatch {
    *
    * @{
    */
-
-
-  explicit TensorBatch(int batch_size) {}
 
   TensorProxy<Backend> &operator[](size_t pos) {
     return samples_[pos];
@@ -479,7 +508,11 @@ class TensorBatch {
    */
   template <typename InBackend>
   inline void ResizeLike(const TensorBatch<InBackend> &other) {
-    Resize(other.shape_);
+    Resize(other.shape());
+  }
+
+  DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape) {
+    Resize(new_shape, type_.id());
   }
 
   /**
@@ -731,13 +764,43 @@ class TensorBatch {
 
   // template <typename>
   // friend class TensorProxy;
+
+
+  /** @defgroup ContiguousAccessorFunctions Fallback contiguous accessors
+   * Fallback access to contiguous data to TensorList. It should not be used for processing,
+   * and can be used only for outputs of the pipeline that were made sure to be contiguous.
+   * Currently TensorList is contiguous by design, but it is up to change.
+   * @{
+   */
+
+  /**
+   * @brief Return an un-typed pointer to the underlying storage.
+   * The TensorList must be either empty or have a valid type and be contiguous.
+   */
+  friend void *unsafe_raw_mutable_data(TensorBatch<Backend> &tl) {
+    DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
+    // return tl.raw_mutable_data();
+    return nullptr;
+  }
+
+  /**
+   * @brief Return an un-typed const pointer to the underlying storage.
+   * The TensorList must be either empty or have a valid type and be contiguous.
+   */
+  friend const void *unsafe_raw_data(const TensorBatch<Backend> &tl) {
+    DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
+    // return tl.raw_data();
+    return nullptr;
+  }
+
+  /** @} */  // end of ContiguousAccessorFunctions
 };
 
 /**
  * @brief Sample by sample copy between two batches that have equal shape and size.
  */
 template <typename DstBackend, typename SrcBackend>
-void SimpleCopy(TensorBatch<DstBackend> &dst, TensorBatch<SrcBackend> &src, cudaStream_t stream,
+void SimpleCopy(TensorBatch<DstBackend> &dst, const TensorBatch<SrcBackend> &src, cudaStream_t stream,
                 bool use_copy_kernel) {
   DALI_ENFORCE(dst.shape() == src.shape() && dst.type() == src.type(),
                "Data can be copied between Tensor Batches of the same shape and type");
@@ -769,7 +832,7 @@ void SimpleCopy(TensorBatch<DstBackend> &dst, TensorBatch<SrcBackend> &src, cuda
  * @brief Rich copy with bells and whistles. It also has built-in resizing of destination.
  */
 template <typename DstBackend, typename SrcBackend>
-void RichCopy(TensorBatch<DstBackend> &dst, TensorBatch<SrcBackend> &src, cudaStream_t stream,
+void RichCopy(TensorBatch<DstBackend> &dst, const TensorBatch<SrcBackend> &src, cudaStream_t stream,
           bool use_copy_kernel) {
   dst.Resize(src.shape(), src.type());
   SimpleCopy(dst, src, stream, use_copy_kernel);

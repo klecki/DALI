@@ -494,8 +494,8 @@ class Tensor : public Buffer<Backend> {
     return true;
   }
 
-  Tensor<Backend>(const Tensor<Backend>&) = delete;
-  Tensor<Backend>& operator=(const Tensor<Backend>&) = delete;
+  Tensor<Backend>(const Tensor<Backend>&) = default;
+  Tensor<Backend>& operator=(const Tensor<Backend>&) = default;
 
   Tensor<Backend>(Tensor<Backend> &&t) noexcept {
     // Steal all data and set input to default state
