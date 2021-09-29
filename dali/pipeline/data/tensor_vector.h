@@ -31,7 +31,18 @@ namespace dali {
 
 
 template <typename Backend>
-class TensorVector : public TensorBatch<Backend> {};
+class TensorVector : public TensorBatch<Backend> {
+  using TensorBatch<Backend>::TensorBatch;
+ public:
+  explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl) {}
+
+  shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true) {
+    return {};
+  }
+
+  // OH GOD WHY
+  void ShareWith(TensorList<Backend> *in_tl) const {}
+};
 
 /**
  * @brief Merges TensorList<Backend> and std::vector<std::shared_ptr<Tensor<Backend>>> APIs
