@@ -55,21 +55,22 @@ class OperatorBench : public DALIBenchmark {
     auto op_ptr = InstantiateOperator(op_spec);
 
     auto data_in = std::make_shared<TensorVector<CPUBackend>>(batch_size);
-    for (auto &in_ptr : *data_in) {
-      in_ptr = std::make_shared<Tensor<CPUBackend>>();
-      in_ptr->set_type<T>();
-      in_ptr->Resize({H, W, C});
-      in_ptr->SetLayout("HWC");
-    }
+    // TODO
+    // for (auto &in_ptr : *data_in) {
+    //   in_ptr = std::make_shared<Tensor<CPUBackend>>();
+    //   in_ptr->set_type<T>();
+    //   in_ptr->Resize({H, W, C});
+    //   in_ptr->SetLayout("HWC");
+    // }
 
-    if (fill_in_data) {
-      for (auto &in_ptr : *data_in) {
-        auto *ptr = in_ptr->template mutable_data<T>();
-        for (int i = 0; i < N; i++) {
-          ptr[i] = static_cast<T>(i);
-        }
-      }
-    }
+    // if (fill_in_data) {
+    //   for (auto &in_ptr : *data_in) {
+    //     auto *ptr = in_ptr->template mutable_data<T>();
+    //     for (int i = 0; i < N; i++) {
+    //       ptr[i] = static_cast<T>(i);
+    //     }
+    //   }
+    // }
     // Create workspace and set input and output
     HostWorkspace ws;
     ws.AddInput(data_in);

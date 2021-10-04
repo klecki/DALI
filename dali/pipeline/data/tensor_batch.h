@@ -419,6 +419,11 @@ class TensorBatch {
     return 1.0;
   }
 
+  inline bool shares_data() const {
+    return false;
+    // return shares_data_;
+  }
+
 
   /** @} */  // end of LegacyBuffer
 
