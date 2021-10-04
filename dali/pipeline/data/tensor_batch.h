@@ -214,10 +214,6 @@ class TensorBatch {
     return shape_.sample_dim();
   }
 
-  inline TensorShape<> tensor_shape(int idx) const {
-    return shape_[idx];
-  }
-
   inline span<const int64_t> tensor_shape_span(int idx) const {
      return shape_.tensor_shape_span(idx);
   }

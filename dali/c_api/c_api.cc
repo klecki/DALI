@@ -429,7 +429,7 @@ static size_t daliMaxDimTensorsHelper(dali::DeviceWorkspace* ws, int n) {
   size_t tensors_num = out_tensor_list.ntensor();
   int max_num_dim = 0;
   for (size_t i = 0; i < tensors_num; ++i) {
-    auto shape = out_tensor_list.tensor_shape(i);
+    auto shape = out_tensor_list.shape()[i];
     int num_dim = shape.size();
     // squeeze last dimension
     if (shape[num_dim - 1] == 1) {

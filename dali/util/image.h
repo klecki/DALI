@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -130,10 +130,10 @@ void WriteBatch(const TensorList<Backend> &tl, float bias, float scale, const st
                 const std::array<int, 3> &permute, outFunc pFunc) {
   DALI_ENFORCE(IsType<T>(tl.type()));
   for (size_t i = 0; i < tl.ntensor(); ++i) {
-    DALI_ENFORCE(tl.tensor_shape(i).size() == 3);
-    int h = tl.tensor_shape(i)[permute[0]];
-    int w = tl.tensor_shape(i)[permute[1]];
-    int c = tl.tensor_shape(i)[permute[2]];
+    DALI_ENFORCE(tl.shape()[i].size() == 3);
+    int h = tl.shape()[i][permute[0]];
+    int w = tl.shape()[i][permute[1]];
+    int c = tl.shape()[i][permute[2]];
     if (std::is_same<Backend, GPUBackend>::value) {
       CUDA_CALL(cudaDeviceSynchronize());
     }

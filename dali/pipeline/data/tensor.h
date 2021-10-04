@@ -121,7 +121,7 @@ class Tensor : public Buffer<Backend> {
    */
   template <typename InBackend>
   inline void Copy(const TensorList<InBackend> &other, int idx, cudaStream_t stream) {
-    shape_ = other.tensor_shape(idx);
+    shape_ = other.shape()[idx];
     device_ = other.device_id();
     this->set_type(other.type());
     this->SetLayout(other.GetLayout());
@@ -217,7 +217,7 @@ class Tensor : public Buffer<Backend> {
     data_.reset(tl->raw_mutable_tensor(idx), [](void *) {});
 
     // Get the meta-data for the target tensor
-    shape_ = tl->tensor_shape(idx);
+    shape_ = tl->shape()[idx];
     size_ = volume(shape_);
     type_ = tl->type_info();
     num_bytes_ = type_.size() * size_;
@@ -387,7 +387,7 @@ class Tensor : public Buffer<Backend> {
     data_.reset(tl->raw_mutable_tensor(0), [](void *) {});
 
     // Get the meta-data for the target tensor
-    shape_ = shape_cat(tl->ntensor(), tl->tensor_shape(0));
+    shape_ = shape_cat(tl->ntensor(), tl->shape()[0]);
     size_ = volume(shape_);
     type_ = tl->type_info();
     num_bytes_ = type_.size() * size_;

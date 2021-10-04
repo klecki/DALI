@@ -581,7 +581,7 @@ void RandomObjectBBox::RunImpl(HostWorkspace &ws) {
   for (int i = 0; i < N; i++) {
     bool fg = foreground(rngs_[i]) < foreground_prob_[i].data[0];
     if (!fg) {
-      StoreBox(out1, out2, format_, i, default_anchor, input.tensor_shape(i));
+      StoreBox(out1, out2, format_, i, default_anchor, input.shape()[i]);
       if (HasClassLabelOutput()) {
         InitClassInfo(i);
         class_label_out.data[i][0] = class_info_.background;
@@ -606,7 +606,7 @@ void RandomObjectBBox::RunImpl(HostWorkspace &ws) {
           StoreBox(out1, out2, format_, i, ctx.selected_box);
         } else {
           assert(ctx.class_label == class_info_.background);
-          StoreBox(out1, out2, format_, i, default_anchor, input.tensor_shape(i));
+          StoreBox(out1, out2, format_, i, default_anchor, input.shape()[i]);
         }
 
         if (HasClassLabelOutput())

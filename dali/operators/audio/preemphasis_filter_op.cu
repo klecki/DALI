@@ -87,7 +87,7 @@ void PreemphasisFilterGPU::RunImplTyped(workspace_t<GPUBackend> &ws) {
     auto &sample = samples_cpu[sample_idx];
     sample.in = input.tensor<InputType>(sample_idx);
     sample.out = output.mutable_tensor<OutputType>(sample_idx);
-    sample.size = volume(input.tensor_shape(sample_idx));
+    sample.size = volume(input.shape()[sample_idx]);
     sample.coeff = preemph_coeff_[sample_idx];
   }
 

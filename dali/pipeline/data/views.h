@@ -71,7 +71,7 @@ TensorShape<ndim> get_tensor_shape(const TensorList<Backend> &tl) {
     "Hint: Converting tensor list to a tensor adds extra dimension");
   }
   int dim = (ndim != DynamicDimensions) ? ndim : tl.shape().sample_dim() + 1;
-  auto out = shape_cat(tl.ntensor(), tl.tensor_shape(0));
+  auto out = shape_cat(tl.ntensor(), tl.shape()[0]);
   return convert_dim<ndim>(out);
 }
 

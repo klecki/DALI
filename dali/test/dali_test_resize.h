@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #ifndef DALI_TEST_DALI_TEST_RESIZE_H_
 #define DALI_TEST_DALI_TEST_RESIZE_H_
 
@@ -71,7 +71,7 @@ class GenericResizeTest : public DALISingleOpTest<ImgType> {
     int rsz_h, rsz_w;
     for (size_t i = 0; i < image_data.ntensor(); ++i) {
       auto *data = image_data.tensor<unsigned char>(i);
-      auto shape = image_data.tensor_shape(i);
+      auto shape = image_data.shape()[i];
       const int H = shape[0], W = shape[1];
 
       // determine resize parameters

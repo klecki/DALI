@@ -696,7 +696,7 @@ class DALISingleOpTest : public DALITest {
     ASSERT_TRUE(t2);
     ASSERT_EQ(t1->ntensor(), t2->ntensor());
     for (size_t i = 0; i < t1->ntensor(); i++) {
-      ASSERT_EQ(t1->tensor_shape(i), t2->tensor_shape(i));
+      ASSERT_EQ(t1->shape()[i], t2->shape()[i]);
     }
     ASSERT_EQ(t1->size(), t2->size());
 
@@ -711,8 +711,8 @@ class DALISingleOpTest : public DALITest {
     if (checkElements) {
       // The the results are checked for each element separately
       for (size_t i = 0; i < t1->ntensor(); ++i) {
-        const auto shape1 = t1->tensor_shape(i);
-        const auto shape2 = t2->tensor_shape(i);
+        const auto shape1 = t1->shape()[i];
+        const auto shape2 = t2->shape()[i];
         ASSERT_EQ(shape1.size(), 3);
         ASSERT_EQ(shape2.size(), 3);
         for (auto j = shape1.size(); j--;) {

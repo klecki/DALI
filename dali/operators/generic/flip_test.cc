@@ -84,7 +84,7 @@ void FlipVerify(TensorListWrapper input, TensorListWrapper output, Arguments arg
   auto item_size = output_d->type_info().size();
   for (size_t i = 0; i < output_d->ntensor(); ++i) {
     auto size =
-        output_d->tensor_shape(i)[0] * output_d->tensor_shape(i)[1] * output_d->tensor_shape(i)[2];
+        output_d->shape()[i][0] * output_d->shape()[i][1] * output_d->shape()[i][2];
     auto out_tensor = output_d->raw_tensor(i);
     if (output_d->GetLayout() == "HWC") {
       ASSERT_EQ(std::memcmp(out_tensor, &data_nhwc[_horizontal][_vertical], size * item_size), 0);

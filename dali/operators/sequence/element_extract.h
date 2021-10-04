@@ -106,7 +106,7 @@ class ElementExtract : public Operator<Backend> {
       int element = element_map_[k];
       auto &output = ws.template OutputRef<Backend>(k);
       for (unsigned int i = 0; i < input.ntensor(); i++) {
-        auto tensor_shape = input.tensor_shape(i);
+        auto tensor_shape = input.shape()[i];
         auto element_size = volume(tensor_shape.begin() + 1, tensor_shape.end());
         auto input_offset_bytes = element * element_size * data_type.size();
         scatter_gather_.AddCopy(

@@ -554,8 +554,8 @@ class PrefetchedPipelineTest : public GenericDecoderTest<RGB> {
     for (int j = 0; j < batch_size; ++j) {
       this->VerifyDecode(
           res1.template tensor<uint8>(j),
-          res1.tensor_shape(j)[0],
-          res1.tensor_shape(j)[1], (Iter * batch_size + j));
+          res1.shape()[j][0],
+          res1.shape()[j][1], (Iter * batch_size + j));
     }
   }
 
@@ -658,7 +658,7 @@ TEST_F(PrefetchedPipelineTest, TestFillQueues) {
   for (int i = 0; i < N; i++) {
     shapes[i].resize(batch_size);
     for (int j = 0; j < batch_size; j++) {
-      shapes[i][j] = tl.tensor_shape(i * batch_size + j);
+      shapes[i][j] = tl.shape()[i * batch_size + j];
     }
     splited_tl[i].Resize({shapes[i]});
   }
@@ -668,7 +668,7 @@ TEST_F(PrefetchedPipelineTest, TestFillQueues) {
       std::memcpy(
         splited_tl[i].template mutable_tensor<uint8>(j),
         tl.template tensor<uint8>(i * batch_size + j),
-        volume(tl.tensor_shape(i * batch_size + j)));
+        volume(tl.shape()[i * batch_size + j]));
     }
   }
 

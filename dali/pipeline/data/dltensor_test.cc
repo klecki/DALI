@@ -66,7 +66,7 @@ TEST(DLMTensorPtr, CPUList) {
   ASSERT_EQ(dlm_tensors[0]->dl_tensor.device.device_type, kDLCPU);
   ASSERT_EQ(dlm_tensors[0]->dl_tensor.byte_offset, 0);
 
-  ASSERT_EQ(tlist.tensor_shape(1).size(), 3);
+  ASSERT_EQ(tlist.shape()[1].size(), 3);
   ASSERT_EQ(dlm_tensors[1]->dl_tensor.ndim, 3);
   ASSERT_EQ(dlm_tensors[1]->dl_tensor.shape[0], 50);
   ASSERT_EQ(dlm_tensors[1]->dl_tensor.shape[1], 30);
