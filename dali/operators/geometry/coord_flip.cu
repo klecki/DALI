@@ -76,8 +76,8 @@ void CoordFlipGPU::RunImpl(workspace_t<GPUBackend> &ws) {
     SampleDesc<float> sample_desc;
     sample_desc.in = input.tensor<float>(sample_id);
     sample_desc.out = output.mutable_tensor<float>(sample_id);
-    sample_desc.size = volume(input.tensor_shape(sample_id));
-    assert(sample_desc.size == volume(output.tensor_shape(sample_id)));
+    sample_desc.size = volume(input.shape()[sample_id]);
+    assert(sample_desc.size == volume(output.shape()[sample_id]));
 
     bool flip_x = spec_.GetArgument<int>("flip_x", &ws, sample_id);
     bool flip_y = spec_.GetArgument<int>("flip_y", &ws, sample_id);

@@ -121,7 +121,7 @@ class Tensor : public Buffer<Backend> {
    */
   template <typename InBackend>
   inline void Copy(const TensorList<InBackend> &other, int idx, cudaStream_t stream) {
-    shape_ = other.tensor_shape(idx);
+    shape_ = other.shape()[idx];
     device_ = other.device_id();
     this->set_type(other.type());
     this->SetLayout(other.GetLayout());
