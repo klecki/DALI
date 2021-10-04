@@ -214,19 +214,6 @@ class TensorBatch {
     return shape_.sample_dim();
   }
 
-
-  /**
-   * @brief Returns the offset of the tensor with the given index.
-   */
-  DLL_PUBLIC inline Index tensor_offset(int idx) const {
-    return 0;
-// #ifndef NDEBUG
-//     DALI_ENFORCE(idx >= 0, "Negative index not supported");
-//     DALI_ENFORCE((size_t)idx < offsets_.size(), "Index out of offset range");
-// #endif
-//     return offsets_[idx];
-  }
-
   inline TensorShape<> tensor_shape(int idx) const {
     return shape_[idx];
   }
@@ -291,14 +278,6 @@ class TensorBatch {
     //   offset += tensor_volume;
     // }
     // return true;
-  }
-
-  /**
-   * @brief Returns the number of elements
-   *  in the TensorList
-   */
-  inline size_t GetElementsNumber() const {
-    return shape_.num_elements();
   }
 
   /**
@@ -402,6 +381,7 @@ class TensorBatch {
   }
 
 
+  // Not needed
   // static void SetGrowthFactor(double factor) {
   //   // assert(factor >= 1.0);
   //   // growth_factor_ = factor;
@@ -440,6 +420,7 @@ class TensorBatch {
     return samples_[pos];
   }
 
+  //  One internal usage
   shared_ptr<Tensor<Backend>> tensor_handle(size_t pos) {
     return {};
   }
@@ -448,31 +429,8 @@ class TensorBatch {
     return {};
   }
 
-  auto begin() noexcept {
-    return samples_.begin();
-  }
-
-  auto begin() const noexcept {
-    return samples_.begin();
-  }
-
-  auto cbegin() const noexcept {
-    return samples_.cbegin();
-  }
-
-  auto end() noexcept {
-    return samples_.end();
-  }
-
-  auto end() const noexcept {
-    return samples_.end();
-  }
-
-  auto cend() const noexcept {
-    return samples_.cend();
-  }
   // TODO
-  void UpdateViews() {}
+  // void UpdateViews() {}
 
 
   void SetSize(int new_size) {}
@@ -728,9 +686,10 @@ class TensorBatch {
     // ...
   }
 
+  // TODO: Shape vs shape
   // So we can probably cache it on every resize as TensorProxy cannot be resized
-  const TensorListShape<> &Shape() const {
-    return shape_;
+  inline const TensorListShape<> &Shape() const {
+    return shape();
   }
 
  private:

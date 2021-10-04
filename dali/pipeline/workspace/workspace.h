@@ -68,7 +68,8 @@ class ArgumentWorkspace {
     DALI_ENFORCE(it != argument_inputs_.end(), "Argument \"" + arg_name + "\" not found.");
     if (it->second.should_update) {
       // the underlying tensor list might have changed - update the views
-      it->second.tvec->UpdateViews();
+      // TODO: no need to update. it could not have changed that way?
+      // it->second.tvec->UpdateViews();
     }
     return *it->second.tvec;
   }
