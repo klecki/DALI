@@ -402,22 +402,22 @@ class TensorBatch {
   }
 
 
-  static void SetGrowthFactor(double factor) {
-    // assert(factor >= 1.0);
-    // growth_factor_ = factor;
-  }
-  static void SetShrinkThreshold(double ratio) {
-    // assert(ratio >= 0 && ratio <= 1);
-    // shrink_threshold_ = ratio;
-  }
-  static double GetGrowthFactor() {
-    // return growth_factor_;
-    return 1.0;
-  }
-  static double GetShrinkThreshold() {
-    // return shrink_threshold_;
-    return 1.0;
-  }
+  // static void SetGrowthFactor(double factor) {
+  //   // assert(factor >= 1.0);
+  //   // growth_factor_ = factor;
+  // }
+  // static void SetShrinkThreshold(double ratio) {
+  //   // assert(ratio >= 0 && ratio <= 1);
+  //   // shrink_threshold_ = ratio;
+  // }
+  // static double GetGrowthFactor() {
+  //   // return growth_factor_;
+  //   return 1.0;
+  // }
+  // static double GetShrinkThreshold() {
+  //   // return shrink_threshold_;
+  //   return 1.0;
+  // }
 
   inline bool shares_data() const {
     return false;
