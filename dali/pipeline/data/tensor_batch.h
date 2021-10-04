@@ -86,9 +86,10 @@ class TensorBatch {
    * @{
    */
 
-  inline int64_t size() const {
-    return size_;
-  }
+  // FOR TL this was a number of elements, for TV it is number of samples - TODO, remove
+  // inline int64_t size() const {
+  //   return size_;
+  // }
 
   inline size_t nbytes() const {
     return size_ * type_.size();
