@@ -462,14 +462,6 @@ class TensorBatch {
     Resize(shape_, new_type_id);
   }
 
-  /**
-   * @brief Resizes this TensorList to match the shape of the input. - ugh
-   */
-  template <typename InBackend>
-  inline void ResizeLike(const TensorBatch<InBackend> &other) {
-    Resize(other.shape());
-  }
-
   DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape) {
     Resize(new_shape, type_.id());
   }
