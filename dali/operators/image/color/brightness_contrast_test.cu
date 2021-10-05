@@ -92,7 +92,7 @@ void BrightnessContrastVerify(TensorListWrapper input, TensorListWrapper output,
 
   ASSERT_EQ(input_tl->num_samples(), output_tl->num_samples());
   for (size_t t = 0; t < input.cpu().num_samples(); t++) {
-    auto out_shape = output_tl->shape()[t];hape()
+    auto out_shape = output_tl->shape()[t];
     auto out_tensor = output_tl->tensor<OutputType>(t);
     auto in_shape = input_tl->shape()[t];
     auto in_tensor = input_tl->tensor<InputDataType>(t);

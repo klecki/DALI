@@ -86,7 +86,7 @@ class TensorBatch {
    * @{
    */
 
-  inline int64_t size() const {
+  inline int64_t tl_elements() const {
     return size_;
   }
 
@@ -203,8 +203,8 @@ class TensorBatch {
   /**
    * @brief Returns the number of tensors in the list.
    */
-  DLL_PUBLIC inline size_t ntensor() const {
-    return shape_.size();
+  DLL_PUBLIC inline size_t num_samples() const {
+    return shape_.num_samples();
   }
 
   /**

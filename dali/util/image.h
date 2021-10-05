@@ -129,19 +129,11 @@ template <typename T, typename Backend>
 void WriteBatch(const TensorList<Backend> &tl, float bias, float scale, const string &suffix,
                 const std::array<int, 3> &permute, outFunc pFunc) {
   DALI_ENFORCE(IsType<T>(tl.type()));
-<<<<<<< HEAD
   for (size_t i = 0; i < tl.num_samples(); ++i) {
-    DALI_ENFORCE(tl.tensor_shape(i).size() == 3);
-    int h = tl.tensor_shape(i)[permute[0]];
-    int w = tl.tensor_shape(i)[permute[1]];
-    int c = tl.tensor_shape(i)[permute[2]];
-=======
-  for (size_t i = 0; i < tl.ntensor(); ++i) {
     DALI_ENFORCE(tl.shape()[i].size() == 3);
     int h = tl.shape()[i][permute[0]];
     int w = tl.shape()[i][permute[1]];
     int c = tl.shape()[i][permute[2]];
->>>>>>> 735d80cefb... Remove most of TensorBatch::tensor_shape()
     if (std::is_same<Backend, GPUBackend>::value) {
       CUDA_CALL(cudaDeviceSynchronize());
     }
