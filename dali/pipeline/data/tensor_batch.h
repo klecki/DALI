@@ -507,7 +507,7 @@ class TensorBatch {
     if (is_reallocation) {
       // We wont fit in the current shape, so we request new allocation
       // TODO
-      local_buffer_.ResizeHelper(new_size, new_type_id);
+      local_buffer_.resize(new_size, new_type_id);
 
       state_ = State::contiguous;
     }
@@ -538,10 +538,10 @@ class TensorBatch {
     shape_ = new_shape;
     type_ = new_type;
 
-    // Tensor views of this TensorList is no longer valid - TODO(klecki): handle this
+    // Tensor views of this TensorList is no longer valid - TODO(): handle this
     // tensor_views_.clear();
 
-    // TODO(klecki): proper metadata storage & propagation
+    // TODO(): proper metadata storage & propagation
     // meta_.resize(num_tensor, DALIMeta(layout_));
   }
 
@@ -551,13 +551,13 @@ class TensorBatch {
     // TODO(klecki): THIS IS WORK IN PROGRESS. It needs to take into account the grow and shrink
     // factors, etc, here we just are keeping the data if it fits.
     if (state_ == State::contiguous) {
-      return local_buffer_.capacity() < new_shape.num_elements() * new_type.size();
+      return local_buffer_.is_reallocation(new_shape.num_elements(), new_type.id());
     } else {
       if (shape_.num_samples() < new_shape.num_samples()) {
         return true;
       }
       for (int i = 0; i < new_shape.num_samples(); i++) {
-        if (samples_[i].capacity() < volume(new_shape[i]) * new_type.size()) {
+        if (samples_[i].is_reallocation(new_shape[i].num_elements(), new_type.id())) {
           return true;
         }
       }
@@ -571,6 +571,7 @@ class TensorBatch {
   DLL_PUBLIC inline void Copy(const TensorBatch<SrcBackend> &other, cudaStream_t stream,
                               bool use_copy_kernel = false) {
     RichCopy(*this, other, stream, use_copy_kernel);
+    // TODO: all the metadata stuff
   }
 
 

@@ -370,7 +370,7 @@ class DLL_PUBLIC Buffer {
                       "requested size of ",
                       new_elements, " elements of type ", new_type_id,
                       " would require reallocating the current buffer of ",
-                      size_ " elements of type ", type_.id()));
+                      size_," elements of type ", type_.id()));
     }
 
     // Reallocate and adjust the metadata
@@ -507,16 +507,18 @@ DLL_PUBLIC constexpr double Buffer<Backend>::kMaxGrowthFactor;
 
 // Macro so we don't have to list these in all
 // classes that derive from Buffer
-#define USE_BUFFER_MEMBERS()           \
-  using Buffer<Backend>::ResizeHelper; \
-  using Buffer<Backend>::reset;        \
-  using Buffer<Backend>::type_;        \
-  using Buffer<Backend>::data_;        \
-  using Buffer<Backend>::size_;        \
-  using Buffer<Backend>::shares_data_; \
-  using Buffer<Backend>::num_bytes_;   \
-  using Buffer<Backend>::device_;      \
-  using Buffer<Backend>::pinned_;      \
+#define USE_BUFFER_MEMBERS()              \
+  using Buffer<Backend>::is_reallocation; \
+  using Buffer<Backend>::set_type;        \
+  using Buffer<Backend>::resize;          \
+  using Buffer<Backend>::reset;           \
+  using Buffer<Backend>::type_;           \
+  using Buffer<Backend>::data_;           \
+  using Buffer<Backend>::size_;           \
+  using Buffer<Backend>::shares_data_;    \
+  using Buffer<Backend>::num_bytes_;      \
+  using Buffer<Backend>::device_;         \
+  using Buffer<Backend>::pinned_;         \
   using Buffer<Backend>::move_buffer
 
 

@@ -140,7 +140,7 @@ class Tensor : public Buffer<Backend> {
    */
   inline void Resize(const TensorShape<> &shape) {
     Index new_size = volume(shape);
-    ResizeHelper(new_size);
+    resize(new_size);
     shape_ = shape;
   }
 
@@ -152,7 +152,7 @@ class Tensor : public Buffer<Backend> {
    */
   inline void Resize(const TensorShape<> &shape, DALIDataType new_type) {
     Index new_size = volume(shape);
-    ResizeHelper(new_size, new_type);
+    resize(new_size, new_type);
     shape_ = shape;
   }
 
@@ -442,10 +442,10 @@ class Tensor : public Buffer<Backend> {
     return meta_.ShouldSkipSample();
   }
 
+  USE_BUFFER_MEMBERS(); // TODO: some mebers should be public
  protected:
   TensorShape<> shape_ = { 0 };
   DALIMeta meta_;
-  USE_BUFFER_MEMBERS();
 
   // So TensorVector can access data_ of the tensor directly
   template <typename InBackend>
