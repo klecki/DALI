@@ -86,7 +86,7 @@ class TensorBatch {
    * @{
    */
 
-  inline int64_t tl_elements() const {
+  inline int64_t _num_elements() const {
     return num_elements_;
   }
 
@@ -580,7 +580,7 @@ class TensorBatch {
 
   DLL_PUBLIC inline void SetBackingAllocation(const Buffer<Backend> &buffer);
 
-  DLL_PUBLIC inline void ShareData(TensorBatch<Backend> *other) {}
+  DLL_PUBLIC inline void ShareData(TensorBatch<Backend> &other) {}
 
   /**
    * @brief Wraps the raw allocation. The input pointer must not be nullptr.
@@ -648,6 +648,8 @@ class TensorBatch {
     ShareData(shared_ptr<void>(ptr, [](void *) {}), bytes, TensorListShape<>{}, type);
   }
 
+
+  // TODO need to have the contiguous API for batch
   void BuildBatch(const std::vector<Tensor<Backend>> &batch) {
     state_ = State::noncontiguous;
   }
@@ -752,6 +754,15 @@ class TensorBatch {
     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
     // return tl.raw_data();
     return nullptr;
+  }
+
+  /**
+   * @brief Return the shared pointer, that we can use to correctly share the ownership of sample
+   * with.
+   */
+  friend shared_ptr<void> unsafe_sample_owner(TensorBatch<Backend> &tl, int sample_idx) {
+    //{tl.data_, tl.raw_mutable_tensor(sample_idx)};
+    return {};
   }
 
   /** @} */  // end of ContiguousAccessorFunctions
