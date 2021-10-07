@@ -87,11 +87,11 @@ class TensorBatch {
    */
 
   inline int64_t tl_elements() const {
-    return size_;
+    return num_elements_;
   }
 
   inline size_t nbytes() const {
-    return size_ * type_.size();
+    return num_elements_ * type_.size();
   }
 
   inline size_t capacity() const {
@@ -229,7 +229,7 @@ class TensorBatch {
    */
   inline bool IsContiguousTensor() const {
     return false;
-    // if (ntensor() == 0 || size_ == 0) {
+    // if (ntensor() == 0 || num_elements_ == 0) {
     //   return true;
     // }
     // if (!IsContiguous()) {
@@ -254,7 +254,7 @@ class TensorBatch {
    */
   inline bool IsDenseTensor() const {
     return false;
-    // if (ntensor() == 0 || size_ == 0) {
+    // if (ntensor() == 0 || num_elements_ == 0) {
     //   return true;
     // }
     // if (!IsContiguous()) {
@@ -445,7 +445,7 @@ class TensorBatch {
     const TypeInfo &new_type = TypeTable::GetTypeInfo(new_type_id);
 
     // Size is always zero for NoType
-    size_t new_num_bytes = size_ * new_type.size();
+    size_t new_num_bytes = num_elements_ * new_type.size();
     // TODO(klecki): Apparently this check was not adjusted, so
     if (uses_foreign_buffer_) {
       DALI_ENFORCE(new_num_bytes == capacity_ || new_num_bytes == 0,
@@ -507,7 +507,7 @@ class TensorBatch {
     if (is_reallocation) {
       // We wont fit in the current shape, so we request new allocation
       // TODO
-      // local_buffer_.ResizeHelper(new_size, new_type_id);
+      local_buffer_.ResizeHelper(new_size, new_type_id);
 
       state_ = State::contiguous;
     }
@@ -714,7 +714,7 @@ class TensorBatch {
   Buffer<Backend> local_buffer_;  // Contiguous storage
   TypeInfo type_ = {};            // Data type of underlying storage
   AllocFunc allocate_;            // Custom allocation function
-  int64_t size_ = 0;              // The total number of elements
+  int64_t num_elements_ = 0;      // The total number of elements
   size_t capacity_ = 0;  // Total underlying capacity, is bit misleading in non_contiguous state,
                          // but what can we do
   int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on

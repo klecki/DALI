@@ -29,6 +29,7 @@
 #include "dali/core/error_handling.h"
 #include "dali/core/util.h"
 #include "dali/pipeline/data/types.h"
+#include "dali/core/format.h"
 
 namespace dali {
 
@@ -87,8 +88,10 @@ inline string ShapeString(vector<Index> shape) {
  * Details about who now is the owner of allocation and who shares the memory might get fuzzy
  * and some may go out of the use in that case.
  *
- * TODO(klecki): consider writing copy and move by hand - shared_ptr should behave in sane way.
+ * As you can see the Buffer uses snake_case_naming of member functions to indicate that it is
+ * internal class and should, in most cases, not be handled directly.
  */
+// TODO: consider writing copy and move by hand - shared_ptr should behave in sane way.
 template <typename Backend>
 class DLL_PUBLIC Buffer {
  public:
@@ -263,6 +266,44 @@ class DLL_PUBLIC Buffer {
     device_ = device;
   }
 
+  // TODO(): write some tests for Buffer
+  /**
+   * @brief Check if the buffer needs to be reallocated to handle the requested number of elements
+   * and type of data.
+   *
+   * This function can return true even when the allocation is big enough. This is needed to handle
+   * shrinking of big buffers in accordance with shrink threshold.
+   *
+   * Empty resize request is a special case that keeps the memory - use reset if you want to release
+   * the buffer.
+   *
+   * @param new_elements Number of elements of given type in the requested allocation.
+   * @param new_type_id  Type id for the requested allocation.
+   */
+  inline bool is_reallocation(int64_t new_elements, DALIDataType new_type_id) const {
+    // Currently DALI does not shrink when the requested allocation results in empty buffer
+    if (new_type_id == DALI_NO_TYPE || new_elements == 0) {
+      return false;
+    }
+
+    const auto &new_type = new_type_id == type_.id() ? type_ : TypeTable::GetTypeInfo(new_type_id);
+    size_t new_num_bytes = new_alloc_size(new_elements, new_type_id);
+
+    // We need to reallocate when:
+    // * there is not enough memory - with shares_data_ it indicates an error,
+    // * the requested allocation is so small that we should shrink our buffer to it.
+    //
+    // In the second case we never shrink if the data is pinned allocation or the buffer was
+    // shared with us (provided as external memory allocation - we can't request new buffer).
+    if (new_num_bytes > num_bytes_) {
+      return true;
+    } else if (!shares_data_ && !is_pinned() && new_num_bytes < num_bytes_ * shrink_threshold_) {
+      return true;
+    }
+    return false;
+  }
+
+
   /**
    * @brief Sets the type of the buffer. If the buffer has not been
    * allocated because it does not yet have a type, the calling type
@@ -273,28 +314,83 @@ class DLL_PUBLIC Buffer {
    * storage is re-allocated if the buffer does not currently own
    * enough memory to store the current number of elements with the
    * new data type.
+   *
+   * @param new_type_id  Type id for the requested allocation.
    */
   inline void set_type(const DALIDataType new_type_id) {
-    DALI_ENFORCE(new_type_id != DALI_NO_TYPE, "new_type must be valid type.");
+    // DALI_ENFORCE(new_type_id != DALI_NO_TYPE, "new_type must be valid type.");
     if (new_type_id == type_.id()) return;
-    const TypeInfo &new_type = TypeTable::GetTypeInfo(new_type_id);
 
-    size_t new_num_bytes = size_ * new_type.size();
-    if (shares_data_) {
-      DALI_ENFORCE(new_num_bytes == num_bytes_ || new_num_bytes == 0,
-                   "Buffer that shares data cannot have size "
-                   "different than total underlying allocation");
-    }
-
-    type_ = new_type;
-    if (new_num_bytes > num_bytes_) {
-      reserve(new_num_bytes);
-    }
+    resize(size_, new_type_id);
   }
 
   template <typename T>
   inline void set_type() {
     set_type(TypeTable::GetTypeID<T>());
+  }
+
+  /**
+   * @brief Resize the buffer, adjusting the allocation size according to the shrink and growth
+   * factors.
+   *
+   * If the `shares_data() == true` indicating that the external allocation was set for this buffer,
+   * it won't be reallocated, ignoring the shrink threshold and raising error if too big number
+   * of elements is set.
+   *
+   * @param new_elements Number of elements in the requested allocation.
+   */
+  inline void resize(int64_t new_elements) {
+    resize(new_elements, type_.id());
+  }
+
+  /**
+   * @brief Resize and set the type of the buffer, adjusting the allocation size according to the
+   * shrink and growth factors.
+   *
+   * If the `shares_data() == true` indicating that the external allocation was set for this buffer,
+   * it won't be reallocated, ignoring the shrink threshold and raising error if too big number
+   * of elements is set.
+   *
+   * @param new_elements Number of elements in the requested allocation.
+   * @param new_type_id  Type id for the requested allocation.
+   */
+  inline void resize(int64_t new_elements, DALIDataType new_type_id) {
+    if (!is_reallocation(new_elements, new_type_id)) {
+      // no reallocation, adjust relevant metadata
+      size_ = new_elements;
+      if (type_.id() != new_type_id) {
+        type_ = TypeTable::GetTypeInfo(new_type_id);
+      }
+      return;
+    }
+    // We try to make the buffer bigger while sharing the data - this is prohibited.
+    if (shares_data_) {
+      DALI_FAIL(
+          make_string("Buffer cannot be resized - it is sharing data with external allocation - "
+                      "requested size of ",
+                      new_elements, " elements of type ", new_type_id,
+                      " would require reallocating the current buffer of ",
+                      size_ " elements of type ", type_.id()));
+    }
+
+    // Reallocate and adjust the metadata
+    size_t new_num_bytes = new_alloc_size(new_elements, new_type_id);
+    if (new_num_bytes > num_bytes_) {
+      size_t grow = num_bytes_ * growth_factor_;
+      if (grow > new_num_bytes) new_num_bytes = grow;
+      reserve(new_num_bytes);
+    } else {
+      data_.reset();
+      num_bytes_ = 0;
+      // TODO: Exception safety?
+      // num_elements_ = 0;
+      // type_ = {};
+      reserve(new_num_bytes);
+    }
+    size_ = new_elements;
+    if (type_.id() != new_type_id) {
+      type_ = TypeTable::GetTypeInfo(new_type_id);
+    }
   }
 
   inline void reserve(size_t new_num_bytes) {
@@ -355,60 +451,19 @@ class DLL_PUBLIC Buffer {
   static constexpr double kMaxGrowthFactor = 4;
 
  protected:
-  // Helper to resize the underlying allocation
-  inline void ResizeHelper(Index new_size) {
-    ResizeHelper(new_size, type_);
-  }
-
-
-  // Helper to resize the underlying allocation
-  inline void ResizeHelper(Index new_size, DALIDataType new_type_id) {
-    // don't look up the type unless it's different than current one
+  /**
+   * @brief Helper function to get the size in bytes required to handle requested allocation
+   *
+   * @param new_elements Number of elements of given type in the requested allocation.
+   * @param new_type_id  Type id for the requested allocation.
+   */
+  inline size_t new_alloc_size(int64_t new_elements, DALIDataType new_type_id) const {
+    if (new_type_id == DALI_NO_TYPE || new_elements == 0) {
+      return 0;
+    }
     const auto &new_type = new_type_id == type_.id() ? type_ : TypeTable::GetTypeInfo(new_type_id);
-    ResizeHelper(new_size, new_type);
+    return new_elements * new_type.size();
   }
-
-  // Helper to resize the underlying allocation
-  inline void ResizeHelper(Index new_size, const TypeInfo &new_type) {
-    DALI_ENFORCE(new_size >= 0, "Input size less than zero not supported.");
-
-    // If we use NoType the result will always be 0
-    size_t new_num_bytes = new_size * new_type.size();
-
-    if (shares_data_) {
-      DALI_ENFORCE(new_num_bytes <= num_bytes_,
-                   "Cannot change size of a Buffer if it is sharing data. "
-                   "Clear the status by `Reset()` first.");
-    }
-
-    size_ = new_size;
-    type_ = new_type;
-
-    if (shares_data_)
-      return;
-
-    if (new_size == 0) {
-      if (std::is_same<Backend, GPUBackend>::value && device_ == CPU_ONLY_DEVICE_ID) {
-        CUDA_CALL(cudaGetDevice(&device_));
-      }
-      return;
-    }
-
-    if (!IsValidType(type_)) {
-      return;
-    }
-
-    if (new_num_bytes > num_bytes_) {
-      size_t grow = num_bytes_ * growth_factor_;
-      if (grow > new_num_bytes) new_num_bytes = grow;
-      reserve(new_num_bytes);
-    } else if (!is_pinned() && new_num_bytes < num_bytes_ * shrink_threshold_) {
-      data_.reset();
-      num_bytes_ = 0;
-      reserve(new_num_bytes);
-    }
-  }
-
 
  protected:
   void move_buffer(Buffer &&buffer) {
