@@ -87,11 +87,11 @@ class TensorBatch {
    */
 
   inline int64_t _num_elements() const {
-    return num_elements_;
+    return shape().num_elements();
   }
 
   inline size_t nbytes() const {
-    return num_elements_ * type_.size();
+    return _num_elements() * type_.size();
   }
 
   inline size_t capacity() const {
@@ -150,7 +150,7 @@ class TensorBatch {
   void Reset() {}
 
   bool has_data() {
-    return false; // todo(klecki)
+    return shape().num_elements() != 0 && type_.id() != DALI_NO_TYPE;
   }
 
   bool IsContiguous() const {
@@ -439,26 +439,6 @@ class TensorBatch {
   }
 
   DLL_PUBLIC inline void SetType(DALIDataType new_type_id) {
-    DALI_ENFORCE(new_type_id != DALI_NO_TYPE, "new_type must be valid type.");
-    if (new_type_id == type_.id())
-      return;
-    const TypeInfo &new_type = TypeTable::GetTypeInfo(new_type_id);
-
-    // Size is always zero for NoType
-    size_t new_num_bytes = num_elements_ * new_type.size();
-    // TODO(klecki): Apparently this check was not adjusted, so
-    if (uses_foreign_buffer_) {
-      DALI_ENFORCE(new_num_bytes == capacity_ || new_num_bytes == 0,
-                   "Buffer that shares data cannot have size "
-                   "different than total underlying allocation");
-    }
-
-    type_ = new_type;
-    // This is probably optimization to call reserve and not Resize, but we need to adjust mappings
-    // for samples and do proper reallocation.
-    // if (new_num_bytes > num_bytes_) {
-    //   reserve(new_num_bytes);
-    // }
     Resize(shape_, new_type_id);
   }
 
@@ -517,19 +497,24 @@ class TensorBatch {
     // if we did realloc, we need to update with alias shared_ptr
     // TODO(klecki): Optimized case, no need to rewrite shared ptrs
     if (state_ == State::contiguous) {
-      int64_t offset = 0;
+      uint8_t *base_ptr = static_cast<uint8_t*>(local_buffer_.raw_mutable_data());
       for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         // set the aliasing shared_ptr, the shape, etc
         // TODO
         // samples_[sample_idx].SetTensorFromList(local_buffer_, offset, new_shape[sample_idx],
         //                                        new_type);
-        offset += new_shape[sample_idx].num_elements();
+        auto sample_alias_ptr = std::shared_ptr<void>(local_buffer_.get_data_ptr(), base_ptr);
+        size_t bytes = new_shape[sample_idx].num_elements() * new_type.size();
+        samples_[sample_idx].ShareData(sample_alias_ptr, bytes, new_shape[sample_idx],
+                                       new_type.id());
+        base_ptr += bytes;
       }
     } else {
       for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         // set the aliasing shared_ptr, the shape, etc
         // TODO
         // samples_[sample_idx].InternalResize(new_shape[sample_idx], new_type);
+        samples_[sample_idx].Resize(new_shape[sample_idx], new_type_id);
       }
     }
 
@@ -580,7 +565,9 @@ class TensorBatch {
 
   DLL_PUBLIC inline void SetBackingAllocation(const Buffer<Backend> &buffer);
 
-  DLL_PUBLIC inline void ShareData(TensorBatch<Backend> &other) {}
+  DLL_PUBLIC inline void ShareData(TensorBatch<Backend> &other) {
+    // TODO(): share samples or contiguous
+  }
 
   /**
    * @brief Wraps the raw allocation. The input pointer must not be nullptr.
@@ -601,7 +588,8 @@ class TensorBatch {
    */
   inline void ShareData(const shared_ptr<void> &ptr, size_t bytes, const TensorListShape<> &shape,
                         DALIDataType type = DALI_NO_TYPE)  {
-    // SetBackingAllocation
+    local_buffer_.SetExternalAllocation(ptr, bytes, shape.num_elements(), type);
+    uses_foreign_buffer_ = true;
   }
 
   /**
@@ -717,7 +705,7 @@ class TensorBatch {
   Buffer<Backend> local_buffer_;  // Contiguous storage
   TypeInfo type_ = {};            // Data type of underlying storage
   AllocFunc allocate_;            // Custom allocation function
-  int64_t num_elements_ = 0;      // The total number of elements
+  // int64_t num_elements_ = 0;      // The total number of elements
   size_t capacity_ = 0;  // Total underlying capacity, is bit misleading in non_contiguous state,
                          // but what can we do
   int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on

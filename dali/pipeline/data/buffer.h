@@ -413,6 +413,16 @@ class DLL_PUBLIC Buffer {
     num_bytes_ = new_num_bytes;
   }
 
+  inline void SetExternalAllocation(shared_ptr<void> ptr, size_t bytes, size_t num_elements,
+                                    DALIDataType type_id = DALI_NO_TYPE) {
+    reset();
+    type_ = TypeTable::GetTypeInfo(type_id);
+    data_ = ptr;
+    size_ = num_elements;
+    num_bytes_ = bytes;
+    shares_data_ = true;
+  }
+
   void reset() {
     type_ = {};
     data_.reset();
@@ -449,6 +459,10 @@ class DLL_PUBLIC Buffer {
   }
 
   static constexpr double kMaxGrowthFactor = 4;
+
+  std::shared_ptr<void> get_data_ptr() {
+    return data_;
+  }
 
  protected:
   /**
