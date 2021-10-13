@@ -154,7 +154,7 @@ class TensorBatch {
   }
 
   bool IsContiguous() const {
-    return true;
+    return state_ == State::contiguous;
   }
 
   void SetContiguous(bool contiguous) {
@@ -168,6 +168,8 @@ class TensorBatch {
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
     // return this->template mutable_data<T>() + tensor_offset(idx);
+    // TODO: UGH, I would really remove this, but there might be pushback
+    set_type<T>();
     return samples_[idx].template mutable_data<T>();
   }
 
@@ -396,8 +398,7 @@ class TensorBatch {
   // }
 
   inline bool shares_data() const {
-    return false;
-    // return shares_data_;
+    return uses_foreign_buffer_;
   }
 
 
@@ -442,14 +443,6 @@ class TensorBatch {
     Resize(shape_, new_type_id);
   }
 
-  /**
-   * @brief Resizes this TensorList to match the shape of the input. - ugh
-   */
-  template <typename InBackend>
-  inline void ResizeLike(const TensorBatch<InBackend> &other) {
-    Resize(other.shape());
-  }
-
   DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape) {
     Resize(new_shape, type_.id());
   }
@@ -465,8 +458,17 @@ class TensorBatch {
    * do something in between.
    */
   DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape, DALIDataType new_type_id) {
+    // TODO: This is bit compute intensive, and I suggest that we remove type-setting
+    // on mutable data.
+    if (shape_ == new_shape && type_.id() == new_type_id) {
+      return;
+    }
     // Calculate the new size
     Index num_samples = new_shape.num_samples(), new_size = new_shape.num_elements();
+
+
+    std::cout << make_string("> Batch::Resize(", new_size, ", ", new_type_id, ").")
+              << std::endl;
     DALI_ENFORCE(new_size >= 0, "Invalid negative buffer size.");
 
     const auto &new_type = new_type_id == type_.id() ? type_ : TypeTable::GetTypeInfo(new_type_id);
@@ -566,7 +568,23 @@ class TensorBatch {
   DLL_PUBLIC inline void SetBackingAllocation(const Buffer<Backend> &buffer);
 
   DLL_PUBLIC inline void ShareData(TensorBatch<Backend> &other) {
-    // TODO(): share samples or contiguous
+    if (other.state_ == State::contiguous) {
+      local_buffer_.SetExternalAllocation(local_buffer_);
+      state_ = State::contiguous;
+    } else {
+      state_ = State::noncontiguous;
+    }
+    samples_.resize(other.num_samples());
+    for (size_t sample_idx = 0; sample_idx < other.num_samples(); sample_idx++) {
+      samples_[sample_idx].ShareData(other.samples_[sample_idx]);
+    }
+    shape_ = other.shape_;
+    type_ = other.type_;
+    allocate_ = other.allocate_;
+    capacity_ = other.capacity_;
+    device_ = other.device_;
+    pinned_ = other.pinned_;
+    uses_foreign_buffer_ = true;
   }
 
   /**
@@ -707,7 +725,7 @@ class TensorBatch {
   AllocFunc allocate_;            // Custom allocation function
   // int64_t num_elements_ = 0;      // The total number of elements
   size_t capacity_ = 0;  // Total underlying capacity, is bit misleading in non_contiguous state,
-                         // but what can we do
+                         // but what can we do, TODO, do we maintain it?
   int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on
   // bool shares_data_ = false;         // Whether we aren't using our own allocation ->
   // uses_foreign_buffer_
@@ -730,8 +748,7 @@ class TensorBatch {
    */
   friend void *unsafe_raw_mutable_data(TensorBatch<Backend> &tl) {
     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
-    // return tl.raw_mutable_data();
-    return nullptr;
+    return tl.local_buffer_.raw_mutable_data();
   }
 
   /**
@@ -740,8 +757,7 @@ class TensorBatch {
    */
   friend const void *unsafe_raw_data(const TensorBatch<Backend> &tl) {
     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
-    // return tl.raw_data();
-    return nullptr;
+    return tl.local_buffer_.raw_data();
   }
 
   /**

@@ -356,11 +356,17 @@ class DLL_PUBLIC Buffer {
    */
   inline void resize(int64_t new_elements, DALIDataType new_type_id) {
     if (!is_reallocation(new_elements, new_type_id)) {
+      std::cout << make_string(">>> Buffer resize(", new_elements, ", ", new_type_id,
+                               ") - current: ", size_, " elements of type ", type_.id(),
+                               " - no reallocation.") << std::endl;
       // no reallocation, adjust relevant metadata
       size_ = new_elements;
       if (type_.id() != new_type_id) {
         type_ = TypeTable::GetTypeInfo(new_type_id);
       }
+      std::cout << make_string("<<< Buffer after resize: elements: ", size_,
+                               ", bytes: ", num_bytes_, ", type: ", type_.id(), ".")
+                << std::endl;
       return;
     }
     // We try to make the buffer bigger while sharing the data - this is prohibited.
@@ -376,10 +382,17 @@ class DLL_PUBLIC Buffer {
     // Reallocate and adjust the metadata
     size_t new_num_bytes = new_alloc_size(new_elements, new_type_id);
     if (new_num_bytes > num_bytes_) {
+
+      std::cout << make_string(">>> Buffer resize(", new_elements, ", ", new_type_id,
+                               ") - current: ", size_, " elements of type ", type_.id(),
+                               " - reallocation to: ", new_num_bytes, " bytes.") << std::endl;
       size_t grow = num_bytes_ * growth_factor_;
       if (grow > new_num_bytes) new_num_bytes = grow;
       reserve(new_num_bytes);
     } else {
+      std::cout << make_string(">>> Buffer resize(", new_elements, ", ", new_type_id,
+                               ") - current: ", size_, " elements of type ", type_.id(),
+                               " - shrinking to: ", new_num_bytes, " bytes.") << std::endl;
       data_.reset();
       num_bytes_ = 0;
       // TODO: Exception safety?
@@ -391,6 +404,9 @@ class DLL_PUBLIC Buffer {
     if (type_.id() != new_type_id) {
       type_ = TypeTable::GetTypeInfo(new_type_id);
     }
+    std::cout << make_string("<<< Buffer after resize: elements: ", size_, ", bytes: ", num_bytes_,
+                             ", type: ", type_.id(), ".")
+              << std::endl;
   }
 
   inline void reserve(size_t new_num_bytes) {
@@ -421,6 +437,19 @@ class DLL_PUBLIC Buffer {
     size_ = num_elements;
     num_bytes_ = bytes;
     shares_data_ = true;
+  }
+
+  inline void SetExternalAllocation(Buffer<Backend> &buffer) {
+    reset();
+    shares_data_ = true;
+    type_         = buffer.type_;
+    data_         = buffer.data_;
+    allocate_     = buffer.allocate_;
+    size_         = buffer.size_;
+    num_bytes_    = buffer.num_bytes_;
+    device_       = buffer.device_;
+    shares_data_  = buffer.shares_data_;
+    pinned_       = buffer.pinned_;
   }
 
   void reset() {
