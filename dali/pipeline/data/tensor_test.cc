@@ -369,9 +369,9 @@ TYPED_TEST(TensorTest, TestShareData) {
     ASSERT_TRUE(tensor.shares_data());
     ASSERT_EQ(tensor.raw_data(), tl.raw_tensor(i));
     ASSERT_EQ(tensor.type(), tl.type());
-    ASSERT_EQ(tensor.shape(), tl.tensor_shape(i));
+    ASSERT_EQ(tensor.shape(), tl.shape()[i]);
 
-    Index size = volume(tl.tensor_shape(i));
+    Index size = volume(tl.shape()[i]);
     ASSERT_EQ(tensor.size(), size);
     ASSERT_EQ(tensor.nbytes(), size*sizeof(float));
   }
@@ -379,10 +379,10 @@ TYPED_TEST(TensorTest, TestShareData) {
 
 TYPED_TEST(TensorTest, TestCopyToTensorList) {
   TensorVector<TypeParam> tensors(16);
-  for (auto& t : tensors) {
+  for (int i = 0; i < 16; i++) {
     auto shape = this->GetRandShape(4, 4);
-    t->template set_type<float>();
-    t->Resize(shape);
+    tensors[i].template set_type<float>();
+    tensors[i].Resize(shape);
   }
 
   TensorList<TypeParam> tl;
@@ -392,8 +392,8 @@ TYPED_TEST(TensorTest, TestCopyToTensorList) {
   ASSERT_EQ(num_tensor, tensors.num_samples());
   for (int i = 0; i < num_tensor; ++i) {
     ASSERT_EQ(tensors[i].type(), tl.type());
-    ASSERT_EQ(tensors[i].shape(), tl.tensor_shape(i));
-    Index size = volume(tl.tensor_shape(i));
+    ASSERT_EQ(tensors[i].shape(), tl.shape()[i]);
+    Index size = volume(tl.shape()[i]);
     ASSERT_EQ(tensors[i].size(), size);
     ASSERT_EQ(tensors[i].nbytes(), size*sizeof(float));
   }
