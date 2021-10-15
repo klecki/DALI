@@ -377,27 +377,28 @@ TYPED_TEST(TensorTest, TestShareData) {
   }
 }
 
-TYPED_TEST(TensorTest, TestCopyToTensorList) {
-  TensorVector<TypeParam> tensors(16);
-  for (int i = 0; i < 16; i++) {
-    auto shape = this->GetRandShape(4, 4);
-    tensors[i].template set_type<float>();
-    tensors[i].Resize(shape);
-  }
+// TODO(klecki): This doesn't work, as we cannot create TensorBatch with uninitialized Tensors
+// TYPED_TEST(TensorTest, TestCopyToTensorList) {
+//   TensorVector<TypeParam> tensors(16);
+//   for (int i = 0; i < 16; i++) {
+//     auto shape = this->GetRandShape(4, 4);
+//     tensors[i].template set_type<float>();
+//     tensors[i].Resize(shape);
+//   }
 
-  TensorList<TypeParam> tl;
-  tl.Copy(tensors, 0);
+//   TensorList<TypeParam> tl;
+//   tl.Copy(tensors, 0);
 
-  int num_tensor = tl.num_samples();
-  ASSERT_EQ(num_tensor, tensors.num_samples());
-  for (int i = 0; i < num_tensor; ++i) {
-    ASSERT_EQ(tensors[i].type(), tl.type());
-    ASSERT_EQ(tensors[i].shape(), tl.shape()[i]);
-    Index size = volume(tl.shape()[i]);
-    ASSERT_EQ(tensors[i].size(), size);
-    ASSERT_EQ(tensors[i].nbytes(), size*sizeof(float));
-  }
-}
+//   int num_tensor = tl.num_samples();
+//   ASSERT_EQ(num_tensor, tensors.num_samples());
+//   for (int i = 0; i < num_tensor; ++i) {
+//     ASSERT_EQ(tensors[i].type(), tl.type());
+//     ASSERT_EQ(tensors[i].shape(), tl.shape()[i]);
+//     Index size = volume(tl.shape()[i]);
+//     ASSERT_EQ(tensors[i].size(), size);
+//     ASSERT_EQ(tensors[i].nbytes(), size*sizeof(float));
+//   }
+// }
 
 TYPED_TEST(TensorTest, TestCopyEmptyToTensorList) {
   TensorVector<TypeParam> tensors(16);

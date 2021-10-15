@@ -444,6 +444,9 @@ class TensorBatch {
   }
 
   DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape) {
+    DALI_ENFORCE(IsValidType(type_.id()),
+                 "TensorList has no type, 'set_type<T>()' or Resize(shape, type) must be called "
+                 "on the TensorList to set a valid type before it can be resized.");
     Resize(new_shape, type_.id());
   }
 
@@ -458,11 +461,15 @@ class TensorBatch {
    * do something in between.
    */
   DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape, DALIDataType new_type_id) {
+    DALI_ENFORCE(IsValidType(new_type_id),
+                 "TensorList cannot be resized with invalid type. To zero out the TensorList "
+                 "Reset() can be used.");
     // TODO: This is bit compute intensive, and I suggest that we remove type-setting
     // on mutable data.
     if (shape_ == new_shape && type_.id() == new_type_id) {
       return;
     }
+
     // Calculate the new size
     Index num_samples = new_shape.num_samples(), new_size = new_shape.num_elements();
 

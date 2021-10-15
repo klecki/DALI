@@ -316,6 +316,40 @@ class Operator<CPUBackend> : public OperatorBase {
    */
   virtual void RunImpl(SampleWorkspace &ws) {}
 
+  void SetupSample(SampleWorkspace &ws, const HostWorkspace &proper_nonlegacy_workspace, int data_idx, int thread_idx) {
+    ws.Clear();
+    ws.set_data_idx(data_idx);
+    ws.set_thread_idx(thread_idx);
+    int num_inputs = proper_nonlegacy_workspace.NumInput();
+    for (int i = 0; i < num_inputs; i++) {
+      // TODO(): No need for share pointers, as data is kept by the ProperWorkspace
+      if (proper_nonlegacy_workspace.InputIsType<CPUBackend>(i)) {
+        auto &input_ref = proper_nonlegacy_workspace.InputRef<CPUBackend>(i);
+        ws.AddInput(&input_ref[data_idx]);
+      } else {
+        auto &input_ref = proper_nonlegacy_workspace.InputRef<GPUBackend>(i);
+        ws.AddInput( &input_ref[data_idx]);
+      }
+    }
+
+    int num_outputs = proper_nonlegacy_workspace.NumOutput();
+    for (int i = 0; i < num_outputs; i++) {
+      if (proper_nonlegacy_workspace.OutputIsType<CPUBackend>(i)) {
+        ws.AddOutput(static_cast<Tensor<CPUBackend> *>(nullptr));
+        // ws.AddOutput(std::make_shared<Tensor<CPUBackend>>());
+      } else {
+        ws.AddOutput(static_cast<Tensor<GPUBackend> *>(nullptr));
+        // ws.AddOutput(std::make_shared<Tensor<GPUBackend>>());
+      }
+
+    }
+    // TODO(): inputs
+    // for (auto &arg_pair : argument_inputs_) {
+    //   assert(!arg_pair.second.should_update);
+    //   ws->AddArgumentInput(arg_pair.first, arg_pair.second.tvec);
+    // }
+  }
+
   /**
    * @brief Implementation of the operator - to be implemented by derived ops.
    */
@@ -328,9 +362,14 @@ class Operator<CPUBackend> : public OperatorBase {
       auto &output = ws.Output<CPUBackend>(i);
       output.SetSize(curr_batch_size);
     }
+    // for (int i = 0; i < ws.NumOutput(); i++) {
+    //   auto &output = ws.OutputRef<CPUBackend>(i);
+    //   // output.SetSize(curr_batch_size);
+    // }
     auto &thread_pool = ws.GetThreadPool();
     for (int data_idx = 0; data_idx < curr_batch_size; ++data_idx) {
       thread_pool.AddWork([this, &ws, data_idx](int tid) {
+        // we already create a new Sample ws for every sample
         SampleWorkspace sample;
         MakeSampleView(sample, ws, data_idx, tid);
         this->SetupSharedSampleParams(sample);
