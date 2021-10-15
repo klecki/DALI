@@ -138,7 +138,7 @@ class TensorBatch {
 
   template <typename T>
   inline void set_type() {
-    set_type(TypeTable::GetTypeID<T>());
+    set_type(TypeTable::GetTypeId<T>());
   }
 
 
@@ -436,7 +436,7 @@ class TensorBatch {
 
   template <typename T>
   DLL_PUBLIC inline void SetType() {
-    SetType(TypeTable::GetTypeID<T>());
+    SetType(TypeTable::GetTypeId<T>());
   }
 
   DLL_PUBLIC inline void SetType(DALIDataType new_type_id) {

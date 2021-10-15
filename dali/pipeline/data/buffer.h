@@ -305,7 +305,7 @@ class DLL_PUBLIC Buffer {
 
   template <typename T>
   inline void set_type() {
-    set_type(TypeTable::GetTypeID<T>());
+    set_type(TypeTable::GetTypeId<T>());
   }
 
   /**

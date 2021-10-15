@@ -155,7 +155,7 @@ class TensorVector : public TensorBatch<Backend> {
 
 //   template <typename T>
 //   void set_type() {
-//     set_type(TypeTable::GetTypeID<T>());
+//     set_type(TypeTable::GetTypeId<T>());
 //   }
 
 //   DALIDataType type() const;
