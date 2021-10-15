@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2018, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,31 +17,6 @@
 #include "dali/pipeline/workspace/sample_workspace.h"
 
 namespace dali {
-
-void HostWorkspace::GetSample(SampleWorkspace* ws, int data_idx, int thread_idx) {
-  DALI_ENFORCE(ws != nullptr, "Input workspace is nullptr.");
-  ws->Clear();
-  ws->set_data_idx(data_idx);
-  ws->set_thread_idx(thread_idx);
-  for (const auto& input_meta : input_index_map_) {
-    if (input_meta.storage_device == StorageDevice::CPU) {
-      ws->AddInput(cpu_inputs_[input_meta.index]->tensor_handle(data_idx));
-    } else {
-      ws->AddInput(gpu_inputs_[input_meta.index]->tensor_handle(data_idx));
-    }
-  }
-  for (const auto& output_meta : output_index_map_) {
-    if (output_meta.storage_device == StorageDevice::CPU) {
-      ws->AddOutput(cpu_outputs_[output_meta.index]->tensor_handle(data_idx));
-    } else {
-      ws->AddOutput(gpu_outputs_[output_meta.index]->tensor_handle(data_idx));
-    }
-  }
-  for (auto& arg_pair : argument_inputs_) {
-    assert(!arg_pair.second.should_update);
-    ws->AddArgumentInput(arg_pair.first, arg_pair.second.tvec);
-  }
-}
 
 template <>
 const Tensor<CPUBackend>& HostWorkspace::Input(int idx, int data_idx) const {
