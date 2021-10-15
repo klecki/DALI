@@ -47,6 +47,17 @@ class DLL_PUBLIC SampleWorkspace : public WorkspaceBase<SampleInputType, SampleO
 
   DLL_PUBLIC ~SampleWorkspace() override = default;
 
+  template <typename Backend>
+  Tensor<Backend>& InputRef(int idx) const {
+    return *InputHandle(idx, Backend{});
+  }
+
+  template <typename Backend>
+  Tensor<Backend>& OutputRef(int idx) const {
+    return *OutputHandle(idx, Backend{});
+  }
+
+
   /**
    * @brief Clears the contents of the workspaces, reseting it
    * to a default state.
