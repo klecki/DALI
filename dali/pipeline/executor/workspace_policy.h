@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,6 +55,7 @@ inline std::ostream &operator<<(std::ostream &os, StorageDevice device) {
   }
 }
 
+// TODO: GET RID OF THIS AS WE UNIFY
 template<typename backend>
 std::shared_ptr<TensorList<backend>> PresentAsTensorList(
     const std::shared_ptr<TensorList<backend>> &in) {

@@ -67,6 +67,7 @@ template void OperatorBase::EnforceUniformOutputBatchSize<CPUBackend>(const work
 template void OperatorBase::EnforceUniformOutputBatchSize<GPUBackend>(const workspace_t<GPUBackend> &w) const;  // NOLINT
 
 
+
 DALI_DEFINE_OPTYPE_REGISTRY(CPUOperator, OperatorBase);
 DALI_DEFINE_OPTYPE_REGISTRY(GPUOperator, OperatorBase);
 DALI_DEFINE_OPTYPE_REGISTRY(MixedOperator, OperatorBase);

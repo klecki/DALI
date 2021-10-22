@@ -63,13 +63,16 @@ TEST(Tensor, ViewAsTensor) {
 }
 
 TEST(TensorVector, View) {
-  TensorVector<CPUBackend> tvec(10);
+  // TODO Batch SIZE
+  TensorVector<CPUBackend> tvec;
+  tvec.SetSize(10);
   tvec.set_type<int>();
   std::mt19937_64 rng;
   for (int i = 0; i < 10; i++) {
     tvec[i].Resize(TensorShape<3>(100+i, 40+i, 3+i));
     UniformRandomFill(view<int>(tvec[i]), rng, 0, 10000);
   }
+  tvec.UpdateViews();
 
   auto tlv = view<int, 3>(tvec);
   const TensorVector<CPUBackend> &ctvec = tvec;
@@ -86,13 +89,16 @@ TEST(TensorVector, View) {
 }
 
 TEST(TensorVector, ReinterpretView) {
-  TensorVector<CPUBackend> tvec(10);
+  // TODO Batch SIZE
+  TensorVector<CPUBackend> tvec;
+  tvec.SetSize(10);
   tvec.set_type<int>();
   std::mt19937_64 rng;
   for (int i = 0; i < 10; i++) {
     tvec[i].Resize(TensorShape<3>(100+i, 40+i, 3+i));
     UniformRandomFill(view<int>(tvec[i]), rng, 0, 10000);
   }
+  tvec.UpdateViews();
 
   auto tlv = view<int, 3>(tvec);
   auto tlv_i16 = reinterpret_view<int16_t, 3>(tvec);

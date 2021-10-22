@@ -834,7 +834,9 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
       nvjpeg_params_.resize(samples_hw_batched_.size());
 
       int j = 0;
-      TensorVector<CPUBackend> tv(samples_hw_batched_.size());
+      // TODO(): Batch SIZE
+      TensorVector<CPUBackend> tv;
+      tv.SetSize(samples_hw_batched_.size());
 
       for (auto *sample : samples_hw_batched_) {
         int i = sample->sample_idx;
@@ -848,6 +850,7 @@ class nvJPEGDecoder : public Operator<MixedBackend>, CachedDecoderImpl {
         nvjpeg_params_[j] = sample->params;
         j++;
       }
+      tv.UpdateViews();
 
       CUDA_CALL(cudaEventSynchronize(hw_decode_event_));
       if (RestrictPinnedMemUsage()) {

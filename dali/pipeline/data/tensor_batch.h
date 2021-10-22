@@ -69,7 +69,9 @@ class TensorBatch {
   DLL_PUBLIC TensorBatch(TensorBatch &&) = default;
   DLL_PUBLIC TensorBatch& operator=(TensorBatch&&) = default;
 
-  DLL_PUBLIC explicit TensorBatch(int batch_size) {}
+  // DLL_PUBLIC explicit TensorBatch(int batch_size) {
+  //   SetSize(batch_size);
+  // }
 
 
   // Weird TV constructor
@@ -107,6 +109,7 @@ class TensorBatch {
   }
 
   inline void set_alloc_func(AllocFunc allocate) {
+    std::cout << "[TENSOR_BATCH] >> ALLOC FUNCTION SET ON TENSOR BATCH"<< std::endl;
     allocate_ = std::move(allocate);
   }
 
@@ -145,9 +148,13 @@ class TensorBatch {
   inline void reserve(size_t new_num_bytes) {}
   inline void reserve(size_t bytes_per_tensor, int batch_size)  {}
 
-  void reset() {}
+  void reset() {
+    std::cout << "[TENSOR_BATCH] >> reset()"<< std::endl;
+  }
 
-  void Reset() {}
+  void Reset() {
+    std::cout << "[TENSOR_BATCH] >> Reset()"<< std::endl;
+  }
 
   bool has_data() {
     return shape().num_elements() != 0 && type_.id() != DALI_NO_TYPE;
@@ -158,6 +165,7 @@ class TensorBatch {
   }
 
   void SetContiguous(bool contiguous) {
+    std::cout << "[TENSOR_BATCH] >> SetContiguous("<< contiguous << ")" << std::endl;
     DALI_ENFORCE(contiguous, "TensorList cannot be made noncontiguous");
   }
 
@@ -168,8 +176,6 @@ class TensorBatch {
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
     // return this->template mutable_data<T>() + tensor_offset(idx);
-    // TODO: UGH, I would really remove this, but there might be pushback
-    set_type<T>();
     return samples_[idx].template mutable_data<T>();
   }
 
@@ -417,20 +423,42 @@ class TensorBatch {
     return samples_[pos];
   }
 
-  //  One internal usage
-  shared_ptr<Tensor<Backend>> tensor_handle(size_t pos) {
-    return {};
-  }
-
-  shared_ptr<Tensor<Backend>> tensor_handle(size_t pos) const {
-    return {};
-  }
-
   // TODO
-  // void UpdateViews() {}
+  void UpdateViews() {
+    std::cout << "[TENSOR_BATCH] >> UpdateViews()" << std::endl;
+    uses_foreign_buffer_ = false;
+    // std::vector<TensorProxy<Backend>> samples_;
+    shape_.resize(samples_.size(), samples_[0].shape().sample_dim());
+    capacity_ = 0;
+    for (size_t i = 0; i < samples_.size(); i++) {
+      shape_.set_tensor_shape(i, samples_[i].shape());
+      capacity_ += samples_[i].capacity();
+    }
+    // TensorListShape<> shape_ = {};
+
+    // Buffer-like properties
+    // Buffer<Backend> local_buffer_;  // Contiguous storage
+    // TypeInfo type_ = {};            // Data type of underlying storage
+    type_ = samples_[0].type_info();
+    // AllocFunc allocate_;            // Custom allocation function
+    // int64_t num_elements_ = 0;      // The total number of elements
+    // size_t capacity_ = 0;  // Total underlying capacity, is bit misleading in non_contiguous state,
+    //                       // but what can we do, TODO, do we maintain it?
+    // int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on
+    device_ = samples_[0].device_id();
+    // bool shares_data_ = false;         // Whether we aren't using our own allocation ->
+    // uses_foreign_buffer_
+    bool pinned_ = true;  // Whether the allocation uses pinned memory
+
+  }
 
 
-  void SetSize(int new_size) {}
+  // TODO This is here temporary - we need to replace it with split and build batch
+  void SetSize(int new_size) {
+    std::cout << "[TENSOR_BATCH] >> SetSize(" << new_size << ")" <<std::endl;
+    samples_.resize(new_size);
+    state_ = State::noncontiguous;
+  }
   /** @} */  // end of LegacyVector
 
 

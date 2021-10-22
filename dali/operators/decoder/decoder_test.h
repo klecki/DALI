@@ -63,7 +63,8 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
     DeviceWorkspace *ws) override {
     // single input - encoded images
     // single output - decoded images
-    TensorVector<CPUBackend> out(inputs[0]->num_samples());
+    TensorVector<CPUBackend> out;
+    out.SetSize(inputs[0]->num_samples());
     const TensorList<CPUBackend> &encoded_data = *inputs[0];
     const int c = this->GetNumColorComp();
 
@@ -74,6 +75,7 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
         data, data_size, c, this->ImageType(),
         &out[i], GetCropWindowGenerator(i));
     }
+    out.UpdateViews();
 
     vector<std::shared_ptr<TensorList<CPUBackend>>> outputs;
     outputs.push_back(std::make_shared<TensorList<CPUBackend>>());
