@@ -36,8 +36,10 @@ class TensorVector : public TensorBatch<Backend> {
  public:
   explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl) {}
 
-  shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true) {
-    return {};
+  std::shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true) {
+    auto tl = std::make_shared<TensorList<Backend>>();
+    tl->ShareData(*this);
+    return tl;
   }
 
   // OH GOD WHY

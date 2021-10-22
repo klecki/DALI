@@ -155,11 +155,7 @@ class WorkspaceBase : public ArgumentWorkspace {
    * The operator implementation can use this function to access its inputs.
    */
   template <typename Backend>
-<<<<<<< HEAD
   const auto& Input(int idx) const {
-=======
-  auto& InputRef(int idx) const {
->>>>>>> 8a1754f929... Weird stuff
     return *InputHandle(idx, Backend{});
   }
 
@@ -169,11 +165,7 @@ class WorkspaceBase : public ArgumentWorkspace {
    * The operator implementation can use this function to access its outputs.
    */
   template <typename Backend>
-<<<<<<< HEAD
   auto& Output(int idx) const {
-=======
-  auto& OutputRef(int idx) const {
->>>>>>> 8a1754f929... Weird stuff
     return *OutputHandle(idx, Backend{});
   }
 

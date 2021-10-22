@@ -32,7 +32,9 @@ class GenericDecoderTest : public DALISingleOpTest<ImgType> {
     // single input - encoded images
     // single output - decoded images
 
-     TensorVector<CPUBackend> out(inputs[0]->num_samples());
+    // TODO BATCH SIZE
+    TensorVector<CPUBackend> out;
+    out.SetSize(inputs[0]->num_samples());
 
     const TensorList<CPUBackend> &encoded_data = *inputs[0];
 
@@ -43,7 +45,7 @@ class GenericDecoderTest : public DALISingleOpTest<ImgType> {
 
       this->DecodeImage(data, data_size, c, this->ImageType(), &out[i]);
     }
-
+    out.UpdateViews();
     vector<std::shared_ptr<TensorList<CPUBackend>>> outputs;
     outputs.push_back(std::make_shared<TensorList<CPUBackend>>());
     outputs[0]->Copy(out, 0);

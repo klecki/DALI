@@ -1,4 +1,4 @@
-// Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -153,7 +153,10 @@ struct BatchFactoryImpl {
   static tensor_store_elem_t<op_type, device> CreateOutputBatch(int batch_size) {
     // Output batch from GPU, MIXED and SUPPORT Ops are shared_ptr<Something>
     using BatchType = typename tensor_store_elem_t<op_type, device>::element_type;
-    auto output = std::make_shared<BatchType>(batch_size);
+
+    // TODO(): We do not want presized tensors, right?
+    // auto output = std::make_shared<BatchType>(batch_size);
+    auto output = std::make_shared<BatchType>();
     if (op_type == OpType::CPU) {
       output->set_pinned(false);
     }
