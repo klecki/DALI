@@ -33,13 +33,17 @@ class OperatorBench : public DALIBenchmark {
     if (op_ptr->Setup(outputs, ws) && can_infer_outs) {
       int num_out = outputs.size();
       for (int i = 0; i < num_out; i++) {
-        auto data_out = std::make_shared<OutputContainer>(batch_size);
+        // TODO BATCH SIZE
+        auto data_out = std::make_shared<OutputContainer>();
         data_out->Resize(outputs[i].shape, outputs[i].type);
         ws.AddOutput(data_out);
       }
     } else {
       for (int i = 0; i < spec.GetSchema().NumOutput(); i++) {
-        ws.AddOutput(std::make_shared<OutputContainer>(batch_size));
+        // TODO BATCH SIZE
+        auto data_out = std::make_shared<OutputContainer>();
+        data_out->SetSize(batch_size);
+        ws.AddOutput(data_out);
       }
     }
   }
@@ -53,7 +57,22 @@ class OperatorBench : public DALIBenchmark {
 
     auto op_ptr = InstantiateOperator(op_spec);
 
-    auto data_in = std::make_shared<TensorVector<CPUBackend>>(batch_size);
+    // TODO batch size
+    auto data_in = std::make_shared<TensorVector<CPUBackend>>();
+    data_in->SetSize(batch_size);
+    auto &batch = *data_in;
+    for (int i = 0; i < batch_size; i++) {
+      batch[i].set_type<T>();
+      batch[i].Resize({H, W, C});
+      batch[i].SetLayout("HWC");
+      if (fill_in_data) {
+        auto *ptr = batch[i].template mutable_data<T>();
+        for (int i = 0; i < N; i++) {
+          ptr[i] = static_cast<T>(i);
+        }
+      }
+    }
+    data_in->UpdateViews();
     // TODO
     // for (auto &in_ptr : *data_in) {
     //   in_ptr = std::make_shared<Tensor<CPUBackend>>();

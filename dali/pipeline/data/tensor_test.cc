@@ -401,7 +401,8 @@ TYPED_TEST(TensorTest, TestShareData) {
 // }
 
 TYPED_TEST(TensorTest, TestCopyEmptyToTensorList) {
-  TensorVector<TypeParam> tensors(16);
+  TensorVector<TypeParam> tensors;
+  tensors.SetSize(16);
   // Empty tensors
   TensorList<TypeParam> tl;
   tensors.template set_type<float>();

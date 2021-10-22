@@ -119,7 +119,9 @@ void SetExternalInputTensors(daliPipelineHandle *pipe_handle, const char *name,
   if (layout_str != nullptr) {
     layout = dali::TensorLayout(layout_str);
   }
-  dali::TensorVector<Backend> data(curr_batch_size);
+  // TODO(): BATCH SIZE
+  dali::TensorVector<Backend> data;
+  data.SetSize(curr_batch_size);
   auto type_id = static_cast<dali::DALIDataType>(data_type);
   auto elem_sizeof = dali::TypeTable::GetTypeInfo(type_id).size();
   for (int i = 0; i < curr_batch_size; i++) {
@@ -131,6 +133,7 @@ void SetExternalInputTensors(daliPipelineHandle *pipe_handle, const char *name,
     data[i].Resize(tl_shape[i], type_id);
     data[i].SetLayout(layout);
   }
+  data.UpdateViews();
   pipeline->SetExternalInput(name, data, stream,
                              flags & DALI_ext_force_sync,
                              flags & DALI_use_copy_kernel,
