@@ -322,11 +322,13 @@ class Operator<CPUBackend> : public OperatorBase {
   virtual void RunImpl(HostWorkspace &ws) {
     // This is implemented, as a default, using the RunImpl that accepts SampleWorkspace,
     // allowing for fallback to old per-sample implementations.
-
+    SmallVector<TensorBatch<CPUBackend>::SampleAccessLock, 6> scoped_locks;
+    scoped_locks.clear();
     auto curr_batch_size = ws.NumInput() > 0 ? ws.GetInputBatchSize(0) : max_batch_size_;
     for (int i = 0; i < ws.NumOutput(); i++) {
       auto &output = ws.Output<CPUBackend>(i);
       output.SetSize(curr_batch_size);
+      scoped_locks.push_back(output.ScopedSampleAccess());
     }
     auto &thread_pool = ws.GetThreadPool();
     for (int data_idx = 0; data_idx < curr_batch_size; ++data_idx) {
@@ -340,10 +342,10 @@ class Operator<CPUBackend> : public OperatorBase {
     }
     thread_pool.RunAll();
     // TODO(): get rid of this
-    for (int i = 0; i < ws.NumOutput(); i++) {
-      auto &output = ws.Output<CPUBackend>(i);
-      output.UpdateViews();
-    }
+    // for (int i = 0; i < ws.NumOutput(); i++) {
+    //   auto &output = ws.Output<CPUBackend>(i);
+    //   output.UpdateViews();
+    // }
   }
 
   /**
