@@ -69,6 +69,40 @@ class TensorBatch {
   DLL_PUBLIC TensorBatch(TensorBatch &&) = default;
   DLL_PUBLIC TensorBatch& operator=(TensorBatch&&) = default;
 
+  class SampleAccessLock {
+   public:
+    SampleAccessLock(TensorBatch *locked) : locked(locked) {}
+    SampleAccessLock() = delete;
+    SampleAccessLock(const SampleAccessLock &) = delete;
+    SampleAccessLock& operator=(SampleAccessLock &) = delete;
+    SampleAccessLock(SampleAccessLock &&other) : locked(other.locked) {
+      other.locked = nullptr;
+    }
+    SampleAccessLock& operator=(SampleAccessLock &&other) {
+      locked = other.locked;
+      other.locked = nullptr;
+      return *this;
+    }
+
+    ~SampleAccessLock() {
+      locked->ScopedSampleMerge();
+    }
+   private:
+    TensorBatch *locked;
+  };
+
+  /* [[nodiscard]] */ SampleAccessLock ScopedSampleAccess() {
+    can_modify_proxy_samples_ = true;
+    return SampleAccessLock(this);
+  }
+ private:
+  void ScopedSampleMerge() {
+    can_modify_proxy_samples_ = false;
+    UpdateViews();
+  }
+
+ public:
+
   // DLL_PUBLIC explicit TensorBatch(int batch_size) {
   //   SetSize(batch_size);
   // }
@@ -752,6 +786,7 @@ class TensorBatch {
 
   // Batch properties
   std::vector<TensorProxy<Backend>> samples_;
+  bool can_modify_proxy_samples_ = false;
   TensorListShape<> shape_ = {};
 
   // Buffer-like properties
