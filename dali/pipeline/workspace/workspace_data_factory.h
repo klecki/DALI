@@ -157,6 +157,7 @@ struct BatchFactoryImpl {
     // TODO(): We do not want presized tensors, right?
     // auto output = std::make_shared<BatchType>(batch_size);
     auto output = std::make_shared<BatchType>();
+    output->SetSize(batch_size);
     if (op_type == OpType::CPU) {
       output->set_pinned(false);
     }
