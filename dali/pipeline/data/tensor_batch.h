@@ -21,6 +21,7 @@
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
 // #include "dali/pipeline/data/tensor.h"
+#include "dali/core/util.h"
 
 #include "dali/core/tensor_shape.h"
 
@@ -69,39 +70,14 @@ class TensorBatch {
   DLL_PUBLIC TensorBatch(TensorBatch &&) = default;
   DLL_PUBLIC TensorBatch& operator=(TensorBatch&&) = default;
 
-  class SampleAccessLock {
-   public:
-    SampleAccessLock(TensorBatch *locked) : locked(locked) {}
-    SampleAccessLock() = delete;
-    SampleAccessLock(const SampleAccessLock &) = delete;
-    SampleAccessLock& operator=(SampleAccessLock &) = delete;
-    SampleAccessLock(SampleAccessLock &&other) : locked(other.locked) {
-      other.locked = nullptr;
-    }
-    SampleAccessLock& operator=(SampleAccessLock &&other) {
-      locked = other.locked;
-      other.locked = nullptr;
-      return *this;
-    }
-
-    ~SampleAccessLock() {
-      locked->ScopedSampleMerge();
-    }
-   private:
-    TensorBatch *locked;
-  };
-
-  /* [[nodiscard]] */ SampleAccessLock ScopedSampleAccess() {
+  void AllowSampleAccess() {
     can_modify_proxy_samples_ = true;
-    return SampleAccessLock(this);
   }
- private:
-  void ScopedSampleMerge() {
+
+  void FinalizeSampleAccess() {
     can_modify_proxy_samples_ = false;
     UpdateViews();
   }
-
- public:
 
   // DLL_PUBLIC explicit TensorBatch(int batch_size) {
   //   SetSize(batch_size);
@@ -841,6 +817,57 @@ class TensorBatch {
 
   /** @} */  // end of ContiguousAccessorFunctions
 };
+
+
+// template <typename Backend>
+// class SampleAccessLock {
+//  public:
+//   SampleAccessLock(TensorBatch<Backend> &locked) : locked(locked) {}
+//   SampleAccessLock() = delete;
+//   SampleAccessLock(const SampleAccessLock &) = delete;
+//   SampleAccessLock& operator=(SampleAccessLock &) = delete;
+//   SampleAccessLock(SampleAccessLock &&other) = delete;
+//   SampleAccessLock& operator=(SampleAccessLock &&other) = delete;
+
+//   ~SampleAccessLock() {
+//     locked.FinalizeSampleAccess();
+//   }
+//  private:
+//   TensorBatch<Backend> &locked;
+// };
+
+template <typename Backend>
+class SampleAccessLock {
+ public:
+  SampleAccessLock(TensorBatch<Backend> &batch) {
+    locked.reserve(1);
+    locked.push_back(batch);
+    batch.AllowSampleAccess();
+  }
+  template <typename T, typename = if_array_like<T>>
+  SampleAccessLock(T &batches) {
+    locked.reserve(batches.size());
+    for (size_t i = 0; i < batches.size(); i++) {
+      locked.push_back(batches[i]);
+      locked.back().get().AllowSampleAccess();
+    }
+  }
+  SampleAccessLock() = delete;
+  SampleAccessLock(const SampleAccessLock &) = delete;
+  SampleAccessLock &operator=(SampleAccessLock &) = delete;
+  SampleAccessLock(SampleAccessLock &&other) = delete;
+  SampleAccessLock &operator=(SampleAccessLock &&other) = delete;
+
+  ~SampleAccessLock() {
+    for (size_t i = 0; i < locked.size(); i++) {
+      locked[i].get().FinalizeSampleAccess();
+    }
+  }
+
+ private:
+  SmallVector<std::reference_wrapper<TensorBatch<Backend>>, 6> locked;
+};
+
 
 /**
  * @brief Sample by sample copy between two batches that have equal shape and size.
