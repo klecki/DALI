@@ -130,11 +130,12 @@ def check_equivalence(device, inp_dtype, out_dtype, op):
   compare_pipelines(pipe1, pipe2, batch_size, n_iters, eps=eps)
 
 def test_equivalence():
-  for device in ['cpu', 'gpu']:
+  for device in ['cpu']:
     for inp_dtype in [types.FLOAT, types.INT16, types.UINT8]:
       for out_dtype in [types.FLOAT, types.INT16, types.UINT8]:
         for op in ['brightness', 'contrast']:
           yield check_equivalence, device, inp_dtype, out_dtype, op
+    # yield check_equivalence, 'cpu', types.FLOAT, types.FLOAT, 'brightness'
 
 
 def check_vs_ref(device, inp_dtype, out_dtype):

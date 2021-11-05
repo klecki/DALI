@@ -242,30 +242,6 @@ class TensorBatch {
 
   /**
    * @brief Checks whether the TensorList is
-   * contiguous. It returns true if and only if
-   * all of the stored Tensors are densely packed in memory.
-   */
-  inline bool IsContiguousTensor() const {
-    return false;
-    // if (ntensor() == 0 || num_elements_ == 0) {
-    //   return true;
-    // }
-    // if (!IsContiguous()) {
-    //   return false;
-    // }
-    // Index offset = 0;
-
-    // for (int i = 0; i < shape_.size(); ++i) {
-    //   if (offset != offsets_[i]) {
-    //     return false;
-    //   }
-    //   offset += volume(shape_[i]);
-    // }
-    // return true;
-  }
-
-  /**
-   * @brief Checks whether the TensorList is
    * a dense Tensor. It returns true if and only if
    * all of the stored Tensors have the same shape
    * and they are densely packed in memory.
@@ -812,7 +788,7 @@ class TensorBatch {
    */
   friend shared_ptr<void> unsafe_sample_owner(TensorBatch<Backend> &tl, int sample_idx) {
     //{tl.data_, tl.raw_mutable_tensor(sample_idx)};
-    return {};
+    return tl.samples_[sample_idx].data_;
   }
 
   /** @} */  // end of ContiguousAccessorFunctions
