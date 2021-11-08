@@ -119,7 +119,7 @@ class TensorBatch {
   }
 
   inline void set_alloc_func(AllocFunc allocate) {
-    std::cout << "[TENSOR_BATCH] >> ALLOC FUNCTION SET ON TENSOR BATCH"<< std::endl;
+    // std::cout << "[TENSOR_BATCH] >> ALLOC FUNCTION SET ON TENSOR BATCH"<< std::endl;
     allocate_ = std::move(allocate);
   }
 
@@ -175,7 +175,7 @@ class TensorBatch {
   }
 
   void SetContiguous(bool contiguous) {
-    std::cout << "[TENSOR_BATCH] >> SetContiguous("<< contiguous << ")" << std::endl;
+    // std::cout << "[TENSOR_BATCH] >> SetContiguous("<< contiguous << ")" << std::endl;
     DALI_ENFORCE(contiguous, "TensorList cannot be made noncontiguous");
   }
 
@@ -411,31 +411,77 @@ class TensorBatch {
 
   // TODO
   void UpdateViews() {
-    std::cout << "[TENSOR_BATCH] >> UpdateViews()" << std::endl;
-    uses_foreign_buffer_ = false;
-    // std::vector<TensorProxy<Backend>> samples_;
+    SyncSamplesToBatch(true);
+  }
+
+  /**
+   * @brief Sync the metadata set in sample proxies to the common description for the batch.
+   *
+   * Gather the shape, type, etc.
+   */
+  void SyncSamplesToBatch(bool verify = false) {
+    // proxy manipulation should not allow us to break the external allocation contract that
+    // we got through ShareData
+
+    // TODO(klecki): What with empty batch?
+    if (samples_.empty()) {
+      return;
+    }
+
+    if (verify) {
+      int sample_dim = samples_[0].shape().sample_dim();
+      auto type = samples_[0].type();
+      auto device = samples_[0].device_id();
+      for (size_t i = 1; i < samples_.size(); i++) {
+        // TODO(klecki): better error message
+        DALI_ENFORCE(sample_dim == samples_[i].shape().sample_dim(), "Unexpected value in sample");
+        DALI_ENFORCE(type == samples_[i].type(), "Unexpected value in sample");
+        DALI_ENFORCE(device == samples_[i].device_id(), "Unexpected value in sample");
+      }
+    }
+
     shape_.resize(samples_.size(), samples_[0].shape().sample_dim());
     capacity_ = 0;
     for (size_t i = 0; i < samples_.size(); i++) {
       shape_.set_tensor_shape(i, samples_[i].shape());
       capacity_ += samples_[i].capacity();
     }
-    // TensorListShape<> shape_ = {};
-
-    // Buffer-like properties
-    // Buffer<Backend> local_buffer_;  // Contiguous storage
-    // TypeInfo type_ = {};            // Data type of underlying storage
     type_ = samples_[0].type_info();
-    // AllocFunc allocate_;            // Custom allocation function
-    // int64_t num_elements_ = 0;      // The total number of elements
-    // size_t capacity_ = 0;  // Total underlying capacity, is bit misleading in non_contiguous state,
-    //                       // but what can we do, TODO, do we maintain it?
-    // int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on
     device_ = samples_[0].device_id();
-    // bool shares_data_ = false;         // Whether we aren't using our own allocation ->
-    // uses_foreign_buffer_
-    bool pinned_ = true;  // Whether the allocation uses pinned memory
+  }
 
+  /**
+   * @brief Assuming that the batch is uniform, and the shape and type are already set,
+   * recrate the sample proxies.
+   */
+  void SyncBatchToSamples() {
+
+    // TODO: refactor this as UpdateSamples or something
+    // if we did realloc, we need to update with alias shared_ptr
+    // TODO(klecki): Optimized case, no need to rewrite shared ptrs
+    int64_t num_samples = shape_.num_samples();
+    samples_.resize(num_samples);
+    if (state_ == State::contiguous) {
+      uint8_t *base_ptr = static_cast<uint8_t*>(local_buffer_.raw_mutable_data());
+      for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
+        // set the aliasing shared_ptr, the shape, etc
+        // TODO
+        // samples_[sample_idx].SetTensorFromList(local_buffer_, offset, new_shape[sample_idx],
+        //                                        type_);
+        auto sample_alias_ptr = std::shared_ptr<void>(local_buffer_.get_data_ptr(), base_ptr);
+        size_t bytes = shape_[sample_idx].num_elements() * type_.size();
+        samples_[sample_idx].ShareData(sample_alias_ptr, bytes, shape_[sample_idx],
+                                       type_.id());
+        base_ptr += bytes;
+      }
+    } else {
+      for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
+        // set the aliasing shared_ptr, the shape, etc
+        // TODO
+        // samples_[sample_idx].InternalResize(shape_[sample_idx], type_);
+        samples_[sample_idx].Resize(shape_[sample_idx], type_.id());
+      }
+    }
   }
 
 
@@ -516,35 +562,14 @@ class TensorBatch {
     }
     samples_.resize(num_samples);
 
-    // TODO: refactor this as UpdateSamples or something
-    // if we did realloc, we need to update with alias shared_ptr
-    // TODO(klecki): Optimized case, no need to rewrite shared ptrs
-    if (state_ == State::contiguous) {
-      uint8_t *base_ptr = static_cast<uint8_t*>(local_buffer_.raw_mutable_data());
-      for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
-        // set the aliasing shared_ptr, the shape, etc
-        // TODO
-        // samples_[sample_idx].SetTensorFromList(local_buffer_, offset, new_shape[sample_idx],
-        //                                        new_type);
-        auto sample_alias_ptr = std::shared_ptr<void>(local_buffer_.get_data_ptr(), base_ptr);
-        size_t bytes = new_shape[sample_idx].num_elements() * new_type.size();
-        samples_[sample_idx].ShareData(sample_alias_ptr, bytes, new_shape[sample_idx],
-                                       new_type.id());
-        base_ptr += bytes;
-      }
-    } else {
-      for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
-        // set the aliasing shared_ptr, the shape, etc
-        // TODO
-        // samples_[sample_idx].InternalResize(new_shape[sample_idx], new_type);
-        samples_[sample_idx].Resize(new_shape[sample_idx], new_type_id);
-      }
-    }
+    // moving this above, might not be the wisest idea
+    shape_ = new_shape;
+    type_ = new_type;
+
+    SyncBatchToSamples();
 
     // Resize the underlying allocation and save the new shape
     // ResizeHelper(new_size, new_type);
-    shape_ = new_shape;
-    type_ = new_type;
 
     // Tensor views of this TensorList is no longer valid - TODO(): handle this
     // tensor_views_.clear();
@@ -627,8 +652,46 @@ class TensorBatch {
    */
   inline void ShareData(const shared_ptr<void> &ptr, size_t bytes, const TensorListShape<> &shape,
                         DALIDataType type = DALI_NO_TYPE)  {
+    if (!shape.empty()) {
+      DALI_ENFORCE(IsValidType(type),
+                   "TensorBatch cannot share data with non-empty shape without type specified. "
+                   "Either provide only the allocation or both valid shape and type.");
+    }
+
     local_buffer_.SetExternalAllocation(ptr, bytes, shape.num_elements(), type);
     uses_foreign_buffer_ = true;
+    state_ = State::contiguous;
+
+    shape_ = shape;
+    type_ = TypeTable::GetTypeInfo(type);
+    allocate_ = {};            // Custom allocation function
+    size_t capacity_ = bytes;
+    int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on
+    // bool pinned_ = true;  // Whether the allocation uses pinned memory
+
+    // ORIGINAL IMPL:
+    // don't check ptr as we want to share empty data as well
+    // // Save our new pointer and bytes. Reset our type, shape, and size
+    // data_ = ptr;
+    // num_bytes_ = bytes;
+    // type_ = TypeTable::GetTypeInfo(type);
+    // shape_ = {};
+    // offsets_.clear();
+    // size_ = 0;
+    // device_ = CPU_ONLY_DEVICE_ID;
+    // // Tensor views of this TensorList is no longer valid
+    // tensor_views_.clear();
+    // // If the input pointer stores a non-zero size allocation, mark
+    // // that we are sharing our underlying data
+    // shares_data_ = num_bytes_ > 0 ? true : false;
+    // // Set the proper shape and type in one step. No-op for empty values.
+    // if (!shape.empty() && type != DALIDataType::DALI_NO_TYPE) {
+    //   Resize(shape, type);
+    // }
+
+
+
+    SyncBatchToSamples();
   }
 
   /**
@@ -834,7 +897,7 @@ class SampleAccessLock {
   SampleAccessLock(SampleAccessLock &&other) = delete;
   SampleAccessLock &operator=(SampleAccessLock &&other) = delete;
 
-  ~SampleAccessLock() {
+  DLL_PUBLIC ~SampleAccessLock() {
     for (size_t i = 0; i < locked.size(); i++) {
       locked[i].get().FinalizeSampleAccess();
     }
