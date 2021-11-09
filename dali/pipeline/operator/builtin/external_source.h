@@ -232,16 +232,17 @@ class ExternalSource : public Operator<Backend>, virtual public BatchSizeProvide
     return "ExternalSource (" + output_name_ + ")";
   }
 
+  // TODO
   /**
    * @brief Sets the data that should be passed out of the op on the next iteration.
    */
-  template <typename SrcBackend>
-  inline void SetDataSource(const TensorList<SrcBackend> &tl, cudaStream_t stream = 0,
-                            ExtSrcSettingMode ext_src_setting_mode = {}) {
-    DeviceGuard g(device_id_);
-    DomainTimeRange tr("[DALI][ExternalSource] SetDataSource", DomainTimeRange::kViolet);
-    SetDataSourceHelper(tl, stream, ext_src_setting_mode);
-  }
+  // template <typename SrcBackend>
+  // inline void SetDataSource(const TensorList<SrcBackend> &tl, cudaStream_t stream = 0,
+  //                           ExtSrcSettingMode ext_src_setting_mode = {}) {
+  //   DeviceGuard g(device_id_);
+  //   DomainTimeRange tr("[DALI][ExternalSource] SetDataSource", DomainTimeRange::kViolet);
+  //   SetDataSourceHelper(tl, stream, ext_src_setting_mode);
+  // }
 
   /**
    * @brief Sets the data that should be passed out of the op on the next iteration.
@@ -322,9 +323,10 @@ class ExternalSource : public Operator<Backend>, virtual public BatchSizeProvide
 
   void RunImpl(workspace_t<Backend> &ws) override;
 
-  void RecycleBufferHelper(std::list<uptr_tl_type> &data) {
-    tl_data_.Recycle(data);
-  }
+  // TODO
+  // void RecycleBufferHelper(std::list<uptr_tl_type> &data) {
+  //   tl_data_.Recycle(data);
+  // }
 
   void RecycleBufferHelper(std::list<uptr_tv_type> &data) {
     tv_data_.Recycle(data);
@@ -394,7 +396,9 @@ class ExternalSource : public Operator<Backend>, virtual public BatchSizeProvide
     auto tl_elm = tl_data_.GetEmpty();
     bool copied_shared_data = false;
     if (batch.IsContiguous()) {
-      auto &in_tl = *const_cast<TensorVector<Backend> &>(batch).AsTensorList();
+      // TODO
+      // auto &in_tl = *const_cast<TensorVector<Backend> &>(batch).AsTensorList();
+      auto &in_tl = batch;
       tl_elm.front()->ShareData(in_tl);
       zero_copy_noncontiguous_gpu_input_ = true;
     } else {
@@ -417,18 +421,19 @@ class ExternalSource : public Operator<Backend>, virtual public BatchSizeProvide
     tl_data_.PushBack(tl_elm);
   }
 
-  template <typename SrcBackend>
-  inline std::enable_if_t<std::is_same<SrcBackend, Backend>::value &&
-                          std::is_same<SrcBackend, GPUBackend>::value>
-  ShareUserData(const TensorList<SrcBackend> &batch, cudaStream_t /*stream = 0*/,
-                bool /* use_copy_kernel */) {
-    std::lock_guard<std::mutex> busy_lock(busy_m_);
-    state_.push_back({false, true});
-    auto tl_elm = tl_data_.GetEmpty();
-    tl_elm.front()->ShareData(const_cast<TensorList<Backend> &>(batch));
-    tl_data_.PushBack(tl_elm);
-    zero_copy_noncontiguous_gpu_input_ = true;
-  }
+  // TODO
+  // template <typename SrcBackend>
+  // inline std::enable_if_t<std::is_same<SrcBackend, Backend>::value &&
+  //                         std::is_same<SrcBackend, GPUBackend>::value>
+  // ShareUserData(const TensorList<SrcBackend> &batch, cudaStream_t /*stream = 0*/,
+  //               bool /* use_copy_kernel */) {
+  //   std::lock_guard<std::mutex> busy_lock(busy_m_);
+  //   state_.push_back({false, true});
+  //   auto tl_elm = tl_data_.GetEmpty();
+  //   tl_elm.front()->ShareData(const_cast<TensorList<Backend> &>(batch));
+  //   tl_data_.PushBack(tl_elm);
+  //   zero_copy_noncontiguous_gpu_input_ = true;
+  // }
 
   template<typename SrcBackend, template<typename> class SourceDataType, typename B = Backend>
   inline std::enable_if_t<std::is_same<B, CPUBackend>::value>

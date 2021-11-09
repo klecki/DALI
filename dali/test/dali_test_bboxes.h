@@ -88,6 +88,7 @@ class GenericBBoxesTest : public DALISingleOpTest<ImgType> {
 
     this->SetTestCheckType(this->GetTestCheckType());
     pipe->Build({{"cropped_images", "gpu"}, {"resized_boxes", "gpu"}});
+    pipe->SaveGraphToDotFile("Slice.dot", true, true, true);
     this->FillExternalInputs();
     pipe->RunCPU();
     pipe->RunGPU();

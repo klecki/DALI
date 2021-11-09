@@ -28,23 +28,24 @@
 #include "dali/core/tensor_shape.h"
 
 namespace dali {
-
-
 template <typename Backend>
-class TensorVector : public TensorBatch<Backend> {
-  using TensorBatch<Backend>::TensorBatch;
- public:
-  explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl) {}
+using TensorVector = TensorBatch<Backend>;
 
-  std::shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true) {
-    auto tl = std::make_shared<TensorList<Backend>>();
-    tl->ShareData(*this);
-    return tl;
-  }
+// template <typename Backend>
+// class TensorVector : public TensorBatch<Backend> {
+//   using TensorBatch<Backend>::TensorBatch;
+//  public:
+//   explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl) {}
 
-  // OH GOD WHY
-  void ShareWith(TensorList<Backend> *in_tl) const {}
-};
+//   std::shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true) {
+//     auto tl = std::make_shared<TensorList<Backend>>();
+//     tl->ShareData(*this);
+//     return tl;
+//   }
+
+//   // OH GOD WHY
+//   void ShareWith(TensorList<Backend> *in_tl) const {}
+// };
 
 /**
  * @brief Merges TensorList<Backend> and std::vector<std::shared_ptr<Tensor<Backend>>> APIs

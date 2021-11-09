@@ -757,7 +757,7 @@ class DALISingleOpTest : public DALITest {
 
   void InitPipeline() {
     if (!pipeline_.get()) {
-      pipeline_.reset(new Pipeline(batch_size_, num_threads_, 0));
+      pipeline_.reset(new Pipeline(batch_size_, num_threads_, 0, -1, false, 1, false));
     }
   }
   vector<std::pair<string, TensorList<CPUBackend>*>> inputs_;

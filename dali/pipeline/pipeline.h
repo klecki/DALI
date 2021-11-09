@@ -171,23 +171,24 @@ class DLL_PUBLIC Pipeline {
   }
 
 
-  /**
-   * @brief Sets the external input with the input name to the input data
-   * @tparam Backend
-   * @param name name of the input
-   * @param tl data
-   * @param stream CUDA stream to use in case of GPUBackend
-   * @param sync If SetExternalInputHelper should be blocking - waits until provided data is copied
-   *             to the internal buffer
-   * @param no_copy_mode Select whether to use the parameter defined in the External Source or
-   *                     override the mode of operation forcing the copy or no-copy
-   */
-  template <typename Backend>
-  DLL_PUBLIC inline void SetExternalInput(
-      const string &name, const TensorList<Backend> &tl, cudaStream_t stream = 0, bool sync = false,
-      bool use_copy_kernel = false, ExtSrcNoCopyMode no_copy_mode = ExtSrcNoCopyMode::DEFAULT) {
-    SetExternalInputHelper(name, tl, stream, {sync, use_copy_kernel, no_copy_mode});
-  }
+  // TODO
+  // /**
+  //  * @brief Sets the external input with the input name to the input data
+  //  * @tparam Backend
+  //  * @param name name of the input
+  //  * @param tl data
+  //  * @param stream CUDA stream to use in case of GPUBackend
+  //  * @param sync If SetExternalInputHelper should be blocking - waits until provided data is copied
+  //  *             to the internal buffer
+  //  * @param no_copy_mode Select whether to use the parameter defined in the External Source or
+  //  *                     override the mode of operation forcing the copy or no-copy
+  //  */
+  // template <typename Backend>
+  // DLL_PUBLIC inline void SetExternalInput(
+  //     const string &name, const TensorList<Backend> &tl, cudaStream_t stream = 0, bool sync = false,
+  //     bool use_copy_kernel = false, ExtSrcNoCopyMode no_copy_mode = ExtSrcNoCopyMode::DEFAULT) {
+  //   SetExternalInputHelper(name, tl, stream, {sync, use_copy_kernel, no_copy_mode});
+  // }
 
 
   /**
