@@ -343,15 +343,14 @@ class TensorBatch {
 
   inline TensorLayout GetLayout() const {
     // Layout is enforced to be the same across all the samples
-    // return layout_;
-    return {};
+    return layout_;
   }
 
   /** @brief Set uniform layout for all samples in the list */
   inline void SetLayout(const TensorLayout &layout) {
-    // layout_ = layout;
-    // for (auto& meta : meta_)
-    //   meta.SetLayout(layout);
+    layout_ = layout;
+    for (auto& sample : samples_)
+      sample.SetLayout(layout);
   }
 
   inline void SetSkipSample(int idx, bool skip_sample) {
@@ -435,11 +434,13 @@ class TensorBatch {
       int sample_dim = samples_[0].shape().sample_dim();
       auto type = samples_[0].type();
       auto device = samples_[0].device_id();
+      auto layout = samples_[0].GetLayout();
       for (size_t i = 1; i < samples_.size(); i++) {
         // TODO(klecki): better error message
-        DALI_ENFORCE(sample_dim == samples_[i].shape().sample_dim(), "Unexpected value in sample");
-        DALI_ENFORCE(type == samples_[i].type(), "Unexpected value in sample");
-        DALI_ENFORCE(device == samples_[i].device_id(), "Unexpected value in sample");
+        DALI_ENFORCE(sample_dim == samples_[i].shape().sample_dim(), make_string("Non uniform sample dimensionality"));
+        DALI_ENFORCE(type == samples_[i].type(), make_string("Non uniform sample type"));
+        DALI_ENFORCE(device == samples_[i].device_id(), make_string("Non uniform device for sample"));
+        DALI_ENFORCE(layout == samples_[i].GetLayout(), make_string("Non uniform sample layout"));
       }
     }
 
@@ -475,6 +476,7 @@ class TensorBatch {
         size_t bytes = shape_[sample_idx].num_elements() * type_.size();
         samples_[sample_idx].ShareData(sample_alias_ptr, bytes, shape_[sample_idx],
                                        type_.id());
+        samples_[sample_idx].SetLayout(layout_);
         base_ptr += bytes;
       }
     } else {
@@ -483,6 +485,7 @@ class TensorBatch {
         // TODO
         // samples_[sample_idx].InternalResize(shape_[sample_idx], type_);
         samples_[sample_idx].Resize(shape_[sample_idx], type_.id());
+        samples_[sample_idx].SetLayout(layout_);
       }
     }
   }
@@ -806,6 +809,7 @@ class TensorBatch {
   std::vector<TensorProxy<Backend>> samples_;
   bool can_modify_proxy_samples_ = false;
   TensorListShape<> shape_ = {};
+  TensorLayout layout_;
 
   // Buffer-like properties
   Buffer<Backend> local_buffer_;  // Contiguous storage
