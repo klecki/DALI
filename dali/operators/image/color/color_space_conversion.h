@@ -45,7 +45,7 @@ class ColorSpaceConversion : public Operator<Backend> {
     int nsamples = in_sh.num_samples();
     auto in_layout = input.GetLayout();
     int channel_dim = in_layout.find('C');
-    assert(channel_dim == ndim - 1);  // shoulb be enforced by input layouts
+    assert(channel_dim == ndim - 1);  // should be enforced by input layouts
     DALI_ENFORCE(IsType<uint8_t>(input.type()), "Color space conversion accept only uint8 tensors");
     auto out_sh = in_sh;
     for (int i = 0; i < in_sh.num_samples(); i++) {

@@ -62,11 +62,11 @@ std::shared_ptr<TensorList<backend>> PresentAsTensorList(
   return in;
 }
 
-template<typename backend>
-std::shared_ptr<TensorList<backend>> PresentAsTensorList(
-    const std::shared_ptr<TensorVector<backend>> &in) {
-  return in->AsTensorList(false);
-}
+// template<typename backend>
+// std::shared_ptr<TensorList<backend>> PresentAsTensorList(
+//     const std::shared_ptr<TensorVector<backend>> &in) {
+//   return in->AsTensorList(false);
+// }
 
 template<typename workspace, typename T>
 void AddInputHelper(workspace &ws, T &tensor) {
@@ -75,7 +75,7 @@ void AddInputHelper(workspace &ws, T &tensor) {
 
 template<typename T>
 void AddInputHelper(dali::DeviceWorkspace &ws, T &tensor) {
-  ws.AddInput(PresentAsTensorList(tensor));
+  ws.AddInput(tensor);
 }
 
 // We instantiate the operation of adding the input only for parent op_type and device

@@ -138,41 +138,41 @@ view(const TensorList<Backend> &data) {
 }
 
 
-template <typename T, int ndim = DynamicDimensions, typename Backend>
-TensorListView<detail::storage_tag_map_t<Backend>, T, ndim>
-view(TensorVector<Backend> &data) {
-  if (data.num_samples() == 0)
-    return {};
-  using U = std::remove_const_t<T>;
-  const auto &shape = data.shape();
-  detail::enforce_dim_in_view<ndim>(shape);
+// template <typename T, int ndim = DynamicDimensions, typename Backend>
+// TensorListView<detail::storage_tag_map_t<Backend>, T, ndim>
+// view(TensorVector<Backend> &data) {
+//   if (data.num_samples() == 0)
+//     return {};
+//   using U = std::remove_const_t<T>;
+//   const auto &shape = data.shape();
+//   detail::enforce_dim_in_view<ndim>(shape);
 
-  std::vector<T *> ptrs(shape.num_samples());
-  for (int i = 0; i < shape.num_samples(); i++) {
-    ptrs[i] = data[i].template mutable_data<U>();
-  }
-  return { std::move(ptrs), convert_dim<ndim>(shape) };
-}
+//   std::vector<T *> ptrs(shape.num_samples());
+//   for (int i = 0; i < shape.num_samples(); i++) {
+//     ptrs[i] = data[i].template mutable_data<U>();
+//   }
+//   return { std::move(ptrs), convert_dim<ndim>(shape) };
+// }
 
 
-template <typename T, int ndim = DynamicDimensions, typename Backend>
-TensorListView<detail::storage_tag_map_t<Backend>, T, ndim>
-view(const TensorVector<Backend> &data) {
-  static_assert(std::is_const<T>::value,
-                "Cannot create a non-const view of a `const TensorVector<>`. "
-                "Missing `const` in T?");
-  if (data.num_samples() == 0)
-    return {};
-  using U = std::remove_const_t<T>;
-  const auto &shape = data.shape();
-  detail::enforce_dim_in_view<ndim>(shape);
+// template <typename T, int ndim = DynamicDimensions, typename Backend>
+// TensorListView<detail::storage_tag_map_t<Backend>, T, ndim>
+// view(const TensorVector<Backend> &data) {
+//   static_assert(std::is_const<T>::value,
+//                 "Cannot create a non-const view of a `const TensorVector<>`. "
+//                 "Missing `const` in T?");
+//   if (data.num_samples() == 0)
+//     return {};
+//   using U = std::remove_const_t<T>;
+//   const auto &shape = data.shape();
+//   detail::enforce_dim_in_view<ndim>(shape);
 
-  std::vector<T *> ptrs(shape.num_samples());
-  for (int i = 0; i < shape.num_samples(); i++) {
-    ptrs[i] = data[i].template data<U>();
-  }
-  return { std::move(ptrs), convert_dim<ndim>(shape) };
-}
+//   std::vector<T *> ptrs(shape.num_samples());
+//   for (int i = 0; i < shape.num_samples(); i++) {
+//     ptrs[i] = data[i].template data<U>();
+//   }
+//   return { std::move(ptrs), convert_dim<ndim>(shape) };
+// }
 
 
 template <typename T, int ndim = DynamicDimensions, typename Backend>

@@ -451,7 +451,7 @@ class Tensor : public Buffer<Backend> {
 
   // So TensorVector can access data_ of the tensor directly
   template <typename InBackend>
-  friend class TensorVector;
+  friend class TensorBatch;
 };
 
 }  // namespace dali
