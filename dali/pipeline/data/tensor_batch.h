@@ -158,9 +158,9 @@ class TensorBatch {
   inline void reserve(size_t new_num_bytes) {}
   inline void reserve(size_t bytes_per_tensor, int batch_size)  {}
 
-  void reset() {
-    std::cout << "[TENSOR_BATCH] >> reset()"<< std::endl;
-  }
+  // void reset() {
+  //   std::cout << "[TENSOR_BATCH] >> reset()"<< std::endl;
+  // }
 
   void Reset() {
     std::cout << "[TENSOR_BATCH] >> Reset()"<< std::endl;
@@ -493,7 +493,7 @@ class TensorBatch {
 
   // TODO This is here temporary - we need to replace it with split and build batch
   void SetSize(int new_size) {
-    std::cout << "[TENSOR_BATCH] >> SetSize(" << new_size << ")" <<std::endl;
+    // std::cout << "[TENSOR_BATCH] >> SetSize(" << new_size << ")" <<std::endl;
     samples_.resize(new_size);
     state_ = State::noncontiguous;
   }
@@ -540,8 +540,8 @@ class TensorBatch {
     Index num_samples = new_shape.num_samples(), new_size = new_shape.num_elements();
 
 
-    std::cout << make_string("> Batch::Resize(", new_size, ", ", new_type_id, ").")
-              << std::endl;
+    // std::cout << make_string("> Batch::Resize(", new_size, ", ", new_type_id, ").")
+    //           << std::endl;
     DALI_ENFORCE(new_size >= 0, "Invalid negative buffer size.");
 
     const auto &new_type = new_type_id == type_.id() ? type_ : TypeTable::GetTypeInfo(new_type_id);
