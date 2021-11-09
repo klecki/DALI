@@ -24,6 +24,9 @@ void MakeContiguousCPU::RunImpl(HostWorkspace &ws) {
   auto shapes = input.shape();
 
   auto &thread_pool = ws.GetThreadPool();
+
+  SampleAccessLock<CPUBackend> lock(output);
+
   for (int sample_id = 0; sample_id < batch_size; ++sample_id) {
     thread_pool.AddWork([sample_id, &input, &output] (int tid) {
       // HostWorkspace doesn't have any stream

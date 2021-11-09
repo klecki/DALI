@@ -72,17 +72,18 @@ class Shapes : public Operator<Backend> {
     }
   }
 
-  template <typename type>
-  void ConvertShape(TensorVector<CPUBackend> &out, const TensorListShape<> &shape) {
-    int n = out.num_samples();
-    assert(n == shape.num_samples());
-    for (int i = 0; i < n; i++) {
-      type *data = out[i].mutable_data<type>();
-      auto sample_shape = shape.tensor_shape_span(i);
-      for (int j = 0; j < shape.sample_dim(); j++)
-        data[j] = sample_shape[j];
-    }
-  }
+  // TODO
+  // template <typename type>
+  // void ConvertShape(TensorVector<CPUBackend> &out, const TensorListShape<> &shape) {
+  //   int n = out.num_samples();
+  //   assert(n == shape.num_samples());
+  //   for (int i = 0; i < n; i++) {
+  //     type *data = out[i].mutable_data<type>();
+  //     auto sample_shape = shape.tensor_shape_span(i);
+  //     for (int j = 0; j < shape.sample_dim(); j++)
+  //       data[j] = sample_shape[j];
+  //   }
+  // }
 
   template <typename CPUTensorListOrVector>
   void ConvertShape(CPUTensorListOrVector &out, const TensorListShape<> &shape) {
