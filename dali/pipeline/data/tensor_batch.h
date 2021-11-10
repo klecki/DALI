@@ -163,7 +163,19 @@ class TensorBatch {
   // }
 
   void Reset() {
-    std::cout << "[TENSOR_BATCH] >> Reset()"<< std::endl;
+    // std::cout << "[TENSOR_BATCH] >> Reset()"<< std::endl;
+    state_ = State::contiguous;
+    uses_foreign_buffer_ = false;
+    samples_.clear();
+    can_modify_proxy_samples_ = false;
+    shape_ = {};
+    layout_ = {};
+    local_buffer_.reset();
+    type_ = TypeTable::GetTypeInfo(DALI_NO_TYPE);
+    // allocate_;            // Custom allocation function
+    capacity_ = 0;
+    device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on
+    // pinned_ = true;  // Whether the allocation uses pinned memory
   }
 
   bool has_data() {
@@ -452,6 +464,7 @@ class TensorBatch {
     }
     type_ = samples_[0].type_info();
     device_ = samples_[0].device_id();
+    layout_ = samples_[0].GetLayout();
   }
 
   /**
@@ -632,6 +645,7 @@ class TensorBatch {
     }
     shape_ = other.shape_;
     type_ = other.type_;
+    layout_ = other.layout_;
     allocate_ = other.allocate_;
     capacity_ = other.capacity_;
     device_ = other.device_;
@@ -945,6 +959,7 @@ void SimpleCopy(TensorBatch<DstBackend> &dst, const TensorBatch<SrcBackend> &src
   type_info.template Copy<DstBackend, SrcBackend>(to.data(), from.data(), sizes.data(), num_samples,
                                                   stream, use_copy_kernel);
   // TODO(klecki): metadata
+  dst.SetLayout(src.GetLayout());
 }
 
 /**
