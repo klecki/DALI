@@ -184,12 +184,9 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
 
   inline void reserve(size_t bytes_per_tensor, int batch_size) {
     if (shape_.empty()) {
-      samples_.resize(batch_size);
-      for (auto &sample : samples_) {
-        sample.reserve(bytes_per_tensor);
-      }
+      one_buffer_.reserve(bytes_per_tensor * batch_size);
       meta_.resize(batch_size);
-      device_ = samples_[0].device_id();
+      device_ = one_buffer_.device_id();
     }
     // reserve(bytes_per_tensor * batch_size);
   }
@@ -242,22 +239,29 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     // Calculate the new size
     Index num_tensor = new_shape.size(), new_size = 0;
     samples_.resize(num_tensor);
+    type_ = TypeTable::GetTypeInfo(new_type);
     for (auto &sample : samples_) {
       sample.reset();
     }
-    for (Index i = 0; i < num_tensor; ++i) {
-      auto tensor_size = volume(new_shape[i]);
-      samples_[i].ResizeHelper(tensor_size, new_type);
+    one_buffer_.ResizeHelper(new_shape.num_elements(), new_type);
+    auto data = one_buffer_.unsafe_data();
+    auto *data_base = static_cast<uint8_t*>(data.get());
+    ptrdiff_t offset = 0;
+    for (int i = 0; i < num_tensor; i++) {
+      // Aliasing ptr
+      std::shared_ptr<void> sample(data, data_base);
+      auto sample_volume = new_shape[i].num_elements();
+      samples_[i].ShareData(sample, sample_volume * type_.size(), new_type);
+      data_base += sample_volume * type_.size();
     }
     DALI_ENFORCE(new_size >= 0, "Invalid negative buffer size.");
     if (num_tensor > 0) {
-      device_ = samples_[0].device_id();
+      device_ = one_buffer_.device_id();
     }
 
     // Resize the underlying allocation and save the new shape
     // ResizeHelper(new_size, new_type);
     shape_ = new_shape;
-    type_ = TypeTable::GetTypeInfo(new_type);
     size_ = new_shape.num_elements();
     num_bytes_ = size_ * type_.size();
 
@@ -291,6 +295,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     data_ = other.data_;
     shape_ = other.shape_;
     size_ = other.size_;
+    one_buffer_.ShareData(other.one_buffer_);
     samples_.resize(other.samples_.size());
     for (size_t i = 0; i < samples_.size(); i++) {
       samples_[i].ShareData(other.samples_[i]);
@@ -355,6 +360,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
                  "I don't want to deal with empty shares");
 
     int num_samples = shape.num_samples();
+    one_buffer_.ShareData(ptr, bytes, type);
     ptrdiff_t offset = 0;
     uint8_t *data_base = static_cast<uint8_t*>(ptr.get());
     samples_.resize(num_samples);
@@ -426,6 +432,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     shape_ = {};
     // offsets_.clear();
     samples_.clear();
+    one_buffer_.reset();
     meta_.clear();
     tensor_views_.clear();
   }
@@ -434,6 +441,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     if (&other != this) {
       shape_ = std::move(other.shape_);
       // offsets_ = std::move(other.offsets_);
+      one_buffer_ = std::move(other.one_buffer_);
       samples_ = std::move(other.samples_);
       tensor_views_ = std::move(other.tensor_views_);
       meta_ = std::move(other.meta_);
@@ -442,6 +450,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
       other.shape_ = {};
       other.tensor_views_.clear();
       // other.offsets_.clear();
+      other.one_buffer_.reset();
       other.samples_.clear();
       other.meta_.clear();
       other.layout_ = {};
@@ -703,6 +712,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
   // underlying allocation for random access
   TensorListShape<> shape_;
   std::vector<Index> offsets_;
+  Buffer<Backend> one_buffer_;
   std::vector<Buffer<Backend>> samples_;
   std::vector<DALIMeta> meta_;
   TensorLayout layout_;

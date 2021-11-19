@@ -91,6 +91,7 @@ cmake ../ -DCMAKE_INSTALL_PREFIX=.                 \
       -DBUILD_WITH_ASAN=${BUILD_WITH_ASAN}         \
       -DBUILD_WITH_LSAN=${BUILD_WITH_LSAN}         \
       -DBUILD_WITH_UBSAN=${BUILD_WITH_UBSAN}       \
+      -DCUDA_TARGET_ARCHS="60"                     \
       -DDALI_BUILD_FLAVOR=${NVIDIA_DALI_BUILD_FLAVOR} \
       -DTIMESTAMP=${DALI_TIMESTAMP} -DGIT_SHA=${GIT_SHA} \
       ${EXTRA_CMAKE_OPTIONS}
