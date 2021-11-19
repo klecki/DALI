@@ -240,9 +240,9 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     Index num_tensor = new_shape.size(), new_size = 0;
     samples_.resize(num_tensor);
     type_ = TypeTable::GetTypeInfo(new_type);
-    for (auto &sample : samples_) {
-      sample.reset();
-    }
+    // for (auto &sample : samples_) {
+    //   sample.reset();
+    // }
     one_buffer_.ResizeHelper(new_shape.num_elements(), new_type);
     auto data = one_buffer_.unsafe_data();
     auto *data_base = static_cast<uint8_t*>(data.get());
@@ -464,7 +464,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
    * @brief TensorList is always backed by contiguous buffer
    */
   bool IsContiguous() const {
-    return false;
+    return true;
   }
 
   /**
