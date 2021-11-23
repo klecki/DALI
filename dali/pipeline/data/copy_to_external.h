@@ -20,6 +20,7 @@
 #include "dali/pipeline/data/buffer.h"
 #include "dali/pipeline/data/types.h"
 #include "dali/core/mm/memory_kind.h"
+#include "dali/core/nvtx.h"
 
 namespace dali {
 
@@ -129,6 +130,9 @@ inline void CopyToExternal(void* dst, const Tensor<SrcBackend> &src,
                                                          cuda::memory_access::device>::value;
   use_copy_kernel &= dst_device_access && src_device_access;
   using DstBackend = typename detail::kind2backend<DstKind>::type;
+
+  dali::DomainTimeRange tr("[DALI] CopyToExternal(void *dst, const Tensor<Backend> &src)",
+                           dali::DomainTimeRange::kYellow);
   CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
 }
 
@@ -140,6 +144,8 @@ inline void CopyToExternal(void* dst, const TensorList<SrcBackend> &src,
                                                          cuda::memory_access::device>::value;
   use_copy_kernel &= dst_device_access && src_device_access;
   using DstBackend = typename detail::kind2backend<DstKind>::type;
+  dali::DomainTimeRange tr("[DALI] CopyToExternal(void *dst, const TensorList<Backend> &src)",
+                           dali::DomainTimeRange::kYellow);
   CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
 }
 
@@ -175,6 +181,8 @@ inline void CopyToExternal(void** dsts, const TensorList<SrcBackend> &src,
   bool dst_device_access = cuda::kind_has_property<DstKind, cuda::memory_access::device>::value;
   use_copy_kernel &= dst_device_access && src_device_access;
   using DstBackend = typename detail::kind2backend<DstKind>::type;
+  dali::DomainTimeRange tr("[DALI] CopyToExternal(void **dst, const TensorList<Backend> &src)",
+                           dali::DomainTimeRange::kYellow);
   CopyToExternalImpl<DstBackend, SrcBackend>(dsts, src, stream, use_copy_kernel);
 }
 
