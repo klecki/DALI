@@ -37,6 +37,7 @@ def _wait_to_write(arr):
     mx.base._LIB.MXNDArrayWaitToWrite(arr.handle)
 
 def feed_ndarray(dali_tensor, arr, cuda_stream = None):
+    
     """
     Copy contents of DALI tensor to MXNet's NDArray.
 
@@ -52,6 +53,7 @@ def feed_ndarray(dali_tensor, arr, cuda_stream = None):
                     In most cases, using the default internal user stream or stream 0
                     is expected.
     """
+    return
     if isinstance(dali_tensor, (TensorListCPU, TensorListGPU)):
         dali_type = dali_tensor[0].dtype()
     else:
@@ -320,17 +322,14 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
             category_info = dict()
             # For data proceed normally
             category_tensors[DALIGenericIterator.DATA_TAG] = \
-                [x.as_tensor() for x in category_outputs[DALIGenericIterator.DATA_TAG]]
+                [x for x in category_outputs[DALIGenericIterator.DATA_TAG]]
             category_info[DALIGenericIterator.DATA_TAG] = \
-                [(x.shape(), np.dtype(x.dtype())) for x in category_tensors[DALIGenericIterator.DATA_TAG]]
+                [([self.batch_size] + x[0].shape(), np.dtype(x[0].dtype())) for x in category_tensors[DALIGenericIterator.DATA_TAG]]
             # For labels we squeeze the tensors
             category_tensors[DALIGenericIterator.LABEL_TAG] = \
-                [x.as_tensor() for x in category_outputs[DALIGenericIterator.LABEL_TAG]]
-            if self._squeeze_labels:
-                for label in category_tensors[DALIGenericIterator.LABEL_TAG]:
-                    label.squeeze(-1)  # Squeeze last dimension if necessary
+                [x for x in category_outputs[DALIGenericIterator.LABEL_TAG]]
             category_info[DALIGenericIterator.LABEL_TAG] = \
-                [(x.shape(), np.dtype(x.dtype())) for x in category_tensors[DALIGenericIterator.LABEL_TAG]]
+                [([self.batch_size], np.dtype(x[0].dtype())) for x in category_tensors[DALIGenericIterator.LABEL_TAG]]
 
             mx_gpu_device = mx.gpu(self._pipes[i].device_id)
             mx_cpu_device = mx.cpu(0)

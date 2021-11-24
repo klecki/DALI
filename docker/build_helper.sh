@@ -87,16 +87,14 @@ cmake ../ -DCMAKE_INSTALL_PREFIX=.                 \
       -DBUILD_CUFILE=${BUILD_CUFILE}               \
       -DLINK_LIBCUDA=${LINK_LIBCUDA}               \
       -DVERBOSE_LOGS=${VERBOSE_LOGS}               \
-      -DWERROR=${WERROR}                           \
+      -DWERROR=OFF                           \
       -DBUILD_WITH_ASAN=${BUILD_WITH_ASAN}         \
       -DBUILD_WITH_LSAN=${BUILD_WITH_LSAN}         \
       -DBUILD_WITH_UBSAN=${BUILD_WITH_UBSAN}       \
+      -DCUDA_TARGET_ARCHS="70" \
       -DDALI_BUILD_FLAVOR=${NVIDIA_DALI_BUILD_FLAVOR} \
       -DTIMESTAMP=${DALI_TIMESTAMP} -DGIT_SHA=${GIT_SHA} \
       ${EXTRA_CMAKE_OPTIONS}
-if [ "${WERROR}" = "ON" ]; then
-    make -j lint
-fi
 make -j"$(grep ^processor /proc/cpuinfo | wc -l)"
 
 
