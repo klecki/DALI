@@ -133,7 +133,7 @@ inline void CopyToExternal(void* dst, const Tensor<SrcBackend> &src,
 
   dali::DomainTimeRange tr("[DALI] CopyToExternal(void *dst, const Tensor<Backend> &src)",
                            dali::DomainTimeRange::kYellow);
-  CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
+  // CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
 }
 
 template <typename DstKind, typename SrcBackend>
@@ -146,7 +146,7 @@ inline void CopyToExternal(void* dst, const TensorList<SrcBackend> &src,
   using DstBackend = typename detail::kind2backend<DstKind>::type;
   dali::DomainTimeRange tr("[DALI] CopyToExternal(void *dst, const TensorList<Backend> &src)",
                            dali::DomainTimeRange::kYellow);
-  CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
+  // CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
 }
 
 /**
@@ -183,7 +183,7 @@ inline void CopyToExternal(void** dsts, const TensorList<SrcBackend> &src,
   using DstBackend = typename detail::kind2backend<DstKind>::type;
   dali::DomainTimeRange tr("[DALI] CopyToExternal(void **dst, const TensorList<Backend> &src)",
                            dali::DomainTimeRange::kYellow);
-  CopyToExternalImpl<DstBackend, SrcBackend>(dsts, src, stream, use_copy_kernel);
+  // CopyToExternalImpl<DstBackend, SrcBackend>(dsts, src, stream, use_copy_kernel);
 }
 
 /**
