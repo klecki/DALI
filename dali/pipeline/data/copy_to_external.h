@@ -25,6 +25,14 @@ namespace dali {
 
 namespace detail {
 
+bool DoCopyToExternal() {
+  static bool value = []() {
+    const char *env = std::getenv("DALI_DO_COPY_TO_EXTERNAL");
+    return !env || atoi(env);
+  }();
+  return value;
+}
+
 template <typename MemoryKind>
 struct kind2backend {
   using type = CPUBackend;
@@ -129,7 +137,8 @@ inline void CopyToExternal(void* dst, const Tensor<SrcBackend> &src,
                                                          cuda::memory_access::device>::value;
   use_copy_kernel &= dst_device_access && src_device_access;
   using DstBackend = typename detail::kind2backend<DstKind>::type;
-  CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
+  if (DoCopyToExternal())
+    CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
 }
 
 template <typename DstKind, typename SrcBackend>
@@ -140,7 +149,8 @@ inline void CopyToExternal(void* dst, const TensorList<SrcBackend> &src,
                                                          cuda::memory_access::device>::value;
   use_copy_kernel &= dst_device_access && src_device_access;
   using DstBackend = typename detail::kind2backend<DstKind>::type;
-  CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
+  if (DoCopyToExternal())
+    CopyToExternalImpl<DstBackend, SrcBackend>(dst, src, stream, use_copy_kernel);
 }
 
 /**
@@ -175,7 +185,8 @@ inline void CopyToExternal(void** dsts, const TensorList<SrcBackend> &src,
   bool dst_device_access = cuda::kind_has_property<DstKind, cuda::memory_access::device>::value;
   use_copy_kernel &= dst_device_access && src_device_access;
   using DstBackend = typename detail::kind2backend<DstKind>::type;
-  CopyToExternalImpl<DstBackend, SrcBackend>(dsts, src, stream, use_copy_kernel);
+  if (DoCopyToExternal())
+    CopyToExternalImpl<DstBackend, SrcBackend>(dsts, src, stream, use_copy_kernel);
 }
 
 /**
