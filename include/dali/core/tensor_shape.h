@@ -607,6 +607,7 @@ struct TensorListShapeBase {
     for (int i = 0; i < sample_dim(); i++) {
       shapes[base + i] = sample_shape[i];
     }
+    lazy_num_elements = -1;
   }
 
   std::vector<int64_t> shapes;
@@ -617,11 +618,14 @@ struct TensorListShapeBase {
   constexpr int num_samples() const { return size(); }
 
   ptrdiff_t num_elements() const {
-    ptrdiff_t n = 0;
-    for (int i = 0; i < num_samples(); i++) {
-      n += volume(tensor_shape_span(i));
+    if (lazy_num_elements != -1) {
+      return lazy_num_elements;
     }
-    return n;
+    lazy_num_elements = 0;
+    for (int i = 0; i < num_samples(); i++) {
+      lazy_num_elements += volume(tensor_shape_span(i));
+    }
+    return lazy_num_elements;
   }
 
   template <typename SampleShape>
@@ -647,19 +651,21 @@ struct TensorListShapeBase {
     for (int k = dim; k < n; k++) {
       ret.shapes[k] = ret.shapes[k - dim];  // this will periodically repeat items 0..dim-1
     }
-
+    ret.lazy_num_elements = num_samples * ret[0].num_elements();
     return ret;
   }
 
   void resize(int num_samples) {
     nsamples = num_samples;
     shapes.resize(num_samples * sample_dim());
+    lazy_num_elements = -1;
   }
 
   void resize(int num_samples, int sample_dim) {
     nsamples = num_samples;
     set_sample_dim(sample_dim);
     shapes.resize(num_samples * sample_dim);
+    lazy_num_elements = -1;
   }
 
 
@@ -694,6 +700,7 @@ struct TensorListShapeBase {
     for (const auto &tls : tlss) {
       shapes.insert(shapes.end(), tls.shapes.begin(), tls.shapes.end());
     }
+    lazy_num_elements = -1;
   }
 
   void append(const TensorListShape<sample_ndim> &tls) {
@@ -715,6 +722,7 @@ struct TensorListShapeBase {
       : shapes(std::move(shapes)), nsamples(num_samples) {}
 
   int nsamples = 0;
+  ptrdiff_t lazy_num_elements = -1;
 };
 
 template <>
