@@ -160,6 +160,10 @@ struct BatchFactoryImpl {
     output->SetSize(batch_size);
     if (op_type == OpType::CPU) {
       output->set_pinned(false);
+      output->SetState(true, false);
+    }
+    if (op_type == OpType::GPU || op_type == OpType::MIXED) {
+      output->SetState(true, true);
     }
     return output;
   }

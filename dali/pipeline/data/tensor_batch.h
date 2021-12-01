@@ -72,6 +72,14 @@ class TensorBatch {
   DLL_PUBLIC TensorBatch(TensorBatch &&) = default;
   DLL_PUBLIC TensorBatch& operator=(TensorBatch&&) = default;
 
+  void SetState(bool contiguous, bool enforce = false) {
+    if (enforce) {
+      state_.set_enforced(contiguous);
+    } else {
+      state_.set_contiguous(contiguous);
+    }
+  }
+
   void AllowSampleAccess() {
     can_modify_proxy_samples_ = true;
   }
@@ -157,8 +165,15 @@ class TensorBatch {
   }
 
 
-  inline void reserve(size_t new_num_bytes) {}
-  inline void reserve(size_t bytes_per_tensor, int batch_size)  {}
+  inline void reserve(size_t new_num_bytes) {
+    local_buffer_.reserve(new_num_bytes);
+  }
+  inline void reserve(size_t bytes_per_tensor, int batch_size) {
+    SetSize(batch_size);
+    for (auto &sample : samples_) {
+      sample.reserve(bytes_per_tensor);
+    }
+  }
 
   // void reset() {
   //   std::cout << "[TENSOR_BATCH] >> reset()"<< std::endl;
@@ -166,7 +181,7 @@ class TensorBatch {
 
   void Reset() {
     // std::cout << "[TENSOR_BATCH] >> Reset()"<< std::endl;
-    state_ = State::contiguous;
+    // state_ = State::contiguous;
     uses_foreign_buffer_ = false;
     samples_.clear();
     can_modify_proxy_samples_ = false;
@@ -185,7 +200,7 @@ class TensorBatch {
   }
 
   bool IsContiguous() const {
-    return state_ == State::contiguous;
+    return state_.is_contiguous();
   }
 
   void SetContiguous(bool contiguous) {
@@ -480,7 +495,7 @@ class TensorBatch {
     // TODO(klecki): Optimized case, no need to rewrite shared ptrs
     int64_t num_samples = shape_.num_samples();
     samples_.resize(num_samples);
-    if (state_ == State::contiguous) {
+    if (state_.is_contiguous()) {
       uint8_t *base_ptr = static_cast<uint8_t*>(local_buffer_.raw_mutable_data());
       for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
         // set the aliasing shared_ptr, the shape, etc
@@ -510,7 +525,7 @@ class TensorBatch {
   void SetSize(int new_size) {
     // std::cout << "[TENSOR_BATCH] >> SetSize(" << new_size << ")" <<std::endl;
     samples_.resize(new_size);
-    state_ = State::noncontiguous;
+    // state_ = State::noncontiguous;
   }
   /** @} */  // end of LegacyVector
 
@@ -579,9 +594,12 @@ class TensorBatch {
     if (is_reallocation) {
       // We wont fit in the current shape, so we request new allocation
       // TODO
-      local_buffer_.resize(new_size, new_type_id);
-
-      state_ = State::contiguous;
+      if (!state_.is_enforced() || state_.is_contiguous()) {
+        local_buffer_.resize(new_size, new_type_id);
+        state_.set_contiguous(true);
+      } else {
+        // Let the other code path deal with this? -- SyncBatchToSamples will currently handle this
+      }
     }
     samples_.resize(num_samples);
 
@@ -606,7 +624,7 @@ class TensorBatch {
   bool IsReallocation(const TensorListShape<> &new_shape, const TypeInfo &new_type) {
     // TODO(klecki): THIS IS WORK IN PROGRESS. It needs to take into account the grow and shrink
     // factors, etc, here we just are keeping the data if it fits.
-    if (state_ == State::contiguous) {
+    if (state_.is_contiguous()) {
       return local_buffer_.is_reallocation(new_shape.num_elements(), new_type.id());
     } else {
       if (shape_.num_samples() < new_shape.num_samples()) {
@@ -637,11 +655,11 @@ class TensorBatch {
   DLL_PUBLIC inline void SetBackingAllocation(const Buffer<Backend> &buffer);
 
   DLL_PUBLIC inline void ShareData(const TensorBatch<Backend> &other) {
-    if (other.state_ == State::contiguous) {
+    if (other.state_.is_contiguous()) {
       local_buffer_.SetExternalAllocation(local_buffer_);
-      state_ = State::contiguous;
+      state_.set_contiguous(true);
     } else {
-      state_ = State::noncontiguous;
+      state_.set_contiguous(false);
     }
     samples_.resize(other.num_samples());
     for (size_t sample_idx = 0; sample_idx < other.num_samples(); sample_idx++) {
@@ -684,7 +702,7 @@ class TensorBatch {
 
     local_buffer_.SetExternalAllocation(ptr, bytes, shape.num_elements(), type);
     uses_foreign_buffer_ = true;
-    state_ = State::contiguous;
+    state_.set_contiguous(true);
 
     shape_ = shape;
     type_ = TypeTable::GetTypeInfo(type);
@@ -763,14 +781,14 @@ class TensorBatch {
   }
 
 
-  // TODO need to have the contiguous API for batch
-  void BuildBatch(const std::vector<Tensor<Backend>> &batch) {
-    state_ = State::noncontiguous;
-  }
+  // // TODO need to have the contiguous API for batch
+  // void BuildBatch(const std::vector<Tensor<Backend>> &batch) {
+  //   state_ = State::noncontiguous;
+  // }
 
-  void BuildBatch(std::vector<Tensor<Backend>> &&batch) {
-    state_ = State::noncontiguous;
-  }
+  // void BuildBatch(std::vector<Tensor<Backend>> &&batch) {
+  //   state_ = State::noncontiguous;
+  // }
 
   // std::vector<Tensor<Backend>> MoveToSamples() {
 
@@ -806,12 +824,34 @@ class TensorBatch {
   }
 
  private:
-  enum class State
-  {
-    contiguous,
-    noncontiguous
+  class State {
+   public:
+    bool is_contiguous() const {
+      return contiguous_;
+    }
+
+    bool is_enforced() const {
+      return enforced_;
+    }
+
+    void set_contiguous(bool contiguous) {
+      if (is_enforced()) {
+        DALI_ENFORCE(is_contiguous() == contiguous, "Cannot change enforced state");
+        return;
+      }
+      contiguous_ = contiguous;
+    }
+
+    void set_enforced(bool contiguous) {
+      contiguous_ = contiguous;
+      enforced_ = true;
+    }
+   private:
+    bool enforced_ = false;
+    bool contiguous_ = true;
   };
-  State state_ = State::contiguous;
+
+  State state_;
 
   // This corresponds to the ancient ShareData() API - if the data allocation was set as shared
   // with the TensorList, from that point we could resize only within that allocation.
