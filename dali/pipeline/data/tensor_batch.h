@@ -23,6 +23,8 @@
 // #include "dali/pipeline/data/tensor.h"
 #include "dali/core/util.h"
 
+#include "dali/core/nvtx.h"
+
 #include "dali/core/tensor_shape.h"
 
 namespace dali {
@@ -540,6 +542,8 @@ class TensorBatch {
    * do something in between.
    */
   DLL_PUBLIC inline void Resize(const TensorListShape<> &new_shape, DALIDataType new_type_id) {
+
+    dali::DomainTimeRange tr("[DALI] TensorBatch::Resize", dali::DomainTimeRange::kYellow);
     DALI_ENFORCE(IsValidType(new_type_id),
                  "TensorList cannot be resized with invalid type. To zero out the TensorList "
                  "Reset() can be used.");
