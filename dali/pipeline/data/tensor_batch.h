@@ -27,6 +27,8 @@
 
 #include "dali/core/tensor_shape.h"
 
+#include "dali/pipeline/data/meta.h"
+
 namespace dali {
 
 

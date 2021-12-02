@@ -19,6 +19,7 @@ if (BUILD_BENCHMARK)
     #"${CMAKE_CURRENT_SOURCE_DIR}/makecontiguous_bench.cc"
     "${PROJECT_SOURCE_DIR}/dali/test/dali_test_config.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/buffer_benchmarks.cc"
+    "${CMAKE_CURRENT_SOURCE_DIR}/tensor_batch_benchmarks.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/resnet50_bench.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/resnet50_nvjpeg_bench.cc"
     "${CMAKE_CURRENT_SOURCE_DIR}/dali_bench.cc"
