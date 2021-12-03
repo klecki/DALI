@@ -25,7 +25,7 @@ namespace dali {
 
 static constexpr int max_range = 1 << 8;
 
-static void tb_resize_fit_cpu(benchmark::State& state) {
+static void batch_tb_resize_fit_cpu(benchmark::State& state) {
   int num_samples = state.range(0);
   auto full = uniform_list_shape<3>(state.range(0), {1024, 1024, 3});
   std::vector<TensorListShape<>> shapes(3);
@@ -40,10 +40,9 @@ static void tb_resize_fit_cpu(benchmark::State& state) {
     i = (i + 1) % 3;
   }
 }
+BENCHMARK(batch_tb_resize_fit_cpu)->RangeMultiplier(2)->Range(2, max_range);
 
-BENCHMARK(tb_resize_fit_cpu)->RangeMultiplier(2)->Range(2, max_range);
-
-static void tb_resize_fit_gpu(benchmark::State& state) {
+static void batch_tb_resize_fit_gpu(benchmark::State& state) {
   int num_samples = state.range(0);
   auto full = uniform_list_shape<3>(state.range(0), {1024, 1024, 3});
   std::vector<TensorListShape<>> shapes(3);
@@ -58,7 +57,66 @@ static void tb_resize_fit_gpu(benchmark::State& state) {
     i = (i + 1) % 3;
   }
 }
+BENCHMARK(batch_tb_resize_fit_gpu)->RangeMultiplier(2)->Range(2, max_range);
 
-BENCHMARK(tb_resize_fit_gpu)->RangeMultiplier(2)->Range(2, max_range);
+int resize_smashing = 128;
+float coef = 0.05f;
+
+static void batch_tb_resize_not_fit_cpu(benchmark::State& state) {
+  int num_samples = state.range(0);
+  int size = 20;
+  auto shape = uniform_list_shape<2>(state.range(0), {size, 3});
+  TensorBatch<CPUBackend> batch;
+  batch.Resize(shape, DALI_UINT32);
+  int i = 0;
+  for (auto _ : state) {
+    batch.Resize(shape, DALI_UINT32);
+    size += size * coef;
+    shape = uniform_list_shape<2>(state.range(0), {size, 3});
+  }
+}
+BENCHMARK(batch_tb_resize_not_fit_cpu)->RangeMultiplier(2)->Range(2, max_range)->Iterations(resize_smashing);
+
+static void batch_tb_resize_not_fit_gpu(benchmark::State& state) {
+  int num_samples = state.range(0);
+  int size = 20;
+  auto shape = uniform_list_shape<2>(state.range(0), {size, 3});
+  TensorBatch<GPUBackend> batch;
+  batch.Resize(shape, DALI_UINT32);
+  int i = 0;
+  for (auto _ : state) {
+    batch.Resize(shape, DALI_UINT32);
+    size += size * coef;
+    shape = uniform_list_shape<2>(state.range(0), {size, 3});
+  }
+}
+BENCHMARK(batch_tb_resize_not_fit_gpu)->RangeMultiplier(2)->Range(2, max_range)->Iterations(resize_smashing);
+
+static void batch_tb_access_cpu(benchmark::State& state) {
+  int num_samples = state.range(0);
+  auto full = uniform_list_shape<3>(num_samples, {1024, 1024, 3});
+  TensorBatch<CPUBackend> batch;
+  batch.Resize(full, DALI_UINT32);
+  int i = 0;
+  for (auto _ : state) {
+    auto sample = batch.mutable_tensor<uint32_t>(i);
+    i = (i + 1) % num_samples;
+  }
+}
+BENCHMARK(batch_tb_access_cpu)->RangeMultiplier(2)->Range(2, max_range);
+
+static void batch_tb_access_gpu(benchmark::State& state) {
+  int num_samples = state.range(0);
+  auto full = uniform_list_shape<3>(num_samples, {1024, 1024, 3});
+  TensorBatch<GPUBackend> batch;
+  batch.Resize(full, DALI_UINT32);
+  int i = 0;
+  for (auto _ : state) {
+    auto sample = batch.mutable_tensor<uint32_t>(i);
+    i = (i + 1) % num_samples;
+  }
+}
+BENCHMARK(batch_tb_access_gpu)->RangeMultiplier(2)->Range(2, max_range);
+
 
 }  // namespace dali
