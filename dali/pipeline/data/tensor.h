@@ -248,6 +248,24 @@ class Tensor : public Buffer<Backend> {
     shares_data_ = num_bytes_ > 0 ? true : false;
   }
 
+  inline void ShareData(shared_ptr<void> &&ptr, size_t bytes,
+                        const TensorShape<> &shape,
+                        DALIDataType type) {
+    // don't check ptr as we want to share empty data as well
+
+    // Save our new pointer and bytes. Reset our type, shape, and size
+    data_ = std::move(ptr);
+    num_bytes_ = bytes;
+    type_ = TypeTable::GetTypeInfo(type);
+    Index new_size = volume(shape);
+    shape_ = shape;
+    size_ = new_size;
+
+    // If the input pointer stores a non-zero size allocation, mark
+    // that we are sharing our underlying data
+    shares_data_ = num_bytes_ > 0 ? true : false;
+  }
+
   /**
    * @brief Wraps the raw allocation. The input pointer must not be nullptr.
    * if the size of the allocation is zero, the Tensor is reset to a default

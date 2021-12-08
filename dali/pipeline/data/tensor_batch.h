@@ -497,6 +497,7 @@ class TensorBatch {
     // TODO(klecki): Optimized case, no need to rewrite shared ptrs
     int64_t num_samples = shape_.num_samples();
     samples_.resize(num_samples);
+
     if (state_.is_contiguous()) {
       uint8_t *base_ptr = static_cast<uint8_t*>(local_buffer_.raw_mutable_data());
       for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
@@ -506,8 +507,12 @@ class TensorBatch {
         //                                        type_);
         auto sample_alias_ptr = std::shared_ptr<void>(local_buffer_.get_data_ptr(), base_ptr);
         size_t bytes = shape_[sample_idx].num_elements() * type_.size();
-        samples_[sample_idx].ShareData(sample_alias_ptr, bytes, shape_[sample_idx],
+        // samples_[sample_idx].ShareData(std::move(sample_alias_ptr), bytes, shape_[sample_idx],
+        //                                type_.id());
+        samples_[sample_idx].ShareData(std::move(sample_alias_ptr), bytes, shape_[sample_idx],
                                        type_.id());
+        // samples_[sample_idx].ShareData(local_buffer_.get_data_ptr(), bytes, shape_[sample_idx],
+        //                                type_.id());
         samples_[sample_idx].SetLayout(layout_);
         base_ptr += bytes;
       }
@@ -867,6 +872,7 @@ class TensorBatch {
 
   // Batch properties
   std::vector<TensorProxy<Backend>> samples_;
+  std::vector<void *> sample_ptrs_;
   bool can_modify_proxy_samples_ = false;
   TensorListShape<> shape_ = {};
   TensorLayout layout_;
