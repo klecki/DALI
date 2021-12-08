@@ -186,6 +186,7 @@ class TensorBatch {
     // state_ = State::contiguous;
     uses_foreign_buffer_ = false;
     samples_.clear();
+    sample_ptrs_.clear();
     can_modify_proxy_samples_ = false;
     shape_ = {};
     layout_ = {};
@@ -217,6 +218,9 @@ class TensorBatch {
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
     // return this->template mutable_data<T>() + tensor_offset(idx);
+    if (state_.is_contiguous()) {
+      return static_cast<T*>(sample_ptrs_[idx]);
+    }
     return samples_[idx].template mutable_data<T>();
   }
 
@@ -226,6 +230,9 @@ class TensorBatch {
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
     // return this->template data<T>() + tensor_offset(idx);
+    if (state_.is_contiguous()) {
+      return static_cast<const T*>(sample_ptrs_[idx]);
+    }
     return samples_[idx].template data<T>();
   }
 
@@ -236,6 +243,9 @@ class TensorBatch {
     // return static_cast<void*>(
     //     static_cast<uint8*>(this->raw_mutable_data()) +
     //     (tensor_offset(idx) * type_.size()));
+    if (state_.is_contiguous()) {
+      return sample_ptrs_[idx];
+    }
     return samples_[idx].raw_mutable_data();
   }
 
@@ -243,9 +253,9 @@ class TensorBatch {
    * @brief Returns a const raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline const void* raw_tensor(int idx) const {
-    // return static_cast<const void*>(
-    //     static_cast<const uint8*>(this->raw_data()) +
-    //     (tensor_offset(idx) * type_.size()));
+    if (state_.is_contiguous()) {
+      return sample_ptrs_[idx];
+    }
     return samples_[idx].raw_data();
   }
 
@@ -496,24 +506,14 @@ class TensorBatch {
     // if we did realloc, we need to update with alias shared_ptr
     // TODO(klecki): Optimized case, no need to rewrite shared ptrs
     int64_t num_samples = shape_.num_samples();
+    sample_ptrs_.resize(num_samples);
     samples_.resize(num_samples);
 
     if (state_.is_contiguous()) {
       uint8_t *base_ptr = static_cast<uint8_t*>(local_buffer_.raw_mutable_data());
       for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
-        // set the aliasing shared_ptr, the shape, etc
-        // TODO
-        // samples_[sample_idx].SetTensorFromList(local_buffer_, offset, new_shape[sample_idx],
-        //                                        type_);
-        auto sample_alias_ptr = std::shared_ptr<void>(local_buffer_.get_data_ptr(), base_ptr);
+        sample_ptrs_[sample_idx] = base_ptr;
         size_t bytes = shape_[sample_idx].num_elements() * type_.size();
-        // samples_[sample_idx].ShareData(std::move(sample_alias_ptr), bytes, shape_[sample_idx],
-        //                                type_.id());
-        samples_[sample_idx].ShareData(std::move(sample_alias_ptr), bytes, shape_[sample_idx],
-                                       type_.id());
-        // samples_[sample_idx].ShareData(local_buffer_.get_data_ptr(), bytes, shape_[sample_idx],
-        //                                type_.id());
-        samples_[sample_idx].SetLayout(layout_);
         base_ptr += bytes;
       }
     } else {
@@ -532,6 +532,8 @@ class TensorBatch {
   void SetSize(int new_size) {
     // std::cout << "[TENSOR_BATCH] >> SetSize(" << new_size << ")" <<std::endl;
     samples_.resize(new_size);
+    sample_ptrs_.resize(new_size);
+    state_.set_contiguous(true);
     // state_ = State::noncontiguous;
   }
   /** @} */  // end of LegacyVector
@@ -609,6 +611,7 @@ class TensorBatch {
       }
     }
     samples_.resize(num_samples);
+    sample_ptrs_.resize(num_samples);
 
     // moving this above, might not be the wisest idea
     shape_ = new_shape;
@@ -669,8 +672,10 @@ class TensorBatch {
       state_.set_contiguous(false);
     }
     samples_.resize(other.num_samples());
+    sample_ptrs_.resize(other.num_samples());
     for (size_t sample_idx = 0; sample_idx < other.num_samples(); sample_idx++) {
       samples_[sample_idx].ShareData(other.samples_[sample_idx]);
+      sample_ptrs_[sample_idx] = other.sample_ptrs_[sample_idx];
     }
     shape_ = other.shape_;
     type_ = other.type_;
@@ -872,7 +877,8 @@ class TensorBatch {
 
   // Batch properties
   std::vector<TensorProxy<Backend>> samples_;
-  std::vector<void *> sample_ptrs_;
+  std::vector<void *> sample_ptrs_;  // for now only for contiguous
+
   bool can_modify_proxy_samples_ = false;
   TensorListShape<> shape_ = {};
   TensorLayout layout_;
@@ -924,6 +930,9 @@ class TensorBatch {
    */
   friend shared_ptr<void> unsafe_sample_owner(TensorBatch<Backend> &tl, int sample_idx) {
     //{tl.data_, tl.raw_mutable_tensor(sample_idx)};
+    if (tl.state_.is_contiguous()) {
+      return std::shared_ptr<void>(tl.local_buffer_.get_data_ptr(), tl.sample_ptrs_[sample_idx]);
+    }
     return tl.samples_[sample_idx].data_;
   }
 
