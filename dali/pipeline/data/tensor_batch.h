@@ -489,6 +489,7 @@ class TensorBatch {
     capacity_ = 0;
     for (size_t i = 0; i < samples_.size(); i++) {
       shape_.set_tensor_shape(i, samples_[i].shape());
+      sample_ptrs_[i] = samples_[i].raw_mutable_data();
       capacity_ += samples_[i].capacity();
     }
     type_ = samples_[0].type_info();
@@ -522,6 +523,7 @@ class TensorBatch {
         // TODO
         // samples_[sample_idx].InternalResize(shape_[sample_idx], type_);
         samples_[sample_idx].Resize(shape_[sample_idx], type_.id());
+        sample_ptrs_[sample_idx] = samples_[sample_idx].raw_mutable_data();
         samples_[sample_idx].SetLayout(layout_);
       }
     }
