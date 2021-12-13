@@ -208,9 +208,11 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     shape_ = new_shape;
 
     for (Index i = 0; i < num_tensor; ++i) {
-      aliases_[i]
-          = std::shared_ptr<void>(data_,
-                                  static_cast<uint8_t*>(data_.get()) + offsets_[i] * type_.size());
+      aliases_[i].ShareData(std::shared_ptr<void>(data_,
+                                static_cast<uint8_t*>(data_.get()) + offsets_[i] * type_.size()),
+                            volume(shape_[i]) * type_.size(),
+                            shape_[i],
+                            type_.id());
     }
 
     // Tensor views of this TensorList is no longer valid
@@ -244,7 +246,10 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     shape_ = other.shape_;
     size_ = other.size_;
     offsets_ = other.offsets_;
-    aliases_ = other.aliases_;
+    aliases_.resize(other.aliases_.size());
+    for (size_t i = 0; i < aliases_.size(); i++) {
+      aliases_[i].ShareData(other.aliases_[i]);
+    }
     type_ = other.type_;
     num_bytes_ = other.num_bytes_;
     device_ = other.device_;
@@ -398,7 +403,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
    */
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
-    return static_cast<T*>(aliases_[idx].get());
+    return aliases_[idx].template mutable_data<T>();
   }
 
   /**
@@ -406,7 +411,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
    */
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
-    return static_cast<T*>(aliases_[idx].get());
+    return aliases_[idx].template data<T>();
   }
 
   /**
@@ -646,7 +651,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
   // underlying allocation for random access
   TensorListShape<> shape_;
   vector<Index> offsets_;
-  vector<std::shared_ptr<void>> aliases_;
+  vector<Tensor<Backend>> aliases_;
   vector<DALIMeta> meta_;
   TensorLayout layout_;
 

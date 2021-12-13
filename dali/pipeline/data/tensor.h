@@ -190,7 +190,7 @@ class Tensor : public Buffer<Backend> {
    * shared data or the call will fail.
    * Size can be set to 0 and type to NoType as intermediate step.
    */
-  inline void ShareData(Tensor<Backend> &t) {
+  inline void ShareData(const Tensor<Backend> &t) {
     DALI_ENFORCE(IsValidType(t.type()), "To share data, "
         "the input Tensor must have a valid data type.");
 
