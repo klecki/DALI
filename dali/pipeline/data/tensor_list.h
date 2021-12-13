@@ -58,7 +58,8 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
    * TODO(klecki): The API for empty tensor batch container of given number of samples
    * will be adjusted in next releases.
    */
-  DLL_PUBLIC TensorList(int batch_size) : offsets_(batch_size, 0), meta_(batch_size) {}
+  DLL_PUBLIC TensorList(int batch_size) : offsets_(batch_size, 0), aliases_(batch_size),
+      meta_(batch_size) {}
 
   DLL_PUBLIC TensorList<Backend>(const TensorList<Backend>&) = delete;
   DLL_PUBLIC TensorList<Backend>& operator=(const TensorList<Backend>&) = delete;
@@ -162,6 +163,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
   inline void reserve(size_t bytes_per_tensor, int batch_size) {
     if (shape_.empty()) {
       offsets_.resize(batch_size, 0);
+      aliases_.resize(batch_size);
       meta_.resize(batch_size);
     }
     reserve(bytes_per_tensor * batch_size);
@@ -191,6 +193,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     // Calculate the new size
     Index num_tensor = new_shape.size(), new_size = 0;
     offsets_.resize(num_tensor);
+    aliases_.resize(num_tensor);
     for (Index i = 0; i < num_tensor; ++i) {
       auto tensor_size = volume(new_shape[i]);
 
@@ -203,6 +206,12 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     // Resize the underlying allocation and save the new shape
     ResizeHelper(new_size, new_type);
     shape_ = new_shape;
+
+    for (Index i = 0; i < num_tensor; ++i) {
+      aliases_[i]
+          = std::shared_ptr<void>(data_,
+                                  static_cast<uint8_t*>(data_.get()) + offsets_[i] * type_.size());
+    }
 
     // Tensor views of this TensorList is no longer valid
     tensor_views_.clear();
@@ -235,6 +244,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     shape_ = other.shape_;
     size_ = other.size_;
     offsets_ = other.offsets_;
+    aliases_ = other.aliases_;
     type_ = other.type_;
     num_bytes_ = other.num_bytes_;
     device_ = other.device_;
@@ -278,6 +288,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     type_ = TypeTable::GetTypeInfo(type);
     shape_ = {};
     offsets_.clear();
+    aliases_.clear();
     size_ = 0;
     device_ = CPU_ONLY_DEVICE_ID;
 
@@ -341,6 +352,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     reset();  // free the underlying buffer
     shape_ = {};
     offsets_.clear();
+    aliases_.clear();
     meta_.clear();
     tensor_views_.clear();
   }
@@ -349,6 +361,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
     if (&other != this) {
       shape_ = std::move(other.shape_);
       offsets_ = std::move(other.offsets_);
+      aliases_ = std::move(other.aliases_);
       tensor_views_ = std::move(other.tensor_views_);
       meta_ = std::move(other.meta_);
       layout_ = std::move(other.layout_);
@@ -356,6 +369,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
       other.shape_ = {};
       other.tensor_views_.clear();
       other.offsets_.clear();
+      other.aliases_.clear();
       other.meta_.clear();
       other.layout_ = {};
 
@@ -384,7 +398,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
    */
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
-    return this->template mutable_data<T>() + tensor_offset(idx);
+    return static_cast<T*>(aliases_[idx].get());
   }
 
   /**
@@ -392,7 +406,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
    */
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
-    return this->template data<T>() + tensor_offset(idx);
+    return static_cast<T*>(aliases_[idx].get());
   }
 
   /**
@@ -632,6 +646,7 @@ class DLL_PUBLIC TensorList : private Buffer<Backend> {
   // underlying allocation for random access
   TensorListShape<> shape_;
   vector<Index> offsets_;
+  vector<std::shared_ptr<void>> aliases_;
   vector<DALIMeta> meta_;
   TensorLayout layout_;
 
