@@ -369,7 +369,7 @@ class DLL_PUBLIC TensorList {
    */
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
-    return data_.template mutable_data<T>() + tensor_offset(idx);
+    return samples_[idx].template mutable_data<T>();
   }
 
   /**
@@ -377,25 +377,21 @@ class DLL_PUBLIC TensorList {
    */
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
-    return data_.template data<T>() + tensor_offset(idx);
+    return samples_[idx].template data<T>();
   }
 
   /**
    * @brief Returns a raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline void* raw_mutable_tensor(int idx) {
-    return static_cast<void*>(
-        static_cast<uint8*>(data_.raw_mutable_data()) +
-        (tensor_offset(idx) * type_info().size()));
+    return samples_[idx].raw_mutable_data();
   }
 
   /**
    * @brief Returns a const raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline const void* raw_tensor(int idx) const {
-    return static_cast<const void*>(
-        static_cast<const uint8*>(data_.raw_data()) +
-        (tensor_offset(idx) * type_info().size()));
+    return samples_[idx].raw_data();
   }
 
   /**
@@ -410,18 +406,6 @@ class DLL_PUBLIC TensorList {
    */
   DLL_PUBLIC inline int sample_dim() const {
     return shape_.sample_dim();
-  }
-
-
-  /**
-   * @brief Returns the offset of the tensor with the given index.
-   */
-  DLL_PUBLIC inline Index tensor_offset(int idx) const {
-#ifndef NDEBUG
-    DALI_ENFORCE(idx >= 0, "Negative index not supported");
-    DALI_ENFORCE((size_t)idx < offsets_.size(), "Index out of offset range");
-#endif
-    return offsets_[idx];
   }
 
   /**
@@ -465,13 +449,14 @@ class DLL_PUBLIC TensorList {
     if (!IsContiguous()) {
       return false;
     }
-    Index offset = 0;
 
-    for (int i = 0; i < shape_.size(); ++i) {
-      if (offset != offsets_[i]) {
+    // TODO(klecki): Should probably be reworked??
+    DALI_FAIL("Contiguous Tensor access not supported yet");
+    for (int i = 1; i < shape_.num_samples(); ++i) {
+      if (samples_[i - 1].template data<uint8_t>() + samples_[i - 1].num_bytes() !=
+          samples_[i].template data<uint8_t>()) {
         return false;
       }
-      offset += volume(shape_[i]);
     }
     return true;
   }
@@ -496,12 +481,14 @@ class DLL_PUBLIC TensorList {
     auto tensor_volume = volume(shape_[0]);
     Index offset = 0;
 
-    for (int i = 0; i < shape_.size(); ++i) {
-      if (offset != offsets_[i]) {
-        return false;
-      }
-      offset += tensor_volume;
-    }
+    DALI_FAIL("Dense Tensor access not supported yet");
+
+    // for (int i = 0; i < shape_.size(); ++i) {
+    //   if (offset != offsets_[i]) {
+    //     return false;
+    //   }
+    //   offset += tensor_volume;
+    // }
     return true;
   }
 
@@ -754,14 +741,14 @@ class DLL_PUBLIC TensorList {
     return data_.alloc_func();
   }
 
- protected:
+ private:
+  enum class State { contiguous, noncontiguous };
+
   Buffer<Backend> data_;
   // We store a set of dimension for each tensor in the list.
-  // We also pre-compute the offsets of each tensor in the
-  // underlying allocation for random access
   TensorListShape<> shape_;
-  vector<Index> offsets_;
-  vector<DALIMeta> meta_;
+  std::vector<Buffer<Backend>> samples_;
+  std::vector<DALIMeta> meta_;
   TensorLayout layout_;
 
   // In order to not leak memory (and make it slightly faster)
@@ -770,7 +757,8 @@ class DLL_PUBLIC TensorList {
   // if IsDenseTensor returns true)
   std::list<Tensor<Backend>> tensor_views_;
 
- private:
+
+
   /** @defgroup ContiguousAccessorFunctions Fallback contiguous accessors
    * Fallback access to contiguous data to TensorList. It should not be used for processing,
    * and can be used only for outputs of the pipeline that were made sure to be contiguous.
