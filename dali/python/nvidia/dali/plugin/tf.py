@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -449,6 +449,17 @@ if dataset_compatible_tensorflow():
 
             super(_DALIDatasetV2, self).__init__(self._as_variant_tensor())
 
+        class _InputSpec:
+            """Wrapper collecting information about TF Dataset input to DALI Dataset.
+            Contains the list of actual datasets, corresponding external source names, layouts,
+            and batching info.
+            """
+            def __init__(self, datasets=[], es_names=[], layouts=[], are_batched=[]):
+                self.datasets = datasets
+                self.es_names = es_names
+                self.layouts = layouts
+                self.are_batched = are_batched
+
         def _input_lists_from_input_datasets(self, input_datasets, name_es_map):
             """Extract the input specification from the input_datasets dictionary.
 
@@ -456,12 +467,13 @@ if dataset_compatible_tensorflow():
 
             Returns
             -------
-            list, list, list, list
-                input_datasets, input_names, input_layouts, input_batched
+            _InputSpec
+                Lists containing input datasets and corresponding external source names, layouts,
+                and batching info.
             """
 
             if input_datasets is None:
-                return [], [], [], []
+                return _InputSpec()
 
             def _get_dataset(value):
                 if isinstance(value, dataset_ops.DatasetV2):
@@ -477,7 +489,7 @@ if dataset_compatible_tensorflow():
             error_str = (
                 "`input_datasets` must be a dictionary that maps input names (the `name` "
                 "specified for External Source node in DALI pipeline) to input datasets "
-                "objects (`tf.data.Dataset`) or `nvidia.dali.plugin.tf.experimental.Input` wrapper "
+                "objects (`tf.data.Dataset`) or `nvidia.dali.plugin.tf.Input` wrapper "
                 "objects")
 
             if not isinstance(input_datasets, Mapping):
@@ -493,8 +505,7 @@ if dataset_compatible_tensorflow():
 
                 # values are tf.data.Dataset or Input
                 is_dataset_only = isinstance(input_value, dataset_ops.DatasetV2)
-                experimental = _get_experimental()
-                if not is_dataset_only and not isinstance(input_value, experimental.Input):
+                if not is_dataset_only and not isinstance(input_value, Input):
                     raise TypeError(error_str + (". Expected the values of the dictionary "
                                                  "(representing the inputs) "
                                                  " to be of type `tf.data.Dataset` or "
@@ -515,7 +526,7 @@ if dataset_compatible_tensorflow():
 
                 if is_dataset_only:
                     # Set the defaults used in lookup
-                    as_input = experimental.Input(input_value, layout=None, batch=False)
+                    as_input = Input(input_value, layout=None, batch=False)
                 else:
                     as_input = input_value
 
@@ -527,10 +538,24 @@ if dataset_compatible_tensorflow():
                 batched = _get_external_source_param(input_name, as_input, name_es_map, 'batch')
                 in_batched_list.append(batched if batched is not None else True)
 
-            return in_datasets_list, in_names_list, in_layouts_list, in_batched_list
+            return _InputSpec(dataset=in_datasets_list,
+                              es_names=in_names_list,
+                              layouts=in_layouts_list,
+                              are_batched=in_batched_list)
 
 
         def _input_lists_from_source(self, callbacked_es_map):
+            """Extract the input specification from map {"name" -> External Source with `source`},
+
+            Wrap the `source` parameter of ES node into generator Dataset, and return the
+            specification of all created inputs.
+
+            Returns
+            -------
+            _InputSpec
+                Lists containing the created input datasets and corresponding external source names,
+                layouts, and batching info.
+            """
 
             # TODO(klecki): Warn about this in the doc.
             # We do it only when the users wants to use ExternalSource with `source` specified,
@@ -574,7 +599,10 @@ if dataset_compatible_tensorflow():
                         dataset = dataset.apply(tf.data.experimental.copy_to_device(dali_device_spec.to_string()))
                     in_datasets_list.append(dataset)
 
-            return in_datasets_list, in_names_list, in_layouts_list, in_batched_list
+            return _InputSpec(dataset=in_datasets_list,
+                              es_names=in_names_list,
+                              layouts=in_layouts_list,
+                              are_batched=in_batched_list)
 
 
         def _setup_inputs(self, input_datasets):
@@ -620,11 +648,12 @@ if dataset_compatible_tensorflow():
                                   "were assigned inputs:\n{}.").format(list(non_matched), list(input_datasets.keys())))
 
 
-            self._input_datasets = tuple(inputs_from_dict[0] + inputs_from_source[0])
-            self._input_names = tuple(inputs_from_dict[1] + inputs_from_source[1])
-            self._input_layouts = tuple(inputs_from_dict[2] + inputs_from_source[2])
+            self._input_datasets = tuple(inputs_from_dict.datasets + inputs_from_source.datasets)
+            self._input_names = tuple(inputs_from_dict.es_names + inputs_from_source.es_names)
+            self._input_layouts = tuple(inputs_from_dict.layouts + inputs_from_source.layouts)
             # Map it to integers, to pass as vector<int> instead of vector<bool> to C++
-            self._input_batched = tuple(int(b) for b in inputs_from_dict[3] + inputs_from_source[3])
+            self._input_batched = tuple(
+                int(b) for b in inputs_from_dict.are_batched + inputs_from_source.are_batched)
 
         def _assert_pipeline_instance(self):
             """Ensure that the pipeline is built, and check if the Python part is available.
