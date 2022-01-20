@@ -59,7 +59,7 @@ class DLL_PUBLIC TensorList {
    * TODO(klecki): The API for empty tensor batch container of given number of samples
    * will be adjusted in next releases.
    */
-  DLL_PUBLIC TensorList(int batch_size) : offsets_(batch_size, 0), meta_(batch_size) {}
+  DLL_PUBLIC TensorList(int batch_size) : samples_(batch_size), meta_(batch_size) {}
 
   DLL_PUBLIC TensorList<Backend>(const TensorList<Backend>&) = delete;
   DLL_PUBLIC TensorList<Backend>& operator=(const TensorList<Backend>&) = delete;
@@ -160,9 +160,11 @@ class DLL_PUBLIC TensorList {
 
   inline void reserve(size_t bytes_per_tensor, int batch_size) {
     if (shape_.empty()) {
-      offsets_.resize(batch_size, 0);
+      samples_.resize(batch_size);
       meta_.resize(batch_size);
     }
+    // todo we should make the samples already accessible, shouldn't we?
+    // for s in samples_: s.ShareData(data_ + offset[i])
     data_.reserve(bytes_per_tensor * batch_size);
   }
 
@@ -190,26 +192,31 @@ class DLL_PUBLIC TensorList {
     DALI_ENFORCE(IsValidType(new_type),
                  "TensorList cannot be resized with invalid type. To zero out the TensorList "
                  "Reset() can be used.");
-    // Calculate the new size
-    Index num_tensor = new_shape.size(), new_size = 0;
-    offsets_.resize(num_tensor);
-    for (Index i = 0; i < num_tensor; ++i) {
-      auto tensor_size = volume(new_shape[i]);
+    // Calculate the new size, todo, previously it was fused with offset calculation
+    Index num_samples = new_shape.num_samples(), new_size = new_shape.num_elements();
+    samples_.resize(num_samples);
 
-      // Save the offset of the current sample & accumulate the size
-      offsets_[i] = new_size;
-      new_size += tensor_size;
-    }
     DALI_ENFORCE(new_size >= 0, "Invalid negative buffer size.");
 
     // Resize the underlying allocation and save the new shape
     data_.resize(new_size, new_type);
     shape_ = new_shape;
 
+    // todo: update the samples, extract this method
+    uint8_t *base_ptr = static_cast<uint8_t*>(data_.raw_mutable_data());
+    size_t type_size = type_info().size();
+    for (int64_t sample_idx = 0; sample_idx < num_samples; sample_idx++) {
+      auto sample_alias_ptr = std::shared_ptr<void>(data_.get_data_ptr(), base_ptr);
+      size_t bytes = shape_[sample_idx].num_elements() * type_size;
+      samples_[sample_idx].set_backing_allocation(sample_alias_ptr, bytes, data_.is_pinned(),
+                                                  type(), shape_[sample_idx].num_elements());
+      base_ptr += bytes;
+    }
+
     // Tensor views of this TensorList is no longer valid
     tensor_views_.clear();
 
-    meta_.resize(num_tensor, DALIMeta(layout_));
+    meta_.resize(num_samples, DALIMeta(layout_));
   }
 
   /**
@@ -237,7 +244,11 @@ class DLL_PUBLIC TensorList {
 
     // Copy the shape and metadata
     shape_ = other.shape_;
-    offsets_ = other.offsets_;
+    // todo: we can't copy the buffers so we need to:
+    samples_.resize(other.samples_.size());
+    for (size_t i = 0; i < samples_.size(); i++) {
+      samples_[i].ShareData(other.samples_[i]);
+    }
     meta_ = other.meta_;
     layout_ = other.layout_;
 
@@ -260,6 +271,7 @@ class DLL_PUBLIC TensorList {
                         const TensorListShape<> &shape, DALIDataType type = DALI_NO_TYPE,
                         AccessOrder order = {}) {
     // Free the underlying storage.
+    samples_.clear();
     data_.free_storage();
 
     // Set the new order.
@@ -268,7 +280,6 @@ class DLL_PUBLIC TensorList {
     // Save our new pointer and bytes. Reset our type, shape, and size
     data_.set_backing_allocation(ptr, bytes, pinned, type, shape.num_elements());
     shape_ = {};
-    offsets_.clear();
 
     // Tensor views of this TensorList is no longer valid
     tensor_views_.clear();
@@ -323,9 +334,12 @@ class DLL_PUBLIC TensorList {
   }
 
   DLL_PUBLIC void Reset(AccessOrder order = {}) {
+    for (auto &sample : samples_) {
+      sample.reset(order);
+    }
+    samples_.clear();
     data_.reset(order);  // free the underlying buffer
     shape_ = {};
-    offsets_.clear();
     meta_.clear();
     tensor_views_.clear();
   }
@@ -333,14 +347,14 @@ class DLL_PUBLIC TensorList {
   DLL_PUBLIC inline TensorList<Backend>& operator=(TensorList<Backend> &&other) noexcept {
     if (&other != this) {
       shape_ = std::move(other.shape_);
-      offsets_ = std::move(other.offsets_);
+      samples_ = std::move(other.samples_);
       tensor_views_ = std::move(other.tensor_views_);
       meta_ = std::move(other.meta_);
       layout_ = std::move(other.layout_);
 
       other.shape_ = {};
       other.tensor_views_.clear();
-      other.offsets_.clear();
+      other.samples_.clear();
       other.meta_.clear();
       other.layout_ = {};
 
@@ -353,7 +367,7 @@ class DLL_PUBLIC TensorList {
    * @brief TensorList is always backed by contiguous buffer
    */
   bool IsContiguous() const {
-    return true;
+    return state_.is_contiguous();
   }
 
   /**
@@ -362,6 +376,7 @@ class DLL_PUBLIC TensorList {
    */
   void SetContiguous(bool contiguous) {
     DALI_ENFORCE(contiguous, "TensorList cannot be made noncontiguous");
+    state_.set_contiguous(contiguous);
   }
 
   /**
@@ -453,7 +468,7 @@ class DLL_PUBLIC TensorList {
     // TODO(klecki): Should probably be reworked??
     DALI_FAIL("Contiguous Tensor access not supported yet");
     for (int i = 1; i < shape_.num_samples(); ++i) {
-      if (samples_[i - 1].template data<uint8_t>() + samples_[i - 1].num_bytes() !=
+      if (samples_[i - 1].template data<uint8_t>() + samples_[i - 1].capacity() !=
           samples_[i].template data<uint8_t>()) {
         return false;
       }
@@ -742,7 +757,21 @@ class DLL_PUBLIC TensorList {
   }
 
  private:
-  enum class State { contiguous, noncontiguous };
+  class State {
+   public:
+    bool is_contiguous() const {
+      return contiguous_;
+    }
+
+    void set_contiguous(bool contiguous) {
+      contiguous_ = contiguous;
+    }
+
+   private:
+    bool contiguous_ = true;
+  };
+
+  State state_ = {};
 
   Buffer<Backend> data_;
   // We store a set of dimension for each tensor in the list.
@@ -791,7 +820,7 @@ class DLL_PUBLIC TensorList {
   friend shared_ptr<void> unsafe_sample_owner(TensorList<Backend> &tl, int sample_idx) {
     // create new aliasing pointer to current data allocation, so we share the use count
     // and the deleter correctly.
-    return {tl.data_.get_data_ptr(), tl.raw_mutable_tensor(sample_idx)};
+    return tl.samples_[sample_idx].get_data_ptr();
   }
 
   /** @} */  // end of ContiguousAccessorFunctions
