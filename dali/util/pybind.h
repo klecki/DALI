@@ -20,6 +20,7 @@
 #include <pybind11/stl.h>
 #include <utility>
 #include <string>
+#include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/types.h"
 #include "dali/pipeline/data/dltensor.h"
 
@@ -205,6 +206,12 @@ static py::capsule DLTensorToCapsule(DLMTensorPtr dl_tensor) {
 template <typename Backend>
 py::capsule TensorToDLPackView(Tensor<Backend> &tensor) {
   DLMTensorPtr dl_tensor = GetDLTensorView(tensor);
+  return DLTensorToCapsule(std::move(dl_tensor));
+}
+
+template <typename Backend>
+py::capsule TensorToDLPackView(const TensorView<Backend, void, DynamicDimensions> &tensor, int device_id) {
+  DLMTensorPtr dl_tensor = GetDLTensorView(tensor, device_id);
   return DLTensorToCapsule(std::move(dl_tensor));
 }
 
