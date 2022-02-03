@@ -275,10 +275,6 @@ class DLL_PUBLIC TensorVector {
   const auto& tensor_handle(size_t pos) const {
     return tensors_[pos];
   }
-  struct ViewRefDeleter {
-    void operator()(void*) { --*ref; }
-    std::atomic<int> *ref;
-  };
 
   /**
    * @brief Adjust the metadata structures size, if new tensors were added make them 0-volume
@@ -290,11 +286,23 @@ class DLL_PUBLIC TensorVector {
 
   void update_sample_dim(int sample_dim);
 
+  /**
+   * @brief Propagate all the stuff like pinned, order, etc before we do reallocation?
+   *
+   */
+  void propagate_properties();
+
+  void propagate_properties_to_contiguous();
+
+  void propagate_properties_to_samples();
+
   void update_view(int idx);
+
+
 
   std::vector<Tensor<Backend>> tensors_;
   std::vector<DALIMeta> dali_meta_;
-  WeakBuffer<Backend> contiguous_buffer_;
+  Buffer<Backend> contiguous_buffer_;
   State state_ = State::noncontiguous;
   // pinned status and type info should be uniform
   bool pinned_ = true;
@@ -308,6 +316,7 @@ class DLL_PUBLIC TensorVector {
    */
   int sample_dim_ = -1;
   TensorListShape<> shape_{};
+  TensorLayout layout_;
 
   // So we can access the members of other TensorVectors
   // with different template types
