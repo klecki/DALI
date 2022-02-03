@@ -73,6 +73,15 @@ inline bool set_deletion_order(const std::shared_ptr<T> &ptr, AccessOrder order)
 }
 
 /**
+ * @brief Class that observes a contiguous allocation and its metadata. To change the allocation,
+ * you must first lock() it to create actual Buffer, that you can interact with.
+ *
+ * @tparam Backend
+ */
+template <typename Backend>
+class DLL_PUBLIC WeakBuffer;
+
+/**
  * @brief Base class to provide common functionality needed by Pipeline data
  * structures. Not meant for use, does not provide methods for allocating
  * any actual storage. The 'Backend' template parameter dictates where the
@@ -570,6 +579,39 @@ class DLL_PUBLIC Buffer {
 
   static bool default_pinned();
 
+  template <typename>
+  friend class WeakBuffer;
+
+  template <typename Backend_>
+  friend Buffer<Backend_> lock(WeakBuffer<Backend_> &&buffer);
+
+  Buffer(std::shared_ptr<void> &&ptr, WeakBuffer<Backend> &&buffer) {
+    type_ = std::move(buffer.type_);
+    data_ = std::move(ptr);
+    allocate_ = std::move(buffer.allocate_);
+    size_ = std::move(buffer.size_);
+    num_bytes_ = std::move(buffer.num_bytes_);
+    device_ = std::move(buffer.device_);
+    order_ = std::move(buffer.order_);
+    shares_data_ = std::move(buffer.shares_data_);
+    pinned_ = std::move(buffer.pinned_);
+    buffer.reset();
+  }
+
+  // Buffer& operator=(WeakBuffer<Backend> &&buffer) {
+  //   type_ = std::move(buffer.type_);
+  //   data_ = std::move(buffer.data_);
+  //   allocate_ = std::move(buffer.allocate_);
+  //   size_ = std::move(buffer.size_);
+  //   num_bytes_ = std::move(buffer.num_bytes_);
+  //   device_ = std::move(buffer.device_);
+  //   order_ = std::move(buffer.order_);
+  //   shares_data_ = std::move(buffer.shares_data_);
+  //   pinned_ = std::move(buffer.pinned_);
+  //   buffer.reset();
+  //   return *this;
+  // }
+
   TypeInfo type_ = {};               // Data type of underlying storage
   shared_ptr<void> data_ = nullptr;  // Pointer to underlying storage
   AllocFunc allocate_;               // Custom allocation function
@@ -580,6 +622,110 @@ class DLL_PUBLIC Buffer {
   bool shares_data_ = false;         // Whether we aren't using our own allocation
   bool pinned_ = !RestrictPinnedMemUsage();  // Whether the allocation uses pinned memory
 };
+
+
+template <typename Backend>
+class DLL_PUBLIC WeakBuffer {
+ public:
+ WeakBuffer() = default;
+  // WeakBuffer(const Buffer<Backend> &buffer) {
+  //   type_ = buffer.type_;
+  //   data_ = buffer.data_;
+  //   allocate_ = buffer.allocate_;
+  //   size_ = buffer.size_;
+  //   num_bytes_ = buffer.num_bytes_;
+  //   device_ = buffer.device_;
+  //   order_ = buffer.order_;
+  //   shares_data_ = buffer.shares_data_;
+  //   pinned_ = buffer.pinned_;
+  // }
+
+  WeakBuffer(Buffer<Backend> &&buffer) {
+    // todo swap as in move_buffer?
+    *this = std::move(buffer);
+  }
+
+  // WeakBuffer &operator=(const Buffer<Backend> &buffer) {
+  //   if (this != &buffer) {
+  //     type_ = buffer.type_;
+  //     data_ = buffer.data_;
+  //     allocate_ = buffer.allocate_;
+  //     size_ = buffer.size_;
+  //     num_bytes_ = buffer.num_bytes_;
+  //     device_ = buffer.device_;
+  //     order_ = buffer.order_;
+  //     shares_data_ = buffer.shares_data_;
+  //     pinned_ = buffer.pinned_;
+  //   }
+  //   return *this;
+  // }
+
+  WeakBuffer &operator=(Buffer<Backend> &&buffer) {
+    // if (this != &buffer) {
+      type_ = std::move(buffer.type_);
+      data_ = std::move(buffer.data_);
+      allocate_ = std::move(buffer.allocate_);
+      size_ = std::move(buffer.size_);
+      num_bytes_ = std::move(buffer.num_bytes_);
+      device_ = std::move(buffer.device_);
+      order_ = std::move(buffer.order_);
+      shares_data_ = std::move(buffer.shares_data_);
+      pinned_ = std::move(buffer.pinned_);
+      buffer.reset();
+    // }
+    return *this;
+  }
+
+  void reset() {
+    data_.reset();
+    type_ = {};
+    allocate_ = {};
+    size_ = 0;
+    num_bytes_ = 0;
+    shares_data_ = false;
+  }
+
+  bool expired() const {
+    return data_.expired();
+  }
+
+  AccessOrder get_order() const {
+    return order_;
+  }
+
+  // No waiting involved, you need to do it on your own
+  void set_order(AccessOrder order) {
+    order_ = order;
+  }
+ private:
+
+  TypeInfo type_ = {};               // Data type of underlying storage
+  std::weak_ptr<void> data_;         // Pointer to underlying storage
+  typename Buffer<Backend>::AllocFunc allocate_ = {};               // Custom allocation function
+  Index size_ = 0;                   // The number of elements in the buffer
+  size_t num_bytes_ = 0;             // To keep track of the true size of the underlying allocation
+  int device_ = CPU_ONLY_DEVICE_ID;  // device the buffer was allocated on
+  AccessOrder order_;                // The order of memory access (host or device)
+  bool shares_data_ = false;         // Whether we aren't using our own allocation
+  bool pinned_ = false;
+
+  template <typename>
+  friend class Buffer;
+
+  template <typename Backend_>
+  friend Buffer<Backend_> lock(WeakBuffer<Backend_> &&buffer);
+};
+
+
+template <typename Backend>
+DLL_PUBLIC Buffer<Backend> lock(WeakBuffer<Backend> &&buffer) {
+  auto data = buffer.data_.lock();
+  if (!data) {
+    buffer.reset();
+    return {};
+  }
+  return {std::move(data), std::move(buffer)};
+}
 
 template <typename Backend>
 DLL_PUBLIC double Buffer<Backend>::growth_factor_ = 1.1;

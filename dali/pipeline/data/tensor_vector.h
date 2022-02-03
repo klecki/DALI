@@ -36,6 +36,18 @@ namespace dali {
 
 
 /**
+ * @brief This class gives access to individual samples of the TensorVector
+ *
+ */
+// class DLL_PUBLIC SampleAccessKey {
+//   DLL_PUBLIC SampleAccessKey();
+//   // Forward declarations in signature, beware
+//   friend void MakeSampleView(class SampleWorkspace &sample, class HostWorkspace &batch,
+//                              int data_idx, int thread_idx);
+
+// };
+
+/**
  * @brief Maps DALI Backend to dali::kernels storage backend.
  */
 template <typename Backend>
@@ -84,7 +96,7 @@ class DLL_PUBLIC TensorVector {
   DLL_PUBLIC TensorVector<Backend>(TensorVector<Backend> &&other) noexcept;
 
   AccessOrder order() const {
-    return tl_->order();
+    return order_;  // todo, fixme
   }
 
   void set_order(AccessOrder order, bool synchronize = true);
@@ -94,7 +106,7 @@ class DLL_PUBLIC TensorVector {
    */
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
-    return tensors_[idx]->template mutable_data<T>();
+    return tensors_[idx].template mutable_data<T>();
   }
 
   /**
@@ -102,32 +114,23 @@ class DLL_PUBLIC TensorVector {
    */
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
-    return tensors_[idx]->template data<T>();
+    return tensors_[idx].template data<T>();
   }
 
   /**
    * @brief Returns a raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline void* raw_mutable_tensor(int idx) {
-    return tensors_[idx]->raw_mutable_data();
+    return tensors_[idx].raw_mutable_data();
   }
 
   /**
    * @brief Returns a const raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline const void* raw_tensor(int idx) const {
-    return  tensors_[idx]->raw_data();
+    return  tensors_[idx].raw_data();
   }
 
-  // DLL_PUBLIC void SetSample(int idx, const Buffer<Backend> &owner) {
-  //   Tensor<Backend> tmp;
-  //   tmp.ShareData(owner);
-  //   tmp.Resize(shape()[idx], type());
-  //   SetSample(idx, owner);
-  //   // TODO checks
-  //   // todo share_data replacement
-  //   // tensor_[idx].ShareData(owner);
-  // }
   DLL_PUBLIC void SetSample(int dst, const TensorVector<Backend> &owner, int src);
 
   DLL_PUBLIC void SetSample(int dst, const Tensor<Backend> &owner);
@@ -136,79 +139,39 @@ class DLL_PUBLIC TensorVector {
 
   DLL_PUBLIC TensorView<storage_tag_map3_t<Backend>, void, DynamicDimensions> operator[](
       int sample_idx) {
-    return {tensors_[sample_idx]->raw_mutable_data(), tensor_shape(sample_idx), type()};
+    return {tensors_[sample_idx].raw_mutable_data(), tensor_shape(sample_idx), type()};
   }
 
   DLL_PUBLIC TensorView<storage_tag_map3_t<Backend>, const void, DynamicDimensions> operator[](
       int sample_idx) const {
-    return {tensors_[sample_idx]->raw_data(), tensor_shape(sample_idx), type()};
+    return {tensors_[sample_idx].raw_data(), tensor_shape(sample_idx), type()};
   }
 
 
   Tensor<Backend> &GetSample(size_t pos) {
-    return *(tensors_[pos]);
+    return tensors_[pos];
   }
 
   const Tensor<Backend> &GetSample(size_t pos) const {
-    return *(tensors_[pos]);
-  }
-
-  // Tensor<Backend> &operator[](size_t pos) {
-  //   return *(tensors_[pos]);
-  // }
-
-  // const Tensor<Backend> &operator[](size_t pos) const {
-  //   return *(tensors_[pos]);
-  // }
-
-  auto tensor_handle(size_t pos) {
     return tensors_[pos];
   }
-
-  auto tensor_handle(size_t pos) const {
-    return tensors_[pos];
-  }
-
-  // auto begin() noexcept {
-  //   return tensors_.begin();
-  // }
-
-  // auto begin() const noexcept {
-  //   return tensors_.begin();
-  // }
-
-  // auto cbegin() const noexcept {
-  //   return tensors_.cbegin();
-  // }
-
-  // auto end() noexcept {
-  //   return tensors_.end();
-  // }
-
-  // auto end() const noexcept {
-  //   return tensors_.end();
-  // }
-
-  // auto cend() const noexcept {
-  //   return tensors_.cend();
-  // }
 
   size_t num_samples() const noexcept {
-    return curr_tensors_size_;
+    return shape_.num_samples();
   }
 
   int sample_dim() const {
-    return IsContiguous() ? tl_->sample_dim() : num_samples() ? tensors_[0]->shape().size() : 0;
+    return sample_dim_;
   }
 
   size_t nbytes() const noexcept;
 
   size_t capacity() const noexcept;
 
-  TensorListShape<> shape() const;
+  const TensorListShape<> &shape() const;
 
-  const TensorShape<> &tensor_shape(int idx) const {
-    return tensors_[idx]->shape();
+  TensorShape<> tensor_shape(int idx) const {
+    return shape_[idx];
   }
 
   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape) {
@@ -221,11 +184,13 @@ class DLL_PUBLIC TensorVector {
   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape, DALIDataType new_type);
 
   /**
-   * Change the number of tensors that can be accessed as samples without the need to
-   * set them a size.
-   * @param new_size
+   * Change the number of tensors, with optional dimensionality. It resizes the internal
+   * structures without allocating that data - if new tensors are added, they are initially 0-volume.
+   * This can be used to preprate the state for setting or copying in some samples.
+   * @param batch_size
    */
-  void SetSize(int new_size);
+  DLL_PUBLIC void SetSize(int batch_size);
+  DLL_PUBLIC void SetSize(int batch_size, int sample_dim);
 
   void set_type(DALIDataType new_type);
 
@@ -294,26 +259,55 @@ class DLL_PUBLIC TensorVector {
 
   shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true);
 
+
+
+
  private:
   enum class State { contiguous, noncontiguous };
+  // Forward declarations in signature, beware
+  friend void MakeSampleView(class SampleWorkspace &sample, class HostWorkspace &batch,
+                             int data_idx, int thread_idx);
 
+  auto& tensor_handle(size_t pos) {
+    return tensors_[pos];
+  }
+
+  const auto& tensor_handle(size_t pos) const {
+    return tensors_[pos];
+  }
   struct ViewRefDeleter {
     void operator()(void*) { --*ref; }
     std::atomic<int> *ref;
   };
 
-  void resize_tensors(int size);
+  /**
+   * @brief Adjust the metadata structures size, if new tensors were added make them 0-volume
+   *
+   * Sample dimension is assumed to be meaningfull (non-negative)
+   */
+  void resize_tensors(int batch_size);
+  void resize_tensors(int batch_size, int sample_dim);
+
+  void update_sample_dim(int sample_dim);
 
   void update_view(int idx);
 
-  std::atomic<int> views_count_;
-  std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
-  size_t curr_tensors_size_;
-  std::shared_ptr<TensorList<Backend>> tl_;
+  std::vector<Tensor<Backend>> tensors_;
+  std::vector<DALIMeta> dali_meta_;
+  WeakBuffer<Backend> contiguous_buffer_;
   State state_ = State::noncontiguous;
   // pinned status and type info should be uniform
   bool pinned_ = true;
   TypeInfo type_{};
+  AccessOrder order_;
+  /**
+   * @brief Although sample_dim_ duplicates what can be set in shape_, we use it for lazy shape
+   * initialization, where -1 means that this TensorBatch did not receive sample_dim yet.
+   * One can consider if sample_dim should be always set explicitly or inferred from the first
+   * sample that is set in it.
+   */
+  int sample_dim_ = -1;
+  TensorListShape<> shape_{};
 
   // So we can access the members of other TensorVectors
   // with different template types
