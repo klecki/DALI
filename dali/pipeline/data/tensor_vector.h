@@ -161,7 +161,7 @@ class DLL_PUBLIC TensorVector {
   }
 
   int sample_dim() const {
-    return sample_dim_;
+    return sample_dim_ == -1 ? 0 : sample_dim_;
   }
 
   size_t nbytes() const noexcept;
@@ -215,6 +215,8 @@ class DLL_PUBLIC TensorVector {
   void set_pinned(bool pinned);
 
   bool is_pinned() const;
+
+  bool has_data() const;
 
   /**
    * @brief Reserve as contiguous tensor list internally
@@ -299,7 +301,7 @@ class DLL_PUBLIC TensorVector {
   void update_view(int idx);
 
 
-
+  bool has_data_ = false;
   std::vector<Tensor<Backend>> tensors_;
   std::vector<DALIMeta> dali_meta_;
   Buffer<Backend> contiguous_buffer_;

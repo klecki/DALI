@@ -41,7 +41,10 @@ TensorVector<Backend>::TensorVector() = default;
 
 template <typename Backend>
 TensorVector<Backend>::TensorVector(int batch_size) {
-  resize_tensors(batch_size);
+
+  SetContiguous(false);
+  SetSize(batch_size, 1);
+  shape_ = uniform_list_shape(batch_size, TensorShape<>{0});
 }
 
 
@@ -50,6 +53,8 @@ TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl) {
   // assert(tl_ && "Construction with null TensorList is illegal");
   pinned_ = tl->is_pinned();
   type_ = tl->type_info();
+  shape_ = tl->shape();
+  sample_dim_ = tl->sample_dim();
   SetContiguous(true);
   contiguous_buffer_.set_backing_allocation(unsafe_sample_owner(*tl, 0), tl->nbytes(),
                                             tl->is_pinned());
@@ -77,6 +82,11 @@ TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
   other.contiguous_buffer_.reset();
   other.tensors_.clear();
   other.Reset();
+}
+
+template <typename Backend>
+bool TensorVector<Backend>::has_data() const {
+  return has_data_;
 }
 
 
@@ -270,6 +280,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     tensors_[i].Resize(new_shape[i], new_type);
   }
   buffer_bkp_.reset();
+  has_data_ = true;
 }
 
 
@@ -315,6 +326,7 @@ void TensorVector<Backend>::set_type(DALIDataType new_type_id) {
   if (type_.id() == new_type_id)
     return;
   type_ = TypeTable::GetTypeInfo(new_type_id);
+  propagate_properties();
 }
 
 
@@ -345,14 +357,14 @@ TensorLayout TensorVector<Backend>::GetLayout() const {
 
 template <typename Backend>
 const DALIMeta &TensorVector<Backend>::GetMeta(int idx) const {
-  assert(static_cast<size_t>(idx) < curr_tensors_size_);
+  // assert(static_cast<size_t>(idx) < curr_tensors_size_);
   return tensors_[idx].GetMeta();
 }
 
 
 template <typename Backend>
 void TensorVector<Backend>::SetMeta(int idx, const DALIMeta &meta) {
-  assert(static_cast<size_t>(idx) < curr_tensors_size_);
+  // assert(static_cast<size_t>(idx) < curr_tensors_size_);
   tensors_[idx].SetMeta(meta);
 }
 
@@ -360,7 +372,9 @@ void TensorVector<Backend>::SetMeta(int idx, const DALIMeta &meta) {
 template <typename Backend>
 void TensorVector<Backend>::set_pinned(bool pinned) {
   // Store the value, in case we pin empty vector and later call Resize
+  DALI_ENFORCE(!has_data());
   pinned_ = pinned;
+  propagate_properties();
 }
 
 
@@ -421,6 +435,7 @@ void TensorVector<Backend>::Reset() {
   type_ = {};
   sample_dim_ = -1;
   shape_ = {};
+  has_data_ = false;
 }
 
 
@@ -441,6 +456,7 @@ void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrde
   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(),
                 is_pinned(), shape(), type(), order_);
   tmp.Copy(in_tl, order);
+  resize_tensors(shape_.num_samples());
   UpdateViews();
   // type_ = in_tl.type_info();
   // tl_->Copy(in_tl, order);
@@ -466,6 +482,7 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(),
                 is_pinned(), shape(), type(), order_);
   tmp.Copy(in_tv, order);
+  resize_tensors(shape_.num_samples());
   UpdateViews();
   // SetContiguous(true);
   // type_ = in_tv.type_;
