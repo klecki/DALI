@@ -303,6 +303,7 @@ class DLL_PUBLIC TensorVector {
   std::vector<Tensor<Backend>> tensors_;
   std::vector<DALIMeta> dali_meta_;
   Buffer<Backend> contiguous_buffer_;
+  std::weak_ptr<void> buffer_bkp_;
   State state_ = State::noncontiguous;
   // pinned status and type info should be uniform
   bool pinned_ = true;

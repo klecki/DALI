@@ -29,6 +29,11 @@ bool same_owner(const std::shared_ptr<void> &x, const std::shared_ptr<void> &y) 
     return true;
 }
 
+bool same_owner(const std::weak_ptr<void> &x, const std::shared_ptr<void> &y) {
+    if (x.owner_before(y) || y.owner_before(x))
+        return false;
+    return true;
+}
 
 template <typename Backend>
 TensorVector<Backend>::TensorVector() = default;
@@ -40,16 +45,17 @@ TensorVector<Backend>::TensorVector(int batch_size) {
 }
 
 
-// template <typename Backend>
-// TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl)
-//     : views_count_(0), curr_tensors_size_(0), tl_(std::move(tl)) {
-//   assert(tl_ && "Construction with null TensorList is illegal");
-//   pinned_ = tl_->is_pinned();
-//   type_ = tl_->type_info();
-//   state_ = State::contiguous;
-//   resize_tensors(tl_->num_samples());
-//   UpdateViews();
-// }
+template <typename Backend>
+TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl) {
+  // assert(tl_ && "Construction with null TensorList is illegal");
+  pinned_ = tl->is_pinned();
+  type_ = tl->type_info();
+  SetContiguous(true);
+  contiguous_buffer_.set_backing_allocation(unsafe_sample_owner(*tl, 0), tl->nbytes(),
+                                            tl->is_pinned());
+  resize_tensors(tl->num_samples());
+  UpdateViews();
+}
 
 
 template <typename Backend>
@@ -111,6 +117,7 @@ void TensorVector<Backend>::SetSample(int dst, const TensorVector<Backend> &owne
     set_type(owner.type());
   }
   DALI_ENFORCE(type() == owner.type(), "Sample must have the same type as batch");
+  SetContiguous(false);
 
   tensors_[dst].ShareData(owner.tensors_[src]);
 }
@@ -127,9 +134,9 @@ void TensorVector<Backend>::SetSample(int dst, const Tensor<Backend> &owner) {
   // kind (pinned?), order, layout, etc...
   // The metadata
 
-  if (tensors_[dst].shape().num_elements() != owner.shape().num_elements()) {
-    SetContiguous(false);
-  }
+  // if (tensors_[dst].shape().num_elements() != owner.shape().num_elements()) {
+  SetContiguous(false);
+  // }
   tensors_[dst].ShareData(owner);
   // todo v update shape
   // shape().set_tensor_shape(idx, owner.shape());
@@ -253,7 +260,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     // TODO: test this scenario? - we should not be able to get here
     // problem: we have a case, where we were first contiguous, now we want non-contiguous.
     // so we should probably set the buffers as not sharing data.
-    if (same_owner(contiguous_buffer_.get_data_ptr(), tensors_[i].get_data_ptr())) {
+    if (tensors_[i].get_data_ptr() && same_owner(buffer_bkp_, tensors_[i].get_data_ptr())) {
       // if we have same owner as contiguous buffer, we can assume we share into that contiguous
       // buffer, se we need to break this share, to be able to resize sample-wise.
       // todo, convert to regular assert
@@ -262,6 +269,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     }
     tensors_[i].Resize(new_shape[i], new_type);
   }
+  buffer_bkp_.reset();
 }
 
 
@@ -398,6 +406,7 @@ void TensorVector<Backend>::SetContiguous(bool contiguous) {
   } else {
     state_ = State::noncontiguous;
     // We clear the contiguous_buffer_, as we are now non-contiguous.
+    buffer_bkp_ = contiguous_buffer_.get_data_ptr();
     contiguous_buffer_.reset();
   }
   // TODO: get rid of weak buffer, make it free stuff when we switch to non contiguous
@@ -425,7 +434,14 @@ void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrde
   layout_ = in_tl.GetLayout();
   pinned_ = in_tl.is_pinned();
 
-  // SetContiguous(true);
+  SetContiguous(true);
+  TensorList<Backend> tmp;
+  contiguous_buffer_.resize(shape().num_elements(), type());
+
+  tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(),
+                is_pinned(), shape(), type(), order_);
+  tmp.Copy(in_tl, order);
+  UpdateViews();
   // type_ = in_tl.type_info();
   // tl_->Copy(in_tl, order);
 
@@ -444,7 +460,13 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
   layout_ = in_tv.GetLayout();
   pinned_ = in_tv.is_pinned();
 
+  TensorList<Backend> tmp;
+  contiguous_buffer_.resize(shape().num_elements(), type());
 
+  tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(),
+                is_pinned(), shape(), type(), order_);
+  tmp.Copy(in_tv, order);
+  UpdateViews();
   // SetContiguous(true);
   // type_ = in_tv.type_;
   // tl_->Copy(in_tv, order);
