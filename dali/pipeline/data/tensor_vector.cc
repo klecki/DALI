@@ -57,7 +57,7 @@ TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl) {
   sample_dim_ = tl->sample_dim();
   SetContiguous(true);
   contiguous_buffer_.set_backing_allocation(unsafe_sample_owner(*tl, 0), tl->nbytes(),
-                                            tl->is_pinned());
+                                            tl->is_pinned(), tl->type(), shape_.num_elements());
   resize_tensors(tl->num_samples());
   UpdateViews();
 }
@@ -301,17 +301,17 @@ void TensorVector<Backend>::SetSize(int batch_size, int sample_dim) {
   // preserve sample_dim if we got -1 as argument
   sample_dim = sample_dim == -1 ? sample_dim_ : sample_dim;
 
-  if (sample_dim == -1) {
-    // We didn't get new sample dim, and we currently don't have one.
-    // Just expand the metadata structures
-    tensors_.resize(batch_size);
-    shape_.resize(batch_size);
-    dali_meta_.resize(batch_size);
-    return; // ????
-  } else {
+  // if (sample_dim == -1) {
+  //   // We didn't get new sample dim, and we currently don't have one.
+  //   // Just expand the metadata structures
+  //   tensors_.resize(batch_size);
+  //   shape_.resize(batch_size);
+  //   dali_meta_.resize(batch_size);
+  //   return; // ????
+  // } else {
 
 
-  }
+  // }
 
 
   resize_tensors(batch_size, sample_dim);
@@ -444,10 +444,12 @@ template <typename SrcBackend>
 void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrder order) {
   type_ = in_tl.type_info();
   SetContiguous(true); // this resets the buffers as needed
+  sample_dim_ = in_tl.sample_dim();
   shape_ = in_tl.shape();
   order_ = in_tl.order();
   layout_ = in_tl.GetLayout();
   pinned_ = in_tl.is_pinned();
+  has_data_ = in_tl.has_data();
 
   SetContiguous(true);
   TensorList<Backend> tmp;
@@ -471,10 +473,12 @@ template <typename SrcBackend>
 void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOrder order) {
   type_ = in_tv.type_info();
   SetContiguous(true); // this resets the buffers as needed
+  sample_dim_ = in_tv.sample_dim();
   shape_ = in_tv.shape();
   order_ = in_tv.order();
   layout_ = in_tv.GetLayout();
   pinned_ = in_tv.is_pinned();
+  has_data_ = in_tv.has_data();
 
   TensorList<Backend> tmp;
   contiguous_buffer_.resize(shape().num_elements(), type());
@@ -498,6 +502,7 @@ void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
   type_ = in_tl.type_info();
   SetContiguous(true); // this resets the buffers as needed
   shape_ = in_tl.shape();
+  sample_dim_ = in_tl.sample_dim();
   order_ = in_tl.order();
   layout_ = in_tl.GetLayout();
   pinned_ = in_tl.is_pinned();
@@ -506,7 +511,10 @@ void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
 
   // todo fixme: assumes contiguous
   contiguous_buffer_.set_backing_allocation(
-      unsafe_sample_owner(const_cast<TensorList<Backend> &>(in_tl), 0), in_tl.nbytes(), pinned_);
+      unsafe_sample_owner(const_cast<TensorList<Backend> &>(in_tl), 0), in_tl.nbytes(), pinned_,
+      type(), shape_.num_elements());
+
+  has_data_ = in_tl.has_data();
 
   // Alternative: just dummy samples
   // int batch_size = in_tl.num_samples();
@@ -523,10 +531,12 @@ void TensorVector<Backend>::ShareData(const TensorVector<Backend> &tv) {
   type_ = tv.type_;
   SetContiguous(tv.state_ == State::contiguous); // this resets the buffers as needed
   shape_ = tv.shape_;
+  sample_dim_ = tv.sample_dim_;
   order_ = tv.order_;
   layout_ = tv.layout_;
   pinned_ = tv.is_pinned();
-  resize_tensors(shape_.num_samples());
+  has_data_ = tv.has_data();
+  resize_tensors(shape_.num_samples()); // update internal structures, no need to adjust dim in shape
   if (tv.state_ == State::contiguous) {
     contiguous_buffer_.ShareData(tv.contiguous_buffer_);
     UpdateViews();
@@ -562,6 +572,9 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
 template <typename Backend>
 void TensorVector<Backend>::UpdateViews() {
   // Return if we do not have a valid allocation
+  if (!has_data()) {
+    return;
+  }
   if (!IsValidType(type())) {
     return;
   }
@@ -600,22 +613,7 @@ std::shared_ptr<TensorList<Backend>> TensorVector<Backend>::AsTensorList(bool ch
   return result;
 }
 
-template <typename Backend>
-void TensorVector<Backend>::update_sample_dim(int sample_dim) {
-  if (sample_dim_ == sample_dim) {
-    return;
-  }
-  DALI_ENFORCE(sample_dim >= 0, "The dimensionality must be known.");
 
-  sample_dim_ = sample_dim;
-  shape_.resize(shape_.num_samples(), sample_dim_);
-  for (int i = 0; i < shape_.num_samples(); i++) {
-    for (auto &elem : shape_.tensor_shape_span(i)) {
-      elem = 0;
-    }
-  }
-
-}
 
 template <typename Backend>
 void TensorVector<Backend>::resize_tensors(int batch_size) {
@@ -625,31 +623,30 @@ void TensorVector<Backend>::resize_tensors(int batch_size) {
 template <typename Backend>
 void TensorVector<Backend>::resize_tensors(int batch_size, int sample_dim) {
   // DALI_ENFORCE(sample_dim >= 0, "To insert new samples, the dimensionality must be known.");
-  if (static_cast<size_t>(batch_size) > tensors_.size()) {
+  if (static_cast<size_t>(batch_size) != tensors_.size()) {
     tensors_.resize(batch_size);
     dali_meta_.resize(batch_size);
     shape_.resize(batch_size);
-    update_sample_dim(sample_dim);
-    // for (int i = old_size; i < batch_size; i++) {
-    //   // if (!tensors_[i]) {
-    //   //   tensors_[i] = std::make_shared<Tensor<Backend>>();  // todo create empty buffer?
-    //   //   // tensors_[i]->set_pinned(is_pinned());
-    //   // }
-    // }
-  } else if (static_cast<size_t>(batch_size) < tensors_.size()) {
-    tensors_.resize(batch_size);
-    dali_meta_.resize(batch_size);
-    shape_.resize(batch_size);
-    update_sample_dim(sample_dim);
-    // for (size_t i = new_size; i < curr_tensors_size_; i++) {
-    //   if (tensors_[i]->shares_data()) {
-    //     tensors_[i]->Reset();
-    //   }
-    // }
-  } else {
     update_sample_dim(sample_dim);
   }
-  // curr_tensors_size_ = new_size;
+  update_sample_dim(sample_dim);
+}
+
+template <typename Backend>
+void TensorVector<Backend>::update_sample_dim(int sample_dim) {
+  if (sample_dim_ == sample_dim) {
+    return;
+  }
+  DALI_ENFORCE(sample_dim >= 0, "The dimensionality must be known.");
+
+  sample_dim_ = sample_dim;
+  // todo, possibly second resize of sample dim?
+  shape_.resize(shape_.num_samples(), sample_dim_);
+  for (int i = 0; i < shape_.num_samples(); i++) {
+    for (auto &elem : shape_.tensor_shape_span(i)) {
+      elem = 0;
+    }
+  }
 }
 
 
@@ -704,8 +701,13 @@ void TensorVector<Backend>::propagate_properties_to_samples() {
     if (IsValidType(type())) {
       tensor.set_type(type());
     }
-    tensor.set_order(order());
+    tensor.set_order(order(), false); // we already synced
+    tensor.SetLayout(GetLayout());
   }
+  for (auto &meta : dali_meta_) {
+    meta.SetLayout(GetLayout());
+  }
+  // for (int i = 0; i < )
 }
 
 template class DLL_PUBLIC TensorVector<CPUBackend>;
