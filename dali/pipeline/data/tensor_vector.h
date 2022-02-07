@@ -161,7 +161,7 @@ class DLL_PUBLIC TensorVector {
   }
 
   int sample_dim() const {
-    return sample_dim_ == -1 ? 0 : sample_dim_;
+    return sample_dim_ == -1 ? 1 : sample_dim_;
   }
 
   size_t nbytes() const noexcept;
@@ -297,8 +297,10 @@ class DLL_PUBLIC TensorVector {
   void propagate_properties_to_contiguous();
 
   void propagate_properties_to_samples();
+  void propagate_properties_to_samples(int idx);
 
   void update_view(int idx);
+  void check_consistency();
 
 
   bool has_data_ = false;

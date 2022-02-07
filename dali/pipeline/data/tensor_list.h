@@ -151,16 +151,17 @@ class DLL_PUBLIC TensorList {
 
     int dim = other.sample_dim();
     TensorListShape<> new_shape(other.num_samples(), dim);
-    for (size_t i = 0; i < other.num_samples(); ++i) {
-      // todo COPY is samplebroken
-      // DALI_ENFORCE(other.tensor_shape(i).sample_dim() == dim,
-      //    "TensorList can only have uniform dimensions across all samples, mismatch at index "
-      //    + std::to_string(i) + " expected Tensor with dim = " + to_string(dim)
-      //    + " found Tensor with dim = " + to_string(other[i].shape().sample_dim()));
-      // assert(type == other[i].type());
-      // assert(layout == other[i].GetLayout());
-      new_shape.set_tensor_shape(i, other.tensor_shape(i));
-    }
+    if (dim)
+      for (size_t i = 0; i < other.num_samples(); ++i) {
+        // todo COPY is samplebroken
+        // DALI_ENFORCE(other.tensor_shape(i).sample_dim() == dim,
+        //    "TensorList can only have uniform dimensions across all samples, mismatch at index "
+        //    + std::to_string(i) + " expected Tensor with dim = " + to_string(dim)
+        //    + " found Tensor with dim = " + to_string(other[i].shape().sample_dim()));
+        // assert(type == other[i].type());
+        // assert(layout == other[i].GetLayout());
+        new_shape.set_tensor_shape(i, other.tensor_shape(i));
+      }
 
     if (!order)
       order = other.order() ? other.order() : this->order();

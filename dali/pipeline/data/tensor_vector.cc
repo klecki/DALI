@@ -45,6 +45,7 @@ TensorVector<Backend>::TensorVector(int batch_size) {
   SetContiguous(false);
   SetSize(batch_size, 1);
   shape_ = uniform_list_shape(batch_size, TensorShape<>{0});
+  check_consistency();
 }
 
 
@@ -60,6 +61,7 @@ TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl) {
                                             tl->is_pinned(), tl->type(), shape_.num_elements());
   resize_tensors(tl->num_samples());
   UpdateViews();
+  check_consistency();
 }
 
 
@@ -82,6 +84,7 @@ TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
   other.contiguous_buffer_.reset();
   other.tensors_.clear();
   other.Reset();
+  check_consistency();
 }
 
 template <typename Backend>
@@ -130,6 +133,7 @@ void TensorVector<Backend>::SetSample(int dst, const TensorVector<Backend> &owne
   SetContiguous(false);
 
   tensors_[dst].ShareData(owner.tensors_[src]);
+  check_consistency();
 }
 
 template <typename Backend>
@@ -150,6 +154,7 @@ void TensorVector<Backend>::SetSample(int dst, const Tensor<Backend> &owner) {
   tensors_[dst].ShareData(owner);
   // todo v update shape
   // shape().set_tensor_shape(idx, owner.shape());
+  check_consistency();
 }
 
 template <typename Backend>
@@ -171,6 +176,7 @@ void TensorVector<Backend>::CopySample(int dst, const TensorVector<Backend> &dat
   tensors_[dst].Copy(data.tensors_[src], order);
   // todo v update shape
   // shape().set_tensor_shape(idx, owner.shape());
+  check_consistency();
 }
 
 template <typename Backend>
@@ -202,6 +208,7 @@ void TensorVector<Backend>::set_order(AccessOrder order, bool synchronize) {
   for (auto &t : tensors_)
     t.set_order(order, false);
   order_ = order;
+  check_consistency();
 }
 
 template <typename Backend>
@@ -215,6 +222,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
   }
   sample_dim_ = new_shape.sample_dim();
   shape_ = new_shape;
+  has_data_ = false;
 
 
   if (state_ == State::contiguous) { // todo or policy == Coalesce
@@ -222,6 +230,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     int64_t num_samples = new_shape.num_samples(), new_size = new_shape.num_elements();
     propagate_properties_to_contiguous();
     contiguous_buffer_.resize(new_size, new_type);
+    order_ = contiguous_buffer_.order();  // propagate order after allocation
     uint8_t *base_ptr = static_cast<uint8_t*>(contiguous_buffer_.raw_mutable_data());
     for (int64_t i = 0; i < num_samples; i++) {
       auto tensor_size = volume(new_shape.tensor_shape_span(i));
@@ -232,6 +241,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
                             new_shape[i], new_type, order());
       base_ptr += tensor_size * type_.size();
     }
+    has_data_ = contiguous_buffer_.has_data();
     return;
 
     // This is corresponding part from TL:
@@ -276,11 +286,15 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
       // todo, convert to regular assert
       DALI_ENFORCE(tensors_[i].shares_data());
       tensors_[i].Reset();
+      propagate_properties_to_samples(i);
     }
     tensors_[i].Resize(new_shape[i], new_type);
+    // can we have different order?
+    has_data_ = has_data_ || tensors_[i].has_data();
   }
+  order_ = tensors_[0].order();  // propagate order after allocation
   buffer_bkp_.reset();
-  has_data_ = true;
+  check_consistency();
 }
 
 
@@ -288,6 +302,7 @@ template <typename Backend>
 void TensorVector<Backend>::SetSize(int batch_size) {
   SetSize(batch_size, sample_dim_);
   // resize_tensors(batch_size);
+  check_consistency();
 }
 
 
@@ -315,6 +330,7 @@ void TensorVector<Backend>::SetSize(int batch_size, int sample_dim) {
 
 
   resize_tensors(batch_size, sample_dim);
+  check_consistency();
 }
 
 
@@ -327,6 +343,7 @@ void TensorVector<Backend>::set_type(DALIDataType new_type_id) {
     return;
   type_ = TypeTable::GetTypeInfo(new_type_id);
   propagate_properties();
+  check_consistency();
 }
 
 
@@ -346,6 +363,7 @@ void TensorVector<Backend>::SetLayout(const TensorLayout &layout) {
   layout_ = layout;
 
   propagate_properties();
+  check_consistency();
 }
 
 
@@ -375,6 +393,7 @@ void TensorVector<Backend>::set_pinned(bool pinned) {
   DALI_ENFORCE(!has_data());
   pinned_ = pinned;
   propagate_properties();
+  check_consistency();
 }
 
 
@@ -390,6 +409,8 @@ void TensorVector<Backend>::reserve(size_t total_bytes) {
     tensors_.clear();
   }
   state_ = State::contiguous;
+  contiguous_buffer_.reserve(total_bytes);
+  order_ = contiguous_buffer_.order();  // propagate order after allocation
   // TODO: the reserve doesn't work with weak ptr
   // tl_->reserve(total_bytes);
   // UpdateViews();
@@ -399,11 +420,15 @@ void TensorVector<Backend>::reserve(size_t total_bytes) {
 template <typename Backend>
 void TensorVector<Backend>::reserve(size_t bytes_per_sample, int batch_size) {
   assert(batch_size > 0);
+  // TODO: consider keeping a counter of actual number of elements as now, to keep the allocations
+  // OTOH it leaks memory
   state_ = State::noncontiguous;
   resize_tensors(batch_size);
+  propagate_properties();
   for (int64_t i = 0; i < shape_.num_samples(); i++) {
     tensors_[i].reserve(bytes_per_sample);
   }
+  order_ = tensors_[0].order();  // propagate order after allocation
 }
 
 
@@ -424,6 +449,7 @@ void TensorVector<Backend>::SetContiguous(bool contiguous) {
     contiguous_buffer_.reset();
   }
   // TODO: get rid of weak buffer, make it free stuff when we switch to non contiguous
+  // check_consistency();
 }
 
 
@@ -436,6 +462,7 @@ void TensorVector<Backend>::Reset() {
   sample_dim_ = -1;
   shape_ = {};
   has_data_ = false;
+  check_consistency();
 }
 
 
@@ -446,25 +473,32 @@ void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrde
   SetContiguous(true); // this resets the buffers as needed
   sample_dim_ = in_tl.sample_dim();
   shape_ = in_tl.shape();
-  order_ = in_tl.order();
   layout_ = in_tl.GetLayout();
   pinned_ = in_tl.is_pinned();
   has_data_ = in_tl.has_data();
 
-  SetContiguous(true);
+
+  if (!order)
+    order = in_tl.order() ? in_tl.order() : this->order();
+  order.wait(this->order());
+
+  propagate_properties();
   TensorList<Backend> tmp;
   contiguous_buffer_.resize(shape().num_elements(), type());
+  order_ = contiguous_buffer_.order();  // propagate order after allocation
 
   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(),
                 is_pinned(), shape(), type(), order_);
   tmp.Copy(in_tl, order);
   resize_tensors(shape_.num_samples());
   UpdateViews();
+  this->order().wait(order);
   // type_ = in_tl.type_info();
   // tl_->Copy(in_tl, order);
 
   // resize_tensors(tl_->num_samples());
   // UpdateViews();
+  check_consistency();
 }
 
 
@@ -475,25 +509,33 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
   SetContiguous(true); // this resets the buffers as needed
   sample_dim_ = in_tv.sample_dim();
   shape_ = in_tv.shape();
-  order_ = in_tv.order();
   layout_ = in_tv.GetLayout();
   pinned_ = in_tv.is_pinned();
   has_data_ = in_tv.has_data();
 
+
+  if (!order)
+    order = in_tv.order() ? in_tv.order() : this->order();
+  order.wait(this->order());
+
+  propagate_properties();
   TensorList<Backend> tmp;
   contiguous_buffer_.resize(shape().num_elements(), type());
+  order_ = contiguous_buffer_.order();  // propagate order after allocation
 
   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(),
                 is_pinned(), shape(), type(), order_);
   tmp.Copy(in_tv, order);
   resize_tensors(shape_.num_samples());
   UpdateViews();
+  this->order().wait(order);
   // SetContiguous(true);
   // type_ = in_tv.type_;
   // tl_->Copy(in_tv, order);
 
   // resize_tensors(tl_->num_samples());
   // UpdateViews();
+  check_consistency();
 }
 
 
@@ -510,9 +552,13 @@ void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
   // contiguous_buffer_.set_backing_allocation(unsafe(in_tl, size_t bytes, bool pinned)
 
   // todo fixme: assumes contiguous
+  // todo, set_backing_allocation needs direct order information?
+  contiguous_buffer_.reset(order_);
+  contiguous_buffer_.set_order(order_);
   contiguous_buffer_.set_backing_allocation(
       unsafe_sample_owner(const_cast<TensorList<Backend> &>(in_tl), 0), in_tl.nbytes(), pinned_,
       type(), shape_.num_elements());
+
 
   has_data_ = in_tl.has_data();
 
@@ -524,6 +570,7 @@ void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
   // }
 
   UpdateViews();
+  check_consistency();
 }
 
 template <typename Backend>
@@ -546,25 +593,31 @@ void TensorVector<Backend>::ShareData(const TensorVector<Backend> &tv) {
       tensors_[i].ShareData(tv.tensors_[i]);
     }
   }
+  check_consistency();
 }
 
 
 template <typename Backend>
 TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&other) noexcept {
   if (&other != this) {
+    has_data_ = other.has_data();
+    tensors_ = std::move(other.tensors_);
+    dali_meta_ = std::move(other.dali_meta_);
+    contiguous_buffer_ = std::move(other.contiguous_buffer_);
+    buffer_bkp_ = std::move(other.buffer_bkp_);
     state_ = other.state_;
     pinned_ = other.pinned_;
-    contiguous_buffer_ = std::move(other.contiguous_buffer_);
     type_ = other.type_;
-    tensors_ = std::move(other.tensors_);
+    order_ = other.order_;
+    sample_dim_ = other.sample_dim_;
     shape_ = std::move(other.shape_);
-    // for (auto &t : tensors_) {
-    //   if (t) {
-    //     if (auto *del = std::get_deleter<ViewRefDeleter>(t.data_)) del->ref = &views_count_;
-    //   }
-    // }
+    layout_ = other.layout_;
+
     other.tensors_.clear();
+    other.dali_meta_.clear();
+    other.Reset();
   }
+  check_consistency();
   return *this;
 }
 
@@ -594,6 +647,7 @@ void TensorVector<Backend>::UpdateViews() {
                           shape_[i], type(), order());
     base_ptr += tensor_size * type_.size();
   }
+  // check_consistency();
 }
 
 
@@ -627,7 +681,6 @@ void TensorVector<Backend>::resize_tensors(int batch_size, int sample_dim) {
     tensors_.resize(batch_size);
     dali_meta_.resize(batch_size);
     shape_.resize(batch_size);
-    update_sample_dim(sample_dim);
   }
   update_sample_dim(sample_dim);
 }
@@ -647,6 +700,7 @@ void TensorVector<Backend>::update_sample_dim(int sample_dim) {
       elem = 0;
     }
   }
+  // check_consistency();
 }
 
 
@@ -679,6 +733,7 @@ template <typename Backend>
 void TensorVector<Backend>::propagate_properties() {
   propagate_properties_to_contiguous();
   propagate_properties_to_samples();
+  // check_consistency();
 }
 
 template <typename Backend>
@@ -694,20 +749,67 @@ void TensorVector<Backend>::propagate_properties_to_contiguous() {
 
 template <typename Backend>
 void TensorVector<Backend>::propagate_properties_to_samples() {
-  for (auto &tensor : tensors_) {
-    if (!tensor.has_data()) {
-      tensor.set_pinned(is_pinned());
-    }
-    if (IsValidType(type())) {
-      tensor.set_type(type());
-    }
-    tensor.set_order(order(), false); // we already synced
-    tensor.SetLayout(GetLayout());
+  for (int i = 0; i < tensors_.size(); i++) {
+    propagate_properties_to_samples(i);
   }
-  for (auto &meta : dali_meta_) {
-    meta.SetLayout(GetLayout());
+}
+
+
+template <typename Backend>
+void TensorVector<Backend>::propagate_properties_to_samples(int idx) {
+  auto &tensor = tensors_[idx];
+  if (!tensor.has_data()) {
+    tensor.set_pinned(is_pinned());
   }
+  if (IsValidType(type())) {
+    tensor.set_type(type());
+  }
+  tensor.set_order(order(), false); // we already synced
+  tensor.SetLayout(GetLayout());
+  auto &meta = dali_meta_[idx];
+  meta.SetLayout(GetLayout());
+  // check_consistency();
   // for (int i = 0; i < )
+}
+
+template <typename Backend>
+void TensorVector<Backend>::check_consistency() {
+  if (has_data_) {
+    assert(shape_.num_samples() != 0);
+    assert(IsValidType(type_));
+    assert(sample_dim_ != -1);
+    assert(sample_dim_ == shape_.sample_dim());
+    assert(shape_.num_samples() == tensors_.size());
+    assert(shape_.num_samples() == dali_meta_.size());
+    if (state_ == State::contiguous) {
+      assert(contiguous_buffer_.has_data() == has_data_);
+      assert(pinned_ == contiguous_buffer_.is_pinned());
+      assert(type_.id() == contiguous_buffer_.type());
+      assert(order_ == contiguous_buffer_.order());
+      // assert(shape_[i] = contiguous_buffer_.shape());
+    }
+    for (int i = 0; i < shape_.num_samples(); i++) {
+      assert(has_data_ == tensors_[i].has_data());
+      assert(pinned_ == tensors_[i].is_pinned());
+      assert(type_.id() == tensors_[i].type());
+      // assert(order_ == tensors_[i].order());///WHY????
+
+      assert(shape_[i] == tensors_[i].shape());
+    }
+  }
+  // bool has_data_ = false;
+  // std::vector<Tensor<Backend>> tensors_;
+  // std::vector<DALIMeta> dali_meta_;
+  // Buffer<Backend> contiguous_buffer_;
+  // std::weak_ptr<void> buffer_bkp_;
+  // State state_ = State::noncontiguous;
+  // // pinned status and type info should be uniform
+  // bool pinned_ = true;
+  // TypeInfo type_{};
+  // AccessOrder order_;
+  // int sample_dim_ = -1;
+  // TensorListShape<> shape_{};
+  // TensorLayout layout_;
 }
 
 template class DLL_PUBLIC TensorVector<CPUBackend>;
