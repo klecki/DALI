@@ -788,14 +788,17 @@ void TensorVector<Backend>::check_consistency() {
       assert(order_ == contiguous_buffer_.order());
       // assert(shape_[i] = contiguous_buffer_.shape());
     }
+    bool has_data_impl = false;
     for (int i = 0; i < shape_.num_samples(); i++) {
-      assert(has_data_ == tensors_[i].has_data());
+      // assert(has_data_ == tensors_[i].has_data());
+      has_data_impl = has_data_impl || tensors_[i].has_data();
       assert(pinned_ == tensors_[i].is_pinned());
       assert(type_.id() == tensors_[i].type());
       // assert(order_ == tensors_[i].order());///WHY????
 
       assert(shape_[i] == tensors_[i].shape());
     }
+    assert(has_data_ == has_data_impl);
   }
   // bool has_data_ = false;
   // std::vector<Tensor<Backend>> tensors_;
