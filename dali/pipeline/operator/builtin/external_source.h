@@ -253,7 +253,8 @@ class ExternalSource : public Operator<Backend>, virtual public BatchSizeProvide
                             AccessOrder order = {}, ExtSrcSettingMode ext_src_setting_mode = {}) {
     DeviceGuard g(device_id_);
     DomainTimeRange tr("[DALI][ExternalSource] SetDataSource", DomainTimeRange::kViolet);
-    TensorVector<SrcBackend> tv(vect_of_tensors.size());
+    TensorVector<SrcBackend> tv;
+    tv.SetSize(vect_of_tensors.size(), vect_of_tensors[0].shape().sample_dim());
     for (size_t i = 0; i < tv.num_samples(); ++i) {
       tv.SetSample(i, const_cast<Tensor<SrcBackend> &>(vect_of_tensors[i]));
     }

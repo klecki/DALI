@@ -129,10 +129,30 @@ void TensorVector<Backend>::SetSample(int dst, const TensorVector<Backend> &owne
   if (type() == DALI_NO_TYPE && owner.type() != DALI_NO_TYPE) {
     set_type(owner.type());
   }
-  DALI_ENFORCE(type() == owner.type(), "Sample must have the same type as batch");
+  DALI_ENFORCE(owner.sample_dim_ != -1, "Sample must have a dimensionality.");
+  if (sample_dim_ == -1) {
+    update_sample_dim(owner.sample_dim());
+  }
+  if (!order() && owner.order()) {
+    // todo when to sync
+    set_order(owner.order());
+  }
+  if (GetLayout().empty() && !owner.GetLayout().empty()) {
+    SetLayout(owner.GetLayout());
+  }
+  // Bounds check
+  assert(dst >= 0 && dst < tensors_.size());
+  assert(src >= 0 && src < owner.tensors_.size());
+  DALI_ENFORCE(type() == owner.type(), "Sample must have the same type as a target batch");
+  DALI_ENFORCE(sample_dim() == owner.sample_dim(),
+               "Sample must have the same dimensionality as a target batch");
+  DALI_ENFORCE(order() == owner.order(), "Sample must have the same order as a target batch");
+  DALI_ENFORCE(GetLayout() == owner.GetLayout(), "Sample must have the same layout as a target batch");
   SetContiguous(false);
 
   tensors_[dst].ShareData(owner.tensors_[src]);
+  shape_.set_tensor_shape(dst, owner.shape().tensor_shape_span(src));
+  has_data_ = has_data_ || tensors_[dst].has_data();
   check_consistency();
 }
 
@@ -144,7 +164,23 @@ void TensorVector<Backend>::SetSample(int dst, const Tensor<Backend> &owner) {
   if (type() == DALI_NO_TYPE && owner.type() != DALI_NO_TYPE) {
     set_type(owner.type());
   }
-  DALI_ENFORCE(type() == owner.type(), "Sample must have the same type as batch");
+  if (sample_dim_ == -1) {
+    update_sample_dim(owner.shape().sample_dim());
+  }
+  if (!order() && owner.order()) {
+    // todo when to sync
+    set_order(owner.order());
+  }
+  if (GetLayout().empty() && !owner.GetLayout().empty()) {
+    SetLayout(owner.GetLayout());
+  }
+  // Bounds check
+  assert(dst >= 0 && dst < tensors_.size());
+  DALI_ENFORCE(type() == owner.type(), "Sample must have the same type as a target batch");
+  DALI_ENFORCE(sample_dim() == owner.shape().sample_dim(),
+               "Sample must have the same dimensionality as a target batch");
+  DALI_ENFORCE(order() == owner.order(), "Sample must have the same order as a target batch");
+  DALI_ENFORCE(GetLayout() == owner.GetLayout(), "Sample must have the same layout as a target batch");
   // kind (pinned?), order, layout, etc...
   // The metadata
 
@@ -152,8 +188,8 @@ void TensorVector<Backend>::SetSample(int dst, const Tensor<Backend> &owner) {
   SetContiguous(false);
   // }
   tensors_[dst].ShareData(owner);
-  // todo v update shape
-  // shape().set_tensor_shape(idx, owner.shape());
+  shape_.set_tensor_shape(dst, owner.shape());
+  has_data_ = has_data_ || tensors_[dst].has_data();
   check_consistency();
 }
 
@@ -166,7 +202,24 @@ void TensorVector<Backend>::CopySample(int dst, const TensorVector<Backend> &dat
   if (type() == DALI_NO_TYPE && data.type() != DALI_NO_TYPE) {
     set_type(data.type());
   }
-  DALI_ENFORCE(type() == data.type(), "Sample must have the same type as batch");
+  if (sample_dim_ == -1) {
+    update_sample_dim(data.shape().sample_dim());
+  }
+  if (!this->order() && data.order()) {
+    // todo when to sync
+    set_order(data.order());
+  }
+  if (GetLayout().empty() && !data.GetLayout().empty()) {
+    SetLayout(data.GetLayout());
+  }
+  // Bounds check
+  assert(dst >= 0 && dst < tensors_.size());
+  assert(src >= 0 && src < data.tensors_.size());
+  DALI_ENFORCE(type() == data.type(), "Sample must have the same type as a target batch");
+  DALI_ENFORCE(sample_dim() == data.sample_dim(),
+               "Sample must have the same dimensionality as a target batch");
+  DALI_ENFORCE(this->order() == data.order(), "Sample must have the same order as a target batch");
+  DALI_ENFORCE(GetLayout() == data.GetLayout(), "Sample must have the same layout as a target batch");
   // kind (pinned?), order, layout, etc...
   // The metadata
 
@@ -174,6 +227,9 @@ void TensorVector<Backend>::CopySample(int dst, const TensorVector<Backend> &dat
     SetContiguous(false);
   }
   tensors_[dst].Copy(data.tensors_[src], order);
+  shape_.set_tensor_shape(dst, data.shape().tensor_shape_span(src));
+  has_data_ = has_data_ || tensors_[dst].has_data();
+
   // todo v update shape
   // shape().set_tensor_shape(idx, owner.shape());
   check_consistency();
@@ -629,6 +685,7 @@ void TensorVector<Backend>::UpdateViews() {
     return;
   }
   if (!IsValidType(type())) {
+    // TODO WHAT TO DO HERE?
     return;
   }
   // Return if we are already non-contiguous, no need to update
@@ -700,9 +757,31 @@ void TensorVector<Backend>::update_sample_dim(int sample_dim) {
       elem = 0;
     }
   }
+  // Update the views if the dim changed.
+  war_update_sample_dim();
+  //Propagate?
   // check_consistency();
 }
 
+
+
+template <typename Backend>
+void TensorVector<Backend>::war_update_sample_dim() {
+  if (!tensors_.empty() && tensors_[0].shape().sample_dim() != sample_dim()) {
+    if (IsValidType(tensors_[0].type())) {
+      for (int i = 0; i < tensors_.size(); i++) {
+        tensors_[i].Resize(shape_.tensor_shape_span(i));
+      }
+    } else {
+      // TODO will it work without type?
+      for (int i = 0; i < tensors_.size(); i++) {
+        // tensors_[i].Resize(shape_.tensor_shape_span(i));
+        tensors_[i].ShareData(std::shared_ptr<void>{}, 0, is_pinned(),
+                              shape_[i], DALI_NO_TYPE, AccessOrder{});
+      }
+    }
+  }
+}
 
 template <typename Backend>
 void TensorVector<Backend>::update_view(int idx) {

@@ -288,6 +288,9 @@ class DLL_PUBLIC TensorVector {
 
   void update_sample_dim(int sample_dim);
 
+  // Fix sample dim in sample views - due to duplication of shapes.
+  void war_update_sample_dim();
+
   /**
    * @brief Propagate all the stuff like pinned, order, etc before we do reallocation?
    *
