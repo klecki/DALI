@@ -852,6 +852,48 @@ void TensorVector<Backend>::propagate_properties_to_samples(int idx) {
 }
 
 template <typename Backend>
+void TensorVector<Backend>::PropagateUp() {
+  // for (int64_t i = 0; i < shape_.num_samples(); i++) {
+  //   // TODO: test this scenario? - we should not be able to get here
+  //   // problem: we have a case, where we were first contiguous, now we want non-contiguous.
+  //   // so we should probably set the buffers as not sharing data.
+  //   if (tensors_[i].get_data_ptr() && same_owner(buffer_bkp_, tensors_[i].get_data_ptr())) {
+  //     // if we have same owner as contiguous buffer, we can assume we share into that contiguous
+  //     // buffer, se we need to break this share, to be able to resize sample-wise.
+  //     // todo, convert to regular assert
+  //     DALI_ENFORCE(tensors_[i].shares_data());
+  //     tensors_[i].Reset();
+  //     propagate_properties_to_samples(i);
+  //   }
+  //   tensors_[i].Resize(new_shape[i], new_type);
+  //   // can we have different order?
+  //   has_data_ = has_data_ || tensors_[i].has_data();
+  // }
+  // We can try to check, maybe there is someone crazy, that actually did preallocate
+  state_ = State::noncontiguous;
+  int batch_size = tensors_.size();
+  DALI_ENFORCE(batch_size > 0, "I have never seen empty output out of operator");
+  sample_dim_ = tensors_[0].shape().sample_dim();
+  type_ = tensors_[0].type_info();
+  shape_.resize(batch_size, sample_dim_);
+  // shape_.set_tensor_shape(0, tensors_[0].shape());
+  pinned_ = tensors_[0].is_pinned();
+  order_ = tensors_[0].order();
+  layout_ = tensors_[0].GetLayout();
+  dali_meta_.resize(batch_size);
+  for (int i = 0; i < batch_size; i++) {
+
+    DALI_ENFORCE(type() == tensors_[i].type(), "Samples must have the same type.");
+    DALI_ENFORCE(sample_dim() == tensors_[i].shape().sample_dim(),
+                "Samples must have the same dimensionality.");
+    DALI_ENFORCE(order() == tensors_[i].order(), "Samples must have the same order.");
+    DALI_ENFORCE(GetLayout() == tensors_[i].GetLayout(), "Samples must have the same layout.");
+    shape_.set_tensor_shape(i, tensors_[i].shape());
+    dali_meta_[i] = tensors_[i].GetMeta();
+  }
+}
+
+template <typename Backend>
 void TensorVector<Backend>::check_consistency() {
   if (has_data_) {
     assert(shape_.num_samples() != 0);

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -337,7 +337,8 @@ class Operator<CPUBackend> : public OperatorBase {
         this->RunImpl(sample);
       }, -data_idx);  // -data_idx for FIFO order
     }
-    thread_pool.RunAll();
+    thread_pool.RunAll(); // this already waits
+    EnforceCorrectness(ws);
   }
 
   /**

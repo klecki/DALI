@@ -48,4 +48,12 @@ void MakeSampleView(SampleWorkspace& sample, HostWorkspace& batch, int data_idx,
   }
 }
 
+
+void EnforceCorrectness(HostWorkspace& batch) {
+  for (int i = 0; i < batch.NumOutput(); i++) {
+    batch.Output<CPUBackend>(i).PropagateUp();
+  }
+
+}
+
 }  // namespace dali

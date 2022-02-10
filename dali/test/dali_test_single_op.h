@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -757,7 +757,7 @@ class DALISingleOpTest : public DALITest {
 
   void InitPipeline() {
     if (!pipeline_.get()) {
-      pipeline_.reset(new Pipeline(batch_size_, num_threads_, 0));
+      pipeline_.reset(new Pipeline(batch_size_, num_threads_, 0, -1, false, 1, false));
     }
   }
   vector<std::pair<string, TensorList<CPUBackend>*>> inputs_;

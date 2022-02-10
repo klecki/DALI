@@ -373,6 +373,15 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunHelper(OpNode &op_node, Workspac
 
   op.Run(ws);
 
+  for (int i = 0; i < ws.NumOutput(); i++) {
+    if (ws.template OutputIsType<CPUBackend>(i)) {
+      DALI_ENFORCE(IsValidType(ws.template Output<CPUBackend>(i).type()));
+    } else {
+
+      DALI_ENFORCE(IsValidType(ws.template Output<GPUBackend>(i).type()));
+    }
+  }
+
   for (int i : empty_layout_in_idxs) {
     if (ws.template InputIsType<CPUBackend>(i)) {
       auto &in = ws.template UnsafeMutableInput<CPUBackend>(i);

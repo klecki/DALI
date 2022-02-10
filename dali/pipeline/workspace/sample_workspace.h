@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -133,6 +133,13 @@ class DLL_PUBLIC SampleWorkspace : public WorkspaceBase<SampleInputType, SampleO
  */
 DLL_PUBLIC void MakeSampleView(SampleWorkspace& sample, HostWorkspace& batch, int data_idx,
                                  int thread_idx);
+
+/**
+ * @brief After running sample-wise operator we need to fix the Tensor Vector guarantees that were
+ * broken by the legacy operators operating just on samples. We propagate the properties from
+ * samples and enforce they are consistent.
+ */
+DLL_PUBLIC void EnforceCorrectness(HostWorkspace& batch);
 
 }  // namespace dali
 

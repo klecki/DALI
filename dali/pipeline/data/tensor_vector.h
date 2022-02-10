@@ -269,6 +269,9 @@ class DLL_PUBLIC TensorVector {
   // Forward declarations in signature, beware
   friend void MakeSampleView(class SampleWorkspace &sample, class HostWorkspace &batch,
                              int data_idx, int thread_idx);
+  friend void EnforceCorrectness(class HostWorkspace &batch);
+
+  void PropagateUp();
 
   auto& tensor_handle(size_t pos) {
     return tensors_[pos];
