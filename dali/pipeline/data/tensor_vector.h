@@ -262,6 +262,7 @@ class DLL_PUBLIC TensorVector {
   shared_ptr<TensorList<Backend>> AsTensorList(bool check_contiguity = true);
 
 
+  void PropagateUp();
 
 
  private:
@@ -271,7 +272,6 @@ class DLL_PUBLIC TensorVector {
                              int data_idx, int thread_idx);
   friend void EnforceCorrectness(class HostWorkspace &batch);
 
-  void PropagateUp();
 
   auto& tensor_handle(size_t pos) {
     return tensors_[pos];

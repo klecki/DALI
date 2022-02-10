@@ -43,6 +43,7 @@ class GenericDecoderTest : public DALISingleOpTest<ImgType> {
       // todo fixme - this is test so I don't care now
       this->DecodeImage(data, data_size, c, this->ImageType(), &out.GetSample(i)); // todo view<void>
     }
+    out.PropagateUp();
 
     vector<std::shared_ptr<TensorList<CPUBackend>>> outputs;
     outputs.push_back(std::make_shared<TensorList<CPUBackend>>());

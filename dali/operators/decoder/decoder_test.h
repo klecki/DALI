@@ -75,6 +75,7 @@ class DecodeTestBase : public GenericDecoderTest<ImgType> {
         data, data_size, c, this->ImageType(),
         &out.GetSample(i), GetCropWindowGenerator(i)); // todo view<void>
     }
+    out.PropagateUp();
 
     vector<std::shared_ptr<TensorList<CPUBackend>>> outputs;
     outputs.push_back(std::make_shared<TensorList<CPUBackend>>());
