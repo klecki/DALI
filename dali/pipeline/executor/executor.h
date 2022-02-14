@@ -357,6 +357,8 @@ class DLL_PUBLIC Executor : public ExecutorBase, public QueuePolicy {
 
   WorkspacePolicy ws_policy_;
 
+  DeviceWorkspace kept_ws_;
+
  private:
   template <typename InputRef>
   static bool SetDefaultLayoutIfNeeded(InputRef &in, const OpSchema &schema, int in_idx) {
@@ -497,6 +499,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::ShareOutputs(DeviceWorkspace *ws) {
   DALI_ENFORCE(ws != nullptr, "Workspace is nullptr");
   DeviceGuard g(device_id_);
   ws->Clear();
+  kept_ws_.Clear();
 
   if (exec_error_ || QueuePolicy::IsStopSignaled())
     RethrowError();
@@ -519,7 +522,15 @@ void Executor<WorkspacePolicy, QueuePolicy>::ShareOutputs(DeviceWorkspace *ws) {
         auto &queue = get_queue<op_type_static, storage_dev_static>(
             tensor_to_store_queue_[out_tensor_id]);
         auto stage_output_idx = output_idx[op_type_static];
-        ws->AddOutput(PresentAsTensorList(queue[stage_output_idx]));
+        auto output_owner = PresentAsTensorList(queue[stage_output_idx]);
+        ws->AddOutput(output_owner);
+        // keep the "PresentAsTensorList" TV alive until we fix it
+        // The user will assume that DALI data is alive, but wit the current implementation the PresentAsTensorList
+        // creates new TensorList object (in a shared_ptr), that is added only to the output `ws`.
+        // User might delete the destroy the ws and thus the TL, which they might expect to be
+        // valid until next share data. We keep additional copy of output shared_ptrs to maintain
+        // the proper liveness of the output. TODO: remove the need for TV -> TL conversion.
+        kept_ws_.AddOutput(output_owner);
       ), DALI_FAIL("Invalid op type"));  // NOLINT(whitespace/parens)
     ), DALI_FAIL("Invalid storage device"));  // NOLINT(whitespace/parens)
   }
