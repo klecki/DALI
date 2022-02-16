@@ -77,6 +77,8 @@ TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
   dali_meta_ = std::move(other.dali_meta_);
   shape_ = std::move(other.shape_);
   sample_dim_ = other.sample_dim_;
+  device_id_ = other.device_id_;
+  order_ = other.order_;
   // for (auto &t : tensors_) {
   //   if (t) {
   //     if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
@@ -175,6 +177,7 @@ void TensorVector<Backend>::SetSample(int dst, const TensorVector<Backend> &owne
   tensors_[dst].ShareData(owner.tensors_[src]);
   shape_.set_tensor_shape(dst, owner.shape().tensor_shape_span(src));
   has_data_ = has_data_ || tensors_[dst].has_data();
+  // todo DEVICE ID
   check_consistency();
 }
 
@@ -307,6 +310,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     int64_t num_samples = new_shape.num_samples(), new_size = new_shape.num_elements();
     propagate_properties_to_contiguous();
     contiguous_buffer_.resize(new_size, new_type);
+    device_id_ = contiguous_buffer_.device_id();  // propagate device_id after allocation
     order_ = contiguous_buffer_.order();  // propagate order after allocation
     uint8_t *base_ptr = static_cast<uint8_t*>(contiguous_buffer_.raw_mutable_data());
     for (int64_t i = 0; i < num_samples; i++) {
@@ -316,6 +320,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
       // todo, convert this to buffers
       tensors_[i].ShareData(sample_alias, tensor_size * type_.size(), pinned_,
                             new_shape[i], new_type, order());
+      tensors_[i].set_device_id(device_id_);
       base_ptr += tensor_size * type_.size();
     }
     has_data_ = contiguous_buffer_.has_data();
@@ -370,6 +375,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     has_data_ = has_data_ || tensors_[i].has_data();
   }
   order_ = tensors_.size() ? tensors_[0].order() : AccessOrder{};  // propagate order after allocation
+  device_id_ = tensors_.size() ? tensors_[0].device_id() : device_id_;  // propagate device_id after allocation
   buffer_bkp_.reset();
   check_consistency();
   // Tensor views of this TensorList is no longer valid
@@ -556,6 +562,7 @@ template <typename Backend>
 void TensorVector<Backend>::set_device_id(int device) {
   // if (state_ == State::contiguous) {
   // }
+  device_id_ = device;
   contiguous_buffer_.set_device_id(device);
   for (auto &tensor : tensors_) {
     tensor.set_device_id(device);
@@ -681,6 +688,7 @@ void TensorVector<Backend>::ShareData(const TensorVector<Backend> &tv) {
   layout_ = tv.layout_;
   pinned_ = tv.is_pinned();
   has_data_ = tv.has_data();
+  device_id_ = tv.device_id();
   resize_tensors(shape_.num_samples()); // update internal structures, no need to adjust dim in shape
   if (tv.state_ == State::contiguous) {
     contiguous_buffer_.ShareData(tv.contiguous_buffer_);
@@ -729,6 +737,7 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
     pinned_ = other.pinned_;
     type_ = other.type_;
     order_ = other.order_;
+    device_id_ = other.device_id();
     sample_dim_ = other.sample_dim_;
     shape_ = std::move(other.shape_);
     layout_ = other.layout_;
@@ -888,6 +897,7 @@ void TensorVector<Backend>::propagate_properties_to_contiguous() {
     contiguous_buffer_.set_type(type());
   }
   contiguous_buffer_.set_order(order());
+  contiguous_buffer_.set_device_id(device_id_);
 }
 
 template <typename Backend>
@@ -911,6 +921,7 @@ void TensorVector<Backend>::propagate_properties_to_samples(int idx) {
   tensor.SetLayout(GetLayout());
   auto &meta = dali_meta_[idx];
   meta.SetLayout(GetLayout());
+  tensor.set_device_id(device_id_);
   // check_consistency();
   // for (int i = 0; i < )
 }

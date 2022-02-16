@@ -302,7 +302,7 @@ class DLL_PUBLIC TensorVector {
   void SetContiguous(bool contiguous);
 
   int device_id() const {
-    return 0;  // TODO fixme
+    return device_id_;  // TODO fixme
   }
 
   void Reset();
@@ -489,7 +489,7 @@ class DLL_PUBLIC TensorVector {
 
 
   bool has_data_ = false;
-  int device_id_ = -1;
+  int device_id_ = CPU_ONLY_DEVICE_ID;
   std::vector<Tensor<Backend>> tensors_;
   std::vector<DALIMeta> dali_meta_;
   Buffer<Backend> contiguous_buffer_;
