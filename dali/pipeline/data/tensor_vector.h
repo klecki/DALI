@@ -345,7 +345,7 @@ class DLL_PUBLIC TensorVector {
     if (!IsContiguous()) {
       return false;
     }
-    const uint8_t *base_ptr = tensors_[0].template data<uint8_t>();
+    const uint8_t *base_ptr = static_cast<const uint8_t*>(tensors_[0].raw_data());
     size_t size = type_info().size();
 
     for (int i = 0; i < shape_.size(); ++i) {
