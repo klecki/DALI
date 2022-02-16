@@ -96,7 +96,8 @@ void SetExternalInput(daliPipelineHandle *pipe_handle, const char *name, const v
   // TensorList, as we must also set the shape and type metadata.
   // It is passed further as const TensorList, so it's data cannot be modified.
   data.set_pinned(flags & DALI_ext_pinned);
-  data.ShareData(const_cast<void *>(data_ptr), tl_shape.num_elements() * elem_sizeof);
+  data.ShareData(std::shared_ptr<void>(const_cast<void *>(data_ptr), [](void *) {}),
+                 tl_shape.num_elements() * elem_sizeof);
   data.Resize(tl_shape, type_id);
   data.SetLayout(layout);
   pipeline->SetExternalInput(name, data, stream,
@@ -342,10 +343,10 @@ static int64_t *daliShapeAtHelper(dali::DeviceWorkspace *ws, int n, int k) {
   std::vector<dali::Index> shape;
   const auto &out_tensor_list = ws->Output<T>(n);
   if (k >= 0) {
-    auto shape_span = out_tensor_list.tensor_shape_span(k);
+    auto shape_span = out_tensor_list.shape().tensor_shape_span(k);
     shape = std::vector<dali::Index>(shape_span.begin(), shape_span.end());
   } else {
-    auto shape_span = out_tensor_list.tensor_shape_span(0);
+    auto shape_span = out_tensor_list.shape().tensor_shape_span(0);
     shape = std::vector<dali::Index>(shape_span.begin(), shape_span.end());
     shape.insert(shape.begin(), out_tensor_list.num_samples());
   }
@@ -409,7 +410,7 @@ size_t daliNumTensors(daliPipelineHandle* pipe_handle, int n) {
 
 template <typename T>
 static size_t daliNumElementsHelper(dali::DeviceWorkspace* ws, int n) {
-  return ws->Output<T>(n)._num_elements();
+  return ws->Output<T>(n).shape().num_elements();
 }
 
 size_t daliNumElements(daliPipelineHandle* pipe_handle, int n) {

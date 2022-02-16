@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <cassert>
+#include <cstdint>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -24,7 +25,7 @@
 #include "dali/core/access_order.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/tensor.h"
-#include "dali/pipeline/data/tensor_list.h"
+// #include "dali/pipeline/data/tensor_list.h"
 
 #include "dali/core/tensor_shape.h"
 
@@ -33,6 +34,64 @@
 
 
 namespace dali {
+
+template <typename Backend>
+class TensorVector;
+
+template <typename Backend>
+using TensorList = TensorVector<Backend>;
+
+
+template <typename DstBackend, typename SrcBackend>
+DLL_PUBLIC inline void ShallowCopy(TensorVector<DstBackend> &dst,
+                                   const TensorVector<SrcBackend> &src, AccessOrder order = {},
+                                   bool use_copy_kernel = false) {
+  // TODO: contiguous optimization!!!
+  // auto type = src.type();
+  // auto layout = other.GetLayout();
+
+  // int dim = other.sample_dim();
+  // TensorListShape<> new_shape(other.num_samples(), dim);
+  // if (dim)
+  //   for (size_t i = 0; i < other.num_samples(); ++i) {
+  //     // todo COPY is samplebroken
+  //     // DALI_ENFORCE(other.tensor_shape(i).sample_dim() == dim,
+  //     //    "TensorList can only have uniform dimensions across all samples, mismatch at index "
+  //     //    + std::to_string(i) + " expected Tensor with dim = " + to_string(dim)
+  //     //    + " found Tensor with dim = " + to_string(other[i].shape().sample_dim()));
+  //     // assert(type == other[i].type());
+  //     // assert(layout == other[i].GetLayout());
+  //     new_shape.set_tensor_shape(i, other.tensor_shape(i));
+  //   }
+
+  if (!order)
+    order = src.order() ? src.order() : dst.order();
+  order.wait(dst.order());
+
+  // this->Resize(new_shape, type);
+  // order.wait(this->order());
+  // this->SetLayout(layout);
+
+  auto num_samples = src.num_samples();
+  SmallVector<const void*, 256> srcs;
+  srcs.reserve(num_samples);
+  SmallVector<void*, 256> dsts;
+  dsts.reserve(num_samples);
+  SmallVector<Index, 256> sizes;
+  sizes.reserve(num_samples);
+  for (size_t i = 0; i < num_samples; i++) {
+    dsts.emplace_back(dst.raw_mutable_tensor(i));
+    srcs.emplace_back(src.raw_tensor(i));
+    sizes.emplace_back(src.tensor_shape(i).num_elements()); // todo do this on span
+    dst.SetMeta(i, src.GetMeta(i));
+  }
+
+  use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || dst.is_pinned()) &&
+                     (std::is_same<DstBackend, GPUBackend>::value || src.is_pinned());
+  src.type_info().template Copy<DstBackend, SrcBackend>(
+      dsts.data(), srcs.data(), sizes.data(), num_samples, order.stream(), use_copy_kernel);
+  dst.order().wait(order);
+}
 
 
 /**
@@ -208,6 +267,7 @@ class DLL_PUBLIC TensorVector {
 
   TensorLayout GetLayout() const;
 
+  DALIMeta &GetMeta(int idx);
   const DALIMeta &GetMeta(int idx) const;
 
   void SetMeta(int idx, const DALIMeta &meta);
@@ -217,6 +277,8 @@ class DLL_PUBLIC TensorVector {
   bool is_pinned() const;
 
   bool has_data() const;
+
+  bool shares_data() const;
 
   /**
    * @brief Reserve as contiguous tensor list internally
@@ -245,15 +307,19 @@ class DLL_PUBLIC TensorVector {
 
   void Reset();
 
-  template <typename SrcBackend>
-  void Copy(const TensorList<SrcBackend> &in_tl, AccessOrder order = {});
+  // template <typename SrcBackend>
+  // void Copy(const TensorList<SrcBackend> &in_tl, AccessOrder order = {});
 
   template <typename SrcBackend>
-  void Copy(const TensorVector<SrcBackend> &in_tv, AccessOrder order = {});
+  void Copy(const TensorVector<SrcBackend> &in_tv, AccessOrder order = {}, bool use_copy_kernel = false);
 
-  void ShareData(const TensorList<Backend> &in_tl);
+  // void ShareData(const TensorList<Backend> &in_tl);
 
   void ShareData(const TensorVector<Backend> &tv);
+
+  void ShareData(const shared_ptr<void> &ptr, size_t bytes, bool pinned = false,
+                 const TensorListShape<> &shape ={}, DALIDataType type = DALI_NO_TYPE,
+                 AccessOrder order = {});
 
   TensorVector<Backend> &operator=(TensorVector<Backend> &&other) noexcept;
 
@@ -263,6 +329,119 @@ class DLL_PUBLIC TensorVector {
 
 
   void PropagateUp();
+
+  // TODO
+  void set_device_id(int device);
+
+  /**
+   * @brief Checks whether the TensorList is
+   * contiguous. It returns true if and only if
+   * all of the stored Tensors are densely packed in memory.
+   */
+  inline bool IsContiguousTensor() const {
+    if (num_samples() == 0 || shape().num_elements() == 0) {
+      return true;
+    }
+    if (!IsContiguous()) {
+      return false;
+    }
+    const uint8_t *base_ptr = tensors_[0].template data<uint8_t>();
+    size_t size = type_info().size();
+
+    for (int i = 0; i < shape_.size(); ++i) {
+      if (base_ptr != tensors_[i].raw_data()) {
+        return false;
+      }
+      base_ptr += shape_[i].num_elements() * size;
+    }
+    return true;
+  }
+
+  /**
+   * @brief Checks whether the TensorList is
+   * a dense Tensor. It returns true if and only if
+   * all of the stored Tensors have the same shape
+   * and they are densely packed in memory.
+   */
+  inline bool IsDenseTensor() const {
+    if (num_samples() == 0 || shape().num_elements() == 0) {
+      return true;
+    }
+    if (!IsContiguous()) {
+      return false;
+    }
+    if (!is_uniform(shape_)) {
+      return false;
+    }
+    return IsContiguousTensor();
+  }
+
+  /**
+   * @brief Returns a Tensor view with given shape or nullptr if no
+   * such exists
+   */
+  inline Tensor<Backend> *GetViewWithShape(const TensorShape<> &shape) {
+    for (auto &t : tensor_views_) {
+      if (t.shape() == shape) {
+        return &t;
+      }
+    }
+    return nullptr;
+  }
+
+  /**
+   * @brief Returns a pointer to Tensor which shares the data
+   * with this TensorList and give it the provided shape.
+   * Tensor list owns the memory. The tensor obtained through
+   * this function stays valid for as long as TensorList data is unchanged.
+   */
+  DLL_PUBLIC inline Tensor<Backend> * AsReshapedTensor(const TensorShape<> &new_shape) {
+    auto t = GetViewWithShape(new_shape);
+    if (t) {
+      return t;
+    }
+
+    // need to create a new view
+    DALI_ENFORCE(num_samples() > 0,
+                 "To create a view Tensor, the Tensor List must have at least 1 element.");
+    DALI_ENFORCE(IsValidType(type()),
+                 "To create a view Tensor, the Tensor List must have a valid data type.");
+    DALI_ENFORCE(IsContiguousTensor(),
+                 "To create a view Tensor, all tensors in the input TensorList must be contiguous "
+                 "in memory.");
+    Index product = shape().num_elements();
+    DALI_ENFORCE(product == volume(new_shape),
+                 "To create a view Tensor, Requested shape need to have the same volume as the "
+                 "tensor list.");
+
+    tensor_views_.emplace_back();
+    auto &tensor = tensor_views_.back();
+
+    tensor.set_device_id(device_id());
+    tensor.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.capacity(), contiguous_buffer_.is_pinned(),
+                     new_shape, type(), order());
+
+    return &tensor;
+  }
+
+  /**
+   * @brief Returns a pointer to Tensor which shares the data
+   * with this TensorList. Tensor list owns the memory. The tensor
+   * obtained through this function stays valid for as long
+   * as TensorList data is unchanged.
+   */
+  DLL_PUBLIC inline Tensor<Backend> * AsTensor() {
+    // To prevent situation when AsReshapedTensor is called first with some shape, and then
+    // AsTensor which return non-dense tensor after all
+    // i.e. [[2], [3], [1]] is not dense but requesting [3, 2] AsReshapedTensor will work
+    // while AsTensor should not return for that case
+    DALI_ENFORCE(this->IsDenseTensor(),
+      "All tensors in the input TensorList must have the same shape and be densely packed.");
+    auto requested_shape = shape_cat(static_cast<int64_t>(this->num_samples()), shape_[0]);
+
+    return this->AsReshapedTensor(requested_shape);
+  }
+
 
 
  private:
@@ -310,6 +489,7 @@ class DLL_PUBLIC TensorVector {
 
 
   bool has_data_ = false;
+  int device_id_ = -1;
   std::vector<Tensor<Backend>> tensors_;
   std::vector<DALIMeta> dali_meta_;
   Buffer<Backend> contiguous_buffer_;
@@ -319,6 +499,14 @@ class DLL_PUBLIC TensorVector {
   bool pinned_ = true;
   TypeInfo type_{};
   AccessOrder order_;
+
+
+  // In order to not leak memory (and make it slightly faster)
+  // when sharing data with a Tensor, we will store a pointer to
+  // Tensor that shares the data with this TensorList (valid only
+  // if IsDenseTensor returns true)
+  std::vector<Tensor<Backend>> tensor_views_;
+
   /**
    * @brief Although sample_dim_ duplicates what can be set in shape_, we use it for lazy shape
    * initialization, where -1 means that this TensorBatch did not receive sample_dim yet.
@@ -333,6 +521,34 @@ class DLL_PUBLIC TensorVector {
   // with different template types
   template <typename InBackend>
   friend class TensorVector;
+
+    /**
+   * @brief Return an un-typed pointer to the underlying storage.
+   * The TensorList must be either empty or have a valid type and be contiguous.
+   */
+  friend void *unsafe_raw_mutable_data(TensorList<Backend> &tl) {
+    DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
+    return tl.contiguous_buffer_.raw_mutable_data();
+  }
+
+  /**
+   * @brief Return an un-typed const pointer to the underlying storage.
+   * The TensorList must be either empty or have a valid type and be contiguous.
+   */
+  friend const void *unsafe_raw_data(const TensorList<Backend> &tl) {
+    DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
+    return tl.contiguous_buffer_.raw_data();
+  }
+
+  /**
+   * @brief Return the shared pointer, that we can use to correctly share the ownership of sample
+   * with.
+   */
+  friend shared_ptr<void> unsafe_sample_owner(TensorList<Backend> &tl, int sample_idx) {
+    // create new aliasing pointer to current data allocation, so we share the use count
+    // and the deleter correctly.
+    return {tl.tensors_[sample_idx].get_data_ptr(), tl.raw_mutable_tensor(sample_idx)};
+  }
 };
 
 }  // namespace dali

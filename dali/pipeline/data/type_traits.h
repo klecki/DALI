@@ -1,4 +1,4 @@
-// Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@ namespace dali {
 template <typename Backend>
 class TensorVector;
 
-template <typename Backend>
-class TensorList;
+// template <typename Backend>
+// class TensorList;
 
 class CPUBackend;
 class MixedBackend;
@@ -42,10 +42,10 @@ struct is_tensor_vector {
       std::is_same<MaybeTensorVector<Backend>, TensorVector<Backend>>::value;
 };
 
-template <template <typename> class MaybeTensorList, typename Backend>
-struct is_tensor_list {
-  static constexpr bool value = std::is_same<MaybeTensorList<Backend>, TensorList<Backend>>::value;
-};
+// template <template <typename> class MaybeTensorList, typename Backend>
+// struct is_tensor_list {
+//   static constexpr bool value = std::is_same<MaybeTensorList<Backend>, TensorList<Backend>>::value;
+// };
 
 /**
  * Verifies, that T is proper batch container for DALI
@@ -56,7 +56,7 @@ template <template <typename Backend_> class T, typename Backend>
 struct is_batch_container {
   static constexpr bool value =
       is_backend<Backend>::value &&
-      (is_tensor_vector<T, Backend>::value || is_tensor_list<T, Backend>::value);
+      (is_tensor_vector<T, Backend>::value);
 };
 
 template <typename Backend = CPUBackend>
@@ -66,7 +66,7 @@ struct BatchContainer {
 
 template <>
 struct BatchContainer<GPUBackend> {
-  using type = TensorList<GPUBackend>;
+  using type = TensorVector<GPUBackend>;
 };
 
 /**
@@ -78,8 +78,8 @@ using batch_container_t = typename BatchContainer<Backend>::type;
 namespace test {
 static_assert(is_batch_container<TensorVector, CPUBackend>::value, "Test failed");
 static_assert(is_batch_container<TensorVector, GPUBackend>::value, "Test failed");
-static_assert(is_batch_container<TensorList, CPUBackend>::value, "Test failed");
-static_assert(is_batch_container<TensorList, GPUBackend>::value, "Test failed");
+// static_assert(is_batch_container<TensorList, CPUBackend>::value, "Test failed");
+// static_assert(is_batch_container<TensorList, GPUBackend>::value, "Test failed");
 }  // namespace test
 
 }  // namespace dali

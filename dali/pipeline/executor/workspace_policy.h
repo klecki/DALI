@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -61,11 +61,11 @@ std::shared_ptr<TensorList<backend>> PresentAsTensorList(
   return in;
 }
 
-template<typename backend>
-std::shared_ptr<TensorList<backend>> PresentAsTensorList(
-    const std::shared_ptr<TensorVector<backend>> &in) {
-  return in->AsTensorList(false);
-}
+// template<typename backend>
+// std::shared_ptr<TensorList<backend>> PresentAsTensorList(
+//     const std::shared_ptr<TensorVector<backend>> &in) {
+//   return in->AsTensorList(false);
+// }
 
 template<typename workspace, typename T>
 void AddInputHelper(workspace &ws, T &tensor) {

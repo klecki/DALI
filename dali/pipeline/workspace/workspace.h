@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -55,12 +55,12 @@ class ArgumentWorkspace {
     argument_inputs_[arg_name] = { std::move(input), false };
   }
 
-  void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
-    argument_inputs_[arg_name] = {
-      std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
-      true
-    };
-  }
+  // void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
+  //   argument_inputs_[arg_name] = {
+  //     std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
+  //     true
+  //   };
+  // }
 
   const TensorVector<CPUBackend>& ArgumentInput(const std::string &arg_name) const {
     auto it = argument_inputs_.find(arg_name);

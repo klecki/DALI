@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -100,14 +100,14 @@ TEST_P(FlipTest, BasicTest) {
   auto data_size = kDataWidth * kDataHeight * kDataChannels * sizeof(float);
   TensorList<CPUBackend> tl;
   if (hwc) {
-    tl.ShareData(nhwc_tensor_list_data.ptr(), 2 * data_size);
+    tl.ShareData(std::shared_ptr<void>(nhwc_tensor_list_data.ptr(), [](void*){}), 2 * data_size);
     tl.SetLayout("HWC");
     auto shape = TensorListShape<>{{
         {kDataHeight, kDataWidth, kDataChannels},
         {kDataHeight, kDataWidth, kDataChannels}}};
     tl.Resize(shape, DALI_FLOAT);
   } else {
-    tl.ShareData(nchw_tensor_list_data.ptr(), 2 * data_size);
+    tl.ShareData(std::shared_ptr<void>(nchw_tensor_list_data.ptr(), [](void*){}), 2 * data_size);
     tl.SetLayout("CHW");
     tl.Resize({{{kDataChannels, kDataHeight, kDataWidth},
               {kDataChannels, kDataHeight, kDataWidth}}}, DALI_FLOAT);

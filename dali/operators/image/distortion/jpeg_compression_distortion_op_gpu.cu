@@ -1,4 +1,4 @@
-// Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ void JpegCompressionDistortionGPU::RunImpl(workspace_t<GPUBackend> &ws) {
   // Set quality argument for an image from samples
   if (is_sequence) {
     for (int i = 0; i < nsamples; i++) {
-      auto nframes = input.tensor_shape_span(i)[0];
+      auto nframes = input.shape().tensor_shape_span(i)[0];
       for (int j = 0; j < nframes; ++j) {
         quality_.push_back(quality_arg_[i].data[0]);
       }

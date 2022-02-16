@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2018-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -129,7 +129,7 @@ std::vector<Roi> FromTensorWrapper(TensorListWrapper tw) {
   if (tw.has<Backend>()) {
     auto *tl =  tw.get<Backend>();
     ASSERT_NE(nullptr, tl), std::vector<Roi>();
-    ASSERT_LE(kBbStructSize, tl->_num_elements()), std::vector<Roi>();
+    ASSERT_LE(kBbStructSize, tl->shape().num_elements()), std::vector<Roi>();
     return FromTensorListPtr(tl);
   } else {
     return FromTensorListPtr(tw.CopyTo<Backend>().get());

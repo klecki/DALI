@@ -22,6 +22,9 @@
 #include "third_party/dlpack/include/dlpack/dlpack.h"
 #include "dali/pipeline/data/tensor.h"
 
+#include "dali/core/tensor_view.h"
+#include "dali/pipeline/data/tensor_list.h"
+
 namespace dali {
 
 DLL_PUBLIC void DLManagedTensorDeleter(DLManagedTensor *self);

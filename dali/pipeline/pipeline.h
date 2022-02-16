@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -182,12 +182,12 @@ class DLL_PUBLIC Pipeline {
    * @param no_copy_mode Select whether to use the parameter defined in the External Source or
    *                     override the mode of operation forcing the copy or no-copy
    */
-  template <typename Backend>
-  DLL_PUBLIC inline void SetExternalInput(
-      const string &name, const TensorList<Backend> &tl, AccessOrder order = {}, bool sync = false,
-      bool use_copy_kernel = false, ExtSrcNoCopyMode no_copy_mode = ExtSrcNoCopyMode::DEFAULT) {
-    SetExternalInputHelper(name, tl, order, {sync, use_copy_kernel, no_copy_mode});
-  }
+  // template <typename Backend>
+  // DLL_PUBLIC inline void SetExternalInput(
+  //     const string &name, const TensorList<Backend> &tl, AccessOrder order = {}, bool sync = false,
+  //     bool use_copy_kernel = false, ExtSrcNoCopyMode no_copy_mode = ExtSrcNoCopyMode::DEFAULT) {
+  //   SetExternalInputHelper(name, tl, order, {sync, use_copy_kernel, no_copy_mode});
+  // }
 
 
   /**

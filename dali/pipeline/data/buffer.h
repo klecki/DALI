@@ -449,6 +449,7 @@ class DLL_PUBLIC Buffer {
   inline void ShareData(const Buffer<Backend> &other) {
     free_storage();
     order_ = other.order_;
+    pinned_ = other.pinned_;
     data_ = other.data_;
     size_ = other.size_;
     type_ = other.type_;
@@ -571,8 +572,8 @@ class DLL_PUBLIC Buffer {
     num_bytes_ = 0;
   }
 
-  template <typename>
-  friend class TensorList;
+  // template <typename>
+  // friend class TensorList;
 
   static double growth_factor_;
   static double shrink_threshold_;
