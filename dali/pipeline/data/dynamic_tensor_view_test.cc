@@ -129,12 +129,15 @@ TEST(DynamicTensorViewTest, TypeIdConstructors) {
 TEST(DynamicTensorViewTest, ViewConverterConstructors) {
   int data = {};
   TensorView<EmptyBackendTag, int, 3> tv{&data, {1, 2, 3}};
+  TensorView<EmptyBackendTag, int> dyn_tv{&data, {1, 2, 3}};
 
-  DynamicTensorView<EmptyBackendTag, 3> static_dim{tv};
+  DynamicTensorView<EmptyBackendTag, 3> static_dim{tv}, static_dim_2{dyn_tv};
   compare(static_dim, tv);
+  compare(static_dim_2, dyn_tv);
 
-  DynamicTensorView<EmptyBackendTag> dynamic_dim{tv};
+  DynamicTensorView<EmptyBackendTag> dynamic_dim{tv}, dynamic_dim_2{dyn_tv};
   compare(dynamic_dim, tv);
+  compare(dynamic_dim_2, dyn_tv);
 
   DynamicTensorView<EmptyBackendTag, 3> copy_static_to_static{static_dim};
   compare(copy_static_to_static, tv);
@@ -153,21 +156,27 @@ TEST(DynamicTensorViewTest, ViewConverterConstructors) {
 TEST(ConstDynamicTensorViewTest, ViewConverterConstructors) {
   const int cdata = {};
   TensorView<EmptyBackendTag, const int, 3> ctv{&cdata, {1, 2, 3}};
+  TensorView<EmptyBackendTag, const int> dyn_ctv{&cdata, {1, 2, 3}};
 
-  ConstDynamicTensorView<EmptyBackendTag, 3> static_dim{ctv};
+  ConstDynamicTensorView<EmptyBackendTag, 3> static_dim{ctv}, static_dim_2{dyn_ctv};
   compare(static_dim, ctv);
+  compare(static_dim_2, dyn_ctv);
 
-  ConstDynamicTensorView<EmptyBackendTag> dynamic_dim{ctv};
+  ConstDynamicTensorView<EmptyBackendTag> dynamic_dim{ctv}, dynamic_dim_2{dyn_ctv};
   compare(dynamic_dim, ctv);
+  compare(dynamic_dim_2, dyn_ctv);
 
   int data = {};
   TensorView<EmptyBackendTag, int, 3> tv{&data, {1, 2, 3}};
+  TensorView<EmptyBackendTag, int> dyn_tv{&data, {1, 2, 3}};
 
-  ConstDynamicTensorView<EmptyBackendTag, 3> static_dim_nonconst{tv};
+  ConstDynamicTensorView<EmptyBackendTag, 3> static_dim_nonconst{tv}, static_dim_nonconst_2{dyn_tv};
   compare(static_dim_nonconst, tv);
+  compare(static_dim_nonconst_2, dyn_tv);
 
-  ConstDynamicTensorView<EmptyBackendTag> dynamic_dim_nonconst{tv};
+  ConstDynamicTensorView<EmptyBackendTag> dynamic_dim_nonconst{tv}, dynamic_dim_nonconst_2{dyn_tv};
   compare(dynamic_dim_nonconst, tv);
+  compare(dynamic_dim_nonconst_2, dyn_tv);
 
   ConstDynamicTensorView<EmptyBackendTag, 3> copy_static_to_static{static_dim};
   compare(copy_static_to_static, ctv);
