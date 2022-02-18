@@ -25,6 +25,8 @@
 
 namespace dali {
 
+struct DynamicType { DynamicType() = delete; };
+
 // We do not introduce DynamicTensorListView as the usage compared to TensorVector
 // is a bit stretched.
 template <typename Backend, typename DataType, int ndim = DynamicDimensions>

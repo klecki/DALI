@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include <vector>
 #include "dali/core/backend_tags.h"
 #include "dali/core/tensor_view.h"
+#include "dali/pipeline/data/dynamic_tensor_view.h"
 #include "dali/pipeline/data/tensor.h"
 #include "dali/pipeline/data/tensor_list.h"
 #include "dali/pipeline/data/tensor_vector.h"
@@ -77,18 +78,32 @@ TensorShape<ndim> get_tensor_shape(const TensorList<Backend> &tl) {
 
 
 template <typename T, int ndim = DynamicDimensions, typename Backend>
-TensorView<detail::storage_tag_map_t<Backend>, T, ndim>
+std::enable_if_t<!std::is_same<T, DynamicType>::value,
+                 TensorView<detail::storage_tag_map_t<Backend>, T, ndim>>
 view(Tensor<Backend> &data) {
   if (data.shape().empty())
     return {};
   using U = std::remove_const_t<T>;
   detail::enforce_dim_in_view<ndim>(data.shape());
-  return { data.template mutable_data<U>(),  convert_dim<ndim>(data.shape()) };
+  return {data.template mutable_data<U>(), convert_dim<ndim>(data.shape())};
 }
 
 
 template <typename T, int ndim = DynamicDimensions, typename Backend>
-TensorView<detail::storage_tag_map_t<Backend>, T, ndim>
+std::enable_if_t<std::is_same<T, DynamicType>::value,
+                 DynamicTensorView<detail::storage_tag_map_t<Backend>, ndim>>
+view(Tensor<Backend> &data) {
+  if (data.shape().empty())
+    return {};
+  using U = std::remove_const_t<T>;
+  detail::enforce_dim_in_view<ndim>(data.shape());
+  return {data.template mutable_data<U>(), convert_dim<ndim>(data.shape()), data.type()};
+}
+
+
+template <typename T, int ndim = DynamicDimensions, typename Backend>
+std::enable_if_t<!std::is_same<T, DynamicType>::value,
+                 TensorView<detail::storage_tag_map_t<Backend>, T, ndim>>
 view(const Tensor<Backend> &data) {
   static_assert(std::is_const<T>::value,
                 "Cannot create a non-const view of a `const Tensor<>`. "
@@ -98,6 +113,21 @@ view(const Tensor<Backend> &data) {
   using U = std::remove_const_t<T>;
   detail::enforce_dim_in_view<ndim>(data.shape());
   return { data.template data<U>(), convert_dim<ndim>(data.shape()) };
+}
+
+
+template <typename T, int ndim = DynamicDimensions, typename Backend>
+std::enable_if_t<std::is_same<T, DynamicType>::value,
+                 DynamicTensorView<detail::storage_tag_map_t<Backend>, ndim>>
+view(const Tensor<Backend> &data) {
+  static_assert(std::is_const<T>::value,
+                "Cannot create a non-const view of a `const Tensor<>`. "
+                "Missing `const` in T?");
+  if (data.shape().empty())
+    return {};
+  using U = std::remove_const_t<T>;
+  detail::enforce_dim_in_view<ndim>(data.shape());
+  return { data.template data<U>(), convert_dim<ndim>(data.shape()), data.type() };
 }
 
 
@@ -228,6 +258,12 @@ reinterpret_view(const TensorVector<Backend> &data) {
   }
   return ret;
 }
+
+// template <typename T, int ndim = DynamicDimensions, typename Backend>
+// TensorView<Backend, T, ndim>
+// view(TensorView<Backend, const void, DynamicDimensions> data) {
+//   return data.template to_static<T, ndim>();
+// }
 
 
 }  // namespace dali
