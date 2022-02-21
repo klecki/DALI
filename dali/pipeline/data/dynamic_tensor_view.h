@@ -36,10 +36,10 @@ struct DynamicTensorViewBase {
   using element_type = DataType;
   int dim() const {
     return shape.sample_dim();
-  };
+  }
   DALIDataType type() const {
     return type_id;
-  };
+  }
 
   ptrdiff_t num_elements() const {
     return volume(shape);
@@ -200,7 +200,7 @@ struct DynamicTensorView : DynamicTensorViewBase<Backend, void, ndim> {
    * @name Converters from static TensorView
    */
   // @{
-  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value>>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value && !std::is_same<T, DynamicType>::value>>
   explicit DynamicTensorView(const TensorView<Backend, T, other_ndim> &other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -208,7 +208,7 @@ struct DynamicTensorView : DynamicTensorViewBase<Backend, void, ndim> {
     this->type_id = TypeTable::GetTypeId<T>();
   }
 
-  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value>>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value && !std::is_same<T, DynamicType>::value>>
   explicit DynamicTensorView(TensorView<Backend, T, other_ndim> &&other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -217,7 +217,7 @@ struct DynamicTensorView : DynamicTensorViewBase<Backend, void, ndim> {
     this->type_id = TypeTable::GetTypeId<T>();
   }
 
-  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value>>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value && !std::is_same<T, DynamicType>::value>>
   DynamicTensorView &operator=(const TensorView<Backend, T, other_ndim> &other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -226,7 +226,7 @@ struct DynamicTensorView : DynamicTensorViewBase<Backend, void, ndim> {
     return *this;
   }
 
-  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value>>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_const<T>::value && !std::is_same<T, DynamicType>::value>>
   DynamicTensorView &operator=(TensorView<Backend, T, other_ndim> &&other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -422,7 +422,7 @@ struct ConstDynamicTensorView : DynamicTensorViewBase<Backend, const void, ndim>
    * @name Converters from static TensorView
    */
   // @{
-  template <typename T, int other_ndim>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_same<std::remove_const_t<T>, DynamicType>::value>>
   explicit ConstDynamicTensorView(const TensorView<Backend, T, other_ndim> &other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -430,7 +430,7 @@ struct ConstDynamicTensorView : DynamicTensorViewBase<Backend, const void, ndim>
     this->type_id = TypeTable::GetTypeId<remove_const_t<T>>();
   }
 
-  template <typename T, int other_ndim>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_same<std::remove_const_t<T>, DynamicType>::value>>
   explicit ConstDynamicTensorView(TensorView<Backend, T, other_ndim> &&other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -439,7 +439,7 @@ struct ConstDynamicTensorView : DynamicTensorViewBase<Backend, const void, ndim>
     this->type_id = TypeTable::GetTypeId<remove_const_t<T>>();
   }
 
-  template <typename T, int other_ndim>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_same<std::remove_const_t<T>, DynamicType>::value>>
   ConstDynamicTensorView &operator=(const TensorView<Backend, T, other_ndim> &other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -448,7 +448,7 @@ struct ConstDynamicTensorView : DynamicTensorViewBase<Backend, const void, ndim>
     return *this;
   }
 
-  template <typename T, int other_ndim>
+  template <typename T, int other_ndim, typename = std::enable_if_t<!std::is_same<std::remove_const_t<T>, DynamicType>::value>>
   ConstDynamicTensorView &operator=(TensorView<Backend, T, other_ndim> &&other) {
     detail::check_compatible_ndim<ndim, other_ndim>();
     this->data = other.data;
@@ -490,6 +490,68 @@ struct ConstDynamicTensorView : DynamicTensorViewBase<Backend, const void, ndim>
   using Base::shape;
   using Base::type_id;
 };
+
+
+template <typename Backend, int ndim>
+struct TensorView<Backend, DynamicType, ndim> : public DynamicTensorView<Backend, ndim> {
+  using DynamicTensorView<Backend, ndim>::DynamicTensorView;
+};
+
+
+template <typename Backend, int ndim>
+struct TensorView<Backend, const DynamicType, ndim> : public ConstDynamicTensorView<Backend, ndim> {
+  using ConstDynamicTensorView<Backend, ndim>::ConstDynamicTensorView;
+};
+
+
+template <typename Backend>
+struct TensorView<Backend, DynamicType, DynamicDimensions>
+    : public DynamicTensorView<Backend, DynamicDimensions> {
+  using DynamicTensorView<Backend, DynamicDimensions>::DynamicTensorView;
+};
+
+
+template <typename Backend>
+struct TensorView<Backend, const DynamicType, DynamicDimensions>
+    : public ConstDynamicTensorView<Backend, DynamicDimensions> {
+  using ConstDynamicTensorView<Backend, DynamicDimensions>::ConstDynamicTensorView;
+};
+
+
+
+// template <typename T, int ndim = DynamicDimensions, typename Backend>
+// std::enable_if_t<std::is_same<T, DynamicType>::value,
+//                  DynamicTensorView<detail::storage_tag_map_t<Backend>, ndim>>
+// view(Tensor<Backend> &data) {
+//   if (data.shape().empty())
+//     return {};
+//   using U = std::remove_const_t<T>;
+//   detail::enforce_dim_in_view<ndim>(data.shape());
+//   return {data.template mutable_data<U>(), convert_dim<ndim>(data.shape()), data.type()};
+// }
+
+
+// template <typename T, int ndim = other_ndim, typename Backend, int other_ndim>
+// std::enable_if_t<!std::is_same<T, DynamicType>::value, TensorView<Backend, T, ndim>>
+// view(DynamicTensorView<Backend, other_ndim> data) {
+//   return data.template to_static_type<T, ndim>();
+// }
+
+
+// template <typename T, int ndim = other_ndim, typename Backend, int other_ndim>
+// std::enable_if_t<!std::is_same<T, DynamicType>::value, TensorView<Backend, T, ndim>>
+// view(ConstDynamicTensorView<Backend, other_ndim> data) {
+//   return data.template to_static_type<T, ndim>();
+// }
+
+
+// template <typename T, int ndim = DynamicDimensions, typename Backend>
+// TensorView<Backend, T, ndim>
+// view(TensorView<Backend, const void, DynamicDimensions> data) {
+//   return data.template to_static<T, ndim>();
+// }
+
+
 
 }  // namespace dali
 
