@@ -614,7 +614,7 @@ std::shared_ptr<TensorList<Backend>> TensorListFromListOfTensors(py::list &list_
     try {
       auto &t = list_of_tensors[i].cast<Tensor<Backend> &>();
       if (i == 0) {
-        tv.set_pinned(t.is_pinned());
+        tv.SetupLike(t);
       }
       DALIDataType cur_type = t.type();
 
@@ -1275,7 +1275,7 @@ void FeedPipeline(Pipeline *p, const string &name, py::list list, AccessOrder or
     // order, pinned, type, dimensionality and layout every time if we don't want
     // SetSample to do that.
     if (i == 0) {
-      tv.set_pinned(t.is_pinned());
+      tv.SetupLike(t);
     }
     tv.UnsafeSetSample(i, t);
     // TODO(klecki): tv[i] = std::move(t);
