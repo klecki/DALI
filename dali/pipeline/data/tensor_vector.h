@@ -95,44 +95,15 @@ class DLL_PUBLIC TensorVector {
     return {tensors_[pos]->raw_data(), tensors_[pos]->shape(), tensors_[pos]->type()};
   }
 
-  auto tensor_handle(size_t pos) {
-    return tensors_[pos];
-  }
-
-  auto tensor_handle(size_t pos) const {
-    return tensors_[pos];
-  }
-
-  auto begin() noexcept {
-    return tensors_.begin();
-  }
-
-  auto begin() const noexcept {
-    return tensors_.begin();
-  }
-
-  auto cbegin() const noexcept {
-    return tensors_.cbegin();
-  }
-
-  auto end() noexcept {
-    return tensors_.end();
-  }
-
-  auto end() const noexcept {
-    return tensors_.end();
-  }
-
-  auto cend() const noexcept {
-    return tensors_.cend();
-  }
-
   size_t num_samples() const noexcept {
     return curr_tensors_size_;
   }
 
+  void set_sample_dim(int sample_dim);
+
   int sample_dim() const {
-    return IsContiguous() ? tl_->sample_dim() : num_samples() ? tensors_[0]->shape().size() : 0;
+    assert(IsContiguous() ? tl_->sample_dim() == sample_dim_);
+    return sample_dim_;
   }
 
   size_t total_nbytes() const noexcept;
@@ -210,6 +181,11 @@ class DLL_PUBLIC TensorVector {
    */
   DLL_PUBLIC void UnsafeSetSample(int dst, const Tensor<Backend> &owner);
 
+
+  DLL_PUBLIC void UnsafeSetSample(const shared_ptr<void> &ptr, size_t bytes, bool pinned,
+                                  const TensorShape<> &shape, DALIDataType type,
+                                  AccessOrder order = {});
+
   /**
    * @brief Analogue of TensorVector[dst].Copy(data[src]);
    *
@@ -241,6 +217,14 @@ class DLL_PUBLIC TensorVector {
    * @param new_size
    */
   void SetSize(int new_size);
+
+  /**
+   * @brief Setup all the batch properties of this TensorVector the same way as the provided tensor:
+   *
+   * Precondition: the TensorVector should not have data.
+   * Configures: type, layout, pinned, order and dimensionality.
+   */
+  void SetupLike(const Tensor<Backend> &tensor);
 
   void set_type(DALIDataType new_type);
 
@@ -316,6 +300,14 @@ class DLL_PUBLIC TensorVector {
                              int data_idx, int thread_idx);
   friend void EnforceCorrectness(class HostWorkspace &ws, bool contiguous);
 
+  auto tensor_handle(size_t pos) {
+    return tensors_[pos];
+  }
+
+  auto tensor_handle(size_t pos) const {
+    return tensors_[pos];
+  }
+
   /**
    * @brief After RunImpl(SampleWorkspace&) operated on individual samples without propagating
    * the allocation metadata back to the the batch structure, take that metadata from the samples
@@ -325,6 +317,8 @@ class DLL_PUBLIC TensorVector {
    * or be treated as non-contiguous set of individual samples.
    */
   void PropagateUp(bool contiguous);
+
+  bool has_data() const;
 
   struct ViewRefDeleter {
     void operator()(void*) { --*ref; }
@@ -343,6 +337,7 @@ class DLL_PUBLIC TensorVector {
   // pinned status and type info should be uniform
   bool pinned_ = true;
   TypeInfo type_{};
+  int sample_dim_ = -1;
   AccessOrder order_;
 
   // So we can access the members of other TensorVectors
