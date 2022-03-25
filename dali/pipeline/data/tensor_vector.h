@@ -106,13 +106,13 @@ class DLL_PUBLIC TensorVector {
     return sample_dim_;
   }
 
-  size_t total_nbytes() const noexcept;
+  size_t nbytes() const noexcept;
 
-  size_t total_capacity() const noexcept;
+  size_t capacity() const noexcept;
 
-  std::vector<size_t> nbytes() const noexcept;
+  std::vector<size_t> chunks_nbytes() const noexcept;
 
-  std::vector<size_t> capacity() const noexcept;
+  std::vector<size_t> chunks_capacity() const noexcept;
 
   TensorListShape<> shape() const;
 
@@ -151,7 +151,7 @@ class DLL_PUBLIC TensorVector {
   }
 
   /**
-   * @brief Analogue of TensorVector[dst].ShareData(owner[src]);
+   * @brief Analogue of TensorVector[sample_idx].ShareData(src[src_sample_idx]);
    *
    * The target TensorVector (this) must have enough samples for this to work (see SetSize()).
    * After this operation the TensorVector is converted into non-contiguous.
@@ -160,14 +160,15 @@ class DLL_PUBLIC TensorVector {
    * function would still report that they are sharing data. It is assumed that all samples are
    * replaced this way - TODO(klecki): this might be adjusted in follow-up.
    *
-   * @param dst index of sample to be set
-   * @param owner owner of source sample
-   * @param src index of source sample in owner.
+   * @param sample_idx index of sample to be set
+   * @param src owner of source sample
+   * @param src_sample_idx index of source sample in owner.
    */
-  DLL_PUBLIC void UnsafeSetSample(int dst, const TensorVector<Backend> &owner, int src);
+  DLL_PUBLIC void UnsafeSetSample(int sample_idx, const TensorVector<Backend> &src,
+                                  int src_sample_idx);
 
   /**
-   * @brief Analogue of TensorVector[dst].ShareData(owner);
+   * @brief Analogue of TensorVector[sample_idx].ShareData(owner);
    *
    * The target TensorVector (this) must have enough samples for this to work (see SetSize()).
    * After this operation the TensorVector is converted into non-contiguous.
@@ -176,18 +177,18 @@ class DLL_PUBLIC TensorVector {
    * function would still report that they are sharing data. It is assumed that all samples are
    * replaced this way - TODO(klecki): this might be adjusted in follow-up.
    *
-   * @param dst index of sample to be set
-   * @param owner sample owner
+   * @param sample_idx index of sample to be set
+   * @param src sample owner
    */
-  DLL_PUBLIC void UnsafeSetSample(int dst, const Tensor<Backend> &owner);
+  DLL_PUBLIC void UnsafeSetSample(int sample_idx, const Tensor<Backend> &src);
 
 
-  DLL_PUBLIC void UnsafeSetSample(const shared_ptr<void> &ptr, size_t bytes, bool pinned,
-                                  const TensorShape<> &shape, DALIDataType type,
-                                  AccessOrder order = {});
+  DLL_PUBLIC void UnsafeSetSample(int sample_idx, const shared_ptr<void> &ptr, size_t bytes,
+                                  bool pinned, const TensorShape<> &shape, DALIDataType type,
+                                  AccessOrder order = {}, const TensorLayout &layout = "");
 
   /**
-   * @brief Analogue of TensorVector[dst].Copy(data[src]);
+   * @brief Analogue of TensorVector[sample_idx].Copy(src[src_sample_idx]);
    *
    * The target TensorVector (this) must have enough samples for this to work (see SetSize()).
    * It must either be already non-contiguous or the shapes of copied samples must match exactly.
@@ -196,11 +197,12 @@ class DLL_PUBLIC TensorVector {
    * or all samples are copied over. Automatically converting to non-contiguous container from
    * contiguous one by invoking copy of non-matching size is not supported yet.
    *
-   * @param dst index of sample to be set
-   * @param owner sample owner
+   * @param sample_idx index of sample to be set
+   * @param src sample owner
+   * @param src_sample_idx index of source sample in owner.
    */
-  DLL_PUBLIC void UnsafeCopySample(int dst, const TensorVector<Backend> &data, int src,
-                                   AccessOrder order = {});
+  DLL_PUBLIC void UnsafeCopySample(int sample_idx, const TensorVector<Backend> &src,
+                                   int src_sample_idx, AccessOrder order = {});
 
   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape) {
     DALI_ENFORCE(IsValidType(type()),
@@ -224,7 +226,9 @@ class DLL_PUBLIC TensorVector {
    * Precondition: the TensorVector should not have data.
    * Configures: type, layout, pinned, order and dimensionality.
    */
-  void SetupLike(const Tensor<Backend> &tensor);
+  void SetupLike(const Tensor<Backend> &sample);
+
+  void SetupLike(const TensorVector<Backend> &other);
 
   void set_type(DALIDataType new_type);
 
@@ -298,7 +302,7 @@ class DLL_PUBLIC TensorVector {
   // Forward declarations in signature, beware
   friend void MakeSampleView(class SampleWorkspace &sample, class HostWorkspace &batch,
                              int data_idx, int thread_idx);
-  friend void EnforceCorrectness(class HostWorkspace &ws, bool contiguous);
+  friend void FixBatchPropertiesConsistency(class HostWorkspace &ws, bool contiguous);
 
   auto tensor_handle(size_t pos) {
     return tensors_[pos];
@@ -316,7 +320,7 @@ class DLL_PUBLIC TensorVector {
    * @param contiguous if the Tensor was previously preallocated and should remain contiguous
    * or be treated as non-contiguous set of individual samples.
    */
-  void PropagateUp(bool contiguous);
+  void UpdatePropertiesFromSamples(bool contiguous);
 
   bool has_data() const;
 

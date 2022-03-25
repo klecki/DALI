@@ -113,9 +113,8 @@ void NumpyReaderGPU::Prefetch() {
   }
   curr_tensor_list.Resize(tmp_shapes, ref_type);
 
-  size_t chunk_size =
-      static_cast<size_t>(div_ceil(static_cast<uint64_t>(curr_tensor_list.total_nbytes()),
-                                   static_cast<uint64_t>(thread_pool_.NumThreads())));
+  size_t chunk_size = div_ceil(static_cast<uint64_t>(curr_tensor_list.nbytes()),
+                               static_cast<uint64_t>(thread_pool_.NumThreads()));
 
   // read the data
   for (size_t data_idx = 0; data_idx < curr_tensor_list.num_samples(); ++data_idx) {

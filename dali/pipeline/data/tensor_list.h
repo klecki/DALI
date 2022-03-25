@@ -639,28 +639,28 @@ class DLL_PUBLIC TensorList {
   /**
    * @brief Returns the size in bytes of the underlying data
    */
-  size_t total_nbytes() const {
+  size_t nbytes() const {
     return data_.nbytes();
   }
 
   /**
    * @brief Returns the real size of the allocation
    */
-  size_t total_capacity() const {
+  size_t capacity() const {
     return data_.capacity();
   }
 
   /**
-   * @brief Returns the size in bytes of the underlying data
+   * @brief Returns the size in bytes of the underlying data chunks
    */
-  std::vector<size_t> nbytes() const {
+  std::vector<size_t> chunks_nbytes() const {
     return {data_.nbytes()};
   }
 
   /**
-   * @brief Returns the real size of the allocation
+   * @brief Returns the real size of the underlying allocations
    */
-  std::vector<size_t> capacity() const {
+  std::vector<size_t> chunks_capacity() const {
     return {data_.capacity()};
   }
 

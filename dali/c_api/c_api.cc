@@ -150,8 +150,8 @@ void SetExternalInputTensors(daliPipelineHandle *pipe_handle, const char *name,
     // Tensor as we must also set the shape and type metadata.
     // The vector that we pass to pipeline is const.
     std::shared_ptr<void> ptr(const_cast<void *>(data_ptr[i]), [](void *){});  // no deleter
-    data.UnsafeSetSample(ptr, tl_shape[i].num_elements() * elem_sizeof, flags & DALI_ext_pinned,
-                         tl_shape[i], type_id, order);
+    data.UnsafeSetSample(i, ptr, tl_shape[i].num_elements() * elem_sizeof, flags & DALI_ext_pinned,
+                         tl_shape[i], type_id, order, layout);
   }
   pipeline->SetExternalInput(name, data, order,
                              flags & DALI_ext_force_sync,
@@ -433,7 +433,7 @@ size_t daliNumElements(daliPipelineHandle* pipe_handle, int n) {
 
 template <typename T>
 static size_t daliTensorSizeHelper(dali::DeviceWorkspace* ws, int n) {
-  return ws->Output<T>(n).total_nbytes();
+  return ws->Output<T>(n).nbytes();
 }
 
 size_t daliTensorSize(daliPipelineHandle* pipe_handle, int n) {
