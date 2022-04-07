@@ -16,19 +16,19 @@
 #include "dali/pipeline/data/tensor_vector.h"
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
+#include "dali/pipeline/data/types.h"
 
 namespace dali {
 
 template <typename Backend>
 TensorVector<Backend>::TensorVector()
-    : views_count_(0), curr_num_tensors_(0), tl_(std::make_shared<TensorList<Backend>>()) {}
+    : views_count_(0), curr_num_tensors_(0) {}
 
 
 template <typename Backend>
 TensorVector<Backend>::TensorVector(int batch_size)
     : views_count_(0),
-      curr_num_tensors_(0),
-      tl_(std::make_shared<TensorList<Backend>>(batch_size)) {
+      curr_num_tensors_(0) {
   resize_tensors(batch_size);
 }
 
@@ -37,16 +37,17 @@ TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
   state_ = other.state_;
   pinned_ = other.pinned_;
   curr_num_tensors_ = other.curr_num_tensors_;
-  tl_ = std::move(other.tl_);
+  contiguous_buffer_ = std::move(other.contiguous_buffer_);
   type_ = std::move(other.type_);
   sample_dim_ = other.sample_dim_;
   views_count_ = other.views_count_.load();
   tensors_ = std::move(other.tensors_);
-  for (auto &t : tensors_) {
-    if (t) {
-      if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
-    }
-  }
+  // TODO no more deleters
+  // for (auto &t : tensors_) {
+  //   if (t) {
+  //     if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
+  //   }
+  // }
 
   other.views_count_ = 0;
   other.curr_num_tensors_ = 0;
@@ -79,11 +80,18 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const TensorVector<B
       make_string("Sample must have the same pinned status as target batch, current: ", is_pinned(),
                   " new: ", src.is_pinned(), " for ", sample_idx, " <- ", src_sample_idx, "."));
 
-  SetContiguous(false);
+  // NOW WE REQUIRE EXPLICIT
+  // SetContiguous(false);
+
+  DALI_ENFORCE(!IsContiguous());
+  shape_.set_tensor_shape(sample_idx, src.shape()[src_sample_idx]);
+
   // Setting a new share overwrites the previous one - so we can safely assume that even if
   // we had a sample sharing into TL, it will be overwritten
-  tensors_[sample_idx]->ShareData(*src.tensors_[src_sample_idx]);
-  tl_->Reset();
+  tensors_[sample_idx].ShareData(src.tensors_[src_sample_idx]);
+
+  // No longer clear the contiguous buffer
+  // contiguous_buffer_.reset();
 }
 
 template <typename Backend>
@@ -107,11 +115,22 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const Tensor<Backend
       is_pinned() == owner.is_pinned(),
       make_string("Sample must have the same pinned status as target batch, current: ", is_pinned(),
                   " new: ", owner.is_pinned(), " for ", sample_idx, "."));
-  SetContiguous(false);
+
+  // NOW WE REQUIRE EXPLICIT
+  // SetContiguous(false);
+
+
+  DALI_ENFORCE(!IsContiguous());
+  shape_.set_tensor_shape(sample_idx, owner.shape());
+
+
   // Setting a new share overwrites the previous one - so we can safely assume that even if
   // we had a sample sharing into TL, it will be overwritten
-  tensors_[sample_idx]->ShareData(owner);
-  tl_->Reset();
+  tensors_[sample_idx].ShareData(owner);
+
+
+  // No longer clear the contiguous buffer
+  // contiguous_buffer_.reset();
 }
 
 template <typename Backend>
@@ -133,11 +152,20 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const shared_ptr<voi
   DALI_ENFORCE(is_pinned() == pinned,
                make_string("Sample must have the same pinned status as target batch, current: ",
                            is_pinned(), " new: ", pinned, " for ", sample_idx, "."));
-  SetContiguous(false);
+
+  // NOW WE REQUIRE EXPLICIT
+  // SetContiguous(false);
+
+  DALI_ENFORCE(!IsContiguous());
+  shape_.set_tensor_shape(sample_idx, shape);
+
   // Setting a new share overwrites the previous one - so we can safely assume that even if
   // we had a sample sharing into TL, it will be overwritten
-  tensors_[sample_idx]->ShareData(ptr, bytes, pinned, shape, type, order);
-  tl_->Reset();
+  tensors_[sample_idx].ShareData(ptr, bytes, pinned, shape, type, order);
+
+
+  // No longer clear the contiguous buffer
+  // contiguous_buffer_.reset();
 }
 
 template <typename Backend>
@@ -161,8 +189,14 @@ void TensorVector<Backend>::UnsafeCopySample(int sample_idx, const TensorVector<
                   " new: ", src.GetLayout(), " for ", sample_idx, " <- ", src_sample_idx, "."));
 
   // Either the shape matches and we can copy data as is or the target is just an individual sample
-  bool can_copy = tensors_[sample_idx]->shape() == src.tensors_[src_sample_idx]->shape() ||
-                  (!tl_->has_data() && state_ == State::noncontiguous);
+  bool can_copy = tensors_[sample_idx].shape() == src.tensors_[src_sample_idx].shape() ||
+                  (!contiguous_buffer_.has_data() && state_ == State::noncontiguous);
+
+  // TODO: We can allow for a bit more alborate behaviour:
+  // 1. If it's non-contiguous, maybe we can allow the allocation of the size require to copy sample
+  //  - this means both bigger and smaller sample can be copied into this spot.
+  // 2. If it's contiguous, we require the volumes to match, allowing to change the shape.
+  //  - this means, we do not break the contiguity of the data.
 
   DALI_ENFORCE(
       can_copy,
@@ -170,7 +204,7 @@ void TensorVector<Backend>::UnsafeCopySample(int sample_idx, const TensorVector<
       "TensorVector is truly non contiguous. Either Resize first to the desired shape or reset the "
       "TensorVector and SetSize for desired number of samples in non-contiguous mode.");
 
-  tensors_[sample_idx]->Copy(*src.tensors_[src_sample_idx], order);
+  tensors_[sample_idx].Copy(src.tensors_[src_sample_idx], order);
 }
 
 template <typename Backend>
@@ -184,12 +218,12 @@ void TensorVector<Backend>::set_sample_dim(int sample_dim) {
 template <typename Backend>
 size_t TensorVector<Backend>::nbytes() const noexcept {
   if (state_ == State::contiguous) {
-    return tl_->nbytes();
+    return contiguous_buffer_.nbytes();
   }
   // else
   size_t nbytes = 0;
   for (const auto &t : tensors_) {
-    nbytes += t->nbytes();
+    nbytes += t.nbytes();
   }
   return nbytes;
 }
@@ -198,12 +232,12 @@ size_t TensorVector<Backend>::nbytes() const noexcept {
 template <typename Backend>
 size_t TensorVector<Backend>::capacity() const noexcept {
   if (state_ == State::contiguous) {
-    return tl_->capacity();
+    return contiguous_buffer_.capacity();
   }
   // else
   size_t capacity = 0;
   for (const auto &t : tensors_) {
-    capacity += t->capacity();
+    capacity += t.capacity();
   }
   return capacity;
 }
@@ -211,12 +245,12 @@ size_t TensorVector<Backend>::capacity() const noexcept {
 template <typename Backend>
 std::vector<size_t> TensorVector<Backend>::_chunks_nbytes() const {
   if (state_ == State::contiguous) {
-    return {tl_->nbytes()};
+    return {contiguous_buffer_.nbytes()};
   }
   // else
   std::vector<size_t> result(tensors_.size());
   for (size_t i = 0; i < tensors_.size(); i++) {
-    result[i] = tensors_[i]->nbytes();
+    result[i] = tensors_[i].nbytes();
   }
   return result;
 }
@@ -225,40 +259,30 @@ std::vector<size_t> TensorVector<Backend>::_chunks_nbytes() const {
 template <typename Backend>
 std::vector<size_t> TensorVector<Backend>::_chunks_capacity() const {
   if (state_ == State::contiguous) {
-    return {tl_->capacity()};
+    return {contiguous_buffer_.capacity()};
   }
   // else
   std::vector<size_t> result(tensors_.size());
   for (size_t i = 0; i < tensors_.size(); i++) {
-    result[i] = tensors_[i]->capacity();
+    result[i] = tensors_[i].capacity();
   }
   return result;
 }
 
 
 template <typename Backend>
-TensorListShape<> TensorVector<Backend>::shape() const {
-  if (state_ == State::contiguous) {
-    return tl_->shape();
-  }
-  if (curr_num_tensors_ == 0) {
-    return {};
-  }
-  TensorListShape<> result(curr_num_tensors_, tensors_[0]->ndim());
-  for (int i = 0; i < curr_num_tensors_; i++) {
-    result.set_tensor_shape(i, tensors_[i]->shape());
-  }
-  return result;
+const TensorListShape<> & TensorVector<Backend>::shape() const {
+  return shape_;
 }
 
 template <typename Backend>
 void TensorVector<Backend>::set_order(AccessOrder order, bool synchronize) {
   // Optimization: synchronize only once, if needed.
   if (this->order().is_device() && order && synchronize) {
-    bool need_sync = tl_->has_data();
+    bool need_sync = contiguous_buffer_.has_data();
     if (!need_sync) {
-      for (auto &t : tensors_) {
-        if (t->has_data()) {
+      for (const auto &t : tensors_) {
+        if (t.has_data()) {
           need_sync = true;
           break;
         }
@@ -267,9 +291,9 @@ void TensorVector<Backend>::set_order(AccessOrder order, bool synchronize) {
     if (need_sync)
       this->order().wait(order);
   }
-  tl_->set_order(order, false);
+  contiguous_buffer_.set_order(order, false);
   for (auto &t : tensors_)
-    t->set_order(order, false);
+    t.set_order(order, false);
   order_ = order;
 }
 
@@ -279,14 +303,15 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
                 "TensorVector cannot be resized with invalid type. To zero out the TensorVector "
                 "Reset() can be used.");
   resize_tensors(new_shape.num_samples());
+  shape_ = new_shape;
   if (state_ == State::contiguous) {
-    tl_->Resize(new_shape, new_type);
+    contiguous_buffer_.resize(new_shape.num_elements(), new_type);
     UpdateViews();
     return;
   }
 
-  for (int i = 0; i < curr_num_tensors_; i++) {
-    tensors_[i]->Resize(new_shape[i], new_type);
+  for (size_t i = 0; i < curr_num_tensors_; i++) {
+    tensors_[i].Resize(new_shape[i], new_type);
   }
   set_type(new_type);
   sample_dim_ = new_shape.sample_dim();
@@ -306,9 +331,9 @@ void TensorVector<Backend>::set_type(DALIDataType new_type_id) {
   if (type_.id() == new_type_id)
     return;
   type_ = TypeTable::GetTypeInfo(new_type_id);
-  tl_->set_type(new_type_id);
-  for (auto t : tensors_) {
-    t->set_type(new_type_id);
+  contiguous_buffer_.set_type(new_type_id);
+  for (auto &t : tensors_) {
+    t.set_type(new_type_id);
   }
   if (state_ == State::contiguous) {
     UpdateViews();
@@ -319,82 +344,88 @@ void TensorVector<Backend>::set_type(DALIDataType new_type_id) {
 template <typename Backend>
 DALIDataType TensorVector<Backend>::type() const {
   if (state_ == State::contiguous) {
-    return tl_->type();
+    return contiguous_buffer_.type();
   }
   if (curr_num_tensors_ == 0) {
     return type_.id();
   }
-  for (int i = 1; i < curr_num_tensors_; i++) {
-    assert(tensors_[0]->type() == tensors_[i]->type());
+  for (size_t i = 1; i < curr_num_tensors_; i++) {
+    assert(tensors_[0].type() == tensors_[i].type());
   }
-  return tensors_[0]->type();
+  return tensors_[0].type();
 }
 
 template <typename Backend>
 const TypeInfo &TensorVector<Backend>::type_info() const {
   if (state_ == State::contiguous) {
-    return tl_->type_info();
+    return contiguous_buffer_.type_info();
   }
   if (curr_num_tensors_ == 0) {
     return type_;
   }
-  for (int i = 1; i < curr_num_tensors_; i++) {
-    assert(tensors_[0]->type() == tensors_[i]->type());
+  for (size_t i = 1; i < curr_num_tensors_; i++) {
+    assert(tensors_[0].type() == tensors_[i].type());
   }
-  return tensors_[0]->type_info();
+  return tensors_[0].type_info();
 }
 
 
 template <typename Backend>
 void TensorVector<Backend>::SetLayout(const TensorLayout &layout) {
-  if (state_ == State::noncontiguous) {
-    DALI_ENFORCE(!tensors_.empty(), "Layout cannot be set uniformly for empty batch");
-  }
-  tl_->SetLayout(layout);
-  for (auto t : tensors_) {
-    t->SetLayout(layout);
-  }
+  layout_ = layout;
+  // if (state_ == State::noncontiguous) {
+  //   DALI_ENFORCE(!tensors_.empty(), "Layout cannot be set uniformly for empty batch");
+  // }
+  // // tl_->SetLayout(layout);
+  // for (auto &t : tensors_) {
+  //   t.SetLayout(layout);
+  // }
 }
 
 
 template <typename Backend>
 void TensorVector<Backend>::SetSkipSample(int idx, bool skip_sample) {
-  tensors_[idx]->SetSkipSample(skip_sample);
+  tensors_[idx].SetSkipSample(skip_sample);
 }
 
 
 template <typename Backend>
 void TensorVector<Backend>::SetSourceInfo(int idx, const std::string& source_info) {
-  tensors_[idx]->SetSourceInfo(source_info);
+  tensors_[idx].SetSourceInfo(source_info);
 }
 
 
 template <typename Backend>
 TensorLayout TensorVector<Backend>::GetLayout() const {
-  if (state_ == State::contiguous) {
-    auto layout = tl_->GetLayout();
-    if (!layout.empty()) return layout;
-  }
-  if (curr_num_tensors_ > 0) {
-    auto layout = tensors_[0]->GetLayout();
-    for (int i = 1; i < curr_num_tensors_; i++) assert(layout == tensors_[i]->GetLayout());
-    return layout;
-  }
-  return {};
+  return layout_;
+  // TODO
+
+  // if (state_ == State::contiguous) {
+  //   auto layout = tl_->GetLayout();
+  //   if (!layout.empty()) return layout;
+  // }
+  // if (curr_num_tensors_ > 0) {
+  //   auto layout = tensors_[0].GetLayout();
+  //   for (size_t i = 1; i < curr_num_tensors_; i++) {
+  //     assert(layout == tensors_[i].GetLayout());
+  //   }
+  //   return layout;
+  // }
+  // return {};
 }
 
 
 template <typename Backend>
 const DALIMeta &TensorVector<Backend>::GetMeta(int idx) const {
   assert(idx < curr_num_tensors_);
-  return tensors_[idx]->GetMeta();
+  return tensors_[idx].GetMeta();
 }
 
 
 template <typename Backend>
 void TensorVector<Backend>::SetMeta(int idx, const DALIMeta &meta) {
   assert(idx < curr_num_tensors_);
-  tensors_[idx]->SetMeta(meta);
+  tensors_[idx].SetMeta(meta);
 }
 
 
@@ -402,9 +433,9 @@ template <typename Backend>
 void TensorVector<Backend>::set_pinned(bool pinned) {
   // Store the value, in case we pin empty vector and later call Resize
   pinned_ = pinned;
-  tl_->set_pinned(pinned);
+  contiguous_buffer_.set_pinned(pinned);
   for (auto &t : tensors_) {
-    t->set_pinned(pinned);
+    t.set_pinned(pinned);
   }
 }
 
@@ -418,9 +449,9 @@ bool TensorVector<Backend>::is_pinned() const {
 template <typename Backend>
 int TensorVector<Backend>::device_id() const {
   if (IsContiguous()) {
-    return tl_->device_id();
+    return contiguous_buffer_.device_id();
   } else if (!tensors_.empty()) {
-    return tensors_[0]->device_id();
+    return tensors_[0].device_id();
   }
   return CPU_ONLY_DEVICE_ID;
 }
@@ -433,7 +464,7 @@ void TensorVector<Backend>::reserve(size_t total_bytes) {
     curr_num_tensors_ = 0;
   }
   state_ = State::contiguous;
-  tl_->reserve(total_bytes);
+  contiguous_buffer_.reserve(total_bytes);
   UpdateViews();
 }
 
@@ -443,8 +474,8 @@ void TensorVector<Backend>::reserve(size_t bytes_per_sample, int batch_size) {
   assert(batch_size > 0);
   state_ = State::noncontiguous;
   resize_tensors(batch_size);
-  for (int i = 0; i < curr_num_tensors_; i++) {
-    tensors_[i]->reserve(bytes_per_sample);
+  for (size_t i = 0; i < curr_num_tensors_; i++) {
+    tensors_[i].reserve(bytes_per_sample);
   }
 }
 
@@ -458,9 +489,16 @@ bool TensorVector<Backend>::IsContiguous() const noexcept {
 template <typename Backend>
 void TensorVector<Backend>::SetContiguous(bool contiguous) {
   if (contiguous) {
+    DALI_ENFORCE(!has_data(), "Cannot coalesce yet. To be implemented");
     state_ = State::contiguous;
   } else {
     state_ = State::noncontiguous;
+    // We clear the contiguous_buffer_, as we are now non-contiguous.
+    buffer_bkp_ = contiguous_buffer_.get_data_ptr();
+    contiguous_buffer_.reset();
+    for (auto &t : tensors_) {
+      t.mark_detached();
+    }
   }
 }
 
@@ -473,7 +511,7 @@ void TensorVector<Backend>::Reset() {
   sample_dim_ = -1;
   if (IsContiguous()) {
     views_count_ = 0;
-    tl_->Reset();
+    contiguous_buffer_.reset();
   }
 }
 
@@ -484,10 +522,11 @@ void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrde
   SetContiguous(true);
   type_ = in_tl.type_info();
   sample_dim_ = in_tl.shape().sample_dim();
-  tl_->Copy(in_tl, order);
+  // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
+  // tl_->Copy(in_tl, order);
 
-  resize_tensors(tl_->num_samples());
-  UpdateViews();
+  // resize_tensors(tl_->num_samples());
+  // UpdateViews();
 }
 
 
@@ -497,10 +536,11 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
   SetContiguous(true);
   type_ = in_tv.type_;
   sample_dim_ = in_tv.sample_dim_;
-  tl_->Copy(in_tv, order);
+  // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
+  // tl_->Copy(in_tv, order);
 
-  resize_tensors(tl_->num_samples());
-  UpdateViews();
+  // resize_tensors(tl_->num_samples());
+  // UpdateViews();
 }
 
 
@@ -510,10 +550,12 @@ void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
   type_ = in_tl.type_info();
   sample_dim_ = in_tl.shape().sample_dim();
   pinned_ = in_tl.is_pinned();
-  tl_->ShareData(in_tl);
 
-  resize_tensors(in_tl.num_samples());
-  UpdateViews();
+  // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
+  // tl_->ShareData(in_tl);
+
+  // resize_tensors(in_tl.num_samples());
+  // UpdateViews();
 }
 
 template <typename Backend>
@@ -524,14 +566,15 @@ void TensorVector<Backend>::ShareData(const TensorVector<Backend> &tv) {
   pinned_ = tv.is_pinned();
   views_count_ = 0;
   if (tv.state_ == State::contiguous) {
-    ShareData(*tv.tl_);
+    // ShareData(*tv.tl_);
+   // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
   } else {
     state_ = State::noncontiguous;
-    tl_->Reset();
+    contiguous_buffer_.reset();
     int batch_size = tv.num_samples();
     for (int i = 0; i < batch_size; i++) {
       resize_tensors(batch_size);
-      tensors_[i]->ShareData(*(tv.tensors_[i]));
+      tensors_[i].ShareData(tv.tensors_[i]);
     }
   }
 }
@@ -542,17 +585,13 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
   if (&other != this) {
     state_ = other.state_;
     pinned_ = other.pinned_;
-    curr_num_tensors_ = other.curr_num_tensors_;
-    tl_ = std::move(other.tl_);
+    contiguous_buffer_ = std::move(other.contiguous_buffer_);
     type_ = other.type_;
-    sample_dim_ = other.sample_dim_;
-    views_count_ = other.views_count_.load();
-    tensors_ = std::move(other.tensors_);
-    for (auto &t : tensors_) {
-      if (t) {
-        if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
-      }
-    }
+    // for (auto &t : tensors_) {
+    //   if (t) {
+    //     if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
+    //   }
+    // }
 
     other.views_count_ = 0;
     other.curr_num_tensors_ = 0;
@@ -565,12 +604,15 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
 template <typename Backend>
 void TensorVector<Backend>::UpdateViews() {
   // Return if we do not have a valid allocation
-  if (!IsValidType(tl_->type())) return;
+  if (!IsValidType(contiguous_buffer_.type())) return;
   // we need to be able to share empty view as well so don't check if tl_ has any data
-  type_ = tl_->type_info();
-  sample_dim_ = tl_->shape().sample_dim();
+  type_ = contiguous_buffer_.type_info();
 
-  assert(curr_num_tensors_ == tl_->num_samples());
+  // TODO - now we rely on THE PROPER METADATA in the TV
+
+  // sample_dim_ = tl_->shape().sample_dim();
+
+  // assert(curr_num_tensors_ == tl_->num_samples());
 
   views_count_ = curr_num_tensors_;
   for (int i = 0; i < curr_num_tensors_; i++) {
@@ -585,16 +627,15 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
     auto old_size = curr_num_tensors_;
     tensors_.resize(new_size);
     for (int i = old_size; i < new_size; i++) {
-      if (!tensors_[i]) {
-        tensors_[i] = std::make_shared<Tensor<Backend>>();
-        tensors_[i]->set_pinned(is_pinned());
-        tensors_[i]->set_order(order());
-      }
+      tensors_[i].set_pinned(is_pinned());
+      tensors_[i].set_order(order());
+      if (type() != DALI_NO_TYPE)
+        tensors_[i].set_type(type());
     }
   } else if (new_size < curr_num_tensors_) {
-    for (int i = new_size; i < curr_num_tensors_; i++) {
-      if (tensors_[i]->shares_data()) {
-        tensors_[i]->Reset();
+    for (size_t i = new_size; i < curr_num_tensors_; i++) {
+      if (tensors_[i].shares_data()) {
+        tensors_[i].Reset();
       }
     }
     // TODO(klecki): Do not keep the invalidated tensors - this prevents memory hogging but
@@ -612,35 +653,35 @@ void TensorVector<Backend>::UpdatePropertiesFromSamples(bool contiguous) {
   SetContiguous(contiguous);
   // assume that the curr_num_tensors_ is valid
   DALI_ENFORCE(curr_num_tensors_ > 0, "Unexpected empty output of operator. Internal DALI error.");
-  type_ = tensors_[0]->type_info();
-  sample_dim_ = tensors_[0]->shape().sample_dim();
-  pinned_ = tensors_[0]->is_pinned();
-  order_ = tensors_[0]->order();
-  tl_->set_order(order_);
-  for (int i = 0; i < curr_num_tensors_; i++) {
-    DALI_ENFORCE(type() == tensors_[i]->type(),
+  type_ = tensors_[0].type_info();
+  sample_dim_ = tensors_[0].shape().sample_dim();
+  pinned_ = tensors_[0].is_pinned();
+  order_ = tensors_[0].order();
+  contiguous_buffer_.set_order(order_);
+  for (size_t i = 0; i < curr_num_tensors_; i++) {
+    DALI_ENFORCE(type() == tensors_[i].type(),
                  make_string("Samples must have the same type, expected: ", type(),
-                             " got: ", tensors_[i]->type(), " at ", i, "."));
-    DALI_ENFORCE(sample_dim() == tensors_[i]->shape().sample_dim(),
+                             " got: ", tensors_[i].type(), " at ", i, "."));
+    DALI_ENFORCE(sample_dim() == tensors_[i].shape().sample_dim(),
                  make_string("Samples must have the same dimensionality, expected: ", sample_dim(),
-                             " got: ", tensors_[i]->shape().sample_dim(), " at ", i, "."));
-    DALI_ENFORCE(order() == tensors_[i]->order(),
+                             " got: ", tensors_[i].shape().sample_dim(), " at ", i, "."));
+    DALI_ENFORCE(order() == tensors_[i].order(),
                  make_string("Samples must have the same order, expected: ", order().get(), " ",
-                             order().device_id(), " got: ", tensors_[i]->order().get(), " ",
-                             tensors_[i]->order().device_id(), " at ", i, "."));
-    DALI_ENFORCE(GetLayout() == tensors_[i]->GetLayout(),
+                             order().device_id(), " got: ", tensors_[i].order().get(), " ",
+                             tensors_[i].order().device_id(), " at ", i, "."));
+    DALI_ENFORCE(GetLayout() == tensors_[i].GetLayout(),
                  make_string("Samples must have the same layout, expected: ", GetLayout(),
-                             " got: ", tensors_[i]->GetLayout(), " at ", i, "."));
+                             " got: ", tensors_[i].GetLayout(), " at ", i, "."));
   }
 }
 
 template <typename Backend>
 bool TensorVector<Backend>::has_data() const {
   if (state_ == State::contiguous) {
-    return tl_->has_data();
+    return contiguous_buffer_.has_data();
   }
   for (const auto &tensor : tensors_) {
-    if (tensor->has_data()) {
+    if (tensor.has_data()) {
       return true;
     }
   }
@@ -649,26 +690,28 @@ bool TensorVector<Backend>::has_data() const {
 
 template <typename Backend>
 void TensorVector<Backend>::update_view(int idx) {
-  assert(idx < curr_num_tensors_);
-  assert(idx < tl_->num_samples());
+  assert(static_cast<size_t>(idx) < curr_num_tensors_);
+  assert(idx < num_samples());
 
-  auto *ptr = tl_->raw_mutable_tensor(idx);
+  DALI_FAIL("NOT YET IMPLEMENTED");
 
-  TensorShape<> shape = tl_->tensor_shape(idx);
+  // auto *ptr = tl_->raw_mutable_tensor(idx);
 
-  tensors_[idx]->Reset();
-  // TODO(klecki): deleter that reduces views_count or just noop sharing?
-  // tensors_[i]->ShareData(tl_.get(), static_cast<int>(idx));
-  if (tensors_[idx]->raw_data() != ptr || tensors_[idx]->shape() != shape) {
-    tensors_[idx]->ShareData(std::shared_ptr<void>(ptr, ViewRefDeleter{&views_count_}),
-                             volume(tl_->tensor_shape(idx)) * tl_->type_info().size(),
-                             tl_->is_pinned(),
-                             shape, tl_->type(),
-                             order());
-  } else if (IsValidType(tl_->type())) {
-    tensors_[idx]->set_type(tl_->type());
-  }
-  tensors_[idx]->SetMeta(tl_->GetMeta(idx));
+  // TensorShape<> shape = tl_->tensor_shape(idx);
+
+  // tensors_[idx].Reset();
+  // // TODO(klecki): deleter that reduces views_count or just noop sharing?
+  // // tensors_[i]->ShareData(tl_.get(), static_cast<int>(idx));
+  // if (tensors_[idx].raw_data() != ptr || tensors_[idx].shape() != shape) {
+  //   tensors_[idx].ShareData(std::shared_ptr<void>(ptr, ViewRefDeleter{&views_count_}),
+  //                            volume(tl_->tensor_shape(idx)) * tl_->type_info().size(),
+  //                            tl_->is_pinned(),
+  //                            shape, tl_->type(),
+  //                            order());
+  // } else if (IsValidType(tl_->type())) {
+  //   tensors_[idx].set_type(tl_->type());
+  // }
+  // tensors_[idx].SetMeta(tl_->GetMeta(idx));
 }
 
 
