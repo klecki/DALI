@@ -89,11 +89,11 @@ class DLL_PUBLIC TensorVector {
   void set_order(AccessOrder order, bool synchronize = true);
 
   SampleView<Backend> operator[](size_t pos) {
-    return {tensors_[pos]->raw_mutable_data(), tensors_[pos]->shape(), tensors_[pos]->type()};
+    return {tensors_[pos].raw_mutable_data(), tensors_[pos].shape(), tensors_[pos].type()};
   }
 
   ConstSampleView<Backend> operator[](size_t pos) const {
-    return {tensors_[pos]->raw_data(), tensors_[pos]->shape(), tensors_[pos]->type()};
+    return {tensors_[pos].raw_data(), tensors_[pos].shape(), tensors_[pos].type()};
   }
 
   int num_samples() const noexcept {
@@ -122,10 +122,10 @@ class DLL_PUBLIC TensorVector {
    */
   std::vector<size_t> _chunks_capacity() const;
 
-  TensorListShape<> shape() const;
+  const TensorListShape<> &shape() const;
 
   const TensorShape<> &tensor_shape(int idx) const {
-    return tensors_[idx]->shape();
+    return tensors_[idx].shape();
   }
 
   /**
@@ -133,7 +133,7 @@ class DLL_PUBLIC TensorVector {
    */
   template <typename T>
   DLL_PUBLIC inline T* mutable_tensor(int idx) {
-    return tensors_[idx]->template mutable_data<T>();
+    return tensors_[idx].template mutable_data<T>();
   }
 
   /**
@@ -141,21 +141,21 @@ class DLL_PUBLIC TensorVector {
    */
   template <typename T>
   DLL_PUBLIC inline const T* tensor(int idx) const {
-    return tensors_[idx]->template data<T>();
+    return tensors_[idx].template data<T>();
   }
 
   /**
    * @brief Returns a raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline void* raw_mutable_tensor(int idx) {
-    return tensors_[idx]->raw_mutable_data();
+    return tensors_[idx].raw_mutable_data();
   }
 
   /**
    * @brief Returns a const raw pointer to the tensor with the given index.
    */
   DLL_PUBLIC inline const void* raw_tensor(int idx) const {
-    return  tensors_[idx]->raw_data();
+    return  tensors_[idx].raw_data();
   }
 
   /**
@@ -325,11 +325,11 @@ class DLL_PUBLIC TensorVector {
                              int data_idx, int thread_idx);
   friend void FixBatchPropertiesConsistency(class HostWorkspace &ws, bool contiguous);
 
-  auto tensor_handle(size_t pos) {
+  auto& tensor_handle(size_t pos) {
     return tensors_[pos];
   }
 
-  auto tensor_handle(size_t pos) const {
+  auto& tensor_handle(size_t pos) const {
     return tensors_[pos];
   }
 
@@ -366,14 +366,23 @@ class DLL_PUBLIC TensorVector {
   void update_view(int idx);
 
   std::atomic<int> views_count_;
-  std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
-  int curr_num_tensors_;
-  std::shared_ptr<TensorList<Backend>> tl_;
+  // std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
+  size_t curr_num_tensors_;
+  // std::shared_ptr<TensorList<Backend>> tl_;
+
+  std::vector<Tensor<Backend>> tensors_;
+  Buffer<Backend> contiguous_buffer_;
+  std::weak_ptr<void> buffer_bkp_;
+
+
   State state_ = State::noncontiguous;
-  // pinned status and type info should be uniform
-  bool pinned_ = true;
   TypeInfo type_{};
   int sample_dim_ = -1;
+  TensorListShape<> shape_;
+  TensorLayout layout_;
+
+  // pinned status and type info should be uniform
+  bool pinned_ = true;
   AccessOrder order_;
 
   // So we can access the members of other TensorVectors
