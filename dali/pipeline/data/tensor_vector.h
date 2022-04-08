@@ -365,9 +365,10 @@ class DLL_PUBLIC TensorVector {
 
   void update_view(int idx);
 
-  std::atomic<int> views_count_;
+  void recreate_views();
+
   // std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
-  size_t curr_num_tensors_;
+  int curr_num_tensors_;
   // std::shared_ptr<TensorList<Backend>> tl_;
 
   std::vector<Tensor<Backend>> tensors_;
