@@ -57,6 +57,7 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const TensorVector<B
                                             int src_sample_idx) {
   // TODO(klecki): more consistency checks, contiguous -> non-contiguous removes shares_data from
   // samples
+  DALI_ENFORCE(!IsContiguous());
   // Bounds check
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
   assert(src_sample_idx >= 0 && src_sample_idx < src.curr_num_tensors_);
@@ -96,6 +97,7 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const Tensor<Backend
   // TODO(klecki): more consistency checks, contiguous -> non-contiguous removes shares_data from
   // samples
   // Bounds check
+  DALI_ENFORCE(!IsContiguous());
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
   DALI_ENFORCE(type() == owner.type(),
                make_string("Sample must have the same type as a target batch, current: ", type(),
@@ -136,6 +138,7 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const shared_ptr<voi
                                             DALIDataType type, AccessOrder order,
                                             const TensorLayout &layout) {
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
+  DALI_ENFORCE(!IsContiguous());
   DALI_ENFORCE(this->type() == type,
                make_string("Sample must have the same type as a target batch, current: ",
                            this->type(), " new: ", type, " for ", sample_idx, "."));
@@ -523,6 +526,9 @@ void TensorVector<Backend>::SetContiguous(bool contiguous) {
     return;
   }
 
+  // TODO: what if we are actually sharing data
+  // If contiguous and we swap -> we don't detach, but everyone shares data to the chunk?
+  // If non-contiguous and we coalesce ???
   if (contiguous) {
     DALI_ENFORCE(!has_data(), "Cannot coalesce yet. To be implemented");
     state_ = State::contiguous;
@@ -554,6 +560,7 @@ void TensorVector<Backend>::Reset() {
 template <typename Backend>
 template <typename SrcBackend>
 void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrder order) {
+  SetContiguous(true);
   // DO the contiguous resize when ready
   Resize(in_tl.shape(), in_tl.type());
   // SetContiguous(true);
@@ -585,6 +592,7 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
   // ADD a non-contiguous copy
 
   // DO the contiguous resize when ready
+  SetContiguous(true);
   Resize(in_tv.shape(), in_tv.type());
   // SetContiguous(true);
   TensorList<Backend> tmp;
