@@ -62,7 +62,7 @@ class DLL_PUBLIC TensorVector {
    */
   explicit TensorVector(int batch_size);
 
-  explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl);
+  // explicit TensorVector(std::shared_ptr<TensorList<Backend>> tl);
 
   TensorVector(const TensorVector &) = delete;
   TensorVector &operator=(const TensorVector &) = delete;

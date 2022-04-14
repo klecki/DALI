@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -64,6 +64,7 @@ std::shared_ptr<TensorList<backend>> PresentAsTensorList(
 template<typename backend>
 std::shared_ptr<TensorList<backend>> PresentAsTensorList(
     const std::shared_ptr<TensorVector<backend>> &in) {
+  DALI_FAIL("This usage is considered harmful");
   return in->AsTensorList(false);
 }
 
@@ -72,6 +73,7 @@ void AddInputHelper(workspace &ws, T &tensor) {
   ws.AddInput(tensor);
 }
 
+// TODO: This is second place where the encapsulation is just broken.
 template<typename T>
 void AddInputHelper(dali::DeviceWorkspace &ws, T &tensor) {
   ws.AddInput(PresentAsTensorList(tensor));

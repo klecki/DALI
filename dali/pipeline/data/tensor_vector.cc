@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 #include "dali/pipeline/data/tensor_vector.h"
 #include "dali/core/common.h"
@@ -32,9 +33,17 @@ TensorVector<Backend>::TensorVector(int batch_size)
 }
 
 
-template <typename Backend>
-TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl)
-    : curr_num_tensors_(0) {}
+// template <typename Backend>
+// TensorVector<Backend>::TensorVector(std::shared_ptr<TensorList<Backend>> tl)
+//     : curr_num_tensors_(0) {
+//   // contiguous_buffer_ = tl->
+//   DALI_FAIL("NOT YET IMPLEMENTED");
+//   // This is a massive hack. It creates a TV that is modified from outside.
+//   // No chance with data sharing or anything. Fun.
+//   // Encapsulation is totally broken.
+
+
+// }
   // TODO - this needs rework
   //   , tl_(std::move(tl)) {
   // assert(tl_ && "Construction with null TensorList is illegal");
@@ -229,6 +238,7 @@ void TensorVector<Backend>::set_sample_dim(int sample_dim) {
       !has_data(),
       "Setting sample dim is not allowed when batch is already allocated, use Resize instead.");
   sample_dim_ = sample_dim;
+  shape_.resize(shape_.num_samples(), sample_dim);
 }
 
 template <typename Backend>
@@ -320,7 +330,7 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
                 "Reset() can be used.");
   resize_tensors(new_shape.num_samples());
 
-  std::cout << "Resize(<samples>: " << new_shape.num_samples() << " <dim>: " << new_shape.sample_dim() << ", " << new_type << ");" << std::endl;
+  // std::cout << "Resize(<samples>: " << new_shape.num_samples() << " <dim>: " << new_shape.sample_dim() << ", " << new_type << ");" << std::endl;
   shape_ = new_shape;
   sample_dim_ = new_shape.sample_dim();
   if (type_.id() != new_type) {
@@ -403,6 +413,9 @@ const TypeInfo &TensorVector<Backend>::type_info() const {
 template <typename Backend>
 void TensorVector<Backend>::SetLayout(const TensorLayout &layout) {
   layout_ = layout;
+  for (auto &t : tensors_) {
+    t.SetLayout(layout);
+  }
   // if (state_ == State::noncontiguous) {
   //   DALI_ENFORCE(!tensors_.empty(), "Layout cannot be set uniformly for empty batch");
   // }
@@ -618,7 +631,7 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
                 shape(), type(), this->order());
 
   tmp.Copy(in_tv, order);
-
+  SetLayout(in_tv.GetLayout());
 
   // tl_->Copy(in_tv, order);
 
@@ -734,14 +747,24 @@ std::shared_ptr<TensorList<Backend>> TensorVector<Backend>::AsTensorList(bool ch
   //   tl_->SetMeta(idx, tensors_[idx].GetMeta());
   // }
   // return tl_;
-  DALI_FAIL("NOT YET IMPLEMENTED");
+  auto result = std::make_shared<TensorList<Backend>>();
+  TensorList<Backend> tmp;
+  result->ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(), is_pinned(),
+                    shape(), type(), order());
+  for (int idx = 0; idx < curr_num_tensors_; idx++) {
+    result->SetMeta(idx, tensors_[idx].GetMeta());
+  }
+  return result;
+  // result.Copy(*this);
+
+  // DALI_FAIL("NOT YET IMPLEMENTED");
 
 }
 
 
 template <typename Backend>
 void TensorVector<Backend>::resize_tensors(int new_size) {
-  std::cout << ">> resize_tensors(" << new_size << "), curr_num_tensors_: " << curr_num_tensors_ << std::endl;
+  // std::cout << ">> resize_tensors(" << new_size << "), curr_num_tensors_: " << curr_num_tensors_ << std::endl;
   if (static_cast<size_t>(new_size) > tensors_.size()) {
     auto old_size = curr_num_tensors_;
     tensors_.resize(new_size);
@@ -750,6 +773,8 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
       tensors_[i].set_order(order());
       if (type() != DALI_NO_TYPE)
         tensors_[i].set_type(type());
+      tensors_[i].SetLayout(GetLayout());
+      // TODO: ResetupTensor(...);
     }
   } else if (new_size < curr_num_tensors_) {
     for (int i = new_size; i < curr_num_tensors_; i++) {
@@ -762,6 +787,9 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
     // tensors_.resize(new_size);
   }
   curr_num_tensors_ = new_size;
+  // TODO: preserving volumes when setting ndim?
+  // TODO: what with empty ndim?
+  shape_.resize(curr_num_tensors_);
 }
 
 template <typename Backend>
@@ -777,6 +805,7 @@ void TensorVector<Backend>::UpdatePropertiesFromSamples(bool contiguous) {
   pinned_ = tensors_[0].is_pinned();
   order_ = tensors_[0].order();
   contiguous_buffer_.set_order(order_);
+  layout_ = tensors_[0].GetMeta().GetLayout();
   for (int i = 0; i < curr_num_tensors_; i++) {
     DALI_ENFORCE(type() == tensors_[i].type(),
                  make_string("Samples must have the same type, expected: ", type(),

@@ -825,6 +825,16 @@ class DLL_PUBLIC TensorList {
     return {tl.data_.get_data_ptr(), tl.raw_mutable_tensor(sample_idx)};
   }
 
+  /**
+   * @brief Return the shared pointer, that we can use to correctly share the ownership of sample
+   * with.
+   */
+  friend Buffer<Backend> unsafe_get_buffer(TensorList<Backend> &tl) {
+    // create new aliasing pointer to current data allocation, so we share the use count
+    // and the deleter correctly.
+    return tl.data_;
+  }
+
   /** @} */  // end of ContiguousAccessorFunctions
 
 

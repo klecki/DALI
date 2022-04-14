@@ -52,12 +52,14 @@ class ArgumentWorkspace {
   }
 
   void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorVector<CPUBackend>> input) {
-    argument_inputs_[arg_name] = { std::move(input), false };
+    argument_inputs_[arg_name] = { std::move(input), nullptr, false };
   }
 
   void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
+    // TODO(klecki): this is temporarily (until TL is removed) reworked
     argument_inputs_[arg_name] = {
-      std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
+      std::make_shared<TensorVector<CPUBackend>>(),
+      std::move(input),
       true
     };
   }
@@ -67,7 +69,8 @@ class ArgumentWorkspace {
     DALI_ENFORCE(it != argument_inputs_.end(), "Argument \"" + arg_name + "\" not found.");
     if (it->second.should_update) {
       // the underlying tensor list might have changed - update the views
-      it->second.tvec->UpdateViews();
+      // it->second.tvec->UpdateViews();
+      it->second.tvec->ShareData(*it->second.tlist);
     }
     return *it->second.tvec;
   }
@@ -75,6 +78,7 @@ class ArgumentWorkspace {
  protected:
   struct ArgumentInputDesc {
     shared_ptr<TensorVector<CPUBackend>> tvec;
+    shared_ptr<TensorList<CPUBackend>> tlist;
     // If true, the views in TensorVector are updated to reflect the underlying TensorList;
     // this only happens if AddArgumentInput is called with a TensorList pointer - which for now
     // is only when passing an argument input to a GPU stage when using separated queue policy
