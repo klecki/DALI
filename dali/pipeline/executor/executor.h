@@ -465,7 +465,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::Build(OpGraph *graph, vector<string
   // workspaces so that nothing has to be altered
   // during execution (this is necessary for
   // asynchronous executors that can overlap work issue)
-  ws_policy_.InitializeWorkspaceStore(*graph_, tensor_to_store_queue_, &thread_pool_,
+  ws_policy_.InitializeWorkspaceStore(*graph_, device_id_, tensor_to_store_queue_, &thread_pool_,
                                       mixed_op_stream_, gpu_op_stream_, mixed_op_events_,
                                       queue_sizes_);
 
