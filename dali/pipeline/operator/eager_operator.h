@@ -42,10 +42,11 @@ std::shared_ptr<TensorList<Backend>> AsTensorList(const std::shared_ptr<TensorLi
 template <typename Backend>
 std::shared_ptr<TensorList<Backend>> AsTensorList(
     const std::shared_ptr<TensorVector<Backend>> &in) {
-  if (in->IsContiguous()) {
-    // Filled contiguous TensorVector, we can return TensorList directly.
-    return in->AsTensorList(false);
-  }
+  // TODO(klecki): Add missing optimization
+  // if (in->IsContiguous()) {
+  //   // Filled contiguous TensorVector, we can return TensorList directly.
+  //   return in->AsTensorList(false);
+  // }
 
   auto tl = std::make_shared<TensorList<Backend>>();
   tl->Copy(*in);

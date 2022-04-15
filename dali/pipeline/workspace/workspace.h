@@ -52,12 +52,14 @@ class ArgumentWorkspace {
   }
 
   void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorVector<CPUBackend>> input) {
-    argument_inputs_[arg_name] = { std::move(input), false };
+    argument_inputs_[arg_name] = { std::move(input), nullptr, false };
   }
 
   void AddArgumentInput(const std::string &arg_name, shared_ptr<TensorList<CPUBackend>> input) {
+    // TODO(klecki): Remove when TensorList is replaced by proper the TensorBatch object
     argument_inputs_[arg_name] = {
-      std::make_shared<TensorVector<CPUBackend>>(std::move(input)),
+      std::make_shared<TensorVector<CPUBackend>>(),
+      std::move(input),
       true
     };
   }
@@ -66,15 +68,17 @@ class ArgumentWorkspace {
     auto it = argument_inputs_.find(arg_name);
     DALI_ENFORCE(it != argument_inputs_.end(), "Argument \"" + arg_name + "\" not found.");
     if (it->second.should_update) {
-      // the underlying tensor list might have changed - update the views
-      it->second.tvec->UpdateViews();
+    // TODO(klecki): Remove when TensorList is replaced by proper the TensorBatch object
+      // the underlying tensor list might have changed - reshare the data
+      it->second.tvec->ShareData(*it->second.tlist);
     }
     return *it->second.tvec;
   }
 
  protected:
   struct ArgumentInputDesc {
-    shared_ptr<TensorVector<CPUBackend>> tvec;
+    std::shared_ptr<TensorVector<CPUBackend>> tvec;
+    std::shared_ptr<TensorList<CPUBackend>> tlist;
     // If true, the views in TensorVector are updated to reflect the underlying TensorList;
     // this only happens if AddArgumentInput is called with a TensorList pointer - which for now
     // is only when passing an argument input to a GPU stage when using separated queue policy

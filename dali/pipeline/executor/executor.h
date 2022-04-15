@@ -465,7 +465,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::Build(OpGraph *graph, vector<string
   // workspaces so that nothing has to be altered
   // during execution (this is necessary for
   // asynchronous executors that can overlap work issue)
-  ws_policy_.InitializeWorkspaceStore(*graph_, tensor_to_store_queue_, &thread_pool_,
+  ws_policy_.InitializeWorkspaceStore(*graph_, device_id_, tensor_to_store_queue_, &thread_pool_,
                                       mixed_op_stream_, gpu_op_stream_, mixed_op_events_,
                                       queue_sizes_);
 
@@ -509,12 +509,12 @@ void Executor<WorkspacePolicy, QueuePolicy>::ShareOutputs(DeviceWorkspace *ws) {
     auto storage_dev = out_tensor.producer.storage_device;
     VALUE_SWITCH(storage_dev, storage_dev_static, (StorageDevice::GPU, StorageDevice::CPU),
     (
-      VALUE_SWITCH(op_type, op_type_static, (OpType::CPU, OpType::MIXED, OpType::GPU),
+      VALUE_SWITCH(op_type, op_type_static, (OpType::MIXED, OpType::GPU),
       (
         auto &queue = get_queue<op_type_static, storage_dev_static>(
             tensor_to_store_queue_[out_tensor_id]);
         auto stage_output_idx = output_idx[op_type_static];
-        ws->AddOutput(PresentAsTensorList(queue[stage_output_idx]));
+        ws->AddOutput(queue[stage_output_idx]);
       ), DALI_FAIL("Invalid op type"));  // NOLINT(whitespace/parens)
     ), DALI_FAIL("Invalid storage device"));  // NOLINT(whitespace/parens)
   }
