@@ -172,7 +172,8 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunMixedImpl() {
     if (callback_) {
       // Record event that will allow to call the callback after whole run of this pipeline is
       // finished.
-      CUDA_CALL(cudaEventRecord(mixed_callback_events_[mixed_idxs[OpType::MIXED]], mixed_op_stream_));
+      CUDA_CALL(
+          cudaEventRecord(mixed_callback_events_[mixed_idxs[OpType::MIXED]], mixed_op_stream_));
     }
 
     if (!mixed_output_events_.empty()) {
