@@ -49,7 +49,6 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
       output.Copy(input, ws.stream());
     }
     coalesced = true;
-
   }
 }
 
