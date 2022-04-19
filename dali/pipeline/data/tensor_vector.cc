@@ -214,6 +214,7 @@ void TensorVector<Backend>::set_sample_dim(int sample_dim) {
       !has_data(),
       "Setting sample dim is not allowed when batch is already allocated, use Resize instead.");
   sample_dim_ = sample_dim;
+  shape_.resize(shape_.num_samples(), sample_dim);
 }
 
 template <typename Backend>
@@ -388,6 +389,9 @@ const TypeInfo &TensorVector<Backend>::type_info() const {
 template <typename Backend>
 void TensorVector<Backend>::SetLayout(const TensorLayout &layout) {
   layout_ = layout;
+  for (auto &t : tensors_) {
+    t.SetLayout(layout);
+  }
   // if (state_ == State::noncontiguous) {
   //   DALI_ENFORCE(!tensors_.empty(), "Layout cannot be set uniformly for empty batch");
   // }
@@ -603,7 +607,7 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
                 shape(), type(), this->order());
 
   tmp.Copy(in_tv, order);
-
+  SetLayout(in_tv.GetLayout());
 
   // tl_->Copy(in_tv, order);
 
@@ -720,6 +724,8 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
       tensors_[i].set_order(order());
       if (type() != DALI_NO_TYPE)
         tensors_[i].set_type(type());
+      tensors_[i].SetLayout(GetLayout());
+      // TODO: ResetupTensor(...);
     }
   } else if (new_size < curr_num_tensors_) {
     for (int i = new_size; i < curr_num_tensors_; i++) {
@@ -732,6 +738,9 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
     // tensors_.resize(new_size);
   }
   curr_num_tensors_ = new_size;
+  // TODO: preserving volumes when setting ndim?
+  // TODO: what with empty ndim?
+  shape_.resize(curr_num_tensors_);
 }
 
 template <typename Backend>
@@ -747,6 +756,7 @@ void TensorVector<Backend>::UpdatePropertiesFromSamples(bool contiguous) {
   pinned_ = tensors_[0].is_pinned();
   order_ = tensors_[0].order();
   contiguous_buffer_.set_order(order_);
+  layout_ = tensors_[0].GetMeta().GetLayout();
   for (int i = 0; i < curr_num_tensors_; i++) {
     DALI_ENFORCE(type() == tensors_[i].type(),
                  make_string("Samples must have the same type, expected: ", type(),
