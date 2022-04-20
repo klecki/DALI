@@ -143,13 +143,11 @@ class PipelineTest : public DALITest {
     OpGraph &graph = this->GetGraph(&pipe);
 
       // Validate the graph
-    int additional_cpu_ops_num = dev == "cpu" ? 1 : 0;
-    ASSERT_EQ(graph.NumOp(OpType::CPU), 1 + additional_cpu_ops_num);
-    ASSERT_EQ(graph.NumOp(OpType::MIXED), 1 - additional_cpu_ops_num);
+    ASSERT_EQ(graph.NumOp(OpType::CPU), 1);
+    ASSERT_EQ(graph.NumOp(OpType::MIXED), 1);
     ASSERT_EQ(graph.NumOp(OpType::GPU), 1);
 
-    ASSERT_EQ(graph.Node(additional_cpu_ops_num ? OpType::CPU : OpType::MIXED,
-                         0 + additional_cpu_ops_num).op->name(), "MakeContiguous");
+    ASSERT_EQ(graph.Node(OpType::MIXED, 0).op->name(), "MakeContiguous");
 
     // Validate the source op
     auto &node = graph.Node(0);
@@ -233,8 +231,8 @@ TYPED_TEST(PipelineTest, TestExternalSource) {
   OpGraph &graph = this->GetGraph(&pipe);
 
   // Validate the graph
-  ASSERT_EQ(graph.NumOp(OpType::CPU), 2);
-  ASSERT_EQ(graph.NumOp(OpType::MIXED), 0);
+  ASSERT_EQ(graph.NumOp(OpType::CPU), 1);
+  ASSERT_EQ(graph.NumOp(OpType::MIXED), 1);
   ASSERT_EQ(graph.NumOp(OpType::GPU), 0);
 
   // Validate the gpu source op
