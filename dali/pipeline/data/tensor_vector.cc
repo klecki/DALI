@@ -755,6 +755,7 @@ void TensorVector<Backend>::UpdatePropertiesFromSamples(bool contiguous) {
   order_ = tensors_[0].order();
   contiguous_buffer_.set_order(order_);
   layout_ = tensors_[0].GetMeta().GetLayout();
+  shape_.resize(curr_num_tensors_, sample_dim_);
   for (int i = 0; i < curr_num_tensors_; i++) {
     DALI_ENFORCE(type() == tensors_[i].type(),
                  make_string("Samples must have the same type, expected: ", type(),
@@ -769,6 +770,7 @@ void TensorVector<Backend>::UpdatePropertiesFromSamples(bool contiguous) {
     DALI_ENFORCE(GetLayout() == tensors_[i].GetLayout(),
                  make_string("Samples must have the same layout, expected: ", GetLayout(),
                              " got: ", tensors_[i].GetLayout(), " at ", i, "."));
+    shape_.set_tensor_shape(i, tensors_[i].shape());
   }
 }
 
