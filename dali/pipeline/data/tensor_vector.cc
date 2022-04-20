@@ -306,7 +306,6 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
                 "Reset() can be used.");
   resize_tensors(new_shape.num_samples());
 
-  std::cout << "Resize(<samples>: " << new_shape.num_samples() << " <dim>: " << new_shape.sample_dim() << ", " << new_type << ");" << std::endl;
   shape_ = new_shape;
   sample_dim_ = new_shape.sample_dim();
   if (type_.id() != new_type) {
@@ -715,7 +714,6 @@ void TensorVector<Backend>::UpdateViews() {
 
 template <typename Backend>
 void TensorVector<Backend>::resize_tensors(int new_size) {
-  std::cout << ">> resize_tensors(" << new_size << "), curr_num_tensors_: " << curr_num_tensors_ << std::endl;
   if (static_cast<size_t>(new_size) > tensors_.size()) {
     auto old_size = curr_num_tensors_;
     tensors_.resize(new_size);
