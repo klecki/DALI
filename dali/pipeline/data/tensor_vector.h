@@ -28,6 +28,7 @@
 #include "dali/pipeline/data/sample_view.h"
 #include "dali/pipeline/data/tensor.h"
 #include "dali/pipeline/data/tensor_list.h"
+#include "dali/pipeline/data/types.h"
 
 
 namespace dali {
@@ -339,6 +340,11 @@ class DLL_PUBLIC TensorVector {
     set_order(other.order());
     set_pinned(other.is_pinned());
   }
+
+  void SetupInPlace(State state, DALIDataType type, int num_samples, int sample_dim,
+                    TensorLayout layout, bool pinned, AccessOrder order);
+  void SetupWithResize(State state, DALIDataType type, const TensorListShape<> &shape,
+                       TensorLayout layout, bool pinned, AccessOrder order);
 
   /**
    * @brief After RunImpl(SampleWorkspace&) operated on individual samples without propagating

@@ -40,6 +40,7 @@ TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
   type_ = std::move(other.type_);
   sample_dim_ = other.sample_dim_;
   tensors_ = std::move(other.tensors_);
+  layout_ = std::move(other.layout_);
   // TODO no more deleters
   // for (auto &t : tensors_) {
   //   if (t) {
@@ -47,10 +48,20 @@ TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
   //   }
   // }
 
+  other.layout_ = "";
   other.curr_num_tensors_ = 0;
   other.tensors_.clear();
   other.sample_dim_ = -1;
 }
+
+template <typename Backend>
+void TensorVector<Backend>::SetupInPlace(State state, DALIDataType type, int num_samples, int sample_dim,
+                                    TensorLayout layout, bool pinned, AccessOrder order) {}
+template <typename Backend>
+void TensorVector<Backend>::SetupWithResize(State state, DALIDataType type,
+                                       const TensorListShape<> &shape, TensorLayout layout,
+                                       bool pinned, AccessOrder order) {}
+
 
 template <typename Backend>
 void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const TensorVector<Backend> &src,
@@ -673,6 +684,8 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
     shape_ = std::move(other.shape_);
     curr_num_tensors_ = other.curr_num_tensors_;
     sample_dim_ = other.sample_dim_;
+    layout_ = std::move(other.layout_);
+    other.layout_ = "";
     // for (auto &t : tensors_) {
     //   if (t) {
     //     if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
