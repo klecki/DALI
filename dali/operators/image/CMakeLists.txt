@@ -17,7 +17,7 @@
 add_subdirectory(color)
 add_subdirectory(crop)
 
-add_subdirectory(convolution)
+# add_subdirectory(convolution)
 add_subdirectory(distortion)
 add_subdirectory(resize)
 add_subdirectory(paste)
