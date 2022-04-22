@@ -93,7 +93,8 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const TensorVector<B
                                             int src_sample_idx) {
   // TODO(klecki): more consistency checks, contiguous -> non-contiguous removes shares_data from
   // samples
-  DALI_ENFORCE(!IsContiguous());
+  // DALI_ENFORCE(!IsContiguous());
+  MakeNoncontiguous();
   // Bounds check
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
   assert(src_sample_idx >= 0 && src_sample_idx < src.curr_num_tensors_);
@@ -133,7 +134,8 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const Tensor<Backend
   // TODO(klecki): more consistency checks, contiguous -> non-contiguous removes shares_data from
   // samples
   // Bounds check
-  DALI_ENFORCE(!IsContiguous());
+  // DALI_ENFORCE(!IsContiguous());
+  MakeNoncontiguous();
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
   DALI_ENFORCE(type() == owner.type(),
                make_string("Sample must have the same type as a target batch, current: ", type(),
@@ -174,7 +176,8 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const shared_ptr<voi
                                             DALIDataType type, AccessOrder order,
                                             const TensorLayout &layout) {
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
-  DALI_ENFORCE(!IsContiguous());
+  // DALI_ENFORCE(!IsContiguous());
+  MakeNoncontiguous();
   DALI_ENFORCE(this->type() == type,
                make_string("Sample must have the same type as a target batch, current: ",
                            this->type(), " new: ", type, " for ", sample_idx, "."));
