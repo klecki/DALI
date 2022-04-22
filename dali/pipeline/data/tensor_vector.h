@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "dali/core/access_order.h"
+#include "dali/core/error_handling.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/sample_view.h"
@@ -32,6 +33,7 @@
 
 
 namespace dali {
+
 
 /**
  * @brief Merges TensorList<Backend> and std::vector<std::shared_ptr<Tensor<Backend>>> APIs
@@ -218,7 +220,8 @@ class DLL_PUBLIC TensorVector {
     return Resize(new_shape, type());
   }
 
-  DLL_PUBLIC void Resize(const TensorListShape<> &new_shape, DALIDataType new_type);
+  DLL_PUBLIC void Resize(const TensorListShape<> &new_shape, DALIDataType new_type,
+                         BatchState state = BatchState::Default);
 
   /**
    * Change the number of tensors that can be accessed as samples without the need to
@@ -294,9 +297,13 @@ class DLL_PUBLIC TensorVector {
 
   /**
    * @brief Set the current state if further calls like Resize() or set_type
-   *        should use TensorList or std::vector<Tensor> as backing memory
+   *        should use contiguous or noncontiguous backing memory
    */
-  void SetContiguous(bool contiguous);
+  void SetContiguous(BatchState state);
+
+  void MakeContiguous(std::weak_ptr<void> owner);
+
+  void MakeNoncontiguous();
 
   void Reset();
 
@@ -315,7 +322,59 @@ class DLL_PUBLIC TensorVector {
   void UpdateViews();
 
  private:
-  enum class State { contiguous, noncontiguous };
+  // enum class State { contiguous, noncontiguous };
+  class State {
+   public:
+    // TODO(klecki): Do we set the "default" or specific one?
+    State() : contiguous_(false), forced_(false) {}
+    State(BatchState state, bool forced) {
+      DALI_ENFORCE(state != BatchState::Default);
+      Update(state, forced);
+    }
+    State(const State&) = default;
+    State &operator=(const State&) = default;
+
+    void Update(BatchState state, bool forced = false) {
+      if (forced) {
+        DALI_ENFORCE(state == BatchState::Contiguous || state == BatchState::Noncontiguous,
+                     "Only specific state can be enforced");
+      }
+      if (state != BatchState::Default) {
+        contiguous_ = state == BatchState::Contiguous;
+      }
+      forced_ = forced;
+    }
+
+    /**
+     * @brief Returns true if the requested state changes the current state
+     * Validates if the enforced state is not broken
+     */
+    bool IsStateUpdate(BatchState requested_state) {
+      if (requested_state == BatchState::Default) {
+        return false;
+      }
+      if (forced_) {
+        // todo: better error
+        DALI_ENFORCE(requested_state == Get(), "The state is enforced and cannot be changed");
+      }
+      return Get() != requested_state;
+    }
+
+    bool IsContiguous() const {
+      return contiguous_;
+    }
+
+    BatchState Get() const {
+      return contiguous_ ? BatchState::Contiguous : BatchState::Noncontiguous;
+    }
+
+   private:
+    bool contiguous_ = false;
+    bool forced_ = false;
+  };
+
+  State state_;
+
 
   // Forward declarations in signature, beware
   friend void MakeSampleView(class SampleWorkspace &sample, class HostWorkspace &batch,
@@ -378,7 +437,7 @@ class DLL_PUBLIC TensorVector {
   std::weak_ptr<void> buffer_bkp_;
 
 
-  State state_ = State::noncontiguous;
+  // State state_ = State::noncontiguous;
   TypeInfo type_{};
   int sample_dim_ = -1;
   TensorListShape<> shape_;
