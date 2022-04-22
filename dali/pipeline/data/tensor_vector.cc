@@ -33,27 +33,33 @@ TensorVector<Backend>::TensorVector(int batch_size)
 
 template <typename Backend>
 TensorVector<Backend>::TensorVector(TensorVector<Backend> &&other) noexcept {
-  state_ = other.state_;
-  pinned_ = other.pinned_;
-  order_ = other.order_;
-  curr_num_tensors_ = other.curr_num_tensors_;
-  contiguous_buffer_ = std::move(other.contiguous_buffer_);
-  type_ = std::move(other.type_);
-  sample_dim_ = other.sample_dim_;
-  tensors_ = std::move(other.tensors_);
-  layout_ = std::move(other.layout_);
-  // TODO no more deleters
-  // for (auto &t : tensors_) {
-  //   if (t) {
-  //     if (auto *del = std::get_deleter<ViewRefDeleter>(t->data_)) del->ref = &views_count_;
-  //   }
-  // }
-
-  other.layout_ = "";
-  other.curr_num_tensors_ = 0;
-  other.tensors_.clear();
-  other.sample_dim_ = -1;
+  *this = std::move(other);
 }
+
+
+template <typename Backend>
+TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&other) noexcept {
+  if (&other != this) {
+    state_ = other.state_;
+    pinned_ = other.pinned_;
+    contiguous_buffer_ = std::move(other.contiguous_buffer_);
+    type_ = other.type_;
+    tensors_ = std::move(other.tensors_);
+    shape_ = std::move(other.shape_);
+    curr_num_tensors_ = other.curr_num_tensors_;
+    sample_dim_ = other.sample_dim_;
+    layout_ = std::move(other.layout_);
+
+    // other.type_ = DALI_NO_TYPE;
+    // other.shape_.reset();
+    other.layout_ = "";
+    other.curr_num_tensors_ = 0;
+    other.sample_dim_ = -1;
+    other.tensors_.clear();
+  }
+  return *this;
+}
+
 
 template <typename Backend>
 void TensorVector<Backend>::SetupInPlace(State state, DALIDataType type, int num_samples, int sample_dim,
