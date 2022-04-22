@@ -145,7 +145,7 @@ class SequenceShapeUnfoldTVTest : public ::testing::Test {
     TensorVector<Backend> batch;
     constexpr bool is_device = std::is_same_v<Backend, GPUBackend>;
     batch.set_order(is_device ? AccessOrder(cuda_stream) : AccessOrder::host());
-    batch.SetContiguous(is_contigious);
+    batch.SetContiguous(is_contigious ? BatchState::Contiguous : BatchState::Noncontiguous);
     batch.set_pinned(is_pinned);
     batch.Resize(shape, dtype);
     if (!layout.empty()) {

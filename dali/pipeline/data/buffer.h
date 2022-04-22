@@ -38,6 +38,15 @@ class GPUBackend;
 class CPUBackend;
 
 
+enum class BatchState {
+  Default = 0,
+  Contiguous = 1,
+  Noncontiguous = 2,
+  // TODO(klecki): ForceContiguous?
+};
+
+
+
 DLL_PUBLIC shared_ptr<uint8_t> AllocBuffer(size_t bytes,
                                            bool pinned, int device_id,
                                            AccessOrder order, GPUBackend *);
