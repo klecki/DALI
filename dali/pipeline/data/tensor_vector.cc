@@ -649,7 +649,7 @@ template <typename Backend>
 template <typename SrcBackend>
 void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrder order) {
   // DO the contiguous resize when ready
-  Resize(in_tl.shape(), in_tl.type(), BatchState::Default);  // TODO do we copy to contiguous?
+  Resize(in_tl.shape(), in_tl.type(), BatchState::Contiguous);  // TODO do we copy to contiguous?
   // SetContiguous(true);
   TensorList<Backend> tmp;
   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(), is_pinned(),
@@ -680,7 +680,7 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
 
   // DO the contiguous resize when ready
   // SetContiguous(true);
-  Resize(in_tv.shape(), in_tv.type(), BatchState::Default); // TODO do we copy to contiguous?
+  Resize(in_tv.shape(), in_tv.type(), BatchState::Contiguous); // TODO do we copy to contiguous?
   // SetContiguous(true);
   TensorList<Backend> tmp;
   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(), is_pinned(),
