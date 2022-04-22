@@ -141,7 +141,7 @@ TYPED_TEST(TensorVectorSuite, VariableBatchResizeUp) {
 
 TYPED_TEST(TensorVectorSuite, EmptyShareContiguous) {
   TensorVector<TypeParam> tv;
-  tv.SetContiguous(true);
+  tv.SetContiguous(BatchState::Contiguous);
   TensorListShape<> shape = {{100, 0, 0}, {42, 0, 0}};
   tv.Resize(shape, DALI_UINT8);
   for (int i = 0; i < shape.num_samples(); i++) {
@@ -162,7 +162,7 @@ TYPED_TEST(TensorVectorSuite, EmptyShareContiguous) {
 
 TYPED_TEST(TensorVectorSuite, EmptyShareNonContiguous) {
   TensorVector<TypeParam> tv;
-  tv.SetContiguous(false);
+  tv.SetContiguous(BatchState::Noncontiguous);
   TensorListShape<> shape = {{100, 0, 0}, {42, 0, 0}};
   tv.Resize(shape, DALI_UINT8);
   for (int i = 0; i < shape.num_samples(); i++) {
