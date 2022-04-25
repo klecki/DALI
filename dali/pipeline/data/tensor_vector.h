@@ -26,6 +26,7 @@
 #include "dali/core/error_handling.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
+#include "dali/pipeline/data/buffer.h"
 #include "dali/pipeline/data/sample_view.h"
 #include "dali/pipeline/data/tensor.h"
 #include "dali/pipeline/data/tensor_list.h"
@@ -329,12 +330,12 @@ class DLL_PUBLIC TensorVector {
     State() : contiguous_(false), forced_(false) {}
     State(BatchState state, bool forced) {
       DALI_ENFORCE(state != BatchState::Default);
-      Update(state, forced);
+      Setup(state, forced);
     }
     State(const State&) = default;
     State &operator=(const State&) = default;
 
-    void Update(BatchState state, bool forced = false) {
+    void Setup(BatchState state, bool forced = false) {
       if (forced) {
         DALI_ENFORCE(state == BatchState::Contiguous || state == BatchState::Noncontiguous,
                      "Only specific state can be enforced");
@@ -343,6 +344,22 @@ class DLL_PUBLIC TensorVector {
         contiguous_ = state == BatchState::Contiguous;
       }
       forced_ = forced;
+    }
+
+    bool Update(BatchState requested_state) {
+      if (requested_state == BatchState::Default) {
+        return false;
+      }
+      if (forced_) {
+        DALI_ENFORCE(Get() == requested_state,
+                     make_string("State cannot be changed as it is enforced to ",
+                                 contiguous_ ? "contiguous." : "noncontiguous."));
+      }
+      if (Get() == requested_state) {
+        return false;
+      }
+      contiguous_ = !contiguous_;
+      return true;
     }
 
     /**

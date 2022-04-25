@@ -350,13 +350,10 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
   if (type_.id() != new_type) {
     type_ = TypeTable::GetTypeInfo(new_type);
   }
-
-  if (state == BatchState::Noncontiguous) {
-    MakeNoncontiguous();
-  } else {
-    state_.IsStateUpdate(state);
-    // TODO add the check from above to below, and differentiate Update into Setup (no check) and Update (with check)
-    state_.Update(BatchState::Contiguous);
+  if (state_.Update(state)) {
+    if (!state_.IsContiguous()) {
+      MakeNoncontiguous(); // TODO(klecki): how to make this no op when non-needed
+    }
   }
   if (state_.IsContiguous()) {
     contiguous_buffer_.resize(new_shape.num_elements(), new_type);
@@ -528,7 +525,7 @@ void TensorVector<Backend>::reserve(size_t total_bytes) {
     tensors_.clear();
     curr_num_tensors_ = 0;
   }
-  state_.Update(BatchState::Contiguous);
+  state_.Setup(BatchState::Contiguous);
   contiguous_buffer_.reserve(total_bytes);
   UpdateViews();
 }
@@ -537,7 +534,7 @@ void TensorVector<Backend>::reserve(size_t total_bytes) {
 template <typename Backend>
 void TensorVector<Backend>::reserve(size_t bytes_per_sample, int batch_size) {
   assert(batch_size > 0);
-  state_.Update(BatchState::Noncontiguous);
+  state_.Setup(BatchState::Noncontiguous);
   resize_tensors(batch_size);
   for (int i = 0; i < curr_num_tensors_; i++) {
     tensors_[i].reserve(bytes_per_sample);
@@ -602,12 +599,12 @@ template <typename Backend>
 void TensorVector<Backend>::SetContiguous(BatchState state) {
   if (state == BatchState::Default) {
     // remove the force, keep the current state information
-    state_.Update(state_.Get(), false);
+    state_.Setup(state_.Get(), false);
     return;
   }
   DALI_ENFORCE(state_.Get() == state || !has_data(),
                "Contiguous or non-contiguous mode cannot be set to already allocated buffer.");
-  state_.Update(state, true);
+  state_.Setup(state, true);
 }
 
 template <typename Backend>
@@ -619,9 +616,9 @@ void TensorVector<Backend>::MakeContiguous(std::weak_ptr<void> owner) {
 
 template <typename Backend>
 void TensorVector<Backend>::MakeNoncontiguous() {
-  if (!state_.IsContiguous()) {
-    return;
-  }
+  // if (!state_.IsContiguous()) {
+  //   return;
+  // }
 
   state_.Update(BatchState::Noncontiguous);
   // We clear the contiguous_buffer_, as we are now non-contiguous.
@@ -702,7 +699,7 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
 template <typename Backend>
 void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
   // SetContiguous(BatchState::Contiguous);
-  state_.Update(BatchState::Contiguous);
+  state_.Setup(BatchState::Contiguous);
   type_ = in_tl.type_info();
   sample_dim_ = in_tl.shape().sample_dim();
   pinned_ = in_tl.is_pinned();
