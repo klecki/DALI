@@ -656,6 +656,10 @@ void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrde
                 shape(), type(), this->order());
 
   tmp.Copy(in_tl, order);
+  SetLayout(in_tl.GetLayout());
+  for (int i = 0; i < curr_num_tensors_; i++) {
+    SetMeta(i, in_tl.GetMeta(i));
+  }
 
   // sample_dim_ = in_tl.shape().sample_dim();
   // type_ = in_tl.type_info();
@@ -688,6 +692,10 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOr
 
   tmp.Copy(in_tv, order);
   SetLayout(in_tv.GetLayout());
+  for (int i = 0; i < curr_num_tensors_; i++) {
+    SetMeta(i, in_tv.GetMeta(i));
+  }
+
 
   // tl_->Copy(in_tv, order);
 
@@ -710,6 +718,10 @@ void TensorVector<Backend>::ShareData(const TensorList<Backend> &in_tl) {
   SetSize(shape_.num_samples());
 
   recreate_views();
+  SetLayout(in_tl.GetLayout());
+  for (int i = 0; i < curr_num_tensors_; i++) {
+    SetMeta(i, in_tl.GetMeta(i));
+  }
 
   // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
   // tl_->ShareData(in_tl);
@@ -741,6 +753,10 @@ void TensorVector<Backend>::ShareData(const TensorVector<Backend> &tv) {
     for (int i = 0; i < batch_size; i++) {
       tensors_[i].ShareData(tv.tensors_[i]);
     }
+  }
+  SetLayout(tv.GetLayout());
+  for (int i = 0; i < curr_num_tensors_; i++) {
+    SetMeta(i, tv.GetMeta(i));
   }
 }
 
