@@ -448,6 +448,7 @@ TEST_F(PipelineTestOnce, TestPresize) {
 
   pipe.Build(outputs);
   pipe.SetExternalInput("raw_jpegs", data);
+  pipe.SerializeToProtobuf();
   DeviceWorkspace ws;
   pipe.RunCPU();
   pipe.RunGPU();
@@ -456,6 +457,8 @@ TEST_F(PipelineTestOnce, TestPresize) {
   // we should not presize CPU buffers if they are not pinned
   ASSERT_EQ(*(ws.Output<CPUBackend>(0).tensor<size_t>(0)), 0);
 
+  // TODO: this is failing, as it is probably output to mixed stage, and after the change it is not
+  // automatically pinned. Revert the change or adjust to pin it or adjust the test.
   int ref_presize = RestrictPinnedMemUsage() ? 0 : presize_val_CPU;
   ASSERT_EQ(*(ws.Output<CPUBackend>(1).tensor<size_t>(0)), ref_presize);
 

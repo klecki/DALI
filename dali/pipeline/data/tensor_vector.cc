@@ -784,6 +784,15 @@ void TensorVector<Backend>::UpdateViews() {
   }
 }
 
+// TODO: move this to the class?
+TensorShape<> empty_shape(int dim) {
+  TensorShape<> result;
+  result.resize(dim);
+  for (auto &elem : result) {
+    elem = 0;
+  }
+  return result;
+}
 
 template <typename Backend>
 void TensorVector<Backend>::resize_tensors(int new_size) {
@@ -791,10 +800,15 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
     auto old_size = curr_num_tensors_;
     tensors_.resize(new_size);
     for (int i = old_size; i < new_size; i++) {
+      // TODO same validation as when updating properties - or reset
       tensors_[i].set_pinned(is_pinned());
       tensors_[i].set_order(order());
-      if (type() != DALI_NO_TYPE)
+      if (type() != DALI_NO_TYPE) {
         tensors_[i].set_type(type());
+        if (sample_dim_ >= 0){
+          tensors_[i].Resize(empty_shape(sample_dim()));
+        }
+      }
       tensors_[i].SetLayout(GetLayout());
       // TODO: ResetupTensor(...);
     }
