@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <string>
+#include "dali/core/access_order.h"
 #include "dali/pipeline/data/tensor_vector.h"
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -645,63 +646,198 @@ void TensorVector<Backend>::Reset() {
 }
 
 
-template <typename Backend>
-template <typename SrcBackend>
-void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &in_tl, AccessOrder order) {
-  // DO the contiguous resize when ready
-  Resize(in_tl.shape(), in_tl.type(), BatchState::Contiguous);  // TODO do we copy to contiguous?
-  // SetContiguous(true);
-  TensorList<Backend> tmp;
-  tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(), is_pinned(),
-                shape(), type(), this->order());
+/**
+ * @brief Pick the order for Copy to be run on.
+ *
+   * The copy ordering can be:
+   * - explict, as specified in `order`
+   * - the one from `src_order`, if set
+   * - the one from `dst_order`
+ * @return copy_order - order on which we will do the copy
+ */
+AccessOrder CopySyncBefore(AccessOrder dst_order, AccessOrder src_order, AccessOrder order) {
+  if (!order)
+    order = src_order ? src_order : dst_order;
 
-  tmp.Copy(in_tl, order);
-  SetLayout(in_tl.GetLayout());
-  for (int i = 0; i < curr_num_tensors_; i++) {
-    SetMeta(i, in_tl.GetMeta(i));
+  // Wait on the order on which we will run the copy for the work to finish on the dst
+  order.wait(dst_order);
+
+  return order;
+}
+
+/**
+ * @brief Wait for the reallocation to happen in the copy order, so we can actually proceed.
+ */
+void CopySyncResize(AccessOrder dst_order, AccessOrder copy_order) {
+  copy_order.wait(dst_order);
+}
+
+/**
+ * @brief Wait for the copy to finish in the order of the dst buffer.
+ */
+void CopySyncAfter(AccessOrder dst_order, AccessOrder copy_order) {
+  dst_order.wait(copy_order);
+}
+
+template <typename DstBackend, typename SrcBackend, template <typename> typename DstBatch,
+          template <typename> typename SrcBatch>
+void CopySamplewiseImpl(DstBatch<DstBackend> &dst, const SrcBatch<SrcBackend> &src,
+                        const TypeInfo &type_info, AccessOrder order = {},
+                        bool use_copy_kernel = false) {
+  auto num_samples = src.num_samples();
+  SmallVector<const void*, 256> srcs;
+  srcs.reserve(num_samples);
+  SmallVector<void*, 256> dsts;
+  dsts.reserve(num_samples);
+  SmallVector<Index, 256> sizes;
+  sizes.reserve(num_samples);
+  for (int i = 0; i < num_samples; i++) {
+    dsts.emplace_back(dst.raw_mutable_tensor(i));
+    srcs.emplace_back(src.raw_tensor(i));
+    sizes.emplace_back(src.shape()[i].num_elements());
   }
 
-  // sample_dim_ = in_tl.shape().sample_dim();
-  // type_ = in_tl.type_info();
-  // shape_ = in_tl.shape();
+  type_info.template Copy<SrcBackend, DstBackend>(dsts.data(), srcs.data(), sizes.data(),
+                                                  num_samples, order.stream(), use_copy_kernel);
+}
 
-  // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
-  // tl_->Copy(in_tl, order);
 
-  // resize_tensors(tl_->num_samples());
-  // UpdateViews();
+template <typename DstBackend, typename SrcBackend, template <typename> typename DstBatch>
+void CopySamplewiseImpl(DstBatch<DstBackend> &dst, const void *src,
+                        const TypeInfo &type_info, AccessOrder order = {},
+                        bool use_copy_kernel = false) {
+  auto num_samples = dst.num_samples();
+  SmallVector<void*, 256> dsts;
+  dsts.reserve(num_samples);
+  SmallVector<Index, 256> sizes;
+  sizes.reserve(num_samples);
+  for (int i = 0; i < num_samples; i++) {
+    dsts.emplace_back(dst.raw_mutable_tensor(i));
+    sizes.emplace_back(dst.shape()[i].num_elements());
+  }
+
+  type_info.template Copy<DstBackend, SrcBackend>(dsts.data(), src, sizes.data(),
+                                                  num_samples, order.stream(), use_copy_kernel);
+}
+
+
+template <typename DstBackend, typename SrcBackend, template <typename> typename SrcBatch>
+void CopySamplewiseImpl(void *dst, const SrcBatch<SrcBackend> &src, const TypeInfo &type_info,
+                        AccessOrder order = {}, bool use_copy_kernel = false) {
+  auto num_samples = src.num_samples();
+  SmallVector<const void*, 256> srcs;
+  srcs.reserve(num_samples);
+  SmallVector<Index, 256> sizes;
+  sizes.reserve(num_samples);
+  for (int i = 0; i < num_samples; i++) {
+    srcs.emplace_back(src.raw_tensor(i));
+    sizes.emplace_back(src.shape()[i].num_elements());
+  }
+
+  type_info.template Copy<DstBackend, SrcBackend>(dst, srcs.data(), sizes.data(),
+                                                  num_samples, order.stream(), use_copy_kernel);
 }
 
 
 template <typename Backend>
 template <typename SrcBackend>
-void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOrder order) {
-  // SetContiguous(true);
-  // type_ = in_tv.type_;
-  // sample_dim_ = in_tv.sample_dim_;
-  // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
-  // ADD a non-contiguous copy
+void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &src, AccessOrder order) {
+  auto copy_order = CopySyncBefore(this->order(), src.order(), order);
 
-  // DO the contiguous resize when ready
-  // SetContiguous(true);
-  Resize(in_tv.shape(), in_tv.type(), BatchState::Contiguous); // TODO do we copy to contiguous?
-  // SetContiguous(true);
-  TensorList<Backend> tmp;
-  tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(), is_pinned(),
-                shape(), type(), this->order());
+  Resize(src.shape(), src.type());
 
-  tmp.Copy(in_tv, order);
-  SetLayout(in_tv.GetLayout());
-  for (int i = 0; i < curr_num_tensors_; i++) {
-    SetMeta(i, in_tv.GetMeta(i));
+  CopySyncResize(this->order(), copy_order);
+
+  bool use_copy_kernel = false;
+  use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || src.is_pinned()) &&
+                     (std::is_same<Backend, GPUBackend>::value || this->is_pinned());
+
+  if (this->IsContiguous() && src.IsContiguous()) {
+    type_info().template Copy<Backend, SrcBackend>(contiguous_buffer_.raw_mutable_data(),
+                                                   unsafe_raw_data(src), shape().num_elements(),
+                                                   copy_order.stream(), use_copy_kernel);
+  } else if (this->IsContiguous() && !src.IsContiguous()) {
+    CopySamplewiseImpl<Backend, SrcBackend>(contiguous_buffer_.raw_mutable_data(), src, type_info(),
+                                            copy_order, use_copy_kernel);
+  } else if (!this->IsContiguous() && src.IsContiguous()) {
+    CopySamplewiseImpl<Backend, SrcBackend>(*this, unsafe_raw_data(src), type_info(), copy_order,
+                                            use_copy_kernel);
+  } else {
+    CopySamplewiseImpl<Backend, SrcBackend>(*this, src, type_info(), copy_order, use_copy_kernel);
   }
 
-
-  // tl_->Copy(in_tv, order);
-
-  // resize_tensors(tl_->num_samples());
-  // UpdateViews();
+  SetLayout(src.GetLayout());
+  for (int i = 0; i < curr_num_tensors_; i++) {
+    SetMeta(i, src.GetMeta(i));
+  }
+  CopySyncAfter(this->order(), copy_order);
 }
+
+
+template <typename Backend>
+template <typename SrcBackend>
+void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &src, AccessOrder order) {
+  auto copy_order = CopySyncBefore(this->order(), src.order(), order);
+
+  Resize(src.shape(), src.type());
+
+  CopySyncResize(this->order(), copy_order);
+
+  bool use_copy_kernel = false;
+  use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || src.is_pinned()) &&
+                     (std::is_same<Backend, GPUBackend>::value || this->is_pinned());
+
+  if (this->IsContiguous() && src.IsContiguous()) {
+    type_info().template Copy<Backend, SrcBackend>(
+        contiguous_buffer_.raw_mutable_data(), src.contiguous_buffer_.raw_data(),
+        shape().num_elements(), copy_order.stream(), use_copy_kernel);
+  } else if (this->IsContiguous() && !src.IsContiguous()) {
+    CopySamplewiseImpl<Backend, SrcBackend>(contiguous_buffer_.raw_mutable_data(), src, type_info(),
+                                            copy_order, use_copy_kernel);
+  } else if (!this->IsContiguous() && src.IsContiguous()) {
+    CopySamplewiseImpl<Backend, SrcBackend>(*this, src.contiguous_buffer_.raw_data(), type_info(),
+                                            copy_order, use_copy_kernel);
+  } else {
+    CopySamplewiseImpl<Backend, SrcBackend>(*this, src, type_info(), copy_order, use_copy_kernel);
+  }
+
+  SetLayout(src.GetLayout());
+  for (int i = 0; i < curr_num_tensors_; i++) {
+    SetMeta(i, src.GetMeta(i));
+  }
+  CopySyncAfter(this->order(), copy_order);
+}
+
+
+// template <typename Backend>
+// template <typename SrcBackend>
+// void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &in_tv, AccessOrder order) {
+//   // SetContiguous(true);
+//   // type_ = in_tv.type_;
+//   // sample_dim_ = in_tv.sample_dim_;
+//   // TODO !!! AS ALWAYS THE COPY IS THE PROBLEM
+//   // ADD a non-contiguous copy
+
+//   // DO the contiguous resize when ready
+//   // SetContiguous(true);
+//   Resize(in_tv.shape(), in_tv.type(), BatchState::Contiguous); // TODO do we copy to contiguous?
+//   // SetContiguous(true);
+//   TensorList<Backend> tmp;
+//   tmp.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.nbytes(), is_pinned(),
+//                 shape(), type(), this->order());
+
+//   tmp.Copy(in_tv, order);
+//   SetLayout(in_tv.GetLayout());
+//   for (int i = 0; i < curr_num_tensors_; i++) {
+//     SetMeta(i, in_tv.GetMeta(i));
+//   }
+
+
+//   // tl_->Copy(in_tv, order);
+
+//   // resize_tensors(tl_->num_samples());
+//   // UpdateViews();
+// }
 
 
 template <typename Backend>
