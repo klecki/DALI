@@ -626,7 +626,7 @@ graph even if its outputs are not used.)code", false);
    *                least potentially, e.g. when conditionally forwarding
    *                one of inputs to the output), but not vice versa.
    */
-  DLL_PUBLIC inline OpSchema &PassThrough(const std::map<int, int> &inout) {
+  DLL_PUBLIC inline OpSchema &PassThrough(const std::map<int, std::vector<int>> &inout) {
     passthrough_map_ = inout;
     return *this;
   }
@@ -794,11 +794,18 @@ graph even if its outputs are not used.)code", false);
    * @brief Returns the index of the output to which the input is passed.
    * @return Output index or -1 if given input is not passed through.
    */
-  DLL_PUBLIC inline int GetPassThroughOutputIdx(int input_idx) const {
+  DLL_PUBLIC inline std::vector<int> GetPassThroughOutputIdxs(int input_idx) const {
     auto it = passthrough_map_.find(input_idx);
     if (it == passthrough_map_.end())
-      return -1;
+      return {};
     return it->second;
+  }
+
+  DLL_PUBLIC inline bool IsPassThrough(int input_idx, int output_idx) const {
+    auto it = passthrough_map_.find(input_idx);
+    if (it == passthrough_map_.end())
+      return false;
+    return std::find(it->second.begin(), it->second.end(), output_idx) != it->second.end();
   }
 
   DLL_PUBLIC inline bool HasPassThrough() const {
@@ -962,7 +969,7 @@ graph even if its outputs are not used.)code", false);
 
   bool serializable_ = true;
 
-  std::map<int, int> passthrough_map_;
+  std::map<int, std::vector<int>> passthrough_map_;
 
   bool is_deprecated_ = false;
   std::string deprecated_in_favor_of_;
