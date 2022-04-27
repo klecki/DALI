@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2019, NVIDIA CORPORATION. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -561,7 +561,7 @@ std::vector<TensorNodeId> OpGraph::GetOutputs(const std::vector<string>& output_
         for (TensorNodeId parent_tid : Node(output.node).parent_tensors) {
           for (TensorMeta input : Tensor(parent_tid).consumers) {
             if (input.node == output.node &&
-                schema.GetPassThroughOutputIdx(input.index) == output.index) {
+                schema.IsPassThrough(input.index, output.index)) {
                 q.push_back(parent_tid);
             }
           }
@@ -580,10 +580,12 @@ bool OpGraph::HasConsumersInOtherStage(const TensorNode &tensor, OpType this_sta
       return true;
     }
     const OpSchema &schema = cons_op.spec.GetSchema();
-    int out_idx = schema.GetPassThroughOutputIdx(cons_edge.index);
-    if (out_idx >= 0) {
-      if (HasConsumersInOtherStage(Tensor(cons_op.children_tensors[out_idx]), this_stage))
+    auto out_idxs = schema.GetPassThroughOutputIdxs(cons_edge.index);
+    if (!out_idxs.empty()) {
+      for (auto out_idx : out_idxs) {
+        if (HasConsumersInOtherStage(Tensor(cons_op.children_tensors[out_idx]), this_stage))
         return true;
+      }
     }
   }
   return false;
