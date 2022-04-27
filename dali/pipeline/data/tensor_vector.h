@@ -24,6 +24,7 @@
 
 #include "dali/core/access_order.h"
 #include "dali/core/error_handling.h"
+#include "dali/core/tensor_layout.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
@@ -214,6 +215,10 @@ class DLL_PUBLIC TensorVector {
   DLL_PUBLIC void UnsafeCopySample(int sample_idx, const TensorVector<Backend> &src,
                                    int src_sample_idx, AccessOrder order = {});
 
+  DLL_PUBLIC void UnsafeCopySample(int sample_idx, const Tensor<Backend> &src,
+                                   AccessOrder order = {});
+
+
   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape) {
     DALI_ENFORCE(IsValidType(type()),
                  "TensorVector has no type, 'set_type<T>()' or Resize(shape, type) must be called "
@@ -297,12 +302,13 @@ class DLL_PUBLIC TensorVector {
   bool IsContiguous() const noexcept;
 
   /**
-   * @brief Set the current state if further calls like Resize() or set_type
-   *        should use contiguous or noncontiguous backing memory
+   * @brief Set the current state for further allocating calls like Resize() or set_type
+   *        to use contiguous or noncontiguous backing memory
+   *        Setting BatchState::Default allows to change it with every call to Resize().
    */
   void SetContiguous(BatchState state);
 
-  void MakeContiguous(std::weak_ptr<void> owner);
+  void MakeContiguous(std::weak_ptr<void> owner = {});
 
   void MakeNoncontiguous();
 
@@ -320,13 +326,15 @@ class DLL_PUBLIC TensorVector {
 
   TensorVector<Backend> &operator=(TensorVector<Backend> &&other) noexcept;
 
-  void UpdateViews();
-
  private:
-  // enum class State { contiguous, noncontiguous };
+  /**
+   * @brief Tracking the contiguous/noncontiguous state of the batch.
+   * By default we keep what was previously set when resizing and can change it during Resize
+   * unless it is enforced.
+   */
   class State {
    public:
-    // TODO(klecki): Do we set the "default" or specific one?
+    // TODO(klecki): Any sensible defaults?
     State() : contiguous_(false), forced_(false) {}
     State(BatchState state, bool forced) {
       DALI_ENFORCE(state != BatchState::Default);
@@ -335,6 +343,9 @@ class DLL_PUBLIC TensorVector {
     State(const State&) = default;
     State &operator=(const State&) = default;
 
+    /**
+     * @brief Override current state.
+     */
     void Setup(BatchState state, bool forced = false) {
       if (forced) {
         DALI_ENFORCE(state == BatchState::Contiguous || state == BatchState::Noncontiguous,
@@ -346,6 +357,14 @@ class DLL_PUBLIC TensorVector {
       forced_ = forced;
     }
 
+    /**
+     * @brief Update current state obeying the enforced state.
+     * BatchState::Default is always allowed and does not change the state
+     *
+     * State can be changed unless it is enforced, in that case it will raise an error.
+     *
+     * @return true if the state changed.
+     */
     bool Update(BatchState requested_state) {
       if (requested_state == BatchState::Default) {
         return false;
@@ -371,7 +390,6 @@ class DLL_PUBLIC TensorVector {
         return false;
       }
       if (forced_) {
-        // todo: better error
         DALI_ENFORCE(requested_state == Get(), "The state is enforced and cannot be changed");
       }
       return Get() != requested_state;
@@ -389,8 +407,6 @@ class DLL_PUBLIC TensorVector {
     bool contiguous_ = false;
     bool forced_ = false;
   };
-
-  State state_;
 
 
   // Forward declarations in signature, beware
@@ -417,10 +433,11 @@ class DLL_PUBLIC TensorVector {
     set_pinned(other.is_pinned());
   }
 
-  void SetupInPlace(State state, DALIDataType type, int num_samples, int sample_dim,
-                    TensorLayout layout, bool pinned, AccessOrder order);
-  void SetupWithResize(State state, DALIDataType type, const TensorListShape<> &shape,
-                       TensorLayout layout, bool pinned, AccessOrder order);
+  /**
+   * @brief Internal change of contiguity. Unconditionally make the batch non-contiguous.
+   * Assumes that the state_ will be adjusted separately
+   */
+  void DoMakeNoncontiguous();
 
   /**
    * @brief After RunImpl(SampleWorkspace&) operated on individual samples without propagating
@@ -434,33 +451,55 @@ class DLL_PUBLIC TensorVector {
 
   bool has_data() const;
 
-  struct ViewRefDeleter {
-    void operator()(void*) { --*ref; }
-    std::atomic<int> *ref;
-  };
-
   void resize_tensors(int size);
-
-  void update_view(int idx);
 
   void recreate_views();
 
-  // std::vector<std::shared_ptr<Tensor<Backend>>> tensors_;
-  int curr_num_tensors_;
-  // std::shared_ptr<TensorList<Backend>> tl_;
+  /**
+   * @brief Check if the metadata provided for new sample match the ones currently set for the batch
+   *
+   * When setting new sample, the source shape doesn't matter as it is adjusted for individual
+   * sample.
+   *
+   * When setting new sample the `shape_` must be adjusted.
+   *
+   * @param error_suffix Additional description added to the error message
+   */
+  void VerifySampleShareConformance(DALIDataType type, int sample_dim, TensorLayout layout,
+                                    bool pinned, AccessOrder order,
+                                    const std::string &error_suffix = ".");
 
-  std::vector<Tensor<Backend>> tensors_;
+  /**
+   * @brief Check if the metadata provided for new sample match the ones currently set for the batch
+   *
+   * When copying new sample, pinned status and order of source and destination buffer can be
+   * different. Necessary synchronization is handled by the copy itself.
+   *
+   * When copying new sample the `shape_` must be adjusted.
+   *
+   * @param error_suffix Additional description added to the error message
+   */
+  void VerifySampleCopyConformance(DALIDataType type, int sample_dim, TensorLayout layout,
+                                   const TensorShape<> &current_shape,
+                                   const TensorShape<> &new_shape,
+                                   const std::string &error_suffix = ".");
+
+  // Memory backing
   Buffer<Backend> contiguous_buffer_;
   std::weak_ptr<void> buffer_bkp_;
+  // Memory, sample aliases and metadata - TODO(klecki): Remove SampleWorkspace and swap to plain
+  // Buffer instead of using actual Tensors.
+  std::vector<Tensor<Backend>> tensors_;
 
-
-  // State state_ = State::noncontiguous;
+  // State and metadata that should be uniform regardless of the contiguity state.
+  // Sample aliases should match the information stored below.
+  State state_;
+  int curr_num_tensors_;
   TypeInfo type_{};
   int sample_dim_ = -1;
   TensorListShape<> shape_;
   TensorLayout layout_;
 
-  // pinned status and type info should be uniform
   bool pinned_ = true;
   AccessOrder order_;
 
