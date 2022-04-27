@@ -937,7 +937,11 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
     tensors_.resize(new_size);
     for (int i = old_size; i < new_size; i++) {
       // TODO same validation as when updating properties - or reset
-      tensors_[i].set_pinned(is_pinned());
+      if (!tensors_[i].has_data()) {
+        tensors_[i].set_pinned(is_pinned());
+      } else {
+        DALI_ENFORCE(tensors_[i].is_pinned() == is_pinned());
+      }
       tensors_[i].set_order(order());
       if (type() != DALI_NO_TYPE) {
         tensors_[i].set_type(type());
