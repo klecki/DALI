@@ -595,11 +595,11 @@ class SequenceOperator : public Operator<Backend> {
     return tv_builder.take();
   }
 
-  template <typename DataBackend>
-  TensorList<DataBackend> UnfoldOuterDims(const TensorList<DataBackend> &data,
-                                          const ExpandDesc &expand_desc) {
-    return sequence_utils::unfold_outer_dims(data, expand_desc.NumDimsToExpand());
-  }
+  // template <typename DataBackend>
+  // TensorList<DataBackend> UnfoldOuterDims(const TensorList<DataBackend> &data,
+  //                                         const ExpandDesc &expand_desc) {
+  //   return sequence_utils::unfold_outer_dims(data, expand_desc.NumDimsToExpand());
+  // }
 
   std::vector<ExpandDesc> input_expand_desc_;
   USE_OPERATOR_MEMBERS();
