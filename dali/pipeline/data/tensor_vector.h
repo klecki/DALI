@@ -83,7 +83,7 @@ class DLL_PUBLIC TensorVector {
    * contiguous. It returns true if and only if
    * all of the stored Tensors are densely packed in memory.
    */
-  inline bool IsContiguousTensor() const;
+  bool IsContiguousTensor() const;
   // {
   //   if (num_samples() == 0 || _num_elements() == 0) {
   //     return true;
@@ -108,7 +108,7 @@ class DLL_PUBLIC TensorVector {
    * all of the stored Tensors have the same shape
    * and they are densely packed in memory.
    */
-  inline bool IsDenseTensor() const;
+  bool IsDenseTensor() const;
   // {
   //   if (num_samples() == 0 || _num_elements() == 0) {
   //     return true;
@@ -136,7 +136,7 @@ class DLL_PUBLIC TensorVector {
    * @brief Returns a Tensor view with given shape or nullptr if no
    * such exists
    */
-  inline Tensor<Backend> *GetViewWithShape(const TensorShape<> &shape);
+  Tensor<Backend> *GetViewWithShape(const TensorShape<> &shape);
   // {
   //   for (auto &t : tensor_views_) {
   //     if (t.shape() == shape) {
@@ -152,7 +152,7 @@ class DLL_PUBLIC TensorVector {
    * Tensor list owns the memory. The tensor obtained through
    * this function stays valid for as long as TensorList data is unchanged.
    */
-  DLL_PUBLIC inline Tensor<Backend> * AsReshapedTensor(const TensorShape<> &new_shape);
+  DLL_PUBLIC Tensor<Backend> * AsReshapedTensor(const TensorShape<> &new_shape);
   // {
   //   auto t = GetViewWithShape(new_shape);
   //   if (t) {
@@ -182,7 +182,7 @@ class DLL_PUBLIC TensorVector {
   //   return &tensor;
   // }
 
-  DLL_PUBLIC inline Tensor<Backend> * AsTensor();
+  DLL_PUBLIC Tensor<Backend> * AsTensor();
   // {
   //   // To prevent situation when AsReshapedTensor is called first with some shape, and then
   //   // AsTensor which return non-dense tensor after all
@@ -456,9 +456,7 @@ class DLL_PUBLIC TensorVector {
   TensorVector<Backend> &operator=(TensorVector<Backend> &&other) noexcept;
 
   bool has_data() const;
-  bool shares_data() const {
-    DALI_FAIL("Do we really need it?");
-  }
+  bool shares_data() const;
 
 
  private:
