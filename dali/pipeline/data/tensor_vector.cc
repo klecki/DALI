@@ -834,6 +834,7 @@ void TensorVector<Backend>::ShareData(const shared_ptr<void> &ptr, size_t bytes,
   contiguous_buffer_.set_order(order);
   buffer_bkp_.reset();
   tensors_.clear();
+  tensors_.resize(shape.num_samples());
 
   state_.Update(BatchState::Contiguous);
   curr_num_tensors_ = shape.num_samples();
