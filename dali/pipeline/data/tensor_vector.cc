@@ -938,6 +938,22 @@ bool TensorVector<Backend>::has_data() const {
   return false;
 }
 
+template <typename Backend>
+bool TensorVector<Backend>::shares_data() const {
+  // TODO: I would like to get rid of some of this
+  if (IsContiguous()) {
+    return contiguous_buffer_.shares_data();
+  }
+  for (const auto &tensor : tensors_) {
+    if (tensor.shares_data() &&
+        !same_owner(contiguous_buffer_.get_data_ptr(), tensor.get_data_ptr())) { // todo buffer_bkp_?
+      return true;
+    }
+  }
+  return false;
+}
+
+
 template class DLL_PUBLIC TensorVector<CPUBackend>;
 template class DLL_PUBLIC TensorVector<GPUBackend>;
 template void TensorVector<CPUBackend>::Copy<CPUBackend>(const TensorVector<CPUBackend>&, AccessOrder, bool);  // NOLINT
