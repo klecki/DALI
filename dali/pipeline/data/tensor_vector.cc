@@ -14,6 +14,8 @@
 
 #include <string>
 #include "dali/core/access_order.h"
+#include "dali/core/tensor_layout.h"
+#include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/tensor_vector.h"
 #include "dali/core/common.h"
 #include "dali/core/error_handling.h"
@@ -160,6 +162,13 @@ TensorVector<Backend>::TensorVector() : curr_num_tensors_(0) {}
 
 template <typename Backend>
 TensorVector<Backend>::TensorVector(int batch_size) : curr_num_tensors_(0) {
+  // This is why we can't have nice things as `dim = 0` is already occupied
+  // by competing functionality, we need to guard ourself from thinking we have some scalar
+  // allocation where in fact we just have empty samples.
+  // So instead we set the dim to 1, and the resize_tensor will cause the shape to be resized
+  // to appropriate number of samples and 0-initialized, so copy from batch to batch,
+  // using this as (empty) source still works. Maybe there is a better solution to this problem.
+  set_sample_dim(1);
   resize_tensors(batch_size);
 }
 
@@ -190,29 +199,76 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
   return *this;
 }
 
+// This is to check if we are actually laid down in contiguous memory
+// TODO: make this internal and name it something like: IsContiguouoususlyStored?
 template <typename Backend>
 bool TensorVector<Backend>::IsContiguousTensor() const {
-  DALI_FAIL("NYI");
+  if (num_samples() == 0 || shape().num_elements() == 0) {
+    return true;
+  }
+  // if we are using contiguous representation in this case we can safely return? - TODO
+  if (IsContiguous()) {
+    return true;
+  }
+  const uint8_t *base_ptr = static_cast<const uint8_t*>(tensors_[0].raw_data());
+  size_t size = type_info().size();
+
+  for (int i = 0; i < shape_.size(); ++i) {
+    if (base_ptr != tensors_[i].raw_data()) {
+      return false;
+    }
+    base_ptr += shape_[i].num_elements() * size;
+  }
+  return true;
 }
 
+// TODO(klecki): to remove
 template <typename Backend>
 bool TensorVector<Backend>::IsDenseTensor() const {
+  return IsContiguous() && is_uniform(shape());
+}
+
+// TODO(klecki): To Remove, this was cacheing, I'm removing the cache of shape lookups
+// it's not that common operation
+template <typename Backend>
+Tensor<Backend> *TensorVector<Backend>::GetViewWithShape(const TensorShape<> &shape) {
   DALI_FAIL("NYI");
 }
 
+
 template <typename Backend>
-Tensor<Backend> * TensorVector<Backend>::GetViewWithShape(const TensorShape<> &shape) {
-  DALI_FAIL("NYI");
+Tensor<Backend> TensorVector<Backend>::AsReshapedTensor(const TensorShape<> &new_shape) {
+  DALI_ENFORCE(num_samples() > 0,
+               "To create a view Tensor, the batch must have at least 1 element.");
+  DALI_ENFORCE(IsValidType(type()),
+               "To create a view Tensor, the batch must have a valid data type.");
+  DALI_ENFORCE(has_data(), "To create a view Tensor, the batch must have a valid data allocation.");
+
+  DALI_ENFORCE(
+      shape().num_elements() == new_shape.num_elements(),
+      make_string("To create a view Tensor, requested shape need to have the same volume as the "
+                  "batch, requested: ",
+                  new_shape.num_elements(), " expected: ", shape().num_elements()));
+  Tensor<Backend> result;
+  result.ShareData(contiguous_buffer_.get_data_ptr(), contiguous_buffer_.capacity(),
+                   contiguous_buffer_.is_pinned(), new_shape, type(), order());
+  auto result_layout = GetLayout();
+  if (!GetLayout().empty()) {
+    result_layout = TensorLayout("N") + result_layout;
+  }
+  result.SetLayout(result_layout);
+  return result; // heh
 }
 
 template <typename Backend>
-Tensor<Backend> *  TensorVector<Backend>::AsReshapedTensor(const TensorShape<> &new_shape) {
-  DALI_FAIL("NYI");
-}
-
-template <typename Backend>
-Tensor<Backend> *  TensorVector<Backend>::AsTensor() {
-  DALI_FAIL("NYI");
+Tensor<Backend> TensorVector<Backend>::AsTensor() {
+  DALI_ENFORCE(IsDenseTensor(),
+               "The batch must be represanteble tensor - it must has uniform shape and be "
+               "allocated in contiguous memory.");
+  DALI_ENFORCE(shape().num_samples() > 0,
+               "To create a view Tensor, the batch must have at least 1 element.");
+  DALI_ENFORCE(shape()[0].num_elements() > 0, "To create a view Tensor, sample must not be empty.");
+  return AsReshapedTensor(shape_cat(shape().num_samples(), shape()[0]));
 }
 
 template <typename Backend>

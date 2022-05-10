@@ -949,7 +949,7 @@ void ExposeTensorList(py::module &m) {
 
       )code")
     .def("as_reshaped_tensor",
-        [](TensorList<CPUBackend> &tl, const vector<Index> &new_shape) -> Tensor<CPUBackend>* {
+        [](TensorList<CPUBackend> &tl, const vector<Index> &new_shape) {
           return tl.AsReshapedTensor(new_shape);
         },
       R"code(
@@ -957,15 +957,13 @@ void ExposeTensorList(py::module &m) {
 
       This function can only be called if `TensorList` is contiguous in memory and
       the volumes of requested `Tensor` and `TensorList` matches.
-      )code",
-      py::return_value_policy::reference_internal)
+      )code")
     .def("as_tensor", &TensorList<CPUBackend>::AsTensor,
       R"code(
       Returns a tensor that is a view of this `TensorList`.
 
       This function can only be called if `is_dense_tensor` returns `True`.
-      )code",
-      py::return_value_policy::reference_internal)
+      )code")
     .def("data_ptr",
         [](TensorList<CPUBackend> &tl) {
           return py::reinterpret_borrow<py::object>(
@@ -1055,6 +1053,7 @@ void ExposeTensorList(py::module &m) {
     .def("as_cpu", [](TensorList<GPUBackend> &t) {
           auto ret = std::make_shared<TensorList<CPUBackend>>();
           ret->set_pinned(false);
+          ret->SetContiguous(BatchState::Contiguous);
           UserStream * us = UserStream::Get();
           cudaStream_t s = us->GetStream(t);
           DeviceGuard g(t.device_id());
@@ -1147,7 +1146,7 @@ void ExposeTensorList(py::module &m) {
       return t.GetLayout().str();
     })
     .def("as_reshaped_tensor",
-        [](TensorList<GPUBackend> &tl, const vector<Index> &new_shape) -> Tensor<GPUBackend>* {
+        [](TensorList<GPUBackend> &tl, const vector<Index> &new_shape) {
           return tl.AsReshapedTensor(new_shape);
         },
       R"code(
@@ -1155,15 +1154,13 @@ void ExposeTensorList(py::module &m) {
 
       This function can only be called if `TensorList` is contiguous in memory and
       the volumes of requested `Tensor` and `TensorList` matches.
-      )code",
-      py::return_value_policy::reference_internal)
+      )code")
     .def("as_tensor", &TensorList<GPUBackend>::AsTensor,
       R"code(
       Returns a tensor that is a view of this `TensorList`.
 
       This function can only be called if `is_dense_tensor` returns `True`.
-      )code",
-      py::return_value_policy::reference_internal)
+      )code")
     .def("data_ptr",
         [](TensorList<GPUBackend> &tl) {
           return py::reinterpret_borrow<py::object>(

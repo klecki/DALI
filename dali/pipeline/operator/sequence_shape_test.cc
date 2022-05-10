@@ -227,6 +227,7 @@ class SequenceShapeUnfoldTLTest : public ::testing::Test {
     constexpr bool is_device = std::is_same_v<Backend, GPUBackend>;
     batch.set_order(is_device ? AccessOrder(cuda_stream) : AccessOrder::host());
     batch.set_pinned(is_pinned);
+    batch.SetContiguous(BatchState::Contiguous);
     batch.Resize(shape, dtype);
     if (!layout.empty()) {
       batch.SetLayout(layout);
