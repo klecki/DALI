@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include "dali/core/nvtx.h"
+#include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/operator/builtin/make_contiguous.h"
+#include "dali/pipeline/workspace/device_workspace.h"
 
 namespace dali {
 
@@ -52,6 +54,19 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
   }
 }
 
+void MakeContiguousGPU::RunImpl(DeviceWorkspace &ws) {
+  const auto& input = ws.template Input<GPUBackend>(0);
+  auto& output = ws.template Output<GPUBackend>(0);
+  // todo: we need conditional passthrough
+  // if (input.IsContiguous()) {
+  //   output.ShareData(input);
+  // } else {
+  output.Copy(input);
+  // }
+}
+
+
 DALI_REGISTER_OPERATOR(MakeContiguous, MakeContiguousMixed, Mixed);
+DALI_REGISTER_OPERATOR(MakeContiguous, MakeContiguousGPU, GPU);
 
 }  // namespace dali
