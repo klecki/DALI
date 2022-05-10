@@ -39,4 +39,6 @@ DALI_SCHEMA(MakeContiguous)
   .NumOutput(1)
   .MakeInternal();
 
+DALI_REGISTER_OPERATOR(MakeContiguous, MakeContiguousCPU, CPU);
+
 }  // namespace dali
