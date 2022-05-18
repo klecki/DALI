@@ -47,7 +47,7 @@ class MakeContiguousBase : public Operator<Backend> {
   virtual inline ~MakeContiguousBase() = default;
 
   bool CanInferOutputs() const override {
-    return true;
+    return !pass_through_;
   }
 
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
@@ -62,16 +62,31 @@ class MakeContiguousBase : public Operator<Backend> {
       output_desc[0].shape = input.shape();
       output_desc[0].type = input.type();
     }
-    return true;
+    return !pass_through_;
   }
 
   DISABLE_COPY_MOVE_ASSIGN(MakeContiguousBase);
+
+  /**
+   * @brief Intended to be called by the executor. If the executor guarantees that the input
+   * to the make contiguous is always contiguous and we can safely pass through the data
+   * (so the executor queueing will be taken into account)
+   *
+   */
+  void MarkPassThrough() {
+    pass_through_ = true;
+  }
+
+  bool IsPassThrough() const {
+    return pass_through_;
+  }
 
  protected:
   USE_OPERATOR_MEMBERS();
   TensorList<CPUBackend> cpu_output_buff;
   bool coalesced = true;
   int bytes_per_sample_hint = 0;
+  bool pass_through_ = false;
 };
 
 
@@ -105,6 +120,10 @@ class MakeContiguousCPU : public MakeContiguousBase<CPUBackend> {
   void RunImpl(HostWorkspace &ws) override;
   DISABLE_COPY_MOVE_ASSIGN(MakeContiguousCPU);
 };
+
+bool IsPassThrough(const OperatorBase &op);
+
+void MarkPassThrough(OperatorBase &op);
 
 }  // namespace dali
 

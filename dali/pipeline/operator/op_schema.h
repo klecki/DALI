@@ -621,6 +621,10 @@ graph even if its outputs are not used.)code", false);
    * own the storage and the associated input should be included in double-buffering
    * whenever the output should.
    *
+   * TODO(klecki): Split this into pure PassThrough, with possibly 1-1 correspondence
+   * and the ShareThrough, BorrowThrough or whatever, where we can have combinations
+   * used by SplitBatch and MergeBatch operations
+   *
    * @param inout - tells which inputs are passed through to which outputs.
    *                Multiple inputs can be passed through to one output (at
    *                least potentially, e.g. when conditionally forwarding
