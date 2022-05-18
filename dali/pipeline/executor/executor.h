@@ -258,7 +258,7 @@ class DLL_PUBLIC Executor : public ExecutorBase, public QueuePolicy {
 
   virtual std::vector<int> GetTensorQueueSizes(const OpGraph &graph);
 
-  virtual void SetupOutputInfo(const OpGraph &graph);
+  virtual void SetupOutputInfo(OpGraph &graph);
 
   std::vector<int> GetMemoryHints(const OpNode &node);
 
@@ -606,9 +606,12 @@ void Executor<WorkspacePolicy, QueuePolicy>::PruneUnusedGraphNodes() {
 }
 
 template <typename WorkspacePolicy, typename QueuePolicy>
-void Executor<WorkspacePolicy, QueuePolicy>::SetupOutputInfo(const OpGraph &graph) {
+void Executor<WorkspacePolicy, QueuePolicy>::SetupOutputInfo(OpGraph &graph) {
   DeviceGuard g(device_id_);
   pipeline_outputs_ = graph.GetOutputs(output_names_);
+
+
+  graph.SetupMakeContiguousPassThrough(output_names_);
 
   // If there are GPU outputs from given stages, we have to wait for them
   auto has_gpu_output = [] (OpType stage_type, const auto &pipeline_outputs,

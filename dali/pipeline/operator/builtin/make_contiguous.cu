@@ -39,7 +39,11 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
   if (ws.OutputIsType<CPUBackend>(0)) {
     auto &output = ws.Output<CPUBackend>(0);
     DomainTimeRange tr("[DALI][MakeContiguousMixed] non coalesced", DomainTimeRange::kGreen);
-    output.Copy(input);
+    if (IsPassThrough()) {
+      output.ShareData(input);
+    } else {
+      output.Copy(input);
+    }
   } else {
     auto &output = ws.Output<GPUBackend>(0);
     if (coalesced) {
@@ -61,7 +65,11 @@ void MakeContiguousGPU::RunImpl(DeviceWorkspace &ws) {
   // if (input.IsContiguous()) {
   //   output.ShareData(input);
   // } else {
-  output.Copy(input);
+  if (IsPassThrough()) {
+    output.ShareData(input);
+  } else {
+    output.Copy(input);
+  }
   // }
 }
 
