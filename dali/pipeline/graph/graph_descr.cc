@@ -542,14 +542,14 @@ bool OpGraph::IsAlwaysContiguous(TensorNodeId tensor_id) const {
   auto producer_op_node_id = Tensor(tensor_id).producer.node;
   auto &producer_op_node = Node(producer_op_node_id);
 
-  std::cout << "Checking contiguity for " << tensor_id << std::endl;
+  // std::cout << "Checking contiguity for " << tensor_id << std::endl;
 
   // By definition everything returned by MakeContiguous is contiguous.
   // If we are preceeded by a MakeContiguous acting as CPU -> GPU copy, we can always forward
   // it to the output.
   if (producer_op_node.spec.GetSchema().name() == "MakeContiguous") {
 
-    std::cout << "Produced by " << producer_op_node_id << " MakeContiguous" << std::endl;
+    // std::cout << "Produced by " << producer_op_node_id << " MakeContiguous" << std::endl;
     return true;
   }
 
@@ -557,7 +557,7 @@ bool OpGraph::IsAlwaysContiguous(TensorNodeId tensor_id) const {
   // this means we can just pass through the data instead of copying them.
   bool is_input_always_contiguous = producer_op_node.op->CanInferOutputs();
   if (is_input_always_contiguous) {
-    std::cout << "Produced by " << producer_op_node_id << " that infers outputs" << std::endl;
+    // std::cout << "Produced by " << producer_op_node_id << " that infers outputs" << std::endl;
     return true;
   }
 
@@ -565,13 +565,13 @@ bool OpGraph::IsAlwaysContiguous(TensorNodeId tensor_id) const {
   auto possible_sources = FollowPassThroughUp(producer_op_node_id, tensor_id, true);
   // we were not passed through, we can assume that we are produced non-contiguous
   if (possible_sources.empty()) {
-    std::cout << "Empty pass through " << std::endl;
+    // std::cout << "Empty pass through " << std::endl;
     return false;
   }
   // check on all of the pass through paths that we are contiguous
   for (auto source_id : possible_sources) {
 
-    std::cout << "Pass through via tensor: " << source_id << std::endl;
+    // std::cout << "Pass through via tensor: " << source_id << std::endl;
     if (!IsAlwaysContiguous(source_id)) {
       return false;
     }
@@ -602,7 +602,7 @@ std::vector<TensorNodeId> OpGraph::GetOutputs(const std::vector<string>& output_
       auto output = Tensor(tid).producer;
       auto &output_op_node = Node(output.node);
       auto &schema = output_op_node.spec.GetSchema();
-      std::cout << schema.name() << std::endl;
+      // std::cout << schema.name() << std::endl;
       // Special PassThrough handling for built-in operator. We calculate it via earlier pass.
       if (schema.name() == "MakeContiguous") {
         if (IsPassThrough(*output_op_node.op)) {
@@ -626,7 +626,7 @@ void OpGraph::SetupMakeContiguousPassThrough(const std::vector<string>& output_n
   for (int i = 0; i < NumOp(); i++) {
     auto &node = Node(i);
     if (node.spec.GetSchema().name() == "MakeContiguous") {
-      std::cout << "Processing: " << node.instance_name << " " <<  node.partition_index << " " << node.id << " MakeContiguous" << std::endl;
+      // std::cout << "Processing: " << node.instance_name << " " <<  node.partition_index << " " << node.id << " MakeContiguous" << std::endl;
 
       // sanity check, we have 1 input and 1 output in make contiguous
       assert(node.parent_tensors.size() == 1);
@@ -634,7 +634,7 @@ void OpGraph::SetupMakeContiguousPassThrough(const std::vector<string>& output_n
 
       bool same_device = Tensor(node.parent_tensors[0]).producer.storage_device ==
                          Tensor(node.children_tensors[0]).producer.storage_device;
-      std::cout << "Is same device: " << same_device << std::endl;
+      // std::cout << "Is same device: " << same_device << std::endl;
       if (IsAlwaysContiguous(node.parent_tensors[0]) && same_device) {
         MarkPassThrough(*node.op);
       }
