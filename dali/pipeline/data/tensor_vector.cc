@@ -520,6 +520,20 @@ void TensorVector<Backend>::set_order(AccessOrder order, bool synchronize) {
   // device id without changing it
 }
 
+// TODO(klecki): now the type and shape are kept at the batch level, soooo
+// TODO(klecki): we should probably error out on the out of bounds access, as the samples
+// will still exist, but might be not kept up to date :V
+template <typename Backend>
+SampleView<Backend> TensorVector<Backend>::operator[](size_t pos) {
+  DALI_ENFORCE(pos < static_cast<size_t>(curr_num_tensors_), "Out of bounds access");
+  return {tensors_[pos].raw_mutable_data(), shape().tensor_shape_span(pos), tensors_[pos].type()};
+}
+
+template <typename Backend>
+ConstSampleView<Backend> TensorVector<Backend>::operator[](size_t pos) const {
+  DALI_ENFORCE(pos < static_cast<size_t>(curr_num_tensors_), "Out of bounds access");
+  return {tensors_[pos].raw_data(), shape().tensor_shape_span(pos), tensors_[pos].type()};
+}
 
 template <typename Backend>
 void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataType new_type,
