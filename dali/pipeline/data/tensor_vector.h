@@ -243,7 +243,6 @@ class DLL_PUBLIC TensorVector {
   DLL_PUBLIC void UnsafeCopySample(int sample_idx, const Tensor<Backend> &src,
                                    AccessOrder order = {});
 
-
   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape) {
     DALI_ENFORCE(IsValidType(type()),
                  "TensorVector has no type, 'set_type<T>()' or Resize(shape, type) must be called "
@@ -251,6 +250,23 @@ class DLL_PUBLIC TensorVector {
     return Resize(new_shape, type());
   }
 
+  /**
+   * @brief Resize the batch to fit the new shape. It is possible to change the type and
+   * dimensionality this way, as well as specify if we want the allocation to happen for individual
+   * samples or contiguous one for all samples. If the currently allocated memory is enough for the
+   * requested shape, no allocation would be made. In non-contiguous mode (or when switching to it),
+   * each sample would be resized individually.
+   *
+   * Resizing samples that are using external backing allocation (sharing data via SetSample)
+   * is not allowed to cause new allocation.
+   * @param new_shape requested shape
+   * @param new_type requested type
+   * @param state Optional change of contiguity mode.
+   *    * Default keeps the current one,
+   *    * Contiguous forces the allocation to be contiguous
+   *    * Noncontiguous - detach all samples, and use them separately, the contiguous buffer
+   *      might still be used as backing storage until new allocations are needed for all samples
+   */
   DLL_PUBLIC void Resize(const TensorListShape<> &new_shape, DALIDataType new_type,
                          BatchState state = BatchState::Default);
 

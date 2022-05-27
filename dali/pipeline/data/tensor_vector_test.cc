@@ -18,6 +18,8 @@
 
 #include "dali/core/format.h"
 #include "dali/core/tensor_shape.h"
+#include "dali/pipeline/data/backend.h"
+#include "dali/pipeline/data/buffer.h"
 #include "dali/pipeline/data/tensor_vector.h"
 #include "dali/pipeline/data/types.h"
 #include "dali/pipeline/data/views.h"
@@ -73,7 +75,7 @@ TYPED_TEST_SUITE(TensorVectorSuite, Backends);
 //   t.
 // }
 
-TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
+TYPED_TEST(TensorVectorSuite, NewSetupAndSetSizeNoncontiguous) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
   const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
@@ -81,7 +83,6 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
   tv.set_sample_dim(2);
   tv.SetLayout("XY");
   tv.SetContiguous(BatchState::Noncontiguous);
-  // TODO: without a type, accessing the elements doesn't make sense
   tv.SetSize(3);
 
 
@@ -92,6 +93,7 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
     EXPECT_EQ(tv[i].type(), DALI_NO_TYPE);
   }
 
+  // Setting just the type
   tv.set_type(DALI_INT32);
   for (int i = 0; i < 3; i++) {
     EXPECT_EQ(tv[i].raw_data(), nullptr);
@@ -104,6 +106,7 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
   t.Resize({2, 3}, DALI_INT32);
   t.SetLayout("XY");
 
+  // We need to propagate device id. What about the order?
   tv.set_device_id(t.device_id());
 
   for (int i = 0; i < 3; i++) {
@@ -114,7 +117,8 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
   }
 
   tv.SetSize(4);
-  EXPECT_EQ(tv[3].raw_data(), nullptr); // hmmm
+  // New one should be empty
+  EXPECT_EQ(tv[3].raw_data(), nullptr);
   EXPECT_EQ(tv[3].shape(), empty_2d);
   EXPECT_EQ(tv[3].type(), DALI_INT32);
 
@@ -126,12 +130,19 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
     EXPECT_EQ(tv[i].type(), t.type());
   }
 
+  // As we were sharing, the share is removed and no allocation should happen
   for (int i = 2; i < 3; i++) {
-    EXPECT_EQ(tv[i].raw_data(), nullptr); // hmmm
+    EXPECT_EQ(tv[i].raw_data(), nullptr);
     EXPECT_EQ(tv[i].shape(), empty_2d);
     EXPECT_EQ(tv[i].type(), DALI_INT32);
   }
+
+  // There should be no access to the out of bounds one
   EXPECT_THROW(tv[3], std::runtime_error);
+
+  // We are sharing, no way to make it bigger
+  EXPECT_THROW(tv.Resize(uniform_list_shape(3, {10, 12, 3})), std::runtime_error);
+
 
   TensorVector<TypeParam> tv_like_t, tv_like_tv;
   tv_like_t.SetupLike(t);
@@ -139,6 +150,278 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
 
 }
 
+
+TYPED_TEST(TensorVectorSuite, NewResizeSetSize) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
+  TensorVector<TypeParam> tv;
+  tv.set_pinned(false);
+  tv.set_sample_dim(2);
+  tv.SetLayout("XY");
+  tv.SetContiguous(BatchState::Contiguous);
+  tv.SetSize(3);
+
+
+  auto empty_2d = TensorShape<>{0, 0};
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), empty_2d);
+    EXPECT_EQ(tv[i].type(), DALI_NO_TYPE);
+  }
+
+  // Setting just the type
+  tv.set_type(DALI_INT32);
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), empty_2d);
+    EXPECT_EQ(tv[i].type(), DALI_INT32);
+  }
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape);
+  tv.SetLayout("HWC");
+
+  const auto *base = static_cast<const uint8_t*>(unsafe_raw_data(tv));
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(tv[i].raw_data(), base);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_INT32);
+    base += sizeof(int32_t) * new_shape[i].num_elements();
+  }
+
+  tv.SetSize(4);
+
+  auto empty_3d = TensorShape<>{0, 0, 0};
+
+  // New one should be empty
+  EXPECT_EQ(tv[3].raw_data(), nullptr);
+  EXPECT_EQ(tv[3].shape(), empty_3d);
+  EXPECT_EQ(tv[3].type(), DALI_INT32);
+
+  tv.SetSize(2);
+  tv.SetSize(3);
+
+  base = static_cast<const uint8_t*>(unsafe_raw_data(tv));
+
+  for (int i = 0; i < 2; i++) {
+    EXPECT_EQ(tv[i].raw_data(), base);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_INT32);
+    base += sizeof(int32_t) * new_shape[i].num_elements();
+  }
+
+  // As we contiguous, thus sharing the contiguous buffer via sample, the share is removed
+  // and no allocation should happen
+  for (int i = 2; i < 3; i++) {
+    EXPECT_EQ(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), empty_3d);
+    EXPECT_EQ(tv[i].type(), DALI_INT32);
+  }
+
+  // // There should be no access to the out of bounds one
+  // EXPECT_THROW(tv[3], std::runtime_error);
+
+  // TensorVector<TypeParam> tv_like_t, tv_like_tv;
+  // tv_like_t.SetupLike(t);
+  // tv_like_tv.SetupLike(tv);
+
+}
+
+
+TYPED_TEST(TensorVectorSuite, NewNoForcedChangeContToNon) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Contiguous);
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  EXPECT_THROW(tv.Resize(new_shape, DALI_FLOAT, BatchState::Noncontiguous), std::runtime_error);
+}
+
+TYPED_TEST(TensorVectorSuite, NewNoForcedChangeNonToCont) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Noncontiguous);
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  EXPECT_THROW(tv.Resize(new_shape, DALI_FLOAT, BatchState::Contiguous), std::runtime_error);
+}
+
+
+TYPED_TEST(TensorVectorSuite, NewContiguousResize) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Contiguous);
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape, DALI_FLOAT);
+
+  for (int i = 0; i < 3; i++) {
+    tv.UnsafeCopySample(i, tv, i);
+  }
+
+  const auto *base = static_cast<const uint8_t*>(unsafe_raw_data(tv));
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(tv[i].raw_data(), base);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+    base += sizeof(float) * new_shape[i].num_elements();
+  }
+
+  // Cannot copy without exact shape match when contiguous
+  EXPECT_THROW(tv.UnsafeCopySample(0, tv, 1);, std::runtime_error);
+  EXPECT_THROW(tv.UnsafeCopySample(2, tv, 1);, std::runtime_error);
+}
+
+TYPED_TEST(TensorVectorSuite, NewNoncontiguousResize) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Noncontiguous);
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape, DALI_FLOAT);
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NE(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+  }
+
+  // Cannot copy without exact shape match when contiguous
+  tv.UnsafeCopySample(0, tv, 1);
+  tv.UnsafeCopySample(2, tv, 1);
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NE(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), new_shape[1]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+  }
+
+}
+
+
+TEST(TensorVectorSuite, NewContiguousResizeCpu) {
+  using TypeParam = CPUBackend;
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Contiguous);
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape, DALI_FLOAT);
+
+  for (int i = 0; i < 3; i++) {
+    ConstantFill(view<float, 3>(tv[i]), i);
+  }
+
+  for (int i = 0; i < 3; i++) {
+    tv.UnsafeCopySample(i, tv, i);
+  }
+
+  const auto *base = static_cast<const uint8_t*>(unsafe_raw_data(tv));
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(tv[i].raw_data(), base);
+    EXPECT_EQ(*tv.template tensor<float>(i), i);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+    base += sizeof(float) * new_shape[i].num_elements();
+  }
+
+  // Cannot copy without exact shape match when contiguous
+  EXPECT_THROW(tv.UnsafeCopySample(0, tv, 1);, std::runtime_error);
+  EXPECT_THROW(tv.UnsafeCopySample(2, tv, 1);, std::runtime_error);
+}
+
+TEST(TensorVectorSuite, NewNoncontiguousResizeCpu) {
+  using TypeParam = CPUBackend;
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Noncontiguous);
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape, DALI_FLOAT);
+
+  for (int i = 0; i < 3; i++) {
+    ConstantFill(view<float, 3>(tv[i]), i);
+  }
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NE(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(*tv.template tensor<float>(i), i);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+  }
+
+  // Cannot copy without exact shape match when contiguous
+  tv.UnsafeCopySample(0, tv, 1);
+  tv.UnsafeCopySample(2, tv, 1);
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NE(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(*tv.template tensor<float>(i), 1);
+    EXPECT_EQ(tv[i].shape(), new_shape[1]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+  }
+
+  tv.SetSize(5);
+  tv.UnsafeSetSample(3, tv, 0);
+  tv.UnsafeSetSample(4, tv, 0);
+  for (int i = 3; i < 5; i++) {
+    EXPECT_EQ(tv[i].raw_data(), tv[0].raw_data());
+    EXPECT_EQ(*tv.template tensor<float>(i), 1);
+    EXPECT_EQ(tv[i].shape(), new_shape[1]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+  }
+}
+
+TEST(TensorVectorSuite, NewBreakContiguity) {
+  using TypeParam = CPUBackend;
+  TensorVector<TypeParam> tv;
+  // anything goes
+  tv.SetContiguous(BatchState::Default);
+
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape, DALI_FLOAT, BatchState::Contiguous);
+
+  for (int i = 0; i < 3; i++) {
+    ConstantFill(view<float, 3>(tv[i]), i);
+  }
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NE(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(*tv.template tensor<float>(i), i);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+  }
+
+  Tensor<TypeParam> t;
+  t.Resize({2, 3, 4}, DALI_FLOAT);
+  ConstantFill(view<float, 3>(t), 42);
+
+  tv.UnsafeSetSample(1, t);
+  EXPECT_FALSE(tv.IsContiguous());
+
+  EXPECT_NE(tv[1].raw_data(), nullptr);
+  EXPECT_EQ(*tv.template tensor<float>(1), 42);
+  EXPECT_EQ(tv[1].shape(), t.shape());
+  EXPECT_EQ(tv[1].type(), DALI_FLOAT);
+}
+
+
+TYPED_TEST(TensorVectorSuite, NewReserve) {
+  // Verify that we still keep the memory reserved in sample mode
+  TensorVector<TypeParam> tv;
+  tv.SetContiguous(BatchState::Default);
+  tv.reserve(100, 4);
+
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 50}};
+  tv.Resize(new_shape, DALI_FLOAT, BatchState::Noncontiguous);
+
+  tv.SetSize(4);
+  auto capacity = tv._chunks_capacity();
+
+  for (int i = 0; i < 4; i++) {
+    auto expected_capacity =
+        std::max<int>(100, i < 3 ? sizeof(float) * new_shape[i].num_elements() : 0);
+    EXPECT_EQ(capacity[i], expected_capacity);
+  }
+}
 
 // Check if interleaving any of
 // * set_pinned
