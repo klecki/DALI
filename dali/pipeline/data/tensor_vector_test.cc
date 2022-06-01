@@ -132,7 +132,30 @@ TYPED_TEST(TensorVectorSuite, NewSetupAndSetSizeNoncontiguous) {
 TYPED_TEST(TensorVectorSuite, NewSetupLike) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
   const auto order = is_device ? AccessOrder(cuda_stream, 1) : AccessOrder::host();
+  Tensor<TypeParam> t;
+  t.set_device_id(1);
+  t.set_order(order);
+  t.set_pinned(false);
+  t.Resize({3, 4, 5}, DALI_INT32);
+  t.SetLayout("HWC");
 
+  TensorVector<TypeParam> tv_like_t;
+  tv_like_t.SetupLike(t);
+
+  EXPECT_EQ(t.device_id(), tv_like_t.device_id());
+  EXPECT_EQ(t.order(), tv_like_t.order());
+  EXPECT_EQ(t.is_pinned(), tv_like_t.is_pinned());
+  EXPECT_EQ(t.shape().sample_dim(), tv_like_t.sample_dim());
+  EXPECT_EQ(t.GetLayout(), tv_like_t.GetLayout());
+
+  TensorVector<TypeParam> tv_like_tv;
+  tv_like_tv.SetupLike(tv_like_t);
+
+  EXPECT_EQ(tv_like_t.device_id(), tv_like_tv.device_id());
+  EXPECT_EQ(tv_like_t.order(), tv_like_tv.order());
+  EXPECT_EQ(tv_like_t.is_pinned(), tv_like_tv.is_pinned());
+  EXPECT_EQ(tv_like_t.sample_dim(), tv_like_tv.sample_dim());
+  EXPECT_EQ(tv_like_t.GetLayout(), tv_like_tv.GetLayout());
 }
 
 template <typename Backend>
@@ -407,8 +430,8 @@ TYPED_TEST(TensorVectorSuite, NewContiguousResize) {
   }
 
   // Cannot copy without exact shape match when contiguous
-  EXPECT_THROW(tv.UnsafeCopySample(0, tv, 1);, std::runtime_error);
-  EXPECT_THROW(tv.UnsafeCopySample(2, tv, 1);, std::runtime_error);
+  EXPECT_THROW(tv.UnsafeCopySample(0, tv, 1), std::runtime_error);
+  EXPECT_THROW(tv.UnsafeCopySample(2, tv, 1), std::runtime_error);
 }
 
 TYPED_TEST(TensorVectorSuite, NewNoncontiguousResize) {
@@ -463,8 +486,8 @@ TEST(TensorVectorSuite, NewContiguousResizeCpu) {
   }
 
   // Cannot copy without exact shape match when contiguous
-  EXPECT_THROW(tv.UnsafeCopySample(0, tv, 1);, std::runtime_error);
-  EXPECT_THROW(tv.UnsafeCopySample(2, tv, 1);, std::runtime_error);
+  EXPECT_THROW(tv.UnsafeCopySample(0, tv, 1), std::runtime_error);
+  EXPECT_THROW(tv.UnsafeCopySample(2, tv, 1), std::runtime_error);
 }
 
 TEST(TensorVectorSuite, NewNoncontiguousResizeCpu) {
