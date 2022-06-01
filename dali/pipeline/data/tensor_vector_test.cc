@@ -13,10 +13,14 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
+#include <algorithm>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <numeric>
 
 #include "dali/core/format.h"
+#include "dali/core/tensor_layout.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/buffer.h"
@@ -49,31 +53,6 @@ typedef ::testing::Types<CPUBackend, GPUBackend> Backends;
 constexpr cudaStream_t cuda_stream = 0;
 
 TYPED_TEST_SUITE(TensorVectorSuite, Backends);
-
-  // // Memory backing
-  // Buffer<Backend> contiguous_buffer_;
-  // std::weak_ptr<void> buffer_bkp_;
-  // // Memory, sample aliases and metadata
-  // // TODO(klecki): Remove SampleWorkspace and swap to plain Buffer instead of using actual Tensors.
-  // std::vector<Tensor<Backend>> tensors_;
-
-  // // State and metadata that should be uniform regardless of the contiguity state.
-  // // Sample aliases should match the information stored below.
-  // State state_;
-  // int curr_num_tensors_;
-  // TypeInfo type_{};
-  // int sample_dim_ = -1;
-  // TensorListShape<> shape_;
-  // TensorLayout layout_;
-
-  // bool pinned_ = true;
-  // int device_ = CPU_ONLY_DEVICE_ID;
-  // AccessOrder order_;
-
-// template <typename TensorThingy>
-// void GenericSetup(TensorThingy &t, BatchState contiguous_state, DALIDataType type, int sample_dim, std::string layout) {
-//   t.
-// }
 
 TYPED_TEST(TensorVectorSuite, NewSetupAndSetSizeNoncontiguous) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
@@ -147,7 +126,166 @@ TYPED_TEST(TensorVectorSuite, NewSetupAndSetSizeNoncontiguous) {
   TensorVector<TypeParam> tv_like_t, tv_like_tv;
   tv_like_t.SetupLike(t);
   tv_like_tv.SetupLike(tv);
+}
 
+
+TYPED_TEST(TensorVectorSuite, NewSetupLike) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream, 1) : AccessOrder::host();
+
+}
+
+template <typename Backend>
+std::vector<std::pair<std::string, std::function<void(TensorVector<Backend> &)>>>
+SetRequiredSetters(int sample_dim, DALIDataType type, TensorLayout layout, bool pinned,
+                   int device_id) {
+  return {
+    {"sample dim", [sample_dim](TensorVector<Backend> &t) {
+      t.set_sample_dim(sample_dim);
+    }},
+    {"type", [type](TensorVector<Backend> &t) {
+      t.set_type(type);
+    }},
+    {"layout", [layout](TensorVector<Backend> &t) {
+      t.SetLayout(layout);
+    }},
+    {"device id", [device_id](TensorVector<Backend> &t) {
+      t.set_device_id(device_id);
+    }},
+    {"pinned", [pinned](TensorVector<Backend> &t) {
+      t.set_pinned(pinned);
+    }},
+    {"order", [device_id](TensorVector<Backend> &t) {
+      constexpr bool is_device = std::is_same_v<Backend, GPUBackend>;
+      const auto order = is_device ? AccessOrder(cuda_stream, device_id) : AccessOrder::host();
+      t.set_order(order);
+    }},
+  };
+}
+
+TYPED_TEST(TensorVectorSuite, NewPartialSetupSet) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream, 1) : AccessOrder::host();
+  Tensor<TypeParam> t;
+  t.set_device_id(1);
+  t.set_order(order);
+  t.set_pinned(false);
+  t.Resize({3, 4, 5}, DALI_INT32);
+  t.SetLayout("HWC");
+
+  // set size to be checked. Copy doesn't make sense
+  auto setups = SetRequiredSetters<TypeParam>(3, DALI_INT32, "HWC", false, 1);
+  for (size_t excluded = 0; excluded < setups.size(); excluded++) {
+    std::vector<size_t> idxs(setups.size());
+    std::iota(idxs.begin(), idxs.end(), 0);
+    do {
+      TensorVector<TypeParam> tv;
+      tv.SetContiguous(BatchState::Noncontiguous);
+      tv.SetSize(4);
+      for (auto idx : idxs) {
+        if (idx == excluded) {
+          continue;
+        }
+        setups[idx].second(tv);
+      }
+      try {
+        tv.UnsafeSetSample(0, t);
+        FAIL() << "Exception was expected with excluded: " << setups[excluded].first;
+      } catch(std::runtime_error &e) {
+        auto expected = "Sample must have the same " + setups[excluded].first;
+        EXPECT_NE(std::string(e.what()).rfind(expected), std::string::npos)
+            << expected << "\n====\nvs\n====\n"
+            << e.what();
+      } catch (...) {
+        FAIL() << "Unexpected exception";
+      }
+    } while (std::next_permutation(idxs.begin(), idxs.end()));
+  }
+}
+
+
+template <typename Backend>
+std::vector<std::pair<std::string, std::function<void(TensorVector<Backend> &)>>>
+CopyRequiredSetters(int sample_dim, DALIDataType type, TensorLayout layout) {
+  return {
+    {"sample dim", [sample_dim](TensorVector<Backend> &t) {
+      t.set_sample_dim(sample_dim);
+    }},
+    {"type", [type](TensorVector<Backend> &t) {
+      t.set_type(type);
+    }},
+    {"layout", [layout](TensorVector<Backend> &t) {
+      t.SetLayout(layout);
+    }}
+  };
+}
+
+
+TYPED_TEST(TensorVectorSuite, NewPartialSetupCopy) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream, 1) : AccessOrder::host();
+  Tensor<TypeParam> t;
+  t.set_device_id(1);
+  t.set_order(order);
+  t.set_pinned(false);
+  t.Resize({3, 4, 5}, DALI_INT32);
+  t.SetLayout("HWC");
+
+  // set size to be checked. Copy doesn't make sense
+  auto setups = CopyRequiredSetters<TypeParam>(3, DALI_INT32, "HWC");
+  for (size_t excluded = 0; excluded < setups.size(); excluded++) {
+    std::vector<size_t> idxs(setups.size());
+    std::iota(idxs.begin(), idxs.end(), 0);
+    do {
+      TensorVector<TypeParam> tv;
+      tv.SetContiguous(BatchState::Noncontiguous);
+      tv.SetSize(4);
+      for (auto idx : idxs) {
+        if (idx == excluded) {
+          continue;
+        }
+        setups[idx].second(tv);
+      }
+      try {
+        tv.UnsafeCopySample(0, t);
+        FAIL() << "Exception was expected with excluded: " << setups[excluded].first;
+      } catch(std::runtime_error &e) {
+        auto expected = "Sample must have the same " + setups[excluded].first;
+        EXPECT_NE(std::string(e.what()).rfind(expected), std::string::npos)
+            << expected << "\n====\nvs\n====\n"
+            << e.what();
+      } catch (...) {
+        FAIL() << "Unexpected exception";
+      }
+    } while (std::next_permutation(idxs.begin(), idxs.end()));
+  }
+}
+
+
+TYPED_TEST(TensorVectorSuite, NewFullSetupSet) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream, 1) : AccessOrder::host();
+  Tensor<TypeParam> t;
+  t.set_device_id(1);
+  t.set_order(order);
+  t.set_pinned(false);
+  t.Resize({3, 4, 5}, DALI_INT32);
+  t.SetLayout("HWC");
+
+  // set size to be checked. Copy doesn't make sense
+  auto setups = SetRequiredSetters<TypeParam>(3, DALI_INT32, "HWC", false, 1);
+  std::vector<size_t> idxs(setups.size());
+  std::iota(idxs.begin(), idxs.end(), 0);
+  do {
+    TensorVector<TypeParam> tv;
+    tv.SetContiguous(BatchState::Noncontiguous);
+    tv.SetSize(4);
+    for (auto idx : idxs) {
+      setups[idx].second(tv);
+    }
+    tv.UnsafeSetSample(0, t);
+    EXPECT_EQ(tv[0].raw_data(), t.raw_data());
+  } while (std::next_permutation(idxs.begin(), idxs.end()));
 }
 
 
@@ -296,7 +434,6 @@ TYPED_TEST(TensorVectorSuite, NewNoncontiguousResize) {
     EXPECT_EQ(tv[i].shape(), new_shape[1]);
     EXPECT_EQ(tv[i].type(), DALI_FLOAT);
   }
-
 }
 
 
