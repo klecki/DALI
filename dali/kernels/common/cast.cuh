@@ -57,6 +57,9 @@ __global__ void BinSearchCastKernel(const CastSampleDesc *samples,
     if (i + jump < nsamples && params[i + jump].first_block <= blockIdx.x)
       i += jump;  // Binary search to find sample that this block should process
   }
+  if (threadIdx.x == 0) {
+    printf("Sample idx from kernel: %d for blockIdx.x %d\n", i, blockIdx.x);
+  }
   CastSampleDesc sample = samples[i];
   auto size = params[i].sample_size;
   auto block_offset = blockIdx.x - params[i].first_block;

@@ -82,7 +82,7 @@ def _test_operator_cast(ndim, batch_size, in_dtype, out_dtype, device):
 
     pipe = cast_pipe()
     pipe.build()
-    for _ in range(10):
+    for iter_idx in range(10):
         inp, out = pipe.run()
         if device == 'gpu':
             out = out.as_cpu()
@@ -95,7 +95,7 @@ def _test_operator_cast(ndim, batch_size, in_dtype, out_dtype, device):
 
         for i in range(batch_size):
             if not np.allclose(out[i], ref[i], eps):
-                print("At sample", i)
+                print("At sample", i, "in iteration", iter_idx)
                 I = np.array(inp[i])
                 O = np.array(out[i])
                 R = ref[i]
@@ -113,9 +113,9 @@ def _test_operator_cast(ndim, batch_size, in_dtype, out_dtype, device):
 
 def test_operator_cast():
     types = [np.uint8, np.int8, np.uint16, np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float16, np.float32]
-    for device in ['cpu', 'gpu']:
-        for in_type in types:
-            for out_type in types:
-                ndim = rng.integers(0, 4)
-                batch_size = rng.integers(1, 11)
+    for device in ['gpu']:
+        for in_type in [np.uint8]:
+            for out_type in [np.float32]:
+                ndim = 2
+                batch_size = 8
                 yield _test_operator_cast, ndim, batch_size, in_type, out_type, device
