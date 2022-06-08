@@ -109,7 +109,10 @@ void CastGPU::RunImpl(DeviceWorkspace &ws) {
   TODO(michalz): Fix the kernel!
   // Calculate id of the earliest block that should process given sample
   for (int block_id = 0, sample_id = -1; block_id < blocks.size(); block_id++) {
-    if (blocks[block_id].sample_idx != sample_id) {
+    // In case of an empty sample, the block descriptor is not generated for it.
+    // We mark all the empty samples as using currently selected block_id, and the kernel chooses
+    // the latest (rightmost) sample that is marked with its block id for processing.
+    while (sample_id < blocks[block_id].sample_idx) {
       sample_id++;
       params_host[sample_id].first_block = block_id;
     }
