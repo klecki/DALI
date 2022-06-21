@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
+#include <cstdint>
 #include <utility>
 
 #include "dali/core/tensor_shape.h"
@@ -203,6 +204,7 @@ TYPED_TEST(TensorListTest, TestSetNoType) {
 
 TYPED_TEST(TensorListTest, TestGetContiguousPointer) {
   TensorList<TypeParam> tl;
+  tl.SetContiguous(BatchState::Contiguous);
 
   // Give the tensor a size and a type - uniform allocation
   auto shape = this->GetRandShape();
@@ -473,8 +475,9 @@ TYPED_TEST(TensorListTest, TestTypeChangeSameSize) {
   ASSERT_EQ(nbytes, tensor_list.nbytes());
 }
 
-TYPED_TEST(TensorListTest, TestTypeChangeSmaller) {
+TYPED_TEST(TensorListTest, TestTypeChangeSmallerContiguous) {
   TensorList<TypeParam> tensor_list;
+  tensor_list.SetContiguous(BatchState::Contiguous);
 
   // Setup shape and offsets
   auto shape = this->GetRandShape();
@@ -483,25 +486,90 @@ TYPED_TEST(TensorListTest, TestTypeChangeSmaller) {
   this->SetupTensorList(&tensor_list, shape, &offsets);
 
   size_t nbytes = tensor_list.nbytes();
-  const auto *base_ptr = unsafe_raw_data(tensor_list);
+  const auto *base_ptr = static_cast<const uint8_t *>(unsafe_raw_data(tensor_list));
 
   // Change the data type to something smaller
   tensor_list.template set_type<uint8>();
 
   // Check the internals
   ASSERT_EQ(tensor_list.num_samples(), shape.size());
+  ASSERT_EQ(unsafe_raw_data(tensor_list), base_ptr);
   for (int i = 0; i < tensor_list.num_samples(); ++i) {
-    ASSERT_EQ(unsafe_raw_data(tensor_list), base_ptr);
     ASSERT_EQ(tensor_list.tensor_shape(i), shape[i]);
-    // ASSERT_EQ(tensor_list.tensor_offset(i), offsets[i]);
+    ASSERT_EQ(tensor_list.raw_tensor(i), base_ptr + offsets[i] * sizeof(uint8_t));
   }
 
   // nbytes should have reduced by a factor of 4
   ASSERT_EQ(nbytes / sizeof(float) * sizeof(uint8), tensor_list.nbytes());
 }
 
-TYPED_TEST(TensorListTest, TestTypeChangeLarger) {
+TYPED_TEST(TensorListTest, TestTypeChangeSmallerNoncontiguous) {
   TensorList<TypeParam> tensor_list;
+  tensor_list.SetContiguous(BatchState::Noncontiguous);
+
+  // Setup shape and offsets
+  auto shape = this->GetRandShape();
+  vector<Index> offsets;
+
+  this->SetupTensorList(&tensor_list, shape, &offsets);
+
+  size_t nbytes = tensor_list.nbytes();
+  std::vector<const uint8_t*> sample_ptrs(tensor_list.num_samples());
+
+  for (int i = 0; i < tensor_list.num_samples(); i++) {
+    sample_ptrs[i] = static_cast<const uint8_t*>(tensor_list.raw_tensor(i));
+  }
+
+  // Change the data type to something smaller
+  tensor_list.template set_type<uint8>();
+
+  auto chunks_nbytes = tensor_list._chunks_nbytes();
+
+  // Check the internals
+  ASSERT_EQ(tensor_list.num_samples(), shape.size());
+  for (int i = 0; i < tensor_list.num_samples(); ++i) {
+    ASSERT_EQ(tensor_list.tensor_shape(i), shape[i]);
+    ASSERT_EQ(tensor_list.raw_tensor(i), sample_ptrs[i]);
+    ASSERT_EQ(chunks_nbytes[i], tensor_list.tensor_shape(i).num_elements() * sizeof(uint8));
+  }
+
+  // nbytes should have reduced by a factor of 4
+  ASSERT_EQ(nbytes / sizeof(float) * sizeof(uint8), tensor_list.nbytes());
+}
+
+
+TYPED_TEST(TensorListTest, TestTypeChangeLargerContiguous) {
+  TensorList<TypeParam> tensor_list;
+  tensor_list.SetContiguous(BatchState::Contiguous);
+
+  // Setup shape and offsets
+  auto shape = this->GetRandShape();
+  vector<Index> offsets;
+
+  this->SetupTensorList(&tensor_list, shape, &offsets);
+
+  size_t nbytes = tensor_list.nbytes();
+
+  // Change the data type to something larger
+  tensor_list.template set_type<double>();
+  // new ptr after possible reallocation
+  const auto *base_ptr = static_cast<const uint8_t *>(unsafe_raw_data(tensor_list));
+
+  // Check the internals
+  ASSERT_EQ(tensor_list.num_samples(), shape.size());
+  for (int i = 0; i < tensor_list.num_samples(); ++i) {
+    ASSERT_EQ(tensor_list.tensor_shape(i), shape[i]);
+    ASSERT_EQ(tensor_list.raw_tensor(i), base_ptr + offsets[i] * sizeof(double));
+  }
+
+  // nbytes should have increased by a factor of 2
+  ASSERT_EQ(nbytes / sizeof(float) * sizeof(double), tensor_list.nbytes());
+}
+
+
+TYPED_TEST(TensorListTest, TestTypeChangeLargerNoncontiguous) {
+  TensorList<TypeParam> tensor_list;
+  tensor_list.SetContiguous(BatchState::Noncontiguous);
 
   // Setup shape and offsets
   auto shape = this->GetRandShape();
@@ -514,16 +582,19 @@ TYPED_TEST(TensorListTest, TestTypeChangeLarger) {
   // Change the data type to something larger
   tensor_list.template set_type<double>();
 
+  auto chunks_nbytes = tensor_list._chunks_nbytes();
+
   // Check the internals
   ASSERT_EQ(tensor_list.num_samples(), shape.size());
   for (int i = 0; i < tensor_list.num_samples(); ++i) {
     ASSERT_EQ(tensor_list.tensor_shape(i), shape[i]);
-    // ASSERT_EQ(tensor_list.tensor_offset(i), offsets[i]);
+    ASSERT_EQ(chunks_nbytes[i], tensor_list.tensor_shape(i).num_elements() * sizeof(double));
   }
 
   // nbytes should have increased by a factor of 2
   ASSERT_EQ(nbytes / sizeof(float) * sizeof(double), tensor_list.nbytes());
 }
+
 
 TYPED_TEST(TensorListTest, TestShareData) {
   TensorList<TypeParam> tensor_list;
