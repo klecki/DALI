@@ -120,13 +120,9 @@ class DLL_PUBLIC TensorVector {
    */
   void set_order(AccessOrder order, bool synchronize = true);
 
-  SampleView<Backend> operator[](size_t pos) {
-    return {tensors_[pos].raw_mutable_data(), tensors_[pos].shape(), tensors_[pos].type()};
-  }
+  SampleView<Backend> operator[](size_t pos);
 
-  ConstSampleView<Backend> operator[](size_t pos) const {
-    return {tensors_[pos].raw_data(), tensors_[pos].shape(), tensors_[pos].type()};
-  }
+  ConstSampleView<Backend> operator[](size_t pos) const;
 
   int num_samples() const noexcept {
     return curr_num_tensors_;
@@ -197,8 +193,8 @@ class DLL_PUBLIC TensorVector {
    * After this operation the TensorVector is converted into non-contiguous.
    *
    * Warning: If the TensorVector was contiguous, the samples that weren't overwritten by this
-   * function would still report that they are sharing data. It is assumed that all samples are
-   * replaced this way - TODO(klecki): this might be adjusted in follow-up.
+   * function would still report that they are sharing data. It is advised that all samples are
+   * replaced this way otherwise the contiguous allocation would be kept alive.
    *
    * @param sample_idx index of sample to be set
    * @param src owner of source sample
@@ -214,8 +210,8 @@ class DLL_PUBLIC TensorVector {
    * After this operation the TensorVector is converted into non-contiguous.
    *
    * Warning: If the TensorVector was contiguous, the samples that weren't overwritten by this
-   * function would still report that they are sharing data. It is assumed that all samples are
-   * replaced this way - TODO(klecki): this might be adjusted in follow-up.
+   * function would still report that they are sharing data. It is advised that all samples are
+   * replaced this way otherwise the contiguous allocation would be kept alive.
    *
    * @param sample_idx index of sample to be set
    * @param src sample owner
@@ -468,8 +464,9 @@ class DLL_PUBLIC TensorVector {
     set_type(other.type());
     set_sample_dim(other.shape().sample_dim());
     SetLayout(other.GetLayout());
-    set_order(other.order());
     set_pinned(other.is_pinned());
+    set_order(other.order());
+    set_device_id(other.device_id());
   }
 
   /**
