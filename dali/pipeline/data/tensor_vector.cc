@@ -966,7 +966,7 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
   // and we start with the pinned and order properties as they might impact future allocations.
   // next we make sure the type is consistent, and if so, introduce empty shape
   shape_.resize(new_size);
-  if (static_cast<size_t>(new_size) > tensors_.size()) {
+  if (new_size > curr_num_tensors_) {
     auto old_size = curr_num_tensors_;
     tensors_.resize(new_size);
     for (int i = old_size; i < new_size; i++) {
