@@ -152,7 +152,7 @@ class DLL_PUBLIC TensorVector {
    * Tensor list owns the memory. The tensor obtained through
    * this function stays valid for as long as TensorList data is unchanged.
    */
-  DLL_PUBLIC Tensor<Backend> * AsReshapedTensor(const TensorShape<> &new_shape);
+  DLL_PUBLIC Tensor<Backend> AsReshapedTensor(const TensorShape<> &new_shape);
   // {
   //   auto t = GetViewWithShape(new_shape);
   //   if (t) {
@@ -182,7 +182,7 @@ class DLL_PUBLIC TensorVector {
   //   return &tensor;
   // }
 
-  DLL_PUBLIC Tensor<Backend> * AsTensor();
+  DLL_PUBLIC Tensor<Backend> AsTensor();
   // {
   //   // To prevent situation when AsReshapedTensor is called first with some shape, and then
   //   // AsTensor which return non-dense tensor after all
