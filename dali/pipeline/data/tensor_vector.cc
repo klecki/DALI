@@ -583,13 +583,19 @@ void TensorVector<Backend>::SetSize(int new_size) {
 template <typename Backend>
 void TensorVector<Backend>::set_type(DALIDataType new_type_id) {
   DALI_ENFORCE(new_type_id != DALI_NO_TYPE, "new_type must be valid type.");
+  // TODO(klecki): This may change the type to bigger or smaller and require a recalculation of
+  // the samples.
   if (type_.id() == new_type_id)
     return;
   contiguous_buffer_.set_type(new_type_id);
-  for (auto &t : tensors_) {
-    t.set_type(new_type_id);
-  }
   type_ = TypeTable::GetTypeInfo(new_type_id);
+  if (state_.IsContiguous()) {
+    recreate_views();
+  } else {
+    for (auto &t : tensors_) {
+      t.set_type(new_type_id);
+    }
+  }
 }
 
 
@@ -682,10 +688,12 @@ template <typename Backend>
 void TensorVector<Backend>::reserve(size_t total_bytes) {
   if (!state_.IsContiguous()) {
     tensors_.clear();
-    curr_num_tensors_ = 0;
   }
   state_.Setup(BatchState::Contiguous);
   contiguous_buffer_.reserve(total_bytes);
+  if (IsValidType(type_)) {
+    recreate_views();
+  }
 }
 
 
