@@ -18,6 +18,7 @@
 #include "dali/core/format.h"
 #include "dali/core/tensor_shape.h"
 #include "dali/pipeline/data/tensor_vector.h"
+#include "dali/pipeline/data/types.h"
 #include "dali/pipeline/data/views.h"
 #include "dali/test/tensor_test_utils.h"
 
@@ -45,6 +46,97 @@ typedef ::testing::Types<CPUBackend, GPUBackend> Backends;
 constexpr cudaStream_t cuda_stream = 0;
 
 TYPED_TEST_SUITE(TensorVectorSuite, Backends);
+
+  // // Memory backing
+  // Buffer<Backend> contiguous_buffer_;
+  // std::weak_ptr<void> buffer_bkp_;
+  // // Memory, sample aliases and metadata
+  // // TODO(klecki): Remove SampleWorkspace and swap to plain Buffer instead of using actual Tensors.
+  // std::vector<Tensor<Backend>> tensors_;
+
+  // // State and metadata that should be uniform regardless of the contiguity state.
+  // // Sample aliases should match the information stored below.
+  // State state_;
+  // int curr_num_tensors_;
+  // TypeInfo type_{};
+  // int sample_dim_ = -1;
+  // TensorListShape<> shape_;
+  // TensorLayout layout_;
+
+  // bool pinned_ = true;
+  // int device_ = CPU_ONLY_DEVICE_ID;
+  // AccessOrder order_;
+
+// template <typename TensorThingy>
+// void GenericSetup(TensorThingy &t, BatchState contiguous_state, DALIDataType type, int sample_dim, std::string layout) {
+//   t.
+// }
+
+TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
+  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
+  TensorVector<TypeParam> tv;
+  tv.set_pinned(false);
+  tv.set_sample_dim(2);
+  tv.SetLayout("XY");
+  tv.SetContiguous(BatchState::Noncontiguous);
+  // TODO: without a type, accessing the elements doesn't make sense
+  tv.SetSize(3);
+
+
+  auto empty_2d = TensorShape<>{0, 0};
+  for (int i = 0; i < 3; i++) {
+    ASSERT_EQ(tv[i].raw_data(), nullptr);
+    ASSERT_EQ(tv[i].shape(), empty_2d);
+    ASSERT_EQ(tv[i].type(), DALI_NO_TYPE);
+  }
+
+  tv.set_type(DALI_INT32);
+  for (int i = 0; i < 3; i++) {
+    ASSERT_EQ(tv[i].raw_data(), nullptr);
+    ASSERT_EQ(tv[i].shape(), empty_2d);
+    ASSERT_EQ(tv[i].type(), DALI_INT32);
+  }
+
+  Tensor<TypeParam> t;
+  t.set_pinned(false);
+  t.Resize({2, 3}, DALI_INT32);
+  t.SetLayout("XY");
+
+  tv.set_device_id(t.device_id());
+
+  for (int i = 0; i < 3; i++) {
+    tv.UnsafeSetSample(i, t);
+    ASSERT_EQ(tv[i].raw_data(), t.raw_data());
+    ASSERT_EQ(tv[i].shape(), t.shape());
+    ASSERT_EQ(tv[i].type(), t.type());
+  }
+
+  tv.SetSize(4);
+  ASSERT_EQ(tv[3].raw_data(), nullptr); // hmmm
+  ASSERT_EQ(tv[3].shape(), empty_2d);
+  ASSERT_EQ(tv[3].type(), DALI_INT32);
+
+  tv.SetSize(2);
+  tv.SetSize(3);
+  for (int i = 0; i < 2; i++) {
+    ASSERT_EQ(tv[i].raw_data(), t.raw_data());
+    ASSERT_EQ(tv[i].shape(), t.shape());
+    ASSERT_EQ(tv[i].type(), t.type());
+  }
+
+  for (int i = 2; i < 3; i++) {
+    ASSERT_EQ(tv[i].raw_data(), nullptr); // hmmm
+    ASSERT_EQ(tv[i].shape(), empty_2d);
+    ASSERT_EQ(tv[i].type(), DALI_INT32);
+  }
+
+  TensorVector<TypeParam> tv_like_t, tv_like_tv;
+  tv_like_t.SetupLike(t);
+  tv_like_tv.SetupLike(tv);
+
+}
+
 
 // Check if interleaving any of
 // * set_pinned
