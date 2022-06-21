@@ -501,7 +501,8 @@ void Pipeline::Build(std::vector<PipelineOutputDesc> output_descs) {
   vector<string> outputs;
   for (const auto &out_desc : output_descs_) {
     string name = out_desc.name;
-    string device = out_desc.device;  // what device is it? Op placement, output placement, requested placement?
+    // what device is it? Op placement, output placement, requested placement?
+    string device = out_desc.device;
     auto it = edge_names_.find(name);
     DALI_ENFORCE(it != edge_names_.end(), "Requested output name '" +
         name + "' is not known to the pipeline.");
@@ -514,12 +515,13 @@ void Pipeline::Build(std::vector<PipelineOutputDesc> output_descs) {
         // Add a make contiguous op to produce this output
         OpSpec spec =
           OpSpec("MakeContiguous")
-          .AddArg("device", "mixed")  // we can revert back to using CPU stage here - TODO(klecki) - enable early exit from executor for CPU only
+          .AddArg("device", "mixed")  // TODO(klecki): we can revert back to using CPU stage here
           .AddInput(name, "cpu")
           .AddOutput("contiguous_" + name, "cpu");  // This is a hack,
           // never in other places can we produce CPU out of mixed operator
-          // due to how specs are created in Python D:
+          // due to how specs are created in Python
         PrepareOpSpec(&spec, GetNextInternalLogicalId());
+        // TODO(klecki) - enable early exit from executor for CPU only
 
         graph_.AddOp(spec, "__MakeContiguous_" + name);
         it->second.has_contiguous = true;
@@ -545,9 +547,7 @@ void Pipeline::Build(std::vector<PipelineOutputDesc> output_descs) {
         graph_.AddOp(spec, "__MakeContiguous_" + name);
         outputs.push_back(name + "_" + device);
       } else {
-        // TODO: we need to always create make contiguous to normalize the outputs
-        // I hope that this doesn't cause infinite recursion, but in that case we need to add
-        // another tracking similar to has_contiguous
+        // We need to always create make contiguous to normalize the outputs
         OpSpec spec = OpSpec("MakeContiguous")
           .AddArg("device", "gpu")
           .AddInput(name, "gpu")
