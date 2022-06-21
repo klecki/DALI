@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <gtest/gtest.h>
+#include <stdexcept>
 #include <string>
 
 #include "dali/core/format.h"
@@ -86,16 +87,16 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
 
   auto empty_2d = TensorShape<>{0, 0};
   for (int i = 0; i < 3; i++) {
-    ASSERT_EQ(tv[i].raw_data(), nullptr);
-    ASSERT_EQ(tv[i].shape(), empty_2d);
-    ASSERT_EQ(tv[i].type(), DALI_NO_TYPE);
+    EXPECT_EQ(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), empty_2d);
+    EXPECT_EQ(tv[i].type(), DALI_NO_TYPE);
   }
 
   tv.set_type(DALI_INT32);
   for (int i = 0; i < 3; i++) {
-    ASSERT_EQ(tv[i].raw_data(), nullptr);
-    ASSERT_EQ(tv[i].shape(), empty_2d);
-    ASSERT_EQ(tv[i].type(), DALI_INT32);
+    EXPECT_EQ(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), empty_2d);
+    EXPECT_EQ(tv[i].type(), DALI_INT32);
   }
 
   Tensor<TypeParam> t;
@@ -107,29 +108,30 @@ TYPED_TEST(TensorVectorSuite, SetupAndSetSize) {
 
   for (int i = 0; i < 3; i++) {
     tv.UnsafeSetSample(i, t);
-    ASSERT_EQ(tv[i].raw_data(), t.raw_data());
-    ASSERT_EQ(tv[i].shape(), t.shape());
-    ASSERT_EQ(tv[i].type(), t.type());
+    EXPECT_EQ(tv[i].raw_data(), t.raw_data());
+    EXPECT_EQ(tv[i].shape(), t.shape());
+    EXPECT_EQ(tv[i].type(), t.type());
   }
 
   tv.SetSize(4);
-  ASSERT_EQ(tv[3].raw_data(), nullptr); // hmmm
-  ASSERT_EQ(tv[3].shape(), empty_2d);
-  ASSERT_EQ(tv[3].type(), DALI_INT32);
+  EXPECT_EQ(tv[3].raw_data(), nullptr); // hmmm
+  EXPECT_EQ(tv[3].shape(), empty_2d);
+  EXPECT_EQ(tv[3].type(), DALI_INT32);
 
   tv.SetSize(2);
   tv.SetSize(3);
   for (int i = 0; i < 2; i++) {
-    ASSERT_EQ(tv[i].raw_data(), t.raw_data());
-    ASSERT_EQ(tv[i].shape(), t.shape());
-    ASSERT_EQ(tv[i].type(), t.type());
+    EXPECT_EQ(tv[i].raw_data(), t.raw_data());
+    EXPECT_EQ(tv[i].shape(), t.shape());
+    EXPECT_EQ(tv[i].type(), t.type());
   }
 
   for (int i = 2; i < 3; i++) {
-    ASSERT_EQ(tv[i].raw_data(), nullptr); // hmmm
-    ASSERT_EQ(tv[i].shape(), empty_2d);
-    ASSERT_EQ(tv[i].type(), DALI_INT32);
+    EXPECT_EQ(tv[i].raw_data(), nullptr); // hmmm
+    EXPECT_EQ(tv[i].shape(), empty_2d);
+    EXPECT_EQ(tv[i].type(), DALI_INT32);
   }
+  EXPECT_THROW(tv[3], std::runtime_error);
 
   TensorVector<TypeParam> tv_like_t, tv_like_tv;
   tv_like_t.SetupLike(t);
