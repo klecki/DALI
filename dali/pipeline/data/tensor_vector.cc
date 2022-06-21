@@ -191,6 +191,31 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
 }
 
 template <typename Backend>
+bool TensorVector<Backend>::IsContiguousTensor() const {
+  DALI_FAIL("NYI");
+}
+
+template <typename Backend>
+bool TensorVector<Backend>::IsDenseTensor() const {
+  DALI_FAIL("NYI");
+}
+
+template <typename Backend>
+Tensor<Backend> * TensorVector<Backend>::GetViewWithShape(const TensorShape<> &shape) {
+  DALI_FAIL("NYI");
+}
+
+template <typename Backend>
+Tensor<Backend> *  TensorVector<Backend>::AsReshapedTensor(const TensorShape<> &new_shape) {
+  DALI_FAIL("NYI");
+}
+
+template <typename Backend>
+Tensor<Backend> *  TensorVector<Backend>::AsTensor() {
+  DALI_FAIL("NYI");
+}
+
+template <typename Backend>
 void TensorVector<Backend>::VerifySampleShareConformance(DALIDataType type, int sample_dim,
                                                          TensorLayout layout, bool pinned,
                                                          AccessOrder order,
@@ -709,7 +734,8 @@ void TensorVector<Backend>::Copy(const TensorList<SrcBackend> &src, AccessOrder 
 
 template <typename Backend>
 template <typename SrcBackend>
-void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &src, AccessOrder order) {
+void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &src, AccessOrder order,
+                                 bool use_copy_kernel) {
   auto copy_order = CopySyncBefore(this->order(), src.order(), order);
 
   Resize(src.shape(), src.type());
@@ -718,7 +744,6 @@ void TensorVector<Backend>::Copy(const TensorVector<SrcBackend> &src, AccessOrde
 
   CopySyncResize(this->order(), copy_order);
 
-  bool use_copy_kernel = false;
   use_copy_kernel &= (std::is_same<SrcBackend, GPUBackend>::value || src.is_pinned()) &&
                      (std::is_same<Backend, GPUBackend>::value || this->is_pinned());
 
