@@ -799,13 +799,15 @@ void TensorVector<Backend>::Reset() {
 //                                                    unsafe_raw_data(src), shape().num_elements(),
 //                                                    copy_order.stream(), use_copy_kernel);
 //   } else if (this->IsContiguous() && !src.IsContiguous()) {
-//     CopySamplewiseImpl<Backend, SrcBackend>(contiguous_buffer_.raw_mutable_data(), src, type_info(),
+//     CopySamplewiseImpl<Backend, SrcBackend>(contiguous_buffer_.raw_mutable_data(), src,
+//     type_info(),
 //                                             copy_order, use_copy_kernel);
 //   } else if (!this->IsContiguous() && src.IsContiguous()) {
 //     CopySamplewiseImpl<Backend, SrcBackend>(*this, unsafe_raw_data(src), type_info(), copy_order,
 //                                             use_copy_kernel);
 //   } else {
-//     CopySamplewiseImpl<Backend, SrcBackend>(*this, src, type_info(), copy_order, use_copy_kernel);
+//     CopySamplewiseImpl<Backend, SrcBackend>(*this, src, type_info(), copy_order,
+//     use_copy_kernel);
 //   }
 
 //   // Update the layout and other metadata
@@ -1055,13 +1057,19 @@ bool TensorVector<Backend>::shares_data() const {
 
 template class DLL_PUBLIC TensorVector<CPUBackend>;
 template class DLL_PUBLIC TensorVector<GPUBackend>;
-template void TensorVector<CPUBackend>::Copy<CPUBackend>(const TensorVector<CPUBackend>&, AccessOrder, bool);  // NOLINT
-template void TensorVector<CPUBackend>::Copy<GPUBackend>(const TensorVector<GPUBackend>&, AccessOrder, bool);  // NOLINT
-template void TensorVector<GPUBackend>::Copy<CPUBackend>(const TensorVector<CPUBackend>&, AccessOrder, bool);  // NOLINT
-template void TensorVector<GPUBackend>::Copy<GPUBackend>(const TensorVector<GPUBackend>&, AccessOrder, bool);  // NOLINT
-// template void TensorVector<CPUBackend>::Copy<CPUBackend>(const TensorList<CPUBackend>&, AccessOrder);  // NOLINT
-// template void TensorVector<CPUBackend>::Copy<GPUBackend>(const TensorList<GPUBackend>&, AccessOrder);  // NOLINT
-// template void TensorVector<GPUBackend>::Copy<CPUBackend>(const TensorList<CPUBackend>&, AccessOrder);  // NOLINT
-// template void TensorVector<GPUBackend>::Copy<GPUBackend>(const TensorList<GPUBackend>&, AccessOrder);  // NOLINT
+template void TensorVector<CPUBackend>::Copy<CPUBackend>(const TensorVector<CPUBackend> &,
+                                                         AccessOrder, bool);
+template void TensorVector<CPUBackend>::Copy<GPUBackend>(const TensorVector<GPUBackend> &,
+                                                         AccessOrder, bool);
+template void TensorVector<GPUBackend>::Copy<CPUBackend>(const TensorVector<CPUBackend> &,
+                                                         AccessOrder, bool);
+template void TensorVector<GPUBackend>::Copy<GPUBackend>(const TensorVector<GPUBackend> &,
+                                                         AccessOrder, bool);
+// template void TensorVector<CPUBackend>::Copy<CPUBackend>(const TensorList<CPUBackend>&,
+// AccessOrder);  // NOLINT template void TensorVector<CPUBackend>::Copy<GPUBackend>(const
+// TensorList<GPUBackend>&, AccessOrder);  // NOLINT template void
+// TensorVector<GPUBackend>::Copy<CPUBackend>(const TensorList<CPUBackend>&, AccessOrder);  //
+// NOLINT template void TensorVector<GPUBackend>::Copy<GPUBackend>(const TensorList<GPUBackend>&,
+// AccessOrder);  // NOLINT
 
 }  // namespace dali
