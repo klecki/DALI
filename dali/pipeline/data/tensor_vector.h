@@ -49,12 +49,8 @@ using TensorList = TensorVector<Backend>;
  * Propagates Buffer calls to every tensor uniformly
  *
  * TODO(klecki): Expected improvements to TensorVector
- * 1. Remove superfluous indirection via shared_ptr to samples.
- * 2. Keep metadata (shape, sample_dim, layout, order) at batch level like we already do with type
- * 3. Detect and convert between contiguous and non-contiguous when possible:
+ * 1. Detect and convert between contiguous and non-contiguous when possible:
  *    a. CopySample of bigger size
- *    b. Resize with coalesce option
- * 4. Contiguity check
  * @tparam Backend
  */
 template <typename Backend>
@@ -78,123 +74,31 @@ class DLL_PUBLIC TensorVector {
   DLL_PUBLIC TensorVector<Backend>(TensorVector<Backend> &&other) noexcept;
 
 
-    /**
-   * @brief Checks whether the TensorList is
-   * contiguous. It returns true if and only if
-   * all of the stored Tensors are densely packed in memory.
+  /**
+   * @brief Checks whether the batch container is contiguous. It returns true if and only if
+   * all of the stored individual tensors are densely packed in memory.
    */
   bool IsContiguousTensor() const;
-  // {
-  //   if (num_samples() == 0 || _num_elements() == 0) {
-  //     return true;
-  //   }
-  //   if (!IsContiguous()) {
-  //     return false;
-  //   }
-  //   Index offset = 0;
-
-  //   for (int i = 0; i < shape_.size(); ++i) {
-  //     if (offset != offsets_[i]) {
-  //       return false;
-  //     }
-  //     offset += volume(shape_[i]);
-  //   }
-  //   return true;
-  // }
 
   /**
-   * @brief Checks whether the TensorList is
-   * a dense Tensor. It returns true if and only if
-   * all of the stored Tensors have the same shape
-   * and they are densely packed in memory.
+   * @brief Checks whether the batch container can be converted to a dense Tensor. It returns true
+   * if and only if all of the stored tensors have the same shape and they are densely packed in
+   * memory.
    */
   bool IsDenseTensor() const;
-  // {
-  //   if (num_samples() == 0 || _num_elements() == 0) {
-  //     return true;
-  //   }
-  //   if (!IsContiguous()) {
-  //     return false;
-  //   }
-  //   if (!is_uniform(shape_)) {
-  //     return false;
-  //   }
-  //   // shapes are uniform, check if offsets are packed
-  //   auto tensor_volume = volume(shape_[0]);
-  //   Index offset = 0;
-
-  //   for (int i = 0; i < shape_.size(); ++i) {
-  //     if (offset != offsets_[i]) {
-  //       return false;
-  //     }
-  //     offset += tensor_volume;
-  //   }
-  //   return true;
-  // }
 
   /**
-   * @brief Returns a Tensor view with given shape or nullptr if no
-   * such exists
-   */
-  Tensor<Backend> *GetViewWithShape(const TensorShape<> &shape);
-  // {
-  //   for (auto &t : tensor_views_) {
-  //     if (t.shape() == shape) {
-  //       return &t;
-  //     }
-  //   }
-  //   return nullptr;
-  // }
-
-  /**
-   * @brief Returns a pointer to Tensor which shares the data
-   * with this TensorList and give it the provided shape.
-   * Tensor list owns the memory. The tensor obtained through
+   * @brief Returns a pointer to Tensor which shares the data with this batch object and give it the
+   * provided shape. Batch and the Tensor share the memory allocation. The tensor obtained through
    * this function stays valid for as long as TensorList data is unchanged.
+   * The batch must be representable as DenseTensor.
    */
   DLL_PUBLIC Tensor<Backend> AsReshapedTensor(const TensorShape<> &new_shape);
-  // {
-  //   auto t = GetViewWithShape(new_shape);
-  //   if (t) {
-  //     return t;
-  //   }
 
-  //   // need to create a new view
-  //   DALI_ENFORCE(num_samples() > 0,
-  //                "To create a view Tensor, the Tensor List must have at least 1 element.");
-  //   DALI_ENFORCE(IsValidType(type()),
-  //                "To create a view Tensor, the Tensor List must have a valid data type.");
-  //   DALI_ENFORCE(IsContiguousTensor(),
-  //                "To create a view Tensor, all tensors in the input TensorList must be contiguous "
-  //                "in memory.");
-  //   Index product = shape().num_elements();
-  //   DALI_ENFORCE(product == volume(new_shape),
-  //                "To create a view Tensor, Requested shape need to have the same volume as the "
-  //                "tensor list.");
-
-  //   tensor_views_.emplace_back();
-  //   auto &tensor = tensor_views_.back();
-
-  //   tensor.set_device_id(device_id());
-  //   tensor.ShareData(data_.get_data_ptr(), data_.capacity(), data_.is_pinned(),
-  //                    new_shape, type(), order());
-
-  //   return &tensor;
-  // }
-
+  /**
+   * @brief Return a Dense Tensor representation of the underlying memory if possible.
+   */
   DLL_PUBLIC Tensor<Backend> AsTensor();
-  // {
-  //   // To prevent situation when AsReshapedTensor is called first with some shape, and then
-  //   // AsTensor which return non-dense tensor after all
-  //   // i.e. [[2], [3], [1]] is not dense but requesting [3, 2] AsReshapedTensor will work
-  //   // while AsTensor should not return for that case
-  //   DALI_ENFORCE(this->IsDenseTensor(),
-  //     "All tensors in the input TensorList must have the same shape and be densely packed.");
-  //   auto requested_shape = shape_cat(static_cast<int64_t>(this->num_samples()), shape_[0]);
-
-  //   return this->AsReshapedTensor(requested_shape);
-  // }
-
 
 
   AccessOrder order() const {
@@ -409,6 +313,8 @@ class DLL_PUBLIC TensorVector {
 
   bool is_pinned() const;
 
+  void set_device_id(int device_id);
+
   int device_id() const;
 
   /**
@@ -597,7 +503,7 @@ class DLL_PUBLIC TensorVector {
    * @param error_suffix Additional description added to the error message
    */
   void VerifySampleShareConformance(DALIDataType type, int sample_dim, TensorLayout layout,
-                                    bool pinned, AccessOrder order,
+                                    bool pinned, AccessOrder order, int device_id,
                                     const std::string &error_suffix = ".");
 
   /**
@@ -618,8 +524,8 @@ class DLL_PUBLIC TensorVector {
   // Memory backing
   Buffer<Backend> contiguous_buffer_;
   std::weak_ptr<void> buffer_bkp_;
-  // Memory, sample aliases and metadata - TODO(klecki): Remove SampleWorkspace and swap to plain
-  // Buffer instead of using actual Tensors.
+  // Memory, sample aliases and metadata
+  // TODO(klecki): Remove SampleWorkspace and swap to plain Buffer instead of using actual Tensors.
   std::vector<Tensor<Backend>> tensors_;
 
   // State and metadata that should be uniform regardless of the contiguity state.
@@ -632,6 +538,7 @@ class DLL_PUBLIC TensorVector {
   TensorLayout layout_;
 
   bool pinned_ = true;
+  int device_ = CPU_ONLY_DEVICE_ID;
   AccessOrder order_;
 
   // So we can access the members of other TensorVectors
