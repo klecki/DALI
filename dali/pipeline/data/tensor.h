@@ -243,7 +243,7 @@ class Tensor : public Buffer<Backend> {
     // Set the new order, if provided.
     if (order) {
       this->set_order(order);
-      device_ = order.device_id();
+      device_ = order.device_id() == -1 ? CPU_ONLY_DEVICE_ID : order.device_id();
     }
 
     // Save our new pointer and bytes. Reset our type, shape, and size

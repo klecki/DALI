@@ -354,7 +354,8 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const shared_ptr<voi
   // Setting any individual sample converts the batch to non-contiguous mode
   MakeNoncontiguous();
   // TODO(klecki): device_id - can we just infer it from order? do we really need separate member?
-  VerifySampleShareConformance(type, shape.sample_dim(), layout, pinned, order, order.device_id(),
+  VerifySampleShareConformance(type, shape.sample_dim(), layout, pinned, order,
+                               order.device_id() == -1 ? CPU_ONLY_DEVICE_ID : order.device_id(),
                                make_string(" for ", sample_idx, "."));
 
   DALI_ENFORCE(!IsContiguous());

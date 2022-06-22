@@ -149,6 +149,7 @@ void SetExternalInputTensors(daliPipelineHandle *pipe_handle, const char *name,
   data.set_sample_dim(sample_dim);
   data.set_type(type_id);
   data.set_order(order);
+  data.set_device_id(order.device_id() == -1 ? dali::CPU_ONLY_DEVICE_ID : order.device_id());
   data.SetLayout(layout);
 
   for (int i = 0; i < curr_batch_size; i++) {
