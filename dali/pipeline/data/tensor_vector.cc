@@ -19,6 +19,7 @@
 #include "dali/core/error_handling.h"
 #include "dali/core/tensor_layout.h"
 #include "dali/core/tensor_shape.h"
+#include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/types.h"
 
 namespace dali {
@@ -300,6 +301,9 @@ void TensorVector<Backend>::VerifySampleShareConformance(DALIDataType type, int 
   DALI_ENFORCE(this->order() == order,
                make_string("Sample must have the same order as the target batch", error_suffix));
 
+  if (this->device_id() != device_id) {
+    std::cout << "HEH" << std::endl;
+  }
   DALI_ENFORCE(this->device_id() == device_id,
                make_string("Sample must have the same device id as target batch, current: ",
                            this->device_id(), ", new: ", device_id, error_suffix));
@@ -353,7 +357,8 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const shared_ptr<voi
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
   // Setting any individual sample converts the batch to non-contiguous mode
   MakeNoncontiguous();
-  // TODO(klecki): device_id - can we just infer it from order? do we really need separate member?
+  // TODO(klecki), TODO(mzient): (order - device_id mismatch) - can we just infer device_id from
+  // order or do we really need separate member?
   VerifySampleShareConformance(type, shape.sample_dim(), layout, pinned, order,
                                order.device_id() == -1 ? CPU_ONLY_DEVICE_ID : order.device_id(),
                                make_string(" for ", sample_idx, "."));
@@ -517,8 +522,12 @@ void TensorVector<Backend>::set_order(AccessOrder order, bool synchronize) {
   for (auto &t : tensors_)
     t.set_order(order, false);
   order_ = order;
-  // TODO(klecki), TODO(mzient): apparently you can set order with device other than the current
-  // device id without changing it
+  // TODO(klecki), TODO(mzient): (order - device_id mismatch) - apparently you can set order with
+  // device other than the current device id without changing it
+  device_ = order.device_id() == -1 ? CPU_ONLY_DEVICE_ID : order.device_id();
+  if (device_ >= 0 && device_ != order_.device_id()) {
+    std::cout << "This is the reason 4" << std::endl;
+  }
 }
 
 
@@ -551,6 +560,13 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
       DoMakeNoncontiguous();
     }
   }
+  if (std::is_same_v<CPUBackend, Backend>) {
+    std::cout << ">> Gonna be resizing " << device_id() << " "<< order().device_id();
+    if (curr_num_tensors_ > 0) {
+      std::cout << " first tensor: " << tensors_[0].device_id() << " "<< tensors_[0].order().device_id();
+    }
+    std::cout << std::endl;
+  }
   resize_tensors(new_shape.num_samples());
   if (type_.id() != new_type) {
     type_ = TypeTable::GetTypeInfo(new_type);
@@ -563,8 +579,25 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
     contiguous_buffer_.resize(new_shape.num_elements(), new_type);
     order_ = contiguous_buffer_.order();  // propagate order after allocation, it might have changed
     device_ = contiguous_buffer_.device_;
+    if (device_ >= 0 && device_ != order_.device_id()) {
+      std::cout << "This is the reason 6" << std::endl;
+    }
     recreate_views();
     return;
+  }
+
+  if (std::is_same_v<CPUBackend, Backend>) {
+    std::cout << "  << Gonna be resizing " << device_id() << " "<< order().device_id();
+    if (curr_num_tensors_ > 0) {
+      std::cout << " first tensor: " << tensors_[0].device_id() << " "<< tensors_[0].order().device_id();
+    }
+    std::cout << std::endl;
+    static int resizes = 0;
+    resizes++;
+    std::cout << "Resizes " << resizes << " " << this << std::endl;
+    if (resizes == 21) {
+      std::cout << "Break here before disaster" <<  std::endl;
+    }
   }
 
   for (int i = 0; i < curr_num_tensors_; i++) {
@@ -573,6 +606,10 @@ void TensorVector<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataT
   if (curr_num_tensors_ > 0) {
     order_ = tensors_[0].order();
     device_ = tensors_[0].device_id();
+  }
+
+  if (device_ >= 0 && device_ != order_.device_id()) {
+    std::cout << "This is the reason 7 " << device_ << " " << order_.device_id() << std::endl;
   }
 }
 
@@ -677,6 +714,9 @@ void TensorVector<Backend>::set_device_id(int device_id) {
   contiguous_buffer_.set_device_id(device_id);
   for (auto &t : tensors_) {
     t.set_device_id(device_id);
+  }
+  if (device_id >= 0 && device_id != order_.device_id()) {
+    std::cout << "This is the reason 1" << std::endl;
   }
   device_ = device_id;
 }
@@ -966,6 +1006,9 @@ void TensorVector<Backend>::ShareData(const shared_ptr<void> &ptr, size_t bytes,
     // device id not provided, it's expected to be set separately
     device_ = CPU_ONLY_DEVICE_ID;
   }
+  if (device_ >= 0 && device_ != order_.device_id()) {
+    std::cout << "This is the reason 2" << std::endl;
+  }
   recreate_views();
 }
 
@@ -989,6 +1032,9 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
       }
       tensors_[i].set_order(order());
       tensors_[i].set_device_id(device_id());
+      // if (tensors_[i].device_id() >= 0 && tensors_[i].device_id() != tensors_[i].order().device_id()) {
+      //   std::cout << "This is the reason 10" << std::endl;
+      // }
       if (type() != DALI_NO_TYPE) {
         tensors_[i].set_type(type());
         if (sample_dim_ >= 0) {
@@ -1024,6 +1070,9 @@ void TensorVector<Backend>::UpdatePropertiesFromSamples(bool contiguous) {
   pinned_ = tensors_[0].is_pinned();
   order_ = tensors_[0].order();
   device_ = tensors_[0].device_id();
+  if (device_ >= 0 && device_ != order_.device_id()) {
+    std::cout << "This is the reason 3" << std::endl;
+  }
   contiguous_buffer_.set_order(order_);
   for (int i = 0; i < curr_num_tensors_; i++) {
     DALI_ENFORCE(type() == tensors_[i].type(),

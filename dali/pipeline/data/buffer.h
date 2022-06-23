@@ -395,10 +395,17 @@ class DLL_PUBLIC Buffer {
         // re-allocating: get the device
         if (std::is_same<Backend, GPUBackend>::value || pinned_) {
           device_ = order_.device_id();
-          if (device_ < 0)
+          // TODO(klecki), TODO(mzient): (order - device_id mismatch) - if no device_id was present
+          // only the device_ attribute was updated but not the order
+          if (device_ < 0) {
             CUDA_CALL(cudaGetDevice(&device_));
+          }
         } else {
           device_ = CPU_ONLY_DEVICE_ID;
+        }
+        if ((device_ >= 0 && order_.device_id() != device_) ||
+            (device_ == CPU_ONLY_DEVICE_ID && order_.device_id() != -1)) {
+          order_ = AccessOrder(order_.stream(), device_ == CPU_ONLY_DEVICE_ID ? -1 : device_);
         }
       }
     }

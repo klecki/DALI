@@ -224,12 +224,12 @@ def test_sequences():
         return np.append(m(sample_desc), t(sample_desc).reshape(-1, 1), axis=1)
 
     input_cases = [
-        (fn.coord_transform, {}, [ArgCb("M", m, True)]),
-        (fn.coord_transform, {}, [ArgCb("T", t, True)]),
-        (fn.coord_transform, {}, [ArgCb("MT", mt, True)]),
-        (fn.coord_transform, {}, [ArgCb("MT", mt, False)]),
-        (fn.coord_transform, {}, [ArgCb("M", m, True), ArgCb("T", t, True)]),
-        (fn.coord_transform, {}, [ArgCb("M", m, False), ArgCb("T", t, True)]),
+        # (fn.coord_transform, {}, [ArgCb("M", m, True)]),
+        # (fn.coord_transform, {}, [ArgCb("T", t, True)]),
+        # (fn.coord_transform, {}, [ArgCb("MT", mt, True)]),
+        (fn.coord_transform, {}, [ArgCb("MT", mt, False)], ["gpu"]),
+        # (fn.coord_transform, {}, [ArgCb("M", m, True), ArgCb("T", t, True)]),
+        # (fn.coord_transform, {}, [ArgCb("M", m, False), ArgCb("T", t, True)]),
     ]
 
     input_seq_data = [[
@@ -243,18 +243,18 @@ def test_sequences():
 
     yield from sequence_suite_helper(rng, [main_input], input_cases, num_iters)
 
-    input_broadcast_cases = [
-        (fn.coord_transform, {}, [ArgCb(0, lambda _: points(), False, "cpu")], ["cpu"]),
-        (fn.coord_transform, {}, [ArgCb(0, lambda _: points(), False, "gpu")], ["cpu"]),
-    ]
+    # input_broadcast_cases = [
+    #     (fn.coord_transform, {}, [ArgCb(0, lambda _: points(), False, "cpu")], ["cpu"]),
+    #     (fn.coord_transform, {}, [ArgCb(0, lambda _: points(), False, "gpu")], ["cpu"]),
+    # ]
 
-    input_mt_data = [[
-        np.array([mt(None) for _ in rand_range(max_num_frames)], dtype=np.float32)
-        for _ in rand_range(max_batch_size)]
-        for _ in range(num_iters)]
+    # input_mt_data = [[
+    #     np.array([mt(None) for _ in rand_range(max_num_frames)], dtype=np.float32)
+    #     for _ in rand_range(max_batch_size)]
+    #     for _ in range(num_iters)]
 
-    main_input = ArgData(
-        desc=ArgDesc("MT", "F", "", "F**"),
-        data=input_mt_data)
+    # main_input = ArgData(
+    #     desc=ArgDesc("MT", "F", "", "F**"),
+    #     data=input_mt_data)
 
-    yield from sequence_suite_helper(rng, [main_input], input_broadcast_cases, num_iters)
+    # yield from sequence_suite_helper(rng, [main_input], input_broadcast_cases, num_iters)
