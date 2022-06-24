@@ -61,13 +61,15 @@ class SampleBroadcasting {
 //  protected:
 //   using SampleBroadcasting<CPUBackend>::BroadcastSamples;
 
-//   void BroadcastSamples(TensorList<GPUBackend> &expanded_batch, const TensorList<GPUBackend> &batch,
+//   void BroadcastSamples(TensorList<GPUBackend> &expanded_batch, const TensorList<GPUBackend>
+//   &batch,
 //                         const ExpandDesc &expand_desc, const DeviceWorkspace &expanded) {
 //     sequence_utils::broadcast_samples(expanded_batch, batch, expand_desc.NumExpanded(),
 //                                       expand_desc.DimsToExpand());
 //   }
 
-//   void BroadcastSamples(TensorList<CPUBackend> &expanded_batch, const TensorList<CPUBackend> &batch,
+//   void BroadcastSamples(TensorList<CPUBackend> &expanded_batch, const TensorList<CPUBackend>
+//   &batch,
 //                         const ExpandDesc &expand_desc, const DeviceWorkspace &expanded) {
 //     (void)expanded;
 //     sequence_utils::broadcast_samples(expanded_batch, batch, expand_desc.NumExpanded(),

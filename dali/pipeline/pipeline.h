@@ -205,8 +205,8 @@ class DLL_PUBLIC Pipeline {
   //  * @param name name of the input
   //  * @param tl data
   //  * @param order synchronization order of the operation - a CUDA stream or host order
-  //  * @param sync If SetExternalInputHelper should be blocking - waits until provided data is copied
-  //  *             to the internal buffer
+  //  * @param sync If SetExternalInputHelper should be blocking - waits until provided data is
+  //  *             copied to the internal buffer
   //  * @param no_copy_mode Select whether to use the parameter defined in the External Source or
   //  *                     override the mode of operation forcing the copy or no-copy
   //  */

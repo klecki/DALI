@@ -537,8 +537,8 @@
 //     DALI_ENFORCE(IsValidType(type()),
 //                  "To create a view Tensor, the Tensor List must have a valid data type.");
 //     DALI_ENFORCE(IsContiguousTensor(),
-//                  "To create a view Tensor, all tensors in the input TensorList must be contiguous "
-//                  "in memory.");
+//                  "To create a view Tensor, all tensors in the input TensorList must be contiguous
+//                  " "in memory.");
 //     Index product = shape().num_elements();
 //     DALI_ENFORCE(product == volume(new_shape),
 //                  "To create a view Tensor, Requested shape need to have the same volume as the "
@@ -804,8 +804,8 @@
 //    * The TensorList must be either empty or have a valid type and be contiguous.
 //    */
 //   friend void *unsafe_raw_mutable_data(TensorList<Backend> &tl) {
-//     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
-//     return tl.data_.raw_mutable_data();
+//     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous
+//     TensorList."); return tl.data_.raw_mutable_data();
 //   }
 
 //   /**
@@ -813,8 +813,8 @@
 //    * The TensorList must be either empty or have a valid type and be contiguous.
 //    */
 //   friend const void *unsafe_raw_data(const TensorList<Backend> &tl) {
-//     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous TensorList.");
-//     return tl.data_.raw_data();
+//     DALI_ENFORCE(tl.IsContiguous(), "Data pointer can be obtain only for contiguous
+//     TensorList."); return tl.data_.raw_data();
 //   }
 
 //   /**

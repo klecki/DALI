@@ -385,7 +385,6 @@ TYPED_TEST(TensorVectorSuite, NewResizeSetSize) {
   // TensorVector<TypeParam> tv_like_t, tv_like_tv;
   // tv_like_t.SetupLike(t);
   // tv_like_tv.SetupLike(tv);
-
 }
 
 

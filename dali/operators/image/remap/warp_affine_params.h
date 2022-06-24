@@ -130,7 +130,8 @@ class WarpAffineParamProvider
   // }
 
   // void UseInputAsParams(const TensorVector<GPUBackend> &, bool) {
-  //   DALI_FAIL("This function is here only to avoid excessive complexity of mitigating the call.");
+  //   DALI_FAIL("This function is here only to avoid excessive complexity of mitigating the
+  //   call.");
   // }
 
   void UseInputAsParams(const TensorVector<CPUBackend> &input, bool invert) {

@@ -209,7 +209,7 @@ TensorVector<Backend> &TensorVector<Backend>::operator=(TensorVector<Backend> &&
 
 
 // This is to check if we are actually laid down in contiguous memory
-// TODO: make this internal and name it something like: IsContiguouoususlyStored?
+// TODO(klecki): make this internal and name it something like: IsContiguouoususlyStored?
 template <typename Backend>
 bool TensorVector<Backend>::IsContiguousTensor() const {
   if (num_samples() == 0 || shape().num_elements() == 0) {
@@ -353,8 +353,6 @@ void TensorVector<Backend>::UnsafeSetSample(int sample_idx, const shared_ptr<voi
   assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
   // Setting any individual sample converts the batch to non-contiguous mode
   MakeNoncontiguous();
-  // TODO(klecki), TODO(mzient): (order - device_id mismatch) - can we just infer device_id from
-  // order or do we really need separate member?
   VerifySampleShareConformance(type, shape.sample_dim(), layout, pinned, order, device_id,
                                make_string(" for ", sample_idx, "."));
 
@@ -974,7 +972,7 @@ void TensorVector<Backend>::resize_tensors(int new_size) {
     auto old_size = curr_num_tensors_;
     tensors_.resize(new_size);
     for (int i = old_size; i < new_size; i++) {
-      // TODO same validation as when updating properties - or reset
+      // TODO(klecki) same validation as when updating properties - or reset
       if (!tensors_[i].has_data()) {
         tensors_[i].set_pinned(is_pinned());
       } else {
@@ -1059,7 +1057,7 @@ bool TensorVector<Backend>::has_data() const {
 
 template <typename Backend>
 bool TensorVector<Backend>::shares_data() const {
-  // TODO: I would like to get rid of some of this
+  // TODO(klecki): I would like to get rid of some of this
   if (IsContiguous()) {
     return contiguous_buffer_.shares_data();
   }
