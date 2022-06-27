@@ -395,17 +395,11 @@ class DLL_PUBLIC Buffer {
         // re-allocating: get the device
         if (std::is_same<Backend, GPUBackend>::value || pinned_) {
           device_ = order_.device_id();
-          // TODO(klecki), TODO(mzient): (order - device_id mismatch) - if no device_id was present
-          // only the device_ attribute was updated but not the order
           if (device_ < 0) {
             CUDA_CALL(cudaGetDevice(&device_));
           }
         } else {
           device_ = CPU_ONLY_DEVICE_ID;
-        }
-        if ((device_ >= 0 && order_.device_id() != device_) ||
-            (device_ == CPU_ONLY_DEVICE_ID && order_.device_id() != -1)) {
-          order_ = AccessOrder(order_.stream(), device_ == CPU_ONLY_DEVICE_ID ? -1 : device_);
         }
       }
     }
@@ -474,11 +468,10 @@ class DLL_PUBLIC Buffer {
    *
    * Current Buffer will be marked as sharing data, and reallocation of memory will be
    * prohibited until reset() is called.
-   *
-   * For GPU memory, it is assumed to be associated with current device.
    */
   inline void set_backing_allocation(const shared_ptr<void> &ptr, size_t bytes, bool pinned,
-                                     DALIDataType type = DALI_NO_TYPE, size_t size = 0) {
+                                     size_t size, DALIDataType type, int device_id,
+                                     AccessOrder order = {}) {
     free_storage();
     type_ = TypeTable::GetTypeInfo(type);
     data_ = ptr;
@@ -487,12 +480,8 @@ class DLL_PUBLIC Buffer {
     shares_data_ = data_ != nullptr;
     num_bytes_ = bytes;
     pinned_ = pinned;
-    // setting the allocation, get the device
-    if ((std::is_same<Backend, GPUBackend>::value || pinned_) && device_ == CPU_ONLY_DEVICE_ID) {
-      CUDA_CALL(cudaGetDevice(&device_));
-    } else {
-      device_ = CPU_ONLY_DEVICE_ID;
-    }
+    device_ = device_id;
+    set_order(order);
   }
 
   static void SetGrowthFactor(double factor) {
