@@ -59,6 +59,7 @@ TYPED_TEST(TensorVectorSuite, NewSetupAndSetSizeNoncontiguous) {
   const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
   tv.set_pinned(false);
+  tv.set_order(order);
   tv.set_sample_dim(2);
   tv.SetLayout("XY");
   tv.SetContiguous(BatchState::Noncontiguous);
@@ -317,6 +318,7 @@ TYPED_TEST(TensorVectorSuite, NewResizeSetSize) {
   const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
   tv.set_pinned(false);
+  tv.set_order(order);
   tv.set_sample_dim(2);
   tv.SetLayout("XY");
   tv.SetContiguous(BatchState::Contiguous);
@@ -390,7 +392,6 @@ TYPED_TEST(TensorVectorSuite, NewResizeSetSize) {
 
 TYPED_TEST(TensorVectorSuite, NewNoForcedChangeContToNon) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
-  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
   tv.SetContiguous(BatchState::Contiguous);
   auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
@@ -399,7 +400,6 @@ TYPED_TEST(TensorVectorSuite, NewNoForcedChangeContToNon) {
 
 TYPED_TEST(TensorVectorSuite, NewNoForcedChangeNonToCont) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
-  const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
   tv.SetContiguous(BatchState::Noncontiguous);
   auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
@@ -411,6 +411,7 @@ TYPED_TEST(TensorVectorSuite, NewContiguousResize) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
   const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
+  tv.set_order(order);
   tv.SetContiguous(BatchState::Contiguous);
   auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
   tv.Resize(new_shape, DALI_FLOAT);
@@ -437,6 +438,7 @@ TYPED_TEST(TensorVectorSuite, NewNoncontiguousResize) {
   constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
   const auto order = is_device ? AccessOrder(cuda_stream) : AccessOrder::host();
   TensorVector<TypeParam> tv;
+  tv.set_order(order);
   tv.SetContiguous(BatchState::Noncontiguous);
   auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
   tv.Resize(new_shape, DALI_FLOAT);
