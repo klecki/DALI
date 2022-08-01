@@ -508,11 +508,11 @@ class DLL_PUBLIC TensorList {
    * Tensor list owns the memory. The tensor obtained through
    * this function stays valid for as long as TensorList data is unchanged.
    */
-  DLL_PUBLIC inline Tensor<Backend> * AsReshapedTensor(const TensorShape<> &new_shape) {
-    auto t = GetViewWithShape(new_shape);
-    if (t) {
-      return t;
-    }
+  DLL_PUBLIC inline Tensor<Backend> AsReshapedTensor(const TensorShape<> &new_shape) {
+    // auto t = GetViewWithShape(new_shape);
+    // if (t) {
+    //   return t;
+    // }
 
     // need to create a new view
     DALI_ENFORCE(num_samples() > 0,
@@ -527,13 +527,14 @@ class DLL_PUBLIC TensorList {
                  "To create a view Tensor, Requested shape need to have the same volume as the "
                  "tensor list.");
 
-    tensor_views_.emplace_back();
-    auto &tensor = tensor_views_.back();
+    // tensor_views_.emplace_back();
+    // auto &tensor = tensor_views_.back();
+    Tensor<Backend> tensor;
 
     tensor.ShareData(data_.get_data_ptr(), data_.capacity(), data_.is_pinned(),
                      new_shape, type(), device_id(), order());
 
-    return &tensor;
+    return tensor;
   }
 
   /**
@@ -542,7 +543,7 @@ class DLL_PUBLIC TensorList {
    * obtained through this function stays valid for as long
    * as TensorList data is unchanged.
    */
-  DLL_PUBLIC inline Tensor<Backend> * AsTensor() {
+  DLL_PUBLIC inline Tensor<Backend> AsTensor() {
     // To prevent situation when AsReshapedTensor is called first with some shape, and then
     // AsTensor which return non-dense tensor after all
     // i.e. [[2], [3], [1]] is not dense but requesting [3, 2] AsReshapedTensor will work
