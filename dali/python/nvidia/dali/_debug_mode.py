@@ -586,6 +586,17 @@ class _PipelineDebug(_pipeline.Pipeline):
             "Currently pipeline in debug mode works only with `pipeline_def` decorator."
             "Using `with` statement is not supported.")
 
+    def start_py_workers(self):
+        """
+        Start Python workers (that will run ``ExternalSource`` callbacks).
+
+        Symbolic version of start_py_workers from the standard pipeline.
+        In debug mode external sources are not using parallel execution.
+
+        Refer to :meth:`Pipeline.start_py_workers() <nvidia.dali.Pipeline.start_py_workers>`
+        for details."""
+        pass
+
     def build(self):
         """Build the pipeline.
 
@@ -653,6 +664,78 @@ class _PipelineDebug(_pipeline.Pipeline):
             self._feed_input_data[name].append((data, kwargs))
         else:
             self._external_sources[name]._feed_input(name, data, kwargs)
+
+    def outputs(self):
+        """Returns the outputs of the pipeline and releases previous buffer.
+
+        If the pipeline is executed asynchronously, this function blocks
+        until the results become available. It rises StopIteration if data set
+        reached its end - usually when iter_setup cannot produce any more data.
+
+        :return:
+            A list of `TensorList` objects for respective pipeline outputs
+        """
+        with self._check_api_type_scope(types.PipelineAPIType.SCHEDULED):
+            if self._batches_to_consume == 0 or self._gpu_batches_to_consume == 0:
+                raise StopIteration
+            self._batches_to_consume -= 1
+            self._gpu_batches_to_consume -= 1
+            return self._outputs()
+
+    def schedule_run(self):
+        """Run the pipeline without returning the resulting buffers.
+
+        In debug mode it serves only as a compatibility layer and it invokes :meth:`run`
+        while storing its results to be obtained via :meth:`share_outputs`. It does not involve
+        prefetching.
+        Needs to be used together with :meth:`release_outputs`
+        and :meth:`share_outputs`.
+        Should not be mixed with :meth:`run` in the same pipeline"""
+        with self._check_api_type_scope(types.PipelineAPIType.SCHEDULED):
+            if self._first_iter and self._exec_pipelined:
+                self._prefetch()
+            else:
+                self._run_once()
+
+    def share_outputs(self):
+        """Returns the outputs of the pipeline.
+
+        Main difference to :meth:`outputs`
+        is that share_outputs doesn't release returned buffers, release_outputs
+        need to be called for that. If the pipeline is executed asynchronously,
+        this function blocks until the results become available. It provides
+        the user with better control about when he wants to run the pipeline, when he wants
+        to obtain the resulting buffers and when they can be returned to DALI pool when the
+        results have been consumed.
+        Needs to be used together with :meth:`release_outputs`
+        and :meth:`schedule_run`
+        Should not be mixed with :meth:`run` in the same pipeline.
+
+        :return:
+            A list of `TensorList` objects for respective pipeline outputs
+        """
+        with self._check_api_type_scope(types.PipelineAPIType.SCHEDULED):
+            if self._batches_to_consume == 0 or self._gpu_batches_to_consume == 0:
+                raise StopIteration
+            self._batches_to_consume -= 1
+            self._gpu_batches_to_consume -= 1
+            return self._pipe.ShareOutputs()
+
+    def release_outputs(self):
+        """Release buffers returned by share_outputs calls.
+
+        It helps in case when output call result is consumed (copied)
+        and buffers can be marked as free before the next call to share_outputs. It provides
+        the user with better control about when he wants to run the pipeline, when he wants
+        to obtain the resulting buffers and when they can be returned to DALI pool when the
+        results have been consumed.
+        Needs to be used together with :meth:`schedule_run`
+        and :meth:`share_outputs`
+        Should not be mixed with :meth:`run` in the same pipeline"""
+        with self._check_api_type_scope(types.PipelineAPIType.SCHEDULED):
+            if not self._built:
+                raise RuntimeError("Pipeline must be built first.")
+            return self._pipe.ReleaseOutputs()
 
     def _create_op(self, op_class, op_name, key, cur_context, inputs, kwargs):
         """Creates direct operator."""
