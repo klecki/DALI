@@ -45,7 +45,7 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
       output.Copy(input);
     }
   } else {
-    assert(!IsPassThroug() &&
+    assert(!IsPassThrough() &&
            "Copy between backends is needed, executor cannot mark this MakeContiguous as "
            "PassThrough node.");
     auto &output = ws.Output<GPUBackend>(0);

@@ -717,9 +717,10 @@ void Executor<WorkspacePolicy, QueuePolicy>::PresizeData(
     return hint;
   };
 
-  auto reserve_batch = [](auto &storage, const OperatorBase &op, Index hint, int batch_size) {
-    // If the Op Can Infer Outputs we want to do one contiguous pre-allocation
-    if (op.CanInferOutputs()) {
+  auto reserve_batch = [](auto &storage, Index hint, int batch_size) {
+    // If the batch was marked as contiguous (for example due to op.CanInferOutputs being true)
+    // reserve a contiguous batch.
+    if (storage->IsContiguous()) {
       storage->reserve(hint * batch_size);
     } else {
       storage->reserve(hint, batch_size);
@@ -743,9 +744,6 @@ void Executor<WorkspacePolicy, QueuePolicy>::PresizeData(
         (
           auto& queue = get_queue<op_type_static, dev_static>(tensor_to_store_queue[tensor.id]);
           for (auto storage : queue) {
-            if (should_reserve(storage, hint, dev_static)) {
-              reserve_batch(storage, *node.op, hint, max_batch_size_);
-            }
             // Historically, the Mixed stage (as well as GPU stage) always returned contiguous
             // outputs. Because, Mixed uses its own overloads of Run rather than RunImpl,
             // we ensure that the outputs are still contiguous, at least for now.
@@ -754,6 +752,9 @@ void Executor<WorkspacePolicy, QueuePolicy>::PresizeData(
             }
             if (node.op->CanInferOutputs()) {
               storage->SetContiguity(BatchContiguity::Contiguous);
+            }
+            if (should_reserve(storage, hint, dev_static)) {
+              reserve_batch(storage, hint, max_batch_size_);
             }
           }
         ), DALI_FAIL("Invalid StorageDevice"));  // NOLINT(whitespace/parens)

@@ -493,7 +493,12 @@ class DLL_PUBLIC Pipeline {
             QueueSizes prefetch_queue_depth = QueueSizes{2});
 
   using EdgeMeta = struct {
-    bool has_cpu, has_gpu, has_contiguous, has_make_contiguous_cpu, has_make_contiguous_gpu;
+    bool has_cpu;
+    bool has_gpu;
+    bool has_contiguous;
+    // MakeContiguous was added after this node to be used as output on specified device:
+    bool has_make_contiguous_cpu;
+    bool has_make_contiguous_gpu;
   };
 
   // Return the nearest multiple of 8 that is >= base_ptr_offset
@@ -513,7 +518,7 @@ class DLL_PUBLIC Pipeline {
     edge.has_cpu = false;
     edge.has_gpu = false;
     edge.has_contiguous = false;
-    edge.has_make_contiguous_cpu = false;  // TODO(klecki): This is a bit of a WAR
+    edge.has_make_contiguous_cpu = false;
     edge.has_make_contiguous_gpu = false;
     if (device == "cpu") {
       edge.has_cpu = true;
@@ -546,14 +551,25 @@ class DLL_PUBLIC Pipeline {
   bool ValidateOutputs(const DeviceWorkspace &ws) const;
 
   /**
-   * @brief Add the Make Contiguous node to the graph that is used for handling pipeline
-   * outputs.
-   * @param meta - the output edge - that is edge from the operator to tensor that we need to
+   * @brief Add new MakeContiguous node (if one does not exist yet) for the requested output Edge
+   *
+   * Note that inserting mixed MakeContiguous for cpu -> gpu transfer has special rules regarding
+   * output naming.
+   *
+   * @param meta the output edge - that is edge from the operator to tensor that we need to
    * insert MakeContiguous after
+   * @param input_name Name of the input Tensor node to the MakeContiguous
+   * @param input_dev Device placement of the input Tensor node
+   * @param device Device of the requested MakeContiguous node.
+   * @param output_dev Placement of the requested output data from the MakeContiguous.
+   * For given MakeContiguous device, we have following possible outputs:
+   *  * "mixed" -> "cpu", "gpu"
+   *  * "gpu" -> "gpu"
+   * @return The name of the output of the MakeContiguous node that replaces the requested output.
    */
-  void AddMakeContiguousNode(EdgeMeta &meta, const std::string &op_name, const std::string &device,
-                             const std::string &input_name, const std::string &input_dev,
-                             const std::string &output_name, const std::string &output_dev);
+  std::string AddMakeContiguousNode(EdgeMeta &meta, const std::string &input_name,
+                                    const std::string &input_dev, const std::string &device,
+                                    const std::string &output_dev);
 
   const int MAX_SEEDS = 1024;
 
