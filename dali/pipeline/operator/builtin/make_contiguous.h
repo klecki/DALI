@@ -52,7 +52,6 @@ class MakeContiguousBase : public Operator<Backend> {
 
   bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override {
     output_desc.resize(1);
-    // TODO(klecki): deduplicate
     if (ws.template InputIsType<CPUBackend>(0)) {
       auto &input = ws.template Input<CPUBackend>(0);
       output_desc[0].shape = input.shape();
@@ -69,14 +68,20 @@ class MakeContiguousBase : public Operator<Backend> {
 
   /**
    * @brief Intended to be called by the executor. If the executor guarantees that the input
-   * to the make contiguous is always contiguous and we can safely pass through the data
-   * (so the executor queueing will be taken into account)
-   *
+   * to the make contiguous is always contiguous and we can safely pass through the data.
+   * The executor is responsible for adjusting the prefetch queue sizes of the passed through
+   * inputs.
    */
   void MarkPassThrough() {
     pass_through_ = true;
   }
 
+  /**
+   * @brief Check if this MakeContiguous node is set to pass through data (or copy it).
+   *
+   * Result is valid after the executor runs the OpGraph::SetupMakeContiguousPassThrough pass
+   * on the graph.
+   */
   bool IsPassThrough() const {
     return pass_through_;
   }
@@ -121,9 +126,15 @@ class MakeContiguousCPU : public MakeContiguousBase<CPUBackend> {
   DISABLE_COPY_MOVE_ASSIGN(MakeContiguousCPU);
 };
 
-bool IsPassThrough(const OperatorBase &op);
+/**
+ * @brief Call the MakeContiguousBase::MarkPassThrough, for other Operators it is no-op.
+ */
+void MarkPassThrough(OperatorBase &make_contiguous);
 
-void MarkPassThrough(OperatorBase &op);
+/**
+ * @brief Call the MakeContiguousBase::IsPassThrough, invalid for other operators.
+ */
+bool IsPassThrough(const OperatorBase &make_contiguous);
 
 }  // namespace dali
 

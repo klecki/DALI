@@ -329,6 +329,10 @@ class DLL_PUBLIC OpGraph {
     ofs << "}\n";
   }
 
+  /**
+   * @brief Get the ids of the outputs, optionally include all the nodes that should be buffered
+   * due to the usage of PassThrough memory.
+   */
   DLL_PUBLIC std::vector<TensorNodeId> GetOutputs(const std::vector<string>& output_names,
                                                   bool follow_pass_through = false) const;
   DLL_PUBLIC std::vector<TensorNodeId> GetStageOutputs(OpType stage) const;
@@ -338,9 +342,8 @@ class DLL_PUBLIC OpGraph {
    * depending on whether the input will be provided as contiguous or not (this is currently
    * the constant behaviour of every op).
    *
-   * TODO(klecki): Separate the information of CanInferOutputs into indicating the contiguous
-   * allocation or not, and the request to allocate vs the ability to estimate. Check if it is
-   * always consisten between iterations
+   * We need to calculate it ahead of time to allow for correct allocation of prefetch queues
+   * (the PassThrough information is static).
    */
   DLL_PUBLIC void SetupMakeContiguousPassThrough(const std::vector<string>& output_names);
 
@@ -359,8 +362,9 @@ class DLL_PUBLIC OpGraph {
   /**
    * @brief Find the parent tensor id that was used to produce the `passed_through` tensor by
    * the op.
+   * @return -1 is returned if no node can be found.
    */
-  std::vector<TensorNodeId> FollowPassThroughUp(OpNodeId op, TensorNodeId passed_through) const;
+  TensorNodeId FollowPassThroughUp(OpNodeId op, TensorNodeId passed_through) const;
 
   /**
    * @brief Recalculate OpNodes partitioning

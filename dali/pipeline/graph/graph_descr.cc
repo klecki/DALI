@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <string>
 
 #include "dali/core/error_handling.h"
 #include "dali/pipeline/graph/op_graph.h"
@@ -543,8 +544,6 @@ bool OpGraph::IsAlwaysContiguous(TensorNodeId tensor_id) const {
   auto &producer_op_node = Node(producer_op_node_id);
 
   // By definition everything returned by MakeContiguous is contiguous.
-  // If we are preceeded by a MakeContiguous acting as CPU -> GPU copy, we can always forward
-  // it to the output.
   if (producer_op_node.spec.GetSchema().name() == "MakeContiguous") {
     return true;
   }
@@ -556,19 +555,16 @@ bool OpGraph::IsAlwaysContiguous(TensorNodeId tensor_id) const {
     return true;
   }
 
-  // get all the Tensors that were possibly passed thorough by our producer to us
-  auto possible_sources = FollowPassThroughUp(producer_op_node_id, tensor_id);
+  // see, if we were passed through
+  auto maybe_source = FollowPassThroughUp(producer_op_node_id, tensor_id);
+
   // we were not passed through, we can assume that we are produced non-contiguous
-  if (possible_sources.empty()) {
+  if (maybe_source == -1) {
     return false;
   }
-  // check on all of the pass through paths that we are contiguous
-  for (auto source_id : possible_sources) {
-    if (!IsAlwaysContiguous(source_id)) {
-      return false;
-    }
-  }
-  return true;
+
+  // otherwise check recursively
+  return IsAlwaysContiguous(maybe_source);
 }
 
 std::vector<TensorNodeId> OpGraph::GetOutputs(const std::vector<string>& output_names,
@@ -601,9 +597,9 @@ std::vector<TensorNodeId> OpGraph::GetOutputs(const std::vector<string>& output_
           q.push_back(output_op_node.parent_tensors[0]);
         }
       }
-      auto source_tids = FollowPassThroughUp(output.node, tid);
-      for (auto parent_tid : source_tids) {
-        q.push_back(parent_tid);
+      auto maybe_source = FollowPassThroughUp(output.node, tid);
+      if (maybe_source >= 0) {
+        q.push_back(maybe_source);
       }
     }
   }
@@ -612,15 +608,12 @@ std::vector<TensorNodeId> OpGraph::GetOutputs(const std::vector<string>& output_
 
 
 void OpGraph::SetupMakeContiguousPassThrough(const std::vector<string>& output_names) {
-  // Detect the pass through for all MakeContiguous?
-  SaveToDotFile("graph.dot", true, true, true);
+  // Detect the pass through for all MakeContiguous ops
   for (int i = 0; i < NumOp(); i++) {
     auto &node = Node(i);
     if (node.spec.GetSchema().name() == "MakeContiguous") {
       // sanity check, we have 1 input and 1 output in make contiguous
       assert(node.parent_tensors.size() == 1);
-      // Can we safely pass-through data from other stage?
-
       bool same_device = Tensor(node.parent_tensors[0]).producer.storage_device ==
                          Tensor(node.children_tensors[0]).producer.storage_device;
       if (IsAlwaysContiguous(node.parent_tensors[0]) && same_device) {
@@ -630,23 +623,23 @@ void OpGraph::SetupMakeContiguousPassThrough(const std::vector<string>& output_n
   }
 }
 
-std::vector<TensorNodeId> OpGraph::FollowPassThroughUp(OpNodeId op,
-                                                       TensorNodeId passed_through) const {
+TensorNodeId OpGraph::FollowPassThroughUp(OpNodeId op, TensorNodeId passed_through) const {
+  // TODO(klecki): Use std::optional instead of returning -1. op_graph is transitively included
+  // in some .cu compilation units, so we cannot use it yet.
   auto &node = Node(op);
   const auto &schema = node.spec.GetSchema();
-  auto &output = Tensor(passed_through);
   if (!schema.HasPassThrough()) {
-    return {};
+    return -1;
   }
+  auto &output = Tensor(passed_through);
   auto output_index = output.producer.index;
-  std::vector<TensorNodeId> result;
-  // Go over all parent tensors by their respective index
+  // Find if there is a PassThrough between input id and requested output id.
   for (size_t input_index = 0; input_index < node.parent_tensors.size(); input_index++) {
     if (schema.IsPassThrough(input_index, output_index)) {
-      result.push_back(node.parent_tensors[input_index]);
+      return node.parent_tensors[input_index];
     }
   }
-  return result;
+  return -1;
 }
 
 

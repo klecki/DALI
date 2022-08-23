@@ -45,6 +45,9 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
       output.Copy(input);
     }
   } else {
+    assert(!IsPassThroug() &&
+           "Copy between backends is needed, executor cannot mark this MakeContiguous as "
+           "PassThrough node.");
     auto &output = ws.Output<GPUBackend>(0);
     if (coalesced) {
       DomainTimeRange tr("[DALI][MakeContiguousMixed] H2D coalesced", DomainTimeRange::kBlue);
@@ -61,6 +64,7 @@ void MakeContiguousMixed::Run(MixedWorkspace &ws) {
 void MakeContiguousGPU::RunImpl(DeviceWorkspace &ws) {
   const auto& input = ws.template Input<GPUBackend>(0);
   auto& output = ws.template Output<GPUBackend>(0);
+  DomainTimeRange tr("[DALI][MakeContiguousGPU] D2D", DomainTimeRange::kGreen);
   if (IsPassThrough()) {
     output.ShareData(input);
   } else {

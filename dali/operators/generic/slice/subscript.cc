@@ -102,7 +102,7 @@ This operator is used internally when all indices are empty (:) and just verifie
 that the input has sufficient number of dimensions and passes through the input.)")
     .NumInput(1)
     .NumOutput(1)
-    .PassThrough({{0, {0}}})
+    .PassThrough({{0, 0}})
     .AddArg("num_subscripts",
       "Number of subscripts supplied, which is the minimum required in the input.", DALI_INT32);
 

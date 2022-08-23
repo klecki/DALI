@@ -512,22 +512,22 @@ void Executor<WorkspacePolicy, QueuePolicy>::ShareOutputs(DeviceWorkspace *ws) {
       ), DALI_FAIL("Invalid op type"));  // NOLINT(whitespace/parens)
     ), DALI_FAIL("Invalid storage device"));  // NOLINT(whitespace/parens)
   }
-  // We than need to wait for GPU outputs from Mixed & GPU stages that are computed asynchronously.
-  // If the output event list is not empty, it means that there are outputs on GPU that we
-  // have to wait for.
 
-
-  // TODO(klecki): better error, with generic check
+  // Mostly a sanity check - we don't want to return a non-contiguous batch to Python.
   for (int i = 0; i < ws->NumOutput(); i++) {
+    const char *error_msg =
+        "DALI internal error: all outputs from the Pipeline must be contiguous, after being "
+        "processed by MakeContiguous operator.";
     if (ws->OutputIsType<CPUBackend>(i)) {
-      DALI_ENFORCE(ws->Output<CPUBackend>(i).IsContiguous(),
-                   "Internal errors: outputs must be contiguous.");
+      DALI_ENFORCE(ws->Output<CPUBackend>(i).IsContiguous(), error_msg);
     } else {
-      DALI_ENFORCE(ws->Output<GPUBackend>(i).IsContiguous(),
-                   "Internal errors: outputs must be contiguous.");
+      DALI_ENFORCE(ws->Output<GPUBackend>(i).IsContiguous(), error_msg);
     }
   }
 
+  // We than need to wait for GPU outputs from Mixed & GPU stages that are computed asynchronously.
+  // If the output event list is not empty, it means that there are outputs on GPU that we
+  // have to wait for.
   AccessOrder sync_order = ws->has_stream() ? AccessOrder(ws->stream()) : AccessOrder::host();
 
   if (!mixed_output_events_.empty()) {
