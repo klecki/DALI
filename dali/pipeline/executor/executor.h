@@ -746,6 +746,9 @@ void Executor<WorkspacePolicy, QueuePolicy>::PresizeData(
             if (should_reserve(storage, hint, dev_static)) {
               reserve_batch(storage, *node.op, hint, max_batch_size_);
             }
+            // Historically, the Mixed stage (as well as GPU stage) always returned contiguous
+            // outputs. Because, Mixed uses its own overloads of Run rather than RunImpl,
+            // we ensure that the outputs are still contiguous, at least for now.
             if (op_type_static == OpType::MIXED) {
               storage->SetContiguity(BatchContiguity::Contiguous);
             }

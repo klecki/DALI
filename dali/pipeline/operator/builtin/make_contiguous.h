@@ -30,9 +30,6 @@
 
 namespace dali {
 
-
-// TODO(klecki): Pass the information about the input being able to infer the data
-// and if it is cross device - based on that we can detect what should the CanInferOutput return
 template<typename Backend>
 class MakeContiguousBase : public Operator<Backend> {
  public:
