@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
+
 #include "dali/pipeline/operator/builtin/split.h"
 #include "dali/core/util.h"
 #include "dali/pipeline/data/backend.h"

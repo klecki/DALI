@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <vector>
 
 #include "dali/pipeline/operator/builtin/merge.h"
 #include "dali/core/util.h"

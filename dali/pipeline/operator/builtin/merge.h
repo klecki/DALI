@@ -15,6 +15,8 @@
 #ifndef DALI_PIPELINE_OPERATOR_BUILTIN_MERGE_H_
 #define DALI_PIPELINE_OPERATOR_BUILTIN_MERGE_H_
 
+#include <vector>
+
 #include "dali/pipeline/operator/operator.h"
 namespace dali {
 
