@@ -91,8 +91,9 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
 
 DALI_SCHEMA(Merge)
     .DocStr(R"code(Merge batch based on a predicate.)code")
-    .NumInput(1)
-    .NumOutput(2)
+    .NumInput(2)
+    .NumOutput(1)
+    .PassThrough({{0, 0}})  //todo add special pass through
     .AddArg("predicate", "Boolean categorization of the inputs", DALI_BOOL, true)
     .MakeInternal();
 
