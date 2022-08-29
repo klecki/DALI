@@ -19,10 +19,13 @@
 
 namespace dali {
 
-template<typename Backend>
+template <typename Backend>
 class Split : public Operator<Backend> {
  public:
-  inline explicit Split(const OpSpec &spec) : Operator<Backend>(spec) {}
+  inline explicit Split(const OpSpec &spec) : Operator<Backend>(spec) {
+    DALI_ENFORCE(spec.HasTensorArgument("predicate"),
+                 "The 'predicate' argument is required to be present as argument input.");
+  }
 
   virtual inline ~Split() = default;
 
@@ -35,8 +38,10 @@ class Split : public Operator<Backend> {
 
   DISABLE_COPY_MOVE_ASSIGN(Split);
 
- protected:
+ private:
   USE_OPERATOR_MEMBERS();
+  static constexpr int kMaxCategories = 2;
+  std::array<int, kMaxCategories> category_counts_;
 };
 
 

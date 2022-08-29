@@ -15,7 +15,33 @@
 #ifndef DALI_PIPELINE_OPERATOR_BUILTIN_MERGE_H_
 #define DALI_PIPELINE_OPERATOR_BUILTIN_MERGE_H_
 
+#include "dali/pipeline/operator/operator.h"
 namespace dali {
+
+template <typename Backend>
+class Merge : public Operator<Backend> {
+ public:
+  inline explicit Merge(const OpSpec &spec) : Operator<Backend>(spec) {
+    DALI_ENFORCE(spec.HasTensorArgument("predicate"),
+                 "The 'predicate' argument is required to be present as argument input.");
+  }
+
+  virtual inline ~Merge() = default;
+
+  bool CanInferOutputs() const override {
+    return false;
+  }
+
+  bool SetupImpl(std::vector<OutputDesc> &output_desc, const workspace_t<Backend> &ws) override;
+  void RunImpl(workspace_t<Backend> &ws) override;
+
+  DISABLE_COPY_MOVE_ASSIGN(Merge);
+
+ private:
+  USE_OPERATOR_MEMBERS();
+  static constexpr int kMaxCategories = 2;
+  int input_sample_count_ = 0;
+};
 
 
 }  // namespace dali
