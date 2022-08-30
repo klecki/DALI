@@ -277,9 +277,7 @@ class Operator<CPUBackend> : public OperatorBase {
     SetupSharedSampleParams(ws);
     RunImpl(ws);
     ws.GetThreadPool().WaitForWork();
-    if (spec_.GetSchema().name() != "Split" && spec_.GetSchema().name() != "Merge") {
-      EnforceUniformOutputBatchSize<CPUBackend>(ws);
-    }
+    EnforceUniformOutputBatchSize<CPUBackend>(ws);
   }
 
   /**
@@ -363,9 +361,7 @@ class Operator<GPUBackend> : public OperatorBase {
   void Run(DeviceWorkspace &ws) override {
     SetupSharedSampleParams(ws);
     RunImpl(ws);
-    if (spec_.GetSchema().name() != "Split" && spec_.GetSchema().name() != "Merge") {
-      EnforceUniformOutputBatchSize<GPUBackend>(ws);
-    }
+    EnforceUniformOutputBatchSize<GPUBackend>(ws);
   }
 
   /**

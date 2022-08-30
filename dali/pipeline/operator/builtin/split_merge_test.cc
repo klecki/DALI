@@ -72,7 +72,7 @@ TYPED_TEST(SplitMerge, SimplePipe) {
 
   pipe.AddOperator(OpSpec("Merge")
                        .AddArg("device", backend)
-                       .AddInput("split_0_copy", backend)
+                       .AddInput("split_0", backend)
                        .AddInput("split_1", backend)
                        .AddArgumentInput("predicate", "pred")
                        .AddOutput("merge", backend),

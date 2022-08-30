@@ -42,7 +42,8 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
       DALI_ENFORCE(base_input.type() == input.type());
       DALI_ENFORCE(base_input.GetLayout() == input.GetLayout());
       DALI_ENFORCE(base_input.is_pinned() == input.is_pinned());
-      // device id, order...
+      DALI_ENFORCE(base_input.order() == input.order());
+      DALI_ENFORCE(base_input.device_id() == input.device_id());
     }
   }
   const auto &predicate = ws.ArgumentInput("predicate");
@@ -78,14 +79,14 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
 
   for (int output_idx = 0; output_idx < predicate.num_samples(); output_idx++) {
     int input_category = *predicate.template tensor<bool>(output_idx);
-    auto &input = ws.template Output<Backend>(input_category);
+    auto &input = ws.template Input<Backend>(input_category);
 
     // get the index within input category and increment for the next occurrence.
     int input_idx = category_input_idx[input_category];
     category_input_idx[input_category]++;
 
     // share the sample to the output
-    output.UnsafeSetSample(output_idx, input, output_idx);
+    output.UnsafeSetSample(output_idx, input, input_idx);
   }
 }
 
