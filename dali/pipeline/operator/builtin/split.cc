@@ -90,7 +90,7 @@ DALI_SCHEMA(Split)
     .DocStr(R"code(Split batch based on a predicate.)code")
     .NumInput(1)
     .NumOutput(2)
-    .PassThrough({{0, 0}})  //todo add special pass through
+    // .PassThrough({{0, 0}})  //todo add special pass through that indicates lack of contiguity
     .AddArg("predicate", "Boolean categorization of the input batch", DALI_BOOL, true)
     .MakeInternal();
 

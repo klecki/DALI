@@ -72,12 +72,13 @@ TYPED_TEST(SplitMerge, SimplePipe) {
 
   pipe.AddOperator(OpSpec("Merge")
                        .AddArg("device", backend)
-                       .AddInput("split_0", backend)
+                       .AddInput("split_0_copy", backend)
                        .AddInput("split_1", backend)
                        .AddArgumentInput("predicate", "pred")
                        .AddOutput("merge", backend),
                    "merge");
 
+  // TODO(klecki): why did we not add MakeContiguous at the end? We did wrong pass through.
   vector<std::pair<string, string>> outputs = {{"merge", backend}};
   pipe.Build(outputs);
 

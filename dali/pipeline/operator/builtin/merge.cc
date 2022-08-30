@@ -31,7 +31,7 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
     input_sample_count_ += input.num_samples();
     // TODO(klecki): do not compare against empty inputs unless we ensure consistent run behaviour
     // for empty samples.
-    if (input.num_samples() > 0) {
+    if (nonzero_input_idx < 0 && input.num_samples() > 0) {
       nonzero_input_idx = input_category;
     }
     if (nonzero_input_idx >= 0) {
@@ -94,7 +94,7 @@ DALI_SCHEMA(Merge)
     .DocStr(R"code(Merge batch based on a predicate.)code")
     .NumInput(2)
     .NumOutput(1)
-    .PassThrough({{0, 0}})  //todo add special pass through
+    // .PassThrough({{0, 0}})  //todo add special pass through that indicates lack of contiguity
     .AddArg("predicate", "Boolean categorization of the inputs", DALI_BOOL, true)
     .MakeInternal();
 
