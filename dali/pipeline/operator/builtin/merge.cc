@@ -42,7 +42,10 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
       DALI_ENFORCE(base_input.type() == input.type());
       DALI_ENFORCE(base_input.GetLayout() == input.GetLayout());
       DALI_ENFORCE(base_input.is_pinned() == input.is_pinned());
-      DALI_ENFORCE(base_input.order() == input.order());
+      DALI_ENFORCE(
+          base_input.order() == input.order(),
+          make_string("Order ", base_input.order().device_id(), " ", base_input.order().stream(),
+                      " vs ", input.order().device_id(), " ", input.order().stream()));
       DALI_ENFORCE(base_input.device_id() == input.device_id());
     }
   }
