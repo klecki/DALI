@@ -66,11 +66,9 @@ void Split<Backend>::RunImpl(workspace_t<Backend> &ws) {
 
     // We can (and need to) do it only once, for each new output instance, when it doesn't have
     // data yet. It should be consistent across iterations.
-    // Maybe output.Reset()? We don't have any metadata.
     if (!output.has_data()) {
       output.SetupLike(input);
     }
-    // output.set_order() // set the input order without sync always
     output.SetSize(category_counts_[output_category]);
   }
 
@@ -84,12 +82,6 @@ void Split<Backend>::RunImpl(workspace_t<Backend> &ws) {
 
     // share the sample to the output
     output.UnsafeSetSample(output_idx, input, input_idx);
-  }
-  // Force the
-  auto stage_order = ws.has_stream() ? AccessOrder(ws.stream()) : AccessOrder::host();
-  for (int output_category = 0; output_category < kMaxCategories; output_category++) {
-    auto &output = ws.template Output<Backend>(output_category);
-    output.set_order(stage_order);
   }
 }
 
