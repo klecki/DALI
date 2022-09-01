@@ -82,7 +82,11 @@ TYPED_TEST(SplitMerge, SimplePipe) {
   vector<std::pair<string, string>> outputs = {{"merge", backend}};
   pipe.Build(outputs);
 
+  pipe.SaveGraphToDotFile("split_merge.dot", true, true, true);
+
   TensorList<CPUBackend> input, predicate;
+  input.set_pinned(false);
+  predicate.set_pinned(false);
   input.Resize(shape, DALI_INT32);
   for (int i = 0; i < shape.num_samples(); i++) {
     for (int elem = 0; elem < shape[i].num_elements(); elem++) {

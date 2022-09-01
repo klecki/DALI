@@ -319,7 +319,24 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunHelper(OpNode &op_node, Workspac
     ? mixed_op_stream_ : gpu_op_stream_;
 
   auto order = ws.has_stream() ? AccessOrder(ws.stream()) : AccessOrder::host();
-  auto set_order = [&](auto &output) {
+
+  auto set_input_order = [&](auto &input) {
+    // check if we have inputs that are produced on stream from another stage
+    if(input.order().stream() == prev_stage_stream) {
+      // NOTE: the stage streams are synchronized by the executor
+      input.set_order(order, false);
+    }
+  };
+
+  for (int i = 0; i < ws.NumInput(); i++) {
+    if (ws.template InputIsType<CPUBackend>(i)) {
+      set_input_order(ws.template UnsafeMutableInput<CPUBackend>(i));
+    } else {
+      set_input_order(ws.template UnsafeMutableInput<GPUBackend>(i));
+    }
+  }
+
+  auto set_output_order = [&](auto &output) {
     // NOTE: the stage streams are synchronized by the executor
     bool need_sync = output.order().stream() != prev_stage_stream;
     output.set_order(order, need_sync);
@@ -327,9 +344,9 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunHelper(OpNode &op_node, Workspac
 
   for (int i = 0; i < ws.NumOutput(); i++) {
     if (ws.template OutputIsType<CPUBackend>(i)) {
-      set_order(ws.template Output<CPUBackend>(i));
+      set_output_order(ws.template Output<CPUBackend>(i));
     } else {
-      set_order(ws.template Output<GPUBackend>(i));
+      set_output_order(ws.template Output<GPUBackend>(i));
     }
   }
 
