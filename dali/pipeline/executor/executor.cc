@@ -322,7 +322,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::RunHelper(OpNode &op_node, Workspac
 
   auto set_input_order = [&](auto &input) {
     // check if we have inputs that are produced on stream from another stage
-    if(input.order().stream() == prev_stage_stream) {
+    if (input.order().stream() == prev_stage_stream) {
       // NOTE: the stage streams are synchronized by the executor
       input.set_order(order, false);
     }
