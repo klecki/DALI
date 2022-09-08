@@ -81,7 +81,7 @@ void Split<Backend>::RunImpl(workspace_t<Backend> &ws) {
     category_output_idx[output_category]++;
 
     // share the sample to the output
-    output.UnsafeSetSample(output_idx, input, input_idx);
+    output.SetSample(output_idx, input, input_idx);
   }
 }
 
