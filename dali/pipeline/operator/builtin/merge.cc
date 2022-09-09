@@ -14,6 +14,7 @@
 
 #include <vector>
 
+#include "dali/core/common.h"
 #include "dali/pipeline/operator/builtin/merge.h"
 #include "dali/core/util.h"
 #include "dali/pipeline/data/backend.h"
@@ -48,8 +49,10 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
           base_input.order() == input.order(),
           make_string("Order ", base_input.order().device_id(), " ", base_input.order().stream(),
                       " vs ", input.order().device_id(), " ", input.order().stream()));
-      DALI_ENFORCE(base_input.device_id() == input.device_id(),
-                   make_string("Device id: ", base_input.device_id(), " vs ", input.device_id()));
+      if (base_input.is_pinned() == input.is_pinned()) {
+        DALI_ENFORCE(base_input.device_id() == input.device_id(),
+                     make_string("Device id: ", base_input.device_id(), " vs ", input.device_id()));
+      }
     }
   }
 
@@ -60,17 +63,16 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
   // pass through operators correctly (if we want argument input pinned, but it's produced by pass
   // through, the origin for the buffer won't be pinned).
   // TODO(klecki): Remove the pinned madness, and let executor unify this.
-  if (!pinned_.has_value()) {
-    bool should_be_pinned = true;
-    for (int input_category = 0; input_category < kMaxCategories; input_category++) {
-      const auto &input = ws.template Input<Backend>(input_category);
-      should_be_pinned = should_be_pinned && input.is_pinned();
-      if (!should_be_pinned) {
-        break;
-      }
+  pinned_ = true;
+  for (int input_category = 0; input_category < kMaxCategories; input_category++) {
+    const auto &input = ws.template Input<Backend>(input_category);
+    if (input.num_samples() > 0)
+      pinned_ = pinned_ && input.is_pinned();
+    if (!pinned_) {
+      break;
     }
-    pinned_ = should_be_pinned;
   }
+
 
   const auto &predicate = ws.ArgumentInput("predicate");
   DALI_ENFORCE(
@@ -92,16 +94,25 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
   const auto &predicate = ws.ArgumentInput("predicate");
   auto category_input_idx = uniform_array<kMaxCategories>(0);
 
+  // We propagate views only, so just don't care about what is here and reset, to have
+  // some simpler pinned handling
+  output.Reset();
   for (int input_category = 0; input_category < kMaxCategories; input_category++) {
     const auto &input = ws.template Input<Backend>(input_category);
 
     // We can (and need to) do it only once, for each new output instance, when it doesn't have
     // data yet. It should be consistent across iterations.
-    if (input.num_samples() > 0 && !output.has_data()) {
+    if (input.num_samples() > 0) {
       output.SetupLike(input);
-      output.set_pinned(*pinned_);
     }
   }
+  if (pinned_ != output.is_pinned()) {
+    output.set_pinned(false);
+    if (std::is_same_v<CPUBackend, Backend>)
+      output.set_device_id(CPU_ONLY_DEVICE_ID);
+  }
+
+
   output.SetSize(input_sample_count_);
 
   for (int output_idx = 0; output_idx < predicate.num_samples(); output_idx++) {
@@ -116,17 +127,17 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
     if (input.is_pinned() == output.is_pinned()) {
       output.SetSample(output_idx, input, input_idx);
     } else {
-      assert(!output.is_pinned && "We only allow to downgrade to non-pinned");
+      assert(!output.is_pinned() && "We only allow to downgrade to non-pinned");
       // TODO(klecki): This branch is super-ugly WAR for the fact that we don't have
       // nice way of making Tensor forget that it is pinned.
       // Degrading that attribute should be possible in theory.
       Tensor<Backend> tmp_sample;
       tmp_sample.set_backing_allocation(
           unsafe_sample_owner(const_cast<TensorList<Backend> &>(input), input_idx),
-          input._chunks_capacity()[input_idx], false, input.type(),
-          volume(input.shape().tensor_shape_span(input_idx)), input.device_id(), input.order());
+          volume(input.shape().tensor_shape_span(input_idx)) * output.type_info().size(),
+          output.is_pinned(), input.type(), volume(input.shape().tensor_shape_span(input_idx)),
+          output.device_id(), input.order());
       tmp_sample.Resize(input.shape()[input_idx]);
-
     }
   }
 }
