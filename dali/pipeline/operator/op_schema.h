@@ -18,6 +18,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <sstream>
 #include <string>
@@ -646,7 +647,7 @@ used with DALIDataType, to avoid confusion with `AddOptionalArg<type>(name, doc,
   }
 
   /**
-   * @brief Informs that the data passes though this operator unchanged, only
+   * @brief Informs that the data passes through this operator unchanged, only
    *        the metadata is affected.
    *
    * If the operator _can_ pass an input buffer as-is to the output (possibly
@@ -656,23 +657,17 @@ used with DALIDataType, to avoid confusion with `AddOptionalArg<type>(name, doc,
    * own the storage and the associated input should be included in double-buffering
    * whenever the output should.
    *
-   * TODO(klecki): Introduce additional class of Pass Through that enables elementwise mappings
-   * (splitting one input into multiple outputs or merging several inputs to one output).
-   *
    * @param inout - tells which inputs are passed through to which outputs.
    *                Only (partial - as in partial function) bijective mappings are allowed.
    */
-  DLL_PUBLIC inline OpSchema &PassThrough(const std::map<int, int> &inout) {
-    std::set<int> outputs;
-    for (const auto &elems : inout) {
-      outputs.insert(elems.second);
-    }
-    DALI_ENFORCE(inout.size() == outputs.size(),
-                 "Pass through can be defined only as 1-1 mapping between inputs and outputs, "
-                 "without duplicates.");
-    passthrough_map_ = inout;
-    return *this;
-  }
+  DLL_PUBLIC OpSchema &PassThrough(const std::map<int, int> &inout);
+
+  /**
+   * @brief Informs that the operator passes through data unchanged, sharing the allocation
+   *        from input to output.
+   *        The data is passed on sample basis, allowing to mix any input to any output.
+   */
+  DLL_PUBLIC OpSchema &SamplewisePassThrough();
 
   DLL_PUBLIC inline const vector<std::string>& GetParents() const {
     return parents_;
@@ -835,25 +830,19 @@ used with DALIDataType, to avoid confusion with `AddOptionalArg<type>(name, doc,
 
   /**
    * @brief Returns the index of the output to which the input is passed.
+   * @param strict consider only fully passed through batches
    * @return Output index or -1 if given input is not passed through.
    */
-  DLL_PUBLIC inline int GetPassThroughOutputIdx(int input_idx) const {
-    auto it = passthrough_map_.find(input_idx);
-    if (it == passthrough_map_.end())
-      return -1;
-    return it->second;
-  }
+  DLL_PUBLIC std::vector<int> GetPassThroughOutputIdx(int input_idx, const OpSpec &spec,
+                                                      bool strict = true) const;
 
-  DLL_PUBLIC inline bool IsPassThrough(int input_idx, int output_idx) const {
-    auto it = passthrough_map_.find(input_idx);
-    if (it == passthrough_map_.end())
-      return false;
-    return it->second == output_idx;
-  }
+  DLL_PUBLIC bool IsPassThrough(int input_idx, int output_idx, bool strict = true) const;
 
-  DLL_PUBLIC inline bool HasPassThrough() const {
-    return !passthrough_map_.empty();
-  }
+  DLL_PUBLIC bool HasPassThrough() const;
+
+  DLL_PUBLIC bool HasStrictPassThrough() const;
+
+  DLL_PUBLIC bool HasSamplewisePassThrough() const;
 
   DLL_PUBLIC int CalculateOutputs(const OpSpec &spec) const;
 
@@ -1013,6 +1002,7 @@ used with DALIDataType, to avoid confusion with `AddOptionalArg<type>(name, doc,
   bool serializable_ = true;
 
   std::map<int, int> passthrough_map_;
+  bool samplewise_any_passthrough_ = false;
 
   bool is_deprecated_ = false;
   std::string deprecated_in_favor_of_;

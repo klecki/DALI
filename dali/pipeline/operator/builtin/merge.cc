@@ -41,15 +41,37 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
       DALI_ENFORCE(base_input.shape().sample_dim() == input.shape().sample_dim());
       DALI_ENFORCE(base_input.type() == input.type());
       DALI_ENFORCE(base_input.GetLayout() == input.GetLayout());
-      DALI_ENFORCE(base_input.is_pinned() == input.is_pinned(),
-        make_string("Pinned ", base_input.is_pinned(), " vs ", input.is_pinned()));
+      // We allow to mix pinned and not pinned memory, defaulting to the non-pinned in that case
+      // DALI_ENFORCE(base_input.is_pinned() == input.is_pinned(),
+      //   make_string("Pinned ", base_input.is_pinned(), " vs ", input.is_pinned()));
       DALI_ENFORCE(
           base_input.order() == input.order(),
           make_string("Order ", base_input.order().device_id(), " ", base_input.order().stream(),
                       " vs ", input.order().device_id(), " ", input.order().stream()));
-      DALI_ENFORCE(base_input.device_id() == input.device_id());
+      DALI_ENFORCE(base_input.device_id() == input.device_id(),
+                   make_string("Device id: ", base_input.device_id(), " vs ", input.device_id()));
     }
   }
+
+  // We can have inputs of different pinnedness coming in from DALI
+  // In theory we can ensure that if one is pinned, than all should be, and propagate that
+  // information in graph building stage (as we prepin outputs and argument inputs).
+  // For that we need nicer graph analysis, as pinnedness is also not propagated back through
+  // pass through operators correctly (if we want argument input pinned, but it's produced by pass
+  // through, the origin for the buffer won't be pinned).
+  // TODO(klecki): Remove the pinned madness, and let executor unify this.
+  if (!pinned_.has_value()) {
+    bool should_be_pinned = true;
+    for (int input_category = 0; input_category < kMaxCategories; input_category++) {
+      const auto &input = ws.template Input<Backend>(input_category);
+      should_be_pinned = should_be_pinned && input.is_pinned();
+      if (!should_be_pinned) {
+        break;
+      }
+    }
+    pinned_ = should_be_pinned;
+  }
+
   const auto &predicate = ws.ArgumentInput("predicate");
   DALI_ENFORCE(
       input_sample_count_ == predicate.num_samples(),
@@ -77,6 +99,7 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
     // data yet. It should be consistent across iterations.
     if (input.num_samples() > 0 && !output.has_data()) {
       output.SetupLike(input);
+      output.set_pinned(*pinned_);
     }
   }
   output.SetSize(input_sample_count_);
@@ -90,7 +113,21 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
     category_input_idx[input_category]++;
 
     // share the sample to the output
-    output.SetSample(output_idx, input, input_idx);
+    if (input.is_pinned() == output.is_pinned()) {
+      output.SetSample(output_idx, input, input_idx);
+    } else {
+      assert(!output.is_pinned && "We only allow to downgrade to non-pinned");
+      // TODO(klecki): This branch is super-ugly WAR for the fact that we don't have
+      // nice way of making Tensor forget that it is pinned.
+      // Degrading that attribute should be possible in theory.
+      Tensor<Backend> tmp_sample;
+      tmp_sample.set_backing_allocation(
+          unsafe_sample_owner(const_cast<TensorList<Backend> &>(input), input_idx),
+          input._chunks_capacity()[input_idx], false, input.type(),
+          volume(input.shape().tensor_shape_span(input_idx)), input.device_id(), input.order());
+      tmp_sample.Resize(input.shape()[input_idx]);
+
+    }
   }
 }
 
@@ -98,7 +135,7 @@ DALI_SCHEMA(Merge)
     .DocStr(R"code(Merge batch based on a predicate.)code")
     .NumInput(2)
     .NumOutput(1)
-    // .PassThrough({{0, 0}})  //todo add special pass through that indicates lack of contiguity
+    .SamplewisePassThrough()
     .AddArg("predicate", "Boolean categorization of the inputs", DALI_BOOL, true)
     .MakeInternal();
 

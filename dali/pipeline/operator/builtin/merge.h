@@ -15,6 +15,7 @@
 #ifndef DALI_PIPELINE_OPERATOR_BUILTIN_MERGE_H_
 #define DALI_PIPELINE_OPERATOR_BUILTIN_MERGE_H_
 
+#include <optional>
 #include <vector>
 
 #include "dali/pipeline/operator/operator.h"
@@ -43,6 +44,7 @@ class Merge : public Operator<Backend> {
   USE_OPERATOR_MEMBERS();
   static constexpr int kMaxCategories = 2;
   int input_sample_count_ = 0;
+  std::optional<bool> pinned_ = std::nullopt;
 };
 
 

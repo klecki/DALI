@@ -360,11 +360,13 @@ class DLL_PUBLIC OpGraph {
   bool IsAlwaysContiguous(TensorNodeId tensor_id) const;
 
   /**
-   * @brief Find the parent tensor id that was used to produce the `passed_through` tensor by
+   * @brief Find the parent tensor ids that were used to produce the `passed_through` tensor by
    * the op.
-   * @return -1 is returned if no node can be found.
+   * @return empty vector is returned if no node can be found, if strict_only is used, only one
+   * element can be returned
    */
-  TensorNodeId FollowPassThroughUp(OpNodeId op, TensorNodeId passed_through) const;
+  std::vector<TensorNodeId> FollowPassThroughUp(OpNodeId op, TensorNodeId passed_through,
+                                                bool strict_only = true) const;
 
   /**
    * @brief Recalculate OpNodes partitioning

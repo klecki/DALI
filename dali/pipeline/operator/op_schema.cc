@@ -15,6 +15,7 @@
 #include "dali/pipeline/operator/op_schema.h"
 
 #include <string>
+#include "dali/core/error_handling.h"
 #include "dali/pipeline/operator/op_spec.h"
 #include "dali/core/python_util.h"
 
@@ -48,6 +49,63 @@ const OpSchema* SchemaRegistry::TryGetSchema(const std::string &name) {
   auto &schema_map = registry();
   auto it = schema_map.find(name);
   return it != schema_map.end() ? &it->second : nullptr;
+}
+
+
+std::vector<int> OpSchema::GetPassThroughOutputIdx(int input_idx, const OpSpec &spec,
+                                                   bool strict) const {
+  if (samplewise_any_passthrough_) {
+    // We indicate that we may pass through to any output
+    int num_outputs = CalculateOutputs(spec) + CalculateAdditionalOutputs(spec);
+    std::vector<int> result(num_outputs, 0);
+    std::iota(result.begin(), result.end(), 0);
+    return result;
+  }
+  auto it = passthrough_map_.find(input_idx);
+  if (it == passthrough_map_.end())
+    return {};
+  return {it->second};
+}
+
+OpSchema &OpSchema::PassThrough(const std::map<int, int> &inout) {
+  std::set<int> outputs;
+  for (const auto &elems : inout) {
+    outputs.insert(elems.second);
+  }
+  DALI_ENFORCE(inout.size() == outputs.size(),
+               "Pass through can be defined only as 1-1 mapping between inputs and outputs, "
+               "without duplicates.");
+  DALI_ENFORCE(!HasSamplewisePassThrough(), "Two different modes of pass through can't be mixed.");
+  passthrough_map_ = inout;
+  return *this;
+}
+
+OpSchema &OpSchema::SamplewisePassThrough() {
+  DALI_ENFORCE(!HasStrictPassThrough(), "Two different modes of pass through can't be mixed.");
+  samplewise_any_passthrough_ = true;
+  return *this;
+}
+
+bool OpSchema::IsPassThrough(int input_idx, int output_idx, bool strict) const {
+  if (!strict && HasSamplewisePassThrough()) {
+    return true;
+  }
+  auto it = passthrough_map_.find(input_idx);
+  if (it == passthrough_map_.end())
+    return false;
+  return it->second == output_idx;
+}
+
+bool OpSchema::HasPassThrough() const {
+  return HasStrictPassThrough() || HasSamplewisePassThrough();
+}
+
+bool OpSchema::HasStrictPassThrough() const {
+  return !passthrough_map_.empty();
+}
+
+bool OpSchema::HasSamplewisePassThrough() const {
+  return samplewise_any_passthrough_;
 }
 
 int OpSchema::CalculateOutputs(const OpSpec &spec) const {
