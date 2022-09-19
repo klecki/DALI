@@ -587,39 +587,18 @@ bool OpGraph::IsAlwaysContiguous(TensorNodeId tensor_id) const {
 
 std::vector<TensorNodeId> OpGraph::GetOutputs(const std::vector<string>& output_names,
                                               bool follow_pass_through) const {
-  std::vector<TensorNodeId> result;
   if (!follow_pass_through) {
+    std::vector<TensorNodeId> result;
     for (const auto& out : output_names) {
       result.push_back(TensorId(out));
     }
-  } else {
-    std::vector<bool> visited(tensor_nodes_.size());
-    std::vector<TensorNodeId> q;
-    for (const auto& out : output_names) {
-      q.push_back(TensorId(out));
-    }
-    while (!q.empty()) {
-      TensorNodeId tid = q.back();
-      q.pop_back();
-      if (visited[tid])
-        continue;
-      visited[tid] = true;
-      result.push_back(tid);
-      auto output = Tensor(tid).producer;
-      auto &output_op_node = Node(output.node);
-      auto &schema = output_op_node.spec.GetSchema();
-      // Special PassThrough handling for built-in operator. We calculate it via earlier pass.
-      if (schema.name() == "MakeContiguous") {
-        if (IsPassThrough(*output_op_node.op)) {
-          assert(output_op_node.parent_tensors.size() == 1);
-          q.push_back(output_op_node.parent_tensors[0]);
-        }
-      }
-      auto maybe_sources = FollowPassThroughUp(output.node, tid, false);
-      q.insert(q.end(), maybe_sources.begin(), maybe_sources.end());
-    }
+    return result;
   }
-  return result;
+  std::vector<TensorNodeId> output_ids;
+  for (const auto& out : output_names) {
+    output_ids.push_back(TensorId(out));
+  }
+  return GetPassThroughGroupImpl(output_ids);
 }
 
 
@@ -637,6 +616,42 @@ void OpGraph::SetupMakeContiguousPassThrough(const std::vector<string>& output_n
       }
     }
   }
+  pass_through_computed_ = true;
+}
+
+std::vector<TensorNodeId> OpGraph::GetTensorOrigin(TensorNodeId target_node) const {
+  return GetPassThroughGroupImpl({target_node});
+}
+
+std::vector<TensorNodeId> OpGraph::GetPassThroughGroupImpl(
+    const std::vector<TensorNodeId> &target_nodes) const {
+  DALI_ENFORCE(pass_through_computed_, "SetupMakeContiguousPassThrough must be called first.");
+  std::vector<bool> visited(tensor_nodes_.size());
+  std::vector<TensorNodeId> q;
+  q.insert(q.end(), target_nodes.begin(), target_nodes.end());
+  std::vector<TensorNodeId> result;
+
+  while (!q.empty()) {
+    TensorNodeId tid = q.back();
+    q.pop_back();
+    if (visited[tid])
+      continue;
+    visited[tid] = true;
+    result.push_back(tid);
+    auto producer_edge = Tensor(tid).producer;
+    auto &producer_op_node = Node(producer_edge.node);
+    auto &schema = producer_op_node.spec.GetSchema();
+    // Special PassThrough handling for built-in operator. We calculate it via earlier pass.
+    if (schema.name() == "MakeContiguous") {
+      if (IsPassThrough(*producer_op_node.op)) {
+        assert(producer_op_node.parent_tensors.size() == 1);
+        q.push_back(producer_op_node.parent_tensors[0]);
+      }
+    }
+    auto maybe_sources = FollowPassThroughUp(producer_edge.node, tid, false);
+    q.insert(q.end(), maybe_sources.begin(), maybe_sources.end());
+  }
+  return result;
 }
 
 std::vector<TensorNodeId> OpGraph::FollowPassThroughUp(OpNodeId op, TensorNodeId passed_through,
