@@ -44,7 +44,6 @@ class Merge : public Operator<Backend> {
   USE_OPERATOR_MEMBERS();
   static constexpr int kMaxCategories = 2;
   int input_sample_count_ = 0;
-  std::optional<bool> pinned_ = std::nullopt;
 };
 
 

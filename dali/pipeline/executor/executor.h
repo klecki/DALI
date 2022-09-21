@@ -707,11 +707,10 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
     }
   }
 
-  //anything that goes into a Merge node, needs to be uniformly pinned
+  // anything that goes into a Merge node, needs to be uniformly pinned
   for (int i = 0; i < graph.NumOp(OpType::CPU); i++) {
     auto &node = graph.Node(OpType::CPU, i);
     if (node.spec.GetSchema().name() == "Merge") {
-      // TODO(klecki): ANY INPUT PINNED -> PIN EVERYTHING
       bool should_pin_everything = false;
       for (int j = 0; j < node.spec.NumInput(); ++j) {
         auto tid = node.parent_tensors[j];
@@ -726,7 +725,21 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
           }
         }
       }
-      /// PIN HERE
+      // TODO(klecki): The only thing that will ignore pinning is the external source.
+      // We need another thing to handle it.
+      if (should_pin_everything) {
+        for (int j = 0; j < node.spec.NumInput(); ++j) {
+          auto tid = node.parent_tensors[j];
+          auto origin_tensor_ids = graph.GetTensorOrigin(tid);
+          for (auto origin_tensor_id : origin_tensor_ids) {
+            auto &parent_tensor_queue = get_queue<OpType::CPU, StorageDevice::CPU>(
+                tensor_to_store_queue_[origin_tensor_id]);
+            for (auto &tensor : parent_tensor_queue) {
+              tensor->set_pinned(true);
+            }
+          }
+        }
+      }
     }
   }
 }
