@@ -399,7 +399,8 @@ class DLL_PUBLIC Buffer {
     free_storage();
     if (order) {
       set_order(order);
-    } else if (!order_ && pinned_) {
+    // TODO(klecki): DO NOT MERGE, we make the default order (after an allocation), a host order.
+    } else if (!order_) {
       set_order(AccessOrder::host());
     }
 

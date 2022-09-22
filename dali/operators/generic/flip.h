@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ class Flip: public Operator<Backend> {
   void RunImpl(Workspace<Backend> &ws) override;
 
   int GetHorizontal(const ArgumentWorkspace &ws, int idx) {
-    return this->spec_.template GetArgument<int>("horizontal", &ws, idx);
+    return this->spec_.template GetArgument<bool>("horizontal", &ws, idx);
   }
 
   int GetVertical(const ArgumentWorkspace &ws, int idx) {
@@ -59,8 +59,13 @@ class Flip: public Operator<Backend> {
   }
 
   std::vector<int> GetHorizontal(const workspace_t<Backend> &ws, int curr_batch_size) {
+    std::vector<bool> tmp;
     std::vector<int> result;
-    OperatorBase::GetPerSampleArgument(result, "horizontal", ws, curr_batch_size);
+    OperatorBase::GetPerSampleArgument(tmp, "horizontal", ws, curr_batch_size);
+    result.resize(tmp.size());
+    for (int i = 0; i < tmp.size(); i++) {
+      result[i] = tmp[i];
+    }
     return result;
   }
 

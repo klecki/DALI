@@ -50,13 +50,14 @@ TYPED_TEST(SplitMerge, SimplePipe) {
   pipe.AddOperator(OpSpec("ExternalSource")
                        .AddArg("device", "cpu")
                        .AddArg("name", "pred")
+                      //  .AddArg("no_copy", true)
                        .AddOutput("pred", "cpu"),
                    "pred");
 
 
   pipe.AddOperator(OpSpec("Split")
                        .AddArg("device", backend)
-                       .AddInput("input", backend)
+                       .AddInput("pred", backend)
                        .AddArgumentInput("predicate", "pred")
                        .AddOutput("split_0", backend)
                        .AddOutput("split_1", backend),
@@ -78,15 +79,23 @@ TYPED_TEST(SplitMerge, SimplePipe) {
                        .AddOutput("merge", backend),
                    "merge");
 
+  pipe.AddOperator(OpSpec("Flip")
+                       .AddArg("device", "gpu")
+                       .AddInput("input", "gpu")
+                       .AddArgumentInput("horizontal", "pred")
+                       .AddOutput("out_copy_gpu", "gpu"),
+                   "flip_in_gpu");
+
   // TODO(klecki): why did we not add MakeContiguous at the end? We did wrong pass through.
-  vector<std::pair<string, string>> outputs = {{"merge", backend}};
+  vector<std::pair<string, string>> outputs = {{"merge", backend}, {"out_copy_gpu", "gpu"}};
   pipe.Build(outputs);
 
-  pipe.SaveGraphToDotFile("split_merge.dot", true, true, true);
+  pipe.SaveGraphToDotFile("split_merge_" + backend + ".dot", true, true, true);
 
   TensorList<CPUBackend> input, predicate;
-  // input.set_pinned(false);
+  input.set_pinned(false);
   predicate.set_pinned(false);
+  // predicate.set_order(AccessOrder::host());
   input.Resize(shape, DALI_INT32);
   for (int i = 0; i < shape.num_samples(); i++) {
     for (int elem = 0; elem < shape[i].num_elements(); elem++) {
@@ -99,6 +108,7 @@ TYPED_TEST(SplitMerge, SimplePipe) {
     *predicate.mutable_tensor<bool>(i) = i % 2;
   }
 
+  std::cout << "HMMM: " << predicate.order().device_id() << " " << predicate.order().get() << std::endl;
 
   pipe.SetExternalInput("input", input);
   pipe.SetExternalInput("pred", predicate);

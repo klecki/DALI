@@ -46,8 +46,8 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
                    make_string("Pinned ", base_input.is_pinned(), " vs ", input.is_pinned()));
       DALI_ENFORCE(
           base_input.order() == input.order(),
-          make_string("Order ", base_input.order().device_id(), " ", base_input.order().stream(),
-                      " vs ", input.order().device_id(), " ", input.order().stream()));
+          make_string("Order ", base_input.order().device_id(), " ", base_input.order().get(),
+                      " vs ", input.order().device_id(), " ", input.order().get()));
       DALI_ENFORCE(base_input.device_id() == input.device_id(),
                    make_string("Device id: ", base_input.device_id(), " vs ", input.device_id()));
     }

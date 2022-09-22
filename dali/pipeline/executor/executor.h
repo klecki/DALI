@@ -684,6 +684,8 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
             get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue_[origin_tensor_id]);
         for (auto &tensor : parent_tensor_queue) {
           tensor->set_pinned(node.spec.OutputDevice(0) == "gpu" && !RestrictPinnedMemUsage());
+          std::cout << "Pinning H2D copy " << tid << ": origin " << origin_tensor_id << " for "
+                    << node.spec.name() << " output dev: " << node.spec.OutputDevice(0) << std::endl;
         }
       }
     }
@@ -701,6 +703,10 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
               get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue_[origin_tensor_id]);
           for (auto &tensor : parent_tensor_queue) {
             tensor->set_pinned(node.spec.OutputDevice(0) == "gpu" && !RestrictPinnedMemUsage());
+
+            std::cout << "Pinning arg input to GPU" << tid << ": origin " << origin_tensor_id
+                      << " for " << node.spec.name() << " output dev: " << node.spec.OutputDevice(0)
+                      << std::endl;
           }
         }
       }
@@ -714,12 +720,16 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
       bool should_pin_everything = false;
       for (int j = 0; j < node.spec.NumInput(); ++j) {
         auto tid = node.parent_tensors[j];
+
+        std::cout << "Found merge input " << tid << std::endl;
         // is it the only input op type and storage we can get here? probably yes,
         // it's also the only we pin in this phase.
         auto &parent_tensor_queue =
             get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue_[tid]);
         for (auto &tensor : parent_tensor_queue) {
           should_pin_everything = tensor->is_pinned();
+
+          std::cout << "Is any input pinned: " << j << " " << tensor->is_pinned() << std::endl;
           if (should_pin_everything) {
             break;
           }
@@ -732,6 +742,9 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
           auto tid = node.parent_tensors[j];
           auto origin_tensor_ids = graph.GetTensorOrigin(tid);
           for (auto origin_tensor_id : origin_tensor_ids) {
+            auto &tensor_node = graph.Tensor(origin_tensor_id);
+            auto &producer_op = graph.Node(tensor_node.producer.node);
+            std::cout << "Producer for the " << tid <<  " is " << producer_op.spec.name() << " " << producer_op.spec.GetSchema().name() << std::endl;
             auto &parent_tensor_queue = get_queue<OpType::CPU, StorageDevice::CPU>(
                 tensor_to_store_queue_[origin_tensor_id]);
             for (auto &tensor : parent_tensor_queue) {
