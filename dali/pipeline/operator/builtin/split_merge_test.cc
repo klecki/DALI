@@ -94,6 +94,10 @@ TYPED_TEST(SplitMerge, SimplePipe) {
 
   TensorList<CPUBackend> input, predicate;
   input.set_pinned(false);
+  // TODO(klecki): when we feed pinned/non-pinned memory into external source, we need to
+  // disable the no_copy if it reaches merge.
+  // We also can disable mmap and apply proper options in the readers.
+  // Alternative: introduce a copy in the merge.
   predicate.set_pinned(false);
   // predicate.set_order(AccessOrder::host());
   input.Resize(shape, DALI_INT32);
