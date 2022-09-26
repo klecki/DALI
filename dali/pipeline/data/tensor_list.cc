@@ -595,6 +595,25 @@ void TensorList<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataTyp
 
 
 template <typename Backend>
+void TensorList<Backend>::ResizeSample(int sample_idx, const TensorShape<> &new_shape) {
+  DALI_ENFORCE(IsValidType(type()),
+               "Sample in TensorList cannot be resized with invalid type. Set the type first for "
+               "the whole TensorList using set_type or Resize.");
+  DALI_ENFORCE(sample_dim() == new_shape.sample_dim(),
+               "Sample in TensorList cannot be resized with non-compatible batch dimension. Use "
+               "set_sample_dim or Resize to set correct sample dimension for the whole batch.");
+  // Bounds check
+  assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
+  // Resizing any individual sample converts the batch to non-contiguous mode
+  MakeNoncontiguous();
+  if (tensors_[sample_idx].capacity() >= volume(new_shape) * type_.size())
+    return;
+  shape_.set_tensor_shape(sample_idx, new_shape);
+  tensors_[sample_idx].Resize(new_shape);
+}
+
+
+template <typename Backend>
 void TensorList<Backend>::SetSize(int new_size) {
   DALI_ENFORCE(new_size >= 0, make_string("Incorrect size: ", new_size));
   resize_tensors(new_size);
@@ -1025,10 +1044,11 @@ void TensorList<Backend>::resize_tensors(int new_size) {
       setup_tensor_allocation(i);
       if (type() != DALI_NO_TYPE) {
         if (sample_dim_ >= 0) {
-          tensors_[i].Resize(
-              sample_dim() > 0 ? TensorShape<>::empty_shape(sample_dim()) : TensorShape<>({}),
-              type());
-          shape_.set_tensor_shape(i, TensorShape<>::empty_shape(sample_dim()));
+          // We can't have empty scalar.
+          const auto &emptyish_shape = sample_dim() > 0 ? TensorShape<>::empty_shape(sample_dim()) :
+                                                          TensorShape<>(TensorShape<0>());
+          tensors_[i].Resize(emptyish_shape, type());
+          shape_.set_tensor_shape(i, emptyish_shape);
         } else if (type() != tensors_[i].type()) {
           tensors_[i].Reset();
           tensors_[i].set_type(type());

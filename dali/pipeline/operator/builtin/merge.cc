@@ -15,12 +15,13 @@
 #include <vector>
 
 #include "dali/core/common.h"
-#include "dali/pipeline/operator/builtin/merge.h"
 #include "dali/core/util.h"
 #include "dali/pipeline/data/backend.h"
 #include "dali/pipeline/data/types.h"
+#include "dali/pipeline/operator/builtin/merge.h"
 
 namespace dali {
+
 
 template <typename Backend>
 bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
@@ -42,12 +43,6 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
       DALI_ENFORCE(base_input.shape().sample_dim() == input.shape().sample_dim());
       DALI_ENFORCE(base_input.type() == input.type());
       DALI_ENFORCE(base_input.GetLayout() == input.GetLayout());
-      DALI_ENFORCE(base_input.is_pinned() == input.is_pinned(),
-                   make_string("Pinned ", base_input.is_pinned(), " vs ", input.is_pinned()));
-      DALI_ENFORCE(
-          base_input.order() == input.order(),
-          make_string("Order ", base_input.order().device_id(), " ", base_input.order().get(),
-                      " vs ", input.order().device_id(), " ", input.order().get()));
       DALI_ENFORCE(base_input.device_id() == input.device_id(),
                    make_string("Device id: ", base_input.device_id(), " vs ", input.device_id()));
     }
@@ -62,10 +57,10 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
     DALI_ENFORCE(predicate[i].shape() == TensorShape<0>(), "Only scalar indexing is supported.");
   }
 
-
   // TODO(klecki): we can construct the output_desc, it won't be useful now
   return false;
 }
+
 
 template <typename Backend>
 void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
@@ -73,16 +68,31 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
   const auto &predicate = ws.ArgumentInput("predicate");
   auto category_input_idx = uniform_array<kMaxCategories>(0);
 
+  if (!pinned_) {
+    pinned_ = output.is_pinned();
+  }
+
+  if (!order_) {
+    order_ = output.order();
+    if (ws.has_stream()) {
+      assert(order_->get() == ws.stream() && "We use the order of current stage");
+    } else {
+      assert(order_ == AccessOrder::host() && "We use host order in CPU stage");
+    }
+  }
+
   // We propagate views only, so just don't care about what is here and reset, to have
   // some simpler pinned handling
   output.Reset();
   for (int input_category = 0; input_category < kMaxCategories; input_category++) {
     const auto &input = ws.template Input<Backend>(input_category);
-
-    // We can (and need to) do it only once, for each new output instance, when it doesn't have
-    // data yet. It should be consistent across iterations.
     if (input.num_samples() > 0) {
-      output.SetupLike(input);
+      output.set_type(input.type());
+      output.set_sample_dim(input.shape().sample_dim());
+      output.SetLayout(input.GetLayout());
+      output.set_device_id(input.device_id());
+      // The pinned and order can differ depending on the pipeline graph. Let the executor
+      // set the desired one, and we will copy if we don't match.
     }
   }
 
@@ -96,10 +106,52 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
     int input_idx = category_input_idx[input_category];
     category_input_idx[input_category]++;
 
-    // share the sample to the output
-    output.SetSample(output_idx, input, input_idx);
+    if (input.order() == *order_ && input.is_pinned() == *pinned_) {
+      // share the sample to the output
+      output.SetSample(output_idx, input, input_idx);
+    } else {
+      // Pessimistic variant, we need to copy.
+      // Unless we get to know the queue indexing, we cannot easily make internal copy and share
+      // it as it would break at the pipeline outputs - we would need to subscribe to the buffering
+      // done by the executor, and ensure the same lifetime of internal tmp buffer.
+      // TODO(klecki): Do one allocation, where samples that we share are 0-volumed - this might
+      // be perf optimization reducing the number of allocations to 1.
+      CopySampleToOutput(output, output_idx, input, input_idx, ws);
+    }
   }
+  FinalizeCopy(ws);
 }
+
+
+template <>
+void Merge<CPUBackend>::CopySampleToOutput(TensorList<CPUBackend> &output, int output_idx,
+                                           const TensorList<CPUBackend> &input, int input_idx,
+                                           workspace_t<CPUBackend> &ws) {
+  auto &tp = ws.GetThreadPool();
+  tp.AddWork([&output, &input, output_idx, input_idx](int thread_idx) {
+    output.ResizeSample(output_idx, input.shape()[input_idx]);
+    output.CopySample(output_idx, input, input_idx);
+  });
+}
+
+
+template <>
+void Merge<GPUBackend>::CopySampleToOutput(TensorList<GPUBackend> &output, int output_idx,
+                                           const TensorList<GPUBackend> &input, int input_idx,
+                                           workspace_t<GPUBackend> &ws) {
+  output.ResizeSample(output_idx, input.shape()[input_idx]);
+  output.CopySample(output_idx, input, input_idx, ws.stream());
+}
+
+
+template <>
+void Merge<CPUBackend>::FinalizeCopy(workspace_t<CPUBackend> &ws) {
+  ws.GetThreadPool().RunAll();
+}
+
+
+template <>
+void Merge<GPUBackend>::FinalizeCopy(workspace_t<GPUBackend> &ws) {}
 
 DALI_SCHEMA(Merge)
     .DocStr(R"code(Merge batch based on a predicate.)code")

@@ -18,7 +18,9 @@
 #include <optional>
 #include <vector>
 
+#include "dali/core/access_order.h"
 #include "dali/pipeline/operator/operator.h"
+#include "dali/pipeline/util/backend2workspace_map.h"
 namespace dali {
 
 template <typename Backend>
@@ -41,9 +43,24 @@ class Merge : public Operator<Backend> {
   DISABLE_COPY_MOVE_ASSIGN(Merge);
 
  private:
+  /**
+   * @brief Fallback for scheduling copy in a thread pool or on a stream
+   */
+  void CopySampleToOutput(TensorList<Backend> &output, int output_idx,
+                          const TensorList<Backend> &input, int input_idx,
+                          workspace_t<Backend> &ws);
+
+
+  /**
+   * @brief For CPU backend, execute the work scheduled in thread pool.
+   */
+  void FinalizeCopy(workspace_t<Backend> &ws);
+
   USE_OPERATOR_MEMBERS();
   static constexpr int kMaxCategories = 2;
   int input_sample_count_ = 0;
+  std::optional<bool> pinned_;
+  std::optional<AccessOrder> order_;
 };
 
 
