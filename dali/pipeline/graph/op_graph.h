@@ -378,6 +378,10 @@ class DLL_PUBLIC OpGraph {
    * @brief Find the parent tensor ids that were used to produce the `passed_through` tensor by
    * the op.
    * This is just one step up the graph.
+   * @param op Id of op node possibly doing the pass through
+   * @param passed_through Id of the tensor node - we search for its parents in pass-through
+   * relation
+   * @param strict_only If we should take into account only bijective pass through.
    * @return empty vector is returned if no node can be found, if strict_only is used, only one
    * element can be returned
    */
