@@ -1246,6 +1246,55 @@ TYPED_TEST(TensorListSuite, NoncontiguousResize) {
 }
 
 
+TYPED_TEST(TensorListSuite, ResizeSample) {
+  TensorList<TypeParam> tv;
+  tv.SetContiguity(BatchContiguity::Automatic);
+
+  auto new_shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(new_shape, DALI_FLOAT, BatchContiguity::Contiguous);
+  EXPECT_TRUE(tv.IsContiguous());
+
+  for (int i = 0; i < 3; i++) {
+    FillWithNumber(tv[i], 1 + i * 1.f);
+  }
+
+  for (int i = 0; i < 3; i++) {
+    EXPECT_NE(tv[i].raw_data(), nullptr);
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+    EXPECT_EQ(tv[i].type(), DALI_FLOAT);
+    CompareWithNumber(tv[i], 1 + i * 1.f);
+  }
+
+  auto new_sample_shape = TensorShape<>{10, 10, 3};
+  new_shape.set_tensor_shape(1, new_sample_shape);
+
+  tv.ResizeSample(1, new_sample_shape);
+
+  EXPECT_FALSE(tv.IsContiguous());
+  for (int i = 0; i < 3; i++) {
+    EXPECT_EQ(tv[i].shape(), new_shape[i]);
+  }
+
+  FillWithNumber(tv[1], 42.f);
+
+  EXPECT_EQ(tv[1].shape(), new_sample_shape);
+  EXPECT_EQ(tv[1].type(), DALI_FLOAT);
+  CompareWithNumber(tv[1], 42.f);
+}
+
+
+TYPED_TEST(TensorListSuite, ResizeSampleProhibited) {
+  TensorList<TypeParam> tv;
+  auto sample_shape = TensorShape<>{10, 10};
+  tv.SetContiguity(BatchContiguity::Automatic);
+  EXPECT_THROW(tv.ResizeSample(0, sample_shape), std::runtime_error);
+  auto shape = TensorListShape<>{{1, 2, 3}, {2, 3, 4}, {3, 4, 5}};
+  tv.Resize(shape, DALI_FLOAT, BatchContiguity::Contiguous);
+
+  EXPECT_THROW(tv.ResizeSample(1, sample_shape), std::runtime_error);
+}
+
+
 TYPED_TEST(TensorListSuite, BreakContiguity) {
   TensorList<TypeParam> tv;
   // anything goes
