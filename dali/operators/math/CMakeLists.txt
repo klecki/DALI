@@ -1,4 +1,4 @@
-# Copyright (c) 2020 NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2020 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # Get all the source files and dump test files
-add_subdirectory(expressions)
+# add_subdirectory(expressions)
 add_subdirectory(normalize)
 
 collect_headers(DALI_INST_HDRS PARENT_SCOPE)

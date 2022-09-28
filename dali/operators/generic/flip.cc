@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ DALI_SCHEMA(Flip)
 and depthwise).)code")
     .NumInput(1)
     .NumOutput(1)
-    .AddOptionalArg("horizontal", R"code(Flip the horizontal  dimension.)code", 1, true)
+    .AddOptionalArg("horizontal", R"code(Flip the horizontal  dimension.)code", true, true)
     .AddOptionalArg("vertical", R"code(Flip the vertical dimension.)code", 0, true)
     .AddOptionalArg("depthwise", R"code(Flip the depthwise dimension.)code", 0, true)
     .InputLayout({"FDHWC", "FHWC", "DHWC", "HWC", "FCDHW", "FCHW", "CDHW", "CHW"})
