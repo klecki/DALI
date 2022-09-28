@@ -711,6 +711,49 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
       }
     }
   }
+
+  // anything that goes into a Merge node, needs to be uniformly pinned
+  for (int i = 0; i < graph.NumOp(OpType::CPU); i++) {
+    auto &node = graph.Node(OpType::CPU, i);
+    if (node.spec.GetSchema().name() == "Merge") {
+      bool should_pin_everything = false;
+      for (int j = 0; j < node.spec.NumInput(); ++j) {
+        auto tid = node.parent_tensors[j];
+
+        std::cout << "Found merge input " << tid << std::endl;
+        // is it the only input op type and storage we can get here? probably yes,
+        // it's also the only we pin in this phase.
+        auto &parent_tensor_queue =
+            get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue_[tid]);
+        for (auto &tensor : parent_tensor_queue) {
+          should_pin_everything = tensor->is_pinned();
+
+          std::cout << "Is any input pinned: " << j << " " << tensor->is_pinned() << std::endl;
+          if (should_pin_everything) {
+            break;
+          }
+        }
+      }
+      // TODO(klecki): The only thing that will ignore pinning is the external source.
+      // We need another thing to handle it.
+      if (should_pin_everything) {
+        for (int j = 0; j < node.spec.NumInput(); ++j) {
+          auto tid = node.parent_tensors[j];
+          auto origin_tensor_ids = graph.GetTensorOrigin(tid);
+          for (auto origin_tensor_id : origin_tensor_ids) {
+            auto &tensor_node = graph.Tensor(origin_tensor_id);
+            auto &producer_op = graph.Node(tensor_node.producer.node);
+            std::cout << "Producer for the " << tid <<  " is " << producer_op.spec.name() << " " << producer_op.spec.GetSchema().name() << std::endl;
+            auto &parent_tensor_queue = get_queue<OpType::CPU, StorageDevice::CPU>(
+                tensor_to_store_queue_[origin_tensor_id]);
+            for (auto &tensor : parent_tensor_queue) {
+              tensor->set_pinned(true);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 // We apply hints to all of pinned CPU buffers and all GPU buffers

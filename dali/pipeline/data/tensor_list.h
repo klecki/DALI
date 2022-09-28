@@ -366,6 +366,16 @@ class DLL_PUBLIC TensorList {
                          BatchContiguity state = BatchContiguity::Automatic);
 
   /**
+   * @brief Resize individual sample. Allowed only in non-contiguous mode - it will convert the
+   * TensorList on the first call. The type must be already known, and the TensorList must heave
+   * enough elements for this operation.
+   *
+   * @param sample_idx sample index to be resized
+   * @param new_shape requested shape
+   */
+  DLL_PUBLIC void ResizeSample(int sample_idx, const TensorShape<> &new_shape);
+
+  /**
    * @brief Reserve memory as one contiguous allocation
    */
   void reserve(size_t total_bytes);

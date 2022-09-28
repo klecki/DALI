@@ -573,6 +573,25 @@ void TensorList<Backend>::Resize(const TensorListShape<> &new_shape, DALIDataTyp
 
 
 template <typename Backend>
+void TensorList<Backend>::ResizeSample(int sample_idx, const TensorShape<> &new_shape) {
+  DALI_ENFORCE(IsValidType(type()),
+               "Sample in TensorList cannot be resized with invalid type. Set the type first for "
+               "the whole TensorList using set_type or Resize.");
+  DALI_ENFORCE(sample_dim() == new_shape.sample_dim(),
+               "Sample in TensorList cannot be resized with non-compatible batch dimension. Use "
+               "set_sample_dim or Resize to set correct sample dimension for the whole batch.");
+  // Bounds check
+  assert(sample_idx >= 0 && sample_idx < curr_num_tensors_);
+  // Resizing any individual sample converts the batch to non-contiguous mode
+  MakeNoncontiguous();
+  if (tensors_[sample_idx].capacity() >= volume(new_shape) * type_.size())
+    return;
+  shape_.set_tensor_shape(sample_idx, new_shape);
+  tensors_[sample_idx].Resize(new_shape);
+}
+
+
+template <typename Backend>
 void TensorList<Backend>::SetSize(int new_size) {
   DALI_ENFORCE(new_size >= 0, make_string("Incorrect size: ", new_size));
   resize_tensors(new_size);
