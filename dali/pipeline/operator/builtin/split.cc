@@ -31,10 +31,7 @@ bool Split<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
       input.num_samples() == predicate.num_samples(),
       make_string("Split description must cover whole input, got ", input.num_samples(),
                   " input samples and ", predicate.num_samples(), " elements denoting the split."));
-  for (int i = 0; i < predicate.num_samples(); i++) {
-    DALI_ENFORCE(predicate[i].shape() == TensorShape<0>(), "Only scalar indexing is supported.");
-    // int output_category_idx = *predicate.template tensor<bool>(i);
-  }
+  DALI_ENFORCE(predicate.shape().sample_dim() == 0, "Only scalar indexing is supported.");
 
   category_counts_.fill(0);
 
@@ -43,16 +40,7 @@ bool Split<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
     category_counts_[output_category_idx]++;
   }
 
-
   // TODO(klecki): we can construct the output_desc, it won't be useful now
-  output_desc.resize(kMaxCategories);  // we only support two for now, so there is no dynamic split
-  // for (int i = 0; i < predicate.num_samples(); i++) {
-
-  // }
-  // for (auto &desc : output_desc) {
-  //   desc.shape = input.shape();
-  //   desc.type = input.type();
-  // }
   return false;
 }
 

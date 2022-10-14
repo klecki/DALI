@@ -34,26 +34,21 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
     input_sample_count_ += input.num_samples();
     std::cout << "[Merge]: category: " << input_category_idx << ", size: " << input.num_samples()
               << std::endl;
-    // TODO(klecki): do not compare against empty inputs unless we ensure consistent run behaviour
-    // for empty samples.
+    // Do not compare against empty inputs unless we ensure correct run behaviour for empty samples.
     if (nonzero_input_sample_idx < 0 && input.num_samples() > 0) {
       nonzero_input_sample_idx = input_category_idx;
       continue;  // no point in comparing with ourselves
     }
     if (nonzero_input_sample_idx >= 0 && input.num_samples() > 0) {
       const auto &base_input = ws.template Input<Backend>(nonzero_input_sample_idx);
-      // TODO(klecki): Error messages. BTW, we can just let it explode in Run, TV already makes
-      // sure that those are ok
-      DALI_ENFORCE(base_input.shape().sample_dim() == input.shape().sample_dim(),
-                   make_string("Sample dim wrong ", base_input.shape().sample_dim(), " ",
-                               input.shape().sample_dim()));
+      // TODO(klecki): Error messages - we can check it here or allow to crash in SetSample
+      DALI_ENFORCE(base_input.shape().sample_dim() == input.shape().sample_dim());
       DALI_ENFORCE(base_input.type() == input.type());
       DALI_ENFORCE(base_input.GetLayout() == input.GetLayout());
       // When not pinned, we can have device_id = CPU_ONLY_DEVICE_ID, and for pinned it is the id
       // of an actual device.
       if (base_input.is_pinned() == input.is_pinned()) {
-        DALI_ENFORCE(base_input.device_id() == input.device_id(),
-                     make_string("Device id: ", base_input.device_id(), " vs ", input.device_id()));
+        DALI_ENFORCE(base_input.device_id() == input.device_id());
       }
     }
   }
@@ -63,9 +58,7 @@ bool Merge<Backend>::SetupImpl(std::vector<OutputDesc> &output_desc,
       input_sample_count_ == predicate.num_samples(),
       make_string("Merge description must cover whole input, got ", input_sample_count_,
                   " input samples and ", predicate.num_samples(), " elements denoting the merge."));
-  for (int i = 0; i < predicate.num_samples(); i++) {
-    DALI_ENFORCE(predicate[i].shape() == TensorShape<0>(), "Only scalar indexing is supported.");
-  }
+  DALI_ENFORCE(predicate.shape().sample_dim() == 0, "Only scalar indexing is supported.");
   return false;
 }
 
@@ -77,27 +70,15 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
   auto sample_idx_in_input = uniform_array<kMaxCategories>(0);
 
   if (!pinned_) {
-    // We produce pinned data if the executor said so, or we got any pinned input.
+    // We produce pinned data if the executor said so
     pinned_ = output.is_pinned();
-    //  || [&ws]() {
-    //   for (int input_category = 0; input_category < kMaxCategories; input_category++) {
-    //     const auto &input = ws.template Input<Backend>(input_category);
-    //     if (input.is_pinned()) {
-    //       return true;
-    //     }
-    //   }
-    //   return false;
-    // }();
-  }
-
-  // TODO(klecki): no longer necessary, as we allowed it to be synchronized in SetSample
-  if (!order_) {
-    order_ = output.order();
-    if (ws.has_stream()) {
-      assert(order_->get() == ws.stream() && "We use the order of current stage");
-    } else {
-      assert(order_ == AccessOrder::host() && "We use host order in CPU stage");
+    // TODO(klecki): Optionally we keep pinedness if it was passed to us:
+    for (int input_category = 0; input_category < kMaxCategories; input_category++) {
+      pinned_ = *pinned_ || ws.template Input<Backend>(input_category).is_pinned();
     }
+    std::cout << "Output pinned: " << output.is_pinned()
+              << " inputs: " << ws.template Input<Backend>(0).is_pinned() << ", "
+              << ws.template Input<Backend>(1).is_pinned() << std::endl;
   }
 
   // We propagate views only, so just don't care about what is here and reset, to have
@@ -109,13 +90,13 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
       output.set_type(input.type());
       output.set_sample_dim(input.shape().sample_dim());
       output.SetLayout(input.GetLayout());
-      // The pinned and order can differ depending on the pipeline graph. Let the executor
+      // The pinned (and order) can differ depending on the pipeline graph. Let the executor
       // set the desired one, and we will copy if we don't match.
-      // TODO(klecki): device_id when pinned or not is broken
-      if (input.order() == *order_ && input.is_pinned() == *pinned_) {
+      if (std::is_same_v<Backend, GPUBackend> || input.is_pinned() == *pinned_) {
+        //  device_id is different depending on pinnedness of the memory
         output.set_device_id(input.device_id());
-        output.set_pinned(*pinned_);
       }
+      output.set_pinned(*pinned_);
     }
   }
 
@@ -130,7 +111,7 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
     int input_sample_idx = sample_idx_in_input[input_category_idx];
     sample_idx_in_input[input_category_idx]++;
 
-    if (input.order() == *order_ && input.is_pinned() == *pinned_) {
+    if (std::is_same_v<Backend, GPUBackend> || input.is_pinned() == *pinned_) {
       // share the sample to the output
       output.SetSample(output_sample_idx, input, input_sample_idx);
       // The commented out code might be unsafe - if we downgrade the pinned memory, and do a async
@@ -155,6 +136,8 @@ void Merge<Backend>::RunImpl(workspace_t<Backend> &ws) {
       // TODO(klecki): Do one allocation, where samples that we share are 0-volumed - this might
       // be perf optimization reducing the number of allocations to 1.
       CopySampleToOutput(output, output_sample_idx, input, input_sample_idx, ws);
+      std::cout << "Scheduled a copy of " << output_sample_idx << " from " << input_category_idx
+                << " input and sample " << input_sample_idx << std::endl;
     }
   }
   FinalizeCopy(ws);
@@ -176,22 +159,20 @@ void Merge<CPUBackend>::CopySampleToOutput(TensorList<CPUBackend> &output, int o
 
 
 template <>
-void Merge<GPUBackend>::CopySampleToOutput(TensorList<GPUBackend> &output, int output_sample_idx,
-                                           const TensorList<GPUBackend> &input,
-                                           int input_sample_idx, workspace_t<GPUBackend> &ws) {
-  output.ResizeSample(output_sample_idx, input.shape()[input_sample_idx]);
-  output.CopySample(output_sample_idx, input, input_sample_idx, ws.stream());
-}
-
-
-template <>
 void Merge<CPUBackend>::FinalizeCopy(workspace_t<CPUBackend> &ws) {
   ws.GetThreadPool().RunAll();
 }
 
 
 template <>
+void Merge<GPUBackend>::CopySampleToOutput(TensorList<GPUBackend> &output, int output_sample_idx,
+                                           const TensorList<GPUBackend> &input,
+                                           int input_sample_idx, workspace_t<GPUBackend> &ws) {}
+
+
+template <>
 void Merge<GPUBackend>::FinalizeCopy(workspace_t<GPUBackend> &ws) {}
+
 
 DALI_SCHEMA(Merge)
     .DocStr(R"code(Merge batch based on a predicate.)code")

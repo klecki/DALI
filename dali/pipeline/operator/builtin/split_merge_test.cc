@@ -35,19 +35,10 @@ class SplitMerge : public ::testing::Test {
  /**
   * @brief Generate input tensor that will be split.
   * This version uses Tensors that keep their sample_idx and batch size internally
+  *
   */
   virtual TensorList<CPUBackend> GetInput(int iter_idx) {
-    auto shape = uniform_list_shape(kBatchSize, {1, 1, 3});
-    TensorList<CPUBackend> input;
-    input.set_pinned(false);
-    input.set_order(AccessOrder::host());
-    input.Resize(shape, DALI_INT32);
-    for (int i = 0; i < shape.num_samples(); i++) {
-      for (int elem = 0; elem < shape[i].num_elements(); elem++) {
-        input.mutable_tensor<int32_t>(i)[elem] = iter_idx * kBatchSize + i;
-      }
-    }
-    return input;
+    return GetInputImpl(iter_idx, false);
   }
 
   /**
@@ -125,6 +116,20 @@ class SplitMerge : public ::testing::Test {
   }
 
   static constexpr int kBatchSize = 10;
+ protected:
+  TensorList<CPUBackend> GetInputImpl(int iter_idx, bool pinned = false) {
+    auto shape = uniform_list_shape(kBatchSize, {1, 1, 3});
+    TensorList<CPUBackend> input;
+    input.set_pinned(pinned);
+    input.set_order(AccessOrder::host());
+    input.Resize(shape, DALI_INT32);
+    for (int i = 0; i < shape.num_samples(); i++) {
+      for (int elem = 0; elem < shape[i].num_elements(); elem++) {
+        input.mutable_tensor<int32_t>(i)[elem] = iter_idx * kBatchSize + i;
+      }
+    }
+    return input;
+  }
 };
 
 
@@ -560,97 +565,103 @@ TEST_F(SplitMergeNegative, MismatchedSplit) {
   }
 }
 
-// OLD TEST, TO REMOVE
-TYPED_TEST(SplitMergeTyped, SimplePipe) {
-  constexpr bool is_device = std::is_same_v<TypeParam, GPUBackend>;
+class SplitMergePinnedInputs : public SplitMerge {
+ public:
+  TensorList<CPUBackend> GetPinnedInput(int iter_idx) {
+    return GetInputImpl(iter_idx, true);
+  }
+};
 
-  auto backend = testing::detail::BackendStringName<TypeParam>();
-
-  auto shape = uniform_list_shape(10, {10, 5, 3});
-
-  Pipeline pipe(shape.num_samples(), 4, 0);
-
-
-  pipe.AddOperator(OpSpec("ExternalSource")
-                       .AddArg("device", "cpu")
-                       .AddArg("name", "input")
-                       .AddOutput("input", "cpu"),
-                   "input");
+TEST_F(SplitMergePinnedInputs, Mixes) {
+  Pipeline pipe(kBatchSize, 4, 0);
+  AddExternalInputs(pipe);
 
   pipe.AddOperator(OpSpec("ExternalSource")
-                       .AddArg("device", "cpu")
-                       .AddArg("name", "pred")
-                      //  .AddArg("no_copy", true)
-                       .AddOutput("pred", "cpu"),
-                   "pred");
+                        .AddArg("device", "cpu")
+                        .AddArg("name", "input")
+                        .AddOutput("pinned_input", "cpu"),
+                    "pinned_input");
 
 
   pipe.AddOperator(OpSpec("Split")
-                       .AddArg("device", backend)
-                       .AddInput("pred", backend)
+                       .AddArg("device", "cpu")
+                       .AddInput("input", "cpu")
                        .AddArgumentInput("predicate", "pred")
-                       .AddOutput("split_0", backend)
-                       .AddOutput("split_1", backend),
+                       .AddOutput("split_0", "cpu")
+                       .AddOutput("split_1", "cpu"),
                    "split");
 
-
-  pipe.AddOperator(OpSpec("Copy")
-                       .AddArg("device", backend)
-                       .AddInput("split_0", backend)
-                       .AddOutput("split_0_copy", backend),
-                   "copy_0");
-
+  pipe.AddOperator(OpSpec("Split")
+                       .AddArg("device", "cpu")
+                       .AddInput("pinned_input", "cpu")
+                       .AddArgumentInput("predicate", "pred")
+                       .AddOutput("split_pinned_0", "cpu")
+                       .AddOutput("split_pinned_1", "cpu"),
+                   "split_pinned");
 
   pipe.AddOperator(OpSpec("Merge")
-                       .AddArg("device", backend)
-                       .AddInput("split_0_copy", backend)
-                       .AddInput("split_1", backend)
+                       .AddArg("device", "cpu")
+                       .AddInput("split_0", "cpu")
+                       .AddInput("split_1", "cpu")
                        .AddArgumentInput("predicate", "pred")
-                       .AddOutput("merge", backend),
-                   "merge");
+                       .AddOutput("merge_nn", "cpu"),
+                   "merge_nn");
 
-  pipe.AddOperator(OpSpec("Flip")
-                       .AddArg("device", "gpu")
-                       .AddInput("input", "gpu")
-                       .AddArgumentInput("horizontal", "pred")
-                       .AddOutput("out_copy_gpu", "gpu"),
-                   "flip_in_gpu");
+  pipe.AddOperator(OpSpec("Merge")
+                       .AddArg("device", "cpu")
+                       .AddInput("split_pinned_0", "cpu")
+                       .AddInput("split_pinned_1", "cpu")
+                       .AddArgumentInput("predicate", "pred")
+                       .AddOutput("merge_pp", "cpu"),
+                   "merge_pp");
 
-  // TODO(klecki): why did we not add MakeContiguous at the end? We did wrong pass through.
-  vector<std::pair<string, string>> outputs = {{"merge", backend}, {"out_copy_gpu", "gpu"}};
+  pipe.AddOperator(OpSpec("Merge")
+                       .AddArg("device", "cpu")
+                       .AddInput("split_pinned_0", "cpu")
+                       .AddInput("split_1", "cpu")
+                       .AddArgumentInput("predicate", "pred")
+                       .AddOutput("merge_pn", "cpu"),
+                   "merge_pn");
+
+  pipe.AddOperator(OpSpec("Merge")
+                       .AddArg("device", "cpu")
+                       .AddInput("split_0", "cpu")
+                       .AddInput("split_pinned_1", "cpu")
+                       .AddArgumentInput("predicate", "pred")
+                       .AddOutput("merge_np", "cpu"),
+                   "merge_np");
+
+
+  vector<std::pair<string, string>> outputs = {
+      {"merge_nn", "cpu"}, {"merge_pp", "cpu"}, {"merge_pn", "cpu"}, {"merge_np", "cpu"}};
   pipe.Build(outputs);
 
-  pipe.SaveGraphToDotFile("split_merge_" + backend + ".dot", true, true, true);
+  pipe.SaveGraphToDotFile("split_pinned_mix.dot", true, true, true);
 
-  TensorList<CPUBackend> input, predicate;
-  input.set_pinned(false);
-  // TODO(klecki): when we feed pinned/non-pinned memory into external source, we need to
-  // disable the no_copy if it reaches merge.
-  // We also can disable mmap and apply proper options in the readers.
-  // Alternative: introduce a copy in the merge.
-  predicate.set_pinned(false);
-  // predicate.set_order(AccessOrder::host());
-  input.Resize(shape, DALI_INT32);
-  for (int i = 0; i < shape.num_samples(); i++) {
-    for (int elem = 0; elem < shape[i].num_elements(); elem++) {
-      input.mutable_tensor<int32_t>(i)[elem] = i;
-    }
+  for (int iter_idx = 0; iter_idx < GetIterCount(); iter_idx++) {
+    auto input = GetInput(iter_idx);
+    auto pinned_input = GetPinnedInput(iter_idx);
+    auto predicate = GetPredicate(iter_idx);
+    pipe.SetExternalInput("input", input);
+    pipe.SetExternalInput("pinned_input", pinned_input);
+    pipe.SetExternalInput("pred", predicate);
+
+    pipe.RunCPU();
+    pipe.RunGPU();
+    DeviceWorkspace ws;
+    pipe.Outputs(&ws);
+
+    // For whatever reason the outputs are always pinned.
+    // EXPECT_FALSE(ws.Output<CPUBackend>(0).is_pinned());
+    // EXPECT_TRUE(ws.Output<CPUBackend>(1).is_pinned());
+    // EXPECT_TRUE(ws.Output<CPUBackend>(2).is_pinned());
+    // EXPECT_TRUE(ws.Output<CPUBackend>(3).is_pinned());
+
+    Validate<CPUBackend>(iter_idx, 0, ws, input);
+    Validate<CPUBackend>(iter_idx, 1, ws, input);
+    Validate<CPUBackend>(iter_idx, 2, ws, input);
+    Validate<CPUBackend>(iter_idx, 3, ws, input);
   }
-  predicate.Resize(uniform_list_shape(10, TensorShape<0>{}), DALI_BOOL);
-
-  for (int i = 0; i < 10; i++) {
-    *predicate.mutable_tensor<bool>(i) = i % 2;
-  }
-
-  std::cout << "HMMM: " << predicate.order().device_id() << " " << predicate.order().get() << std::endl;
-
-  pipe.SetExternalInput("input", input);
-  pipe.SetExternalInput("pred", predicate);
-
-  pipe.RunCPU();
-  pipe.RunGPU();
-  DeviceWorkspace ws;
-  pipe.Outputs(&ws);
 }
 
 }  // namespace dali
