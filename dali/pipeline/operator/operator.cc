@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,11 @@ namespace dali {
 
 template <typename Backend>
 void OperatorBase::EnforceUniformInputBatchSize(const workspace_t<Backend> &ws) const {
+  // Builtin operators have relaxed checks for the purpose of conditional execution
+  const auto &op_name = spec_.GetSchema().name();
+  if (op_name == "Split" || op_name == "Merge") {
+    return;
+  }
   auto curr_batch_size = ws.NumInput() > 0 ? ws.GetInputBatchSize(0) : ws.GetRequestedBatchSize(0);
   for (int i = 0; i < ws.NumInput(); i++) {
     DALI_ENFORCE(curr_batch_size == ws.GetInputBatchSize(i),
@@ -34,6 +39,11 @@ void OperatorBase::EnforceUniformInputBatchSize(const workspace_t<Backend> &ws) 
 
 template <typename Backend>
 void OperatorBase::EnforceUniformOutputBatchSize(const workspace_t<Backend> &ws) const {
+  // Builtin operators have relaxed checks for the purpose of conditional execution
+  const auto &op_name = spec_.GetSchema().name();
+  if (op_name == "Split" || op_name == "Merge") {
+    return;
+  }
   auto ref_batch_size = ws.NumInput() > 0 ? ws.GetInputBatchSize(0) : ws.GetRequestedBatchSize(0);
   for (int i = 0; i < ws.NumOutput(); i++) {
     auto output_batch_size = ws.template Output<Backend>(i).shape().num_samples();

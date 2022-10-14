@@ -631,11 +631,11 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
     for (int tid = 0; tid < graph.NumTensor(); tid++) {
       // Only CPU storage device in CPU_ONLY mode
       auto &cpu_cpu_queue =
-          get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue_[tid]);
+          get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue[tid]);
       auto &mixed_cpu_queue =
-          get_queue<OpType::MIXED, StorageDevice::CPU>(tensor_to_store_queue_[tid]);
+          get_queue<OpType::MIXED, StorageDevice::CPU>(tensor_to_store_queue[tid]);
       auto &gpu_cpu_queue =
-          get_queue<OpType::GPU, StorageDevice::CPU>(tensor_to_store_queue_[tid]);
+          get_queue<OpType::GPU, StorageDevice::CPU>(tensor_to_store_queue[tid]);
 
       for (auto &t : cpu_cpu_queue) {
         t->set_pinned(false);
@@ -650,18 +650,21 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
     return;
   }
 
-  auto pin_cpu_passthrough = [](std::vector<tensor_data_store_queue_t> &tensor_to_store_queue,
-                                const OpGraph &graph, int tid) {
+  auto pin_cpu_tensor_node = [&](int tid) {
+    // (we can only pin CPU data produced in CPU nodes)
+    auto &parent_tensor_queue =
+        get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue[tid]);
+    for (auto &batch : parent_tensor_queue) {
+      batch->set_pinned(true);
+    }
+  };
+
+  auto pin_cpu_passthrough = [&](int tid) {
     auto origin_group = graph.GetTensorOrigin(tid);
     // For all tensors that are forming a pass through group ...
     for (auto &origin_tensor_id : origin_group) {
-      // (we do this only for CPU data produced in CPU nodes)
-      auto &parent_tensor_queue =
-          get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue[origin_tensor_id]);
-      for (auto &batch : parent_tensor_queue) {
-        // ... mark all executor buffer queues as `pinned`
-        batch->set_pinned(true);
-      }
+      // ... mark all executor buffer queues as `pinned`
+      pin_cpu_tensor_node(origin_tensor_id);
     }
   };
 
@@ -675,7 +678,7 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
       auto tid = node.parent_tensors[j];
       // Use pinned memory only when it is useful
       if (node.spec.OutputDevice(0) == "gpu" && !RestrictPinnedMemUsage()) {
-        pin_cpu_passthrough(tensor_to_store_queue, graph, tid);
+        pin_cpu_passthrough(tid);
       }
     }
   }
@@ -687,9 +690,55 @@ void Executor<WorkspacePolicy, QueuePolicy>::PrepinData(
       auto tid = node.parent_tensors[j];
       if (graph.Tensor(tid).producer.storage_device == StorageDevice::CPU) {
         if (node.spec.OutputDevice(0) == "gpu" && !RestrictPinnedMemUsage()) {
-          pin_cpu_passthrough(tensor_to_store_queue, graph, tid);
+          pin_cpu_passthrough(tid);
         }
       }
+    }
+  }
+
+  auto any_pinned = [&](int tid) {
+    auto origin_group = graph.GetTensorOrigin(tid);
+    for (auto &origin_tensor_id : origin_group) {
+      auto &parent_tensor_queue =
+          get_queue<OpType::CPU, StorageDevice::CPU>(tensor_to_store_queue[tid]);
+      for (auto &tensor : parent_tensor_queue) {
+        if (tensor->is_pinned()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
+  // anything that goes into a Merge CPU node, needs to be uniformly pinned
+  for (int i = 0; i < graph.NumOp(OpType::CPU); i++) {
+    auto &node = graph.Node(OpType::CPU, i);
+    if (node.spec.GetSchema().name() != "Merge") {
+      continue;
+    }
+    bool should_pin_all = false;
+    // we are interested only in the proper inputs, find out if any of them is pinned
+    for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
+      auto tid = node.parent_tensors[j];
+      should_pin_all = should_pin_all || any_pinned(tid);
+      if (should_pin_all) {
+        break;
+      }
+    }
+    if (!should_pin_all) {
+      continue;
+    }
+    // If any input was pinned, try to pin everything.
+    // Some operator may still ignore pinning, for example a no_copy External Source.
+    for (int j = 0; j < node.spec.NumRegularInput(); ++j) {
+      auto tid = node.parent_tensors[j];
+      pin_cpu_passthrough(tid);
+    }
+    // Indicate that we pin inputs so we want to pin outputs
+    // Anything that consume us should be later in the graph so it can pick up the pinning.
+    for (int j = 0; j < node.spec.NumOutput(); ++j) {
+      auto tid = node.children_tensors[j];
+      pin_cpu_tensor_node(tid);
     }
   }
 }
