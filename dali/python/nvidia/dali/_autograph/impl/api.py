@@ -59,7 +59,7 @@ from nvidia.dali._autograph.utils import ag_logging as logging
 from nvidia.dali._autograph.utils import all_utils
 import inspect as tf_inspect
 # TODO(klecki): replace missing functionality
-# from autograph.utils import tf_stack
+# from nvidia.dali._autograph.utils import tf_stack
 from nvidia.dali._autograph.utils.all_utils import export_symbol
 
 
