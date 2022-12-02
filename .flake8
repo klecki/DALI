@@ -5,3 +5,12 @@ doctests = False
 max-doc-length = 120
 max-line-length = 100
 statistics = True
+# E111 - Using 2 spaces instead of 4
+# E114 - Same for docstrings
+# E125 - continuation line with same indent as next logical line caused by using 2-indent
+# E731 - do not assign a lambda expression, use a def
+# E741 - ambiguous variable names
+# F401 - unused imports, some are intentional
+per-file-ignores =
+    *dali/python/nvidia/dali/_autograph/*:E111,E114,E125,E731,E741,F401
+    *dali/test/python/autograph/*:E111,E114,E125,E731,E741,F401

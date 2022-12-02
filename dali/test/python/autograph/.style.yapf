@@ -1,0 +1,6 @@
+[style]
+based_on_style = google
+INDENT_WIDTH = 2
+COLUMN_LIMIT = 100
+DEDENT_CLOSING_BRACKETS = True
+SPLIT_BEFORE_DOT = TRUE
