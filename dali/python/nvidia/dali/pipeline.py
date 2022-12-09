@@ -19,6 +19,7 @@ from nvidia.dali import types
 from nvidia.dali import internal
 from nvidia.dali._multiproc.pool import WorkerPool
 from nvidia.dali import pickling as dali_pickle
+from nvidia.dali import _conditionals
 from threading import local as tls
 from . import data_node as _data_node
 import functools
@@ -1405,6 +1406,9 @@ def _discriminate_args(func, **func_kwargs):
     if 'debug' not in func_argspec.args and 'debug' not in func_argspec.kwonlyargs:
         func_kwargs.pop('debug', False)
 
+    if 'enable_conditionals' not in func_argspec.args and 'enable_conditionals' not in func_argspec.kwonlyargs:
+        func_kwargs.pop('enable_conditionals', False)
+
     ctor_args = {}
     fn_args = {}
 
@@ -1532,20 +1536,27 @@ def pipeline_def(fn=None, **pipeline_kwargs):
 def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
     from nvidia.dali._debug_mode import _PipelineDebug
     pipeline_debug = pipeline_kwargs.pop('debug', False)
+    pipeline_conditionals = pipeline_kwargs.pop('enable_conditionals', False)
 
     def actual_decorator(func):
 
         @functools.wraps(func)
         def create_pipeline(*args, **kwargs):
             debug_mode_on = kwargs.get('debug', pipeline_debug)
-            ctor_args, fn_kwargs = _discriminate_args(func, **kwargs)
+            conditionals_on = kwargs.get('enable_conditionals', pipeline_conditionals)
+            if conditionals_on:
+                pipe_func = _conditionals._autograph.to_graph(func)
+                print(_conditionals._autograph.to_code(func))
+            else:
+                pipe_func = func
+            ctor_args, fn_kwargs = _discriminate_args(pipe_func, **kwargs)
             pipeline_args = {**pipeline_kwargs, **ctor_args}  # Merge and overwrite dict
             if debug_mode_on:
-                pipe = _PipelineDebug(functools.partial(func, *args, **fn_kwargs), **pipeline_args)
+                pipe = _PipelineDebug(functools.partial(pipe_func, *args, **fn_kwargs), **pipeline_args)
             else:
                 pipe = Pipeline(**pipeline_args)
                 with pipe:
-                    pipe_outputs = func(*args, **fn_kwargs)
+                    pipe_outputs = pipe_func(*args, **fn_kwargs)
                     if isinstance(pipe_outputs, tuple):
                         po = pipe_outputs
                     elif pipe_outputs is None:

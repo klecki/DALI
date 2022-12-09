@@ -172,6 +172,7 @@ class ControlFlowTransformer(converter.Base):
     defined_in = anno.getanno(node, anno.Static.DEFINED_VARS_IN)
     live_in = anno.getanno(node, anno.Static.LIVE_VARS_IN)
     live_out = anno.getanno(node, anno.Static.LIVE_VARS_OUT)
+    print(f"\n\ndefined_in: {defined_in},\nlive_in: {live_in},\nlive_out: {live_out}\n\n")
     fn_scope = self.state[_Function].scope
 
     basic_scope_vars = self._get_block_basic_vars(
@@ -180,6 +181,7 @@ class ControlFlowTransformer(converter.Base):
         live_out)
     composite_scope_vars = self._get_block_composite_vars(modified, live_in)
     scope_vars = tuple(basic_scope_vars | composite_scope_vars)
+    print(f"\n\nbasic_scope_vars: {basic_scope_vars},\ncomposite_scope_vars: {composite_scope_vars},\nscope_vars: {scope_vars}\n\n")
 
     # Variables that are modified inside the scope, but not defined
     # before entering it. Only simple variables must be defined. The
@@ -196,6 +198,10 @@ class ControlFlowTransformer(converter.Base):
     scope_vars = sorted(scope_vars, key=lambda v: (v in input_only, v))
     nouts = len(scope_vars) - len(input_only)
 
+
+    print(f"\n\npossibly_undefined: {possibly_undefined},\nundefined: {undefined},\ninput_only: {input_only}\n\n")
+    print(f"\n\nscope_vars: {scope_vars},\nundefined: {undefined},\nnouts: {nouts}\n\n")
+
     return scope_vars, undefined, nouts
 
   def visit_If(self, node):
@@ -203,6 +209,7 @@ class ControlFlowTransformer(converter.Base):
     body_scope = anno.getanno(node, annos.NodeAnno.BODY_SCOPE)
     orelse_scope = anno.getanno(node, annos.NodeAnno.ORELSE_SCOPE)
 
+    # TODO(klecki): Indicate that inputs and kwargs to operator are "modified"
     cond_vars, undefined, nouts = self._get_block_vars(
         node, body_scope.bound | orelse_scope.bound)
 
