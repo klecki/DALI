@@ -198,7 +198,25 @@ class Scope(object):
     self.is_final = True
 
   def __repr__(self):
-    return 'Scope{r=%s, w=%s}' % (tuple(self.read), tuple(self.modified))
+    # return 'Scope{r=%s, w=%s}' % (tuple(self.read), tuple(self.modified))
+    regular = (f"\n[SCOPE]: isolated: {self.isolated} [True - true scope, False - code block], "
+        f"is_final: {self.is_final}, function name: {self.function_name}\n"
+        f"  isolated_names: {self.isolated_names}, type annotations: {self.annotations}\n"
+        "  ====================================================\n"
+        f"  read: {self.read}\n"
+        f"  modified: {self.modified}\n"
+        f"  deleted: {self.deleted}\n"
+        f"  bound: {self.bound}\n"
+        "  ====================================================\n"
+        f"  globals: {self.globals}\n"
+        f"  nonlocals: {self.nonlocals}\n"
+        f"  params: {self.params}\n"
+        "====================================================>\n\n")
+    # if self.is_final:
+    #     regular += (f"free_vars: {self.free_vars}\n"
+    #     f"enclosing_scope: {self.enclosing_scope}\n"
+    #     f"referenced: {self.referenced}\n")
+    return regular
 
   def mark_param(self, name, owner):
     # Assumption: all AST nodes have the same life span. This lets us use

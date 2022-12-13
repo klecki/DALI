@@ -129,6 +129,7 @@ class ControlFlowTransformer(converter.Base):
     return assignments
 
   def _get_block_basic_vars(self, modified, live_in, live_out):
+    print(f">> _get_block_basic_vars:  modified: {modified}, live_in: {live_in}, live_out: {live_out}")
     nonlocals = self.state[_Function].scope.nonlocals
     basic_scope_vars = []
     for s in modified:
@@ -169,6 +170,8 @@ class ControlFlowTransformer(converter.Base):
 
   def _get_block_vars(self, node, modified):
     """Determines the variables affected inside a control flow statement."""
+
+    print(f"_get_block_vars: node: f{node}, f{modified}")
     defined_in = anno.getanno(node, anno.Static.DEFINED_VARS_IN)
     live_in = anno.getanno(node, anno.Static.LIVE_VARS_IN)
     live_out = anno.getanno(node, anno.Static.LIVE_VARS_OUT)
@@ -209,9 +212,18 @@ class ControlFlowTransformer(converter.Base):
     body_scope = anno.getanno(node, annos.NodeAnno.BODY_SCOPE)
     orelse_scope = anno.getanno(node, annos.NodeAnno.ORELSE_SCOPE)
 
+    print("MY SCOPE: ", body_scope.function_name)
+
+    print(f"visit_If body_scope: {body_scope}, {body_scope.bound}, orelse_scope: {orelse_scope}, {orelse_scope.bound}")
+
     # TODO(klecki): Indicate that inputs and kwargs to operator are "modified"
     cond_vars, undefined, nouts = self._get_block_vars(
         node, body_scope.bound | orelse_scope.bound)
+
+    # We try to capture everything that the user may touch.
+    # It would be nice to detect that on DALI level?
+    # cond_vars, undefined, nouts = self._get_block_vars(
+    #     node, body_scope.read | orelse_scope.read)
 
     undefined_assigns = self._create_undefined_assigns(undefined)
 

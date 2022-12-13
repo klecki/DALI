@@ -1546,7 +1546,7 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
             conditionals_on = kwargs.get('enable_conditionals', pipeline_conditionals)
             if conditionals_on:
                 pipe_func = _conditionals._autograph.to_graph(func)
-                print(_conditionals._autograph.to_code(func))
+                # print(_conditionals._autograph.to_code(func))
             else:
                 pipe_func = func
             ctor_args, fn_kwargs = _discriminate_args(pipe_func, **kwargs)

@@ -17,6 +17,7 @@ import sys
 from nvidia.dali import backend as _b
 from nvidia.dali import internal as _internal
 from nvidia.dali.external_source import external_source
+from nvidia.dali import _conditionals
 
 _special_case_mapping = {
     "b_box": "bbox",
@@ -83,10 +84,25 @@ def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
     def fn_wrapper(*inputs, **kwargs):
         from nvidia.dali._debug_mode import _PipelineDebug
         current_pipeline = _PipelineDebug.current()
+
+        print(f"Executing {wrapper_name}")
+        if wrapper_name not in {"split", "merge"}:
+            from nvidia.dali.data_node import DataNode
+            inputs_bkp = list(inputs)
+            for i, input in enumerate(inputs):
+                if isinstance(input, DataNode):
+                    inputs_bkp[i] = _conditionals._process_input(input)
+            inputs = tuple(inputs_bkp)
+            for key, arg in kwargs.items():
+                if isinstance(arg, DataNode):
+                    kwargs[key] = _conditionals._process_input(arg)
         if getattr(current_pipeline, '_debug_on', False):
             return current_pipeline._wrap_op_call(op_class, wrapper_name, *inputs, **kwargs)
         else:
-            return op_wrapper(*inputs, **kwargs)
+            captured = op_wrapper(*inputs, **kwargs)
+            if wrapper_name not in {"split", "merge"}:
+                _conditionals._register_data_nodes(captured)
+            return captured
 
     fn_wrapper.__name__ = wrapper_name
     fn_wrapper.__qualname__ = wrapper_name

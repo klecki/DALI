@@ -25,6 +25,14 @@ from nose2.tools import params
 
 test_iters = 4
 
+from nvidia.dali._autograph.utils.ag_logging import set_verbosity
+
+set_verbosity(10, True)
+
+def consumer(input):
+    output = input
+    return output
+
 
 def to_batch(tl, batch_size):
     return [np.array(tl[i]) for i in range(batch_size)]
@@ -42,14 +50,44 @@ def flip_pipe(dev):
     return fn.flip(input, horizontal=True)
 
 
+# @experimental.pipeline_def(enable_conditionals=True)
+# def conditional_split_merge_pipe(dev):
+#     input = fn.external_source(name="input", device=dev)
+#     input2 = input
+#     def modify_nonlocal():
+#         nonlocal input2
+#         input2 = input2 + 1
+#     pred = fn.external_source(name="predicate")
+#     if pred:
+#         output = fn.rotate(input, angle=15)
+#         modify_nonlocal()
+#         input2 = input + 1
+#         x = consumer(input)
+#     else:
+#         output = fn.flip(input, horizontal=True)
+#         modify_nonlocal()
+#         x = consumer(input)
+#     return output, x, input2
+
+def wrap_rotate(input, angle):
+    input = input
+    angle = angle
+    return fn.rotate(input, angle=angle)
+
+
 @experimental.pipeline_def(enable_conditionals=True)
 def conditional_split_merge_pipe(dev):
     input = fn.external_source(name="input", device=dev)
     pred = fn.external_source(name="predicate")
+
+    def wrap_flip(horizontal):
+        nonlocal input
+        horizontal = horizontal
+        return fn.flip(input, horizontal=horizontal)
     if pred:
-        output = nvidia.dali.fn.rotate(input, angle=15)
+        output = wrap_rotate(input, angle=15)
     else:
-        output = nvidia.dali.fn.flip(input, horizontal=True)
+        output = wrap_flip(horizontal=True)
     return output
 
 
