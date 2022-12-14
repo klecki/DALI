@@ -84,8 +84,9 @@ def conditional_split_merge_pipe(dev):
         nonlocal input
         horizontal = horizontal
         return fn.flip(input, horizontal=horizontal)
+
     if pred:
-        output = wrap_rotate(input, angle=15)
+        output = fn.rotate(input, angle=15)
     else:
         output = wrap_flip(horizontal=True)
     return output

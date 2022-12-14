@@ -253,6 +253,7 @@ Parameters
             self._gpu_queue_size = prefetch_queue_depth
         else:
             raise TypeError("Expected prefetch_queue_depth to be either int or Dict[int, int]")
+        self._conditionals_enabled = False
 
         # Assign and validate output_dtype
         if isinstance(output_dtype, (list, tuple)):

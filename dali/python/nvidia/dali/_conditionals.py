@@ -17,6 +17,8 @@ from nvidia.dali._autograph.operators import Undefined as _Undefined
 from nvidia.dali import data_node
 from nvidia.dali import fn
 
+from nvidia.dali._autograph.utils import ag_logging as logging
+
 from contextlib import contextmanager
 
 from collections import namedtuple
@@ -55,67 +57,139 @@ class _StackEntry:
             return self.nodes[dn][self.branch.value]
 
 
+class _ConditionStack:
+    def __init__(self):
+        self._stack = [_StackEntry(None)]
 
-# TODO - this needs to be stack + path True/False
-_GLOBAL_CONDITION=[_StackEntry(None)]
+    def push_predicate(self, predicate):
+        new_entry = _StackEntry(predicate)
+        self._stack.append(new_entry)
 
-def _condition_stack_top():
-    return _GLOBAL_CONDITION[-1]
+    def top(self):
+        return self._stack[-1]
+
+    def pop(self):
+        result = self._stack.pop()
+        return result
+
+    def stack_depth(self):
+        return len(self._stack)
+
+    def _find_closest(self, data_node):
+        for level in range(self.stack_depth()-1, -1, -1):
+            if self._stack[level].has(data_node):
+                return level
+        raise ValueError(f"{data_node} was not produced within this trace.")
+
+    def _realize_split(self, data_node, stack_level):
+        assert 0 <= stack_level and stack_level < self.stack_depth() - 1
+        logging.log(7, f"{data_node} requires splitting from {stack_level}")
+        produced_data_node = self._stack[stack_level].get(data_node)
+        bottom = self._stack[: stack_level+1]
+        top = self._stack[stack_level+1 :]
+        print(f"{bottom}:{top}")
+        # We will be inserting new split nodes at this level. They are above the branches.
+        self._stack = bottom
+        level = stack_level+1
+        while top:
+            current_entry = top.pop(0)
+            predicate = current_entry.predicate
+
+            true, false = fn._conditional.split(produced_data_node, predicate=predicate)
+            logging.log(8, f"New split inserted at [{level}], {produced_data_node} -> if {predicate} -> ({true}, {false})")
+            current_entry.nodes[data_node] = (true, false)
+            current_entry.nodes[produced_data_node] = (true, false)
+            # current_entry.produced |= {true, false}
+            produced_data_node = true if current_entry.branch == _Branch.TrueBrach else false
+            self._stack.append(current_entry)
+            level += 1
+        print(self._stack)
+        return produced_data_node
+
+    def preprocess_input(self, data_node):
+        """Process the DataNode that is an input to an operator call. Detect if the DataNode was
+        produced on the same nesting level. If not, split accordingly to the stack of the previous
+        conditions. Caches the previously processed DataNodes to not do repeated splitting.
+
+        Parameters
+        ----------
+        data_node : _type_
+            _description_
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+
+        logging.log(5, f"Looking up {data_node}")
+
+        stack_level = self._find_closest(data_node)
+
+        logging.log(6, f"{data_node} found at {stack_level}")
+
+        # We already have it cached or produced in this scope.
+        if stack_level == self.stack_depth() - 1:
+            return self.top().get(data_node)
+
+        return self._realize_split(data_node, stack_level)
+
+_CONDITION_STACK = _ConditionStack()
+
 
 @contextmanager
 def _cond_manager(predicate):
-    new_entry = _StackEntry(predicate=predicate)
     print("> > Starting if > ")
-    _GLOBAL_CONDITION.append(new_entry)
+    _CONDITION_STACK.push_predicate(predicate)
     try:
         yield
     finally:
-        assert _condition_stack_top().branch == _Branch.FalseBranch
-        _GLOBAL_CONDITION.pop()
+        assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
+        _CONDITION_STACK.pop()
 
 @contextmanager
 def _cond_true():
-    assert _condition_stack_top().branch == _Branch.Undefined
-    _condition_stack_top().branch = _Branch.TrueBrach
     print("> > Starting True > ")
+    assert _CONDITION_STACK.top().branch == _Branch.Undefined
+    _CONDITION_STACK.top().branch = _Branch.TrueBrach
     yield
     # clear what we produced, we do not cross contaminate branches
-    _condition_stack_top().produced = set()
+    _CONDITION_STACK.top().produced = set()
 
 
 @contextmanager
 def _cond_false():
-    assert _condition_stack_top().branch == _Branch.TrueBrach
-    _condition_stack_top().branch = _Branch.FalseBranch
     print("> > Starting False > ")
+    assert _CONDITION_STACK.top().branch == _Branch.TrueBrach
+    _CONDITION_STACK.top().branch = _Branch.FalseBranch
     yield
 
 def _current_branch():
-    return _condition_stack_top().branch
+    return _CONDITION_STACK.top().branch
 
 def _register_data_nodes(dn):
     if isinstance(dn, data_node.DataNode):
-        _condition_stack_top().produced |= {dn}
+        _CONDITION_STACK.top().produced |= {dn}
     else:
-        _condition_stack_top().produced |= set(dn)
+        _CONDITION_STACK.top().produced |= set(dn)
 
-def _process_input(dn):
-    print(f"Looking for {dn}")
-    # return dn
-    stack_depth = len(_GLOBAL_CONDITION)
-    found_at = stack_depth - 1
-    print(_GLOBAL_CONDITION[found_at])
-    if _condition_stack_top().has(dn):
-        return _condition_stack_top().get(dn)
-    while not _GLOBAL_CONDITION[found_at].has(dn):
-        print(f"found_at: {found_at}, {_GLOBAL_CONDITION[found_at]}")
-        found_at -= 1
-    produced = _GLOBAL_CONDITION[found_at].get(dn)
-    for i in range(found_at + 1, stack_depth):
-        pred = _GLOBAL_CONDITION[i].predicate
-        _GLOBAL_CONDITION[i].nodes[dn] = fn._conditional.split(produced, predicate=pred)
-        produced = _GLOBAL_CONDITION[i].get(dn)
-    return produced
+# def _process_input(dn):
+#     print(f"Looking for {dn}")
+#     # return dn
+#     stack_depth = len(_CONDITION_STACK)
+#     found_at = stack_depth - 1
+#     print(_CONDITION_STACK[found_at])
+#     if _CONDITION_STACK.top().has(dn):
+#         return _CONDITION_STACK.top().get(dn)
+#     while not _CONDITION_STACK[found_at].has(dn):
+#         print(f"found_at: {found_at}, {_CONDITION_STACK[found_at]}")
+#         found_at -= 1
+#     produced = _CONDITION_STACK[found_at].get(dn)
+#     for i in range(found_at + 1, stack_depth):
+#         pred = _CONDITION_STACK[i].predicate
+#         _CONDITION_STACK[i].nodes[dn] = fn._conditional.split(produced, predicate=pred)
+#         produced = _CONDITION_STACK[i].get(dn)
+#     return produced
 
 
 class DaliOperatorOverload(_autograph.OperatorBase):
