@@ -146,7 +146,7 @@ def _cond_manager(predicate):
     yield
     # finally:
         # assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
-        # _CONDITION_STACK.pop()
+    _CONDITION_STACK.pop()
 
 @contextmanager
 def _cond_true():
@@ -172,11 +172,13 @@ def _cond_false():
 def _cond_merge():
     print("> > Starting Merge > ")
     assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
-    prev = _CONDITION_STACK.pop()
-    produced_bkp = _CONDITION_STACK.top().produced
-    _CONDITION_STACK.top().produced |= prev.produced
+    # prev = _CONDITION_STACK.pop()
+    # produced_bkp = _CONDITION_STACK.top().produced
+    # We merge everything that was produced using the predicate, so we treat it as "known"
+    _CONDITION_STACK.top().produced |= {_CONDITION_STACK.top().predicate}
     yield
-    _CONDITION_STACK.top().produced = produced_bkp
+    # no more produced, we quit
+    _CONDITION_STACK.top().produced = set()
 
 def _current_branch():
     return _CONDITION_STACK.top().branch
@@ -254,6 +256,8 @@ class DaliOperatorOverload(_autograph.OperatorBase):
                 for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
                     output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=cond))
 
+        # Register as produced the new nodes, they will be used in subsequent calls.
+        _register_data_nodes(output_values)
         # No point in propagating the split/merged values for pure inputs
         output_values += init_state[nouts:]
         set_state(output_values)
