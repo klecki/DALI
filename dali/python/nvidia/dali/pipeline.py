@@ -1554,8 +1554,13 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
             pipeline_args = {**pipeline_kwargs, **ctor_args}  # Merge and overwrite dict
             if debug_mode_on:
                 pipe = _PipelineDebug(functools.partial(pipe_func, *args, **fn_kwargs), **pipeline_args)
+                # TODO(klecki): cross-validate those features
+                if conditionals_on:
+                    raise NotImplemented()
             else:
                 pipe = Pipeline(**pipeline_args)
+                if conditionals_on:
+                    pipe._conditionals_enabled = True
                 with pipe:
                     pipe_outputs = pipe_func(*args, **fn_kwargs)
                     if isinstance(pipe_outputs, tuple):

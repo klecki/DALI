@@ -140,7 +140,7 @@ _CONDITION_STACK = _ConditionStack()
 
 @contextmanager
 def _cond_manager(predicate):
-    print("> > Starting if > ")
+    print(f"> > Starting if > {predicate}")
     _CONDITION_STACK.push_predicate(predicate)
     # try:
     yield
@@ -184,6 +184,7 @@ def _current_branch():
     return _CONDITION_STACK.top().branch
 
 def _register_data_nodes(dn):
+    print(f"Registering {dn}")
     if isinstance(dn, data_node.DataNode):
         _CONDITION_STACK.top().produced |= {dn}
     else:
@@ -207,6 +208,16 @@ def _register_data_nodes(dn):
 #         produced = _CONDITION_STACK[i].get(dn)
 #     return produced
 
+def _apply_conditional_split(inputs, kwargs):
+    inputs_bkp = list(inputs)
+    for i, input in enumerate(inputs):
+        if isinstance(input, data_node.DataNode):
+            inputs_bkp[i] = _CONDITION_STACK.preprocess_input(input)
+    inputs = tuple(inputs_bkp)
+    for key, arg in kwargs.items():
+        if isinstance(arg, data_node.DataNode):
+            kwargs[key] = _CONDITION_STACK.preprocess_input(arg)
+    return inputs, kwargs
 
 class DaliOperatorOverload(_autograph.OperatorBase):
 

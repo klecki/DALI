@@ -16,12 +16,15 @@ from nvidia.dali.pipeline import pipeline_def, Pipeline, experimental
 import nvidia.dali.fn as fn
 import nvidia.dali
 import nvidia.dali.types as types
+from nvidia.dali.data_node import _arithm_op
 
 import numpy as np
 
 from test_utils import check_batch, RandomlyShapedDataIterator
 from nose_utils import assert_raises
 from nose2.tools import params
+
+import itertools
 
 test_iters = 4
 
@@ -151,6 +154,79 @@ def test_conditional_split_merge():
                 lambda _: rng.choice([np.array(True), np.array(False)])
         ]:
             yield check_conditional_split_merge, dev, pred_gen
+
+import pdb
+
+@experimental.pipeline_def(enable_conditionals=True)
+def cond_after_cond(dev):
+    # need to create them within the pipeline scope
+    input = fn.external_source(name="input", device=dev)
+    pred_0 = fn.external_source(name="pred_0")
+    pred_1 = fn.external_source(name="pred_1")
+    if pred_0:
+        output = input + 1
+    else:
+        output = 2 + input
+    if pred_1:
+        output2 = output + 3
+    else:
+        output2 = output + 4
+    return output, output2
+
+def cond_after_cond_scalar(input, pred_0, pred_1):
+    if pred_0:
+        output = input + 1
+    else:
+        output = input + 2
+
+    if pred_1:
+        output2 = output + 3
+    else:
+        output2 = output + 4
+    return output, output2
+
+
+
+
+rng = np.random.default_rng( )
+pred_gens = [
+    lambda x: np.array(x < 3), lambda x: np.array(x % 2 == 0), lambda x: np.array(x % 3 == 0),
+    lambda _: np.array(False),
+    lambda _: rng.choice([np.array(True), np.array(False)])
+]
+
+
+input_gens = [
+    lambda x : np.array(0), lambda x: np.array(x)
+]
+
+@params(*itertools.product(["cpu"], input_gens, pred_gens, pred_gens))
+def test_cond_after_cond(dev, input_gen, pred_gen_0, pred_gen_1):
+    bs = 10
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+        "prefetch_queue_depth": 1  # so that it's easier to use external source
+    }
+
+
+    input = [input_gen(i) for i in range(bs)]
+    pred_0 = [pred_gen_0(i) for i in range(bs)]
+    pred_1 = [pred_gen_1(i) for i in range(bs)]
+
+    pipe = cond_after_cond(dev, **kwargs)
+    pipe.build()
+    pipe.feed_input("input", input)
+    pipe.feed_input("pred_0", pred_0)
+    pipe.feed_input("pred_1", pred_1)
+    output, output2 = pipe.run()
+    print(output, output2)
+    baseline_output = []
+    baseline_output2 = []
+    for input_i, pred_0_i, pred_1_i in zip(input, pred_0, pred_1):
+      print(input_i, pred_0_i, pred_1_i)
+
 
 
 # @pipeline_def

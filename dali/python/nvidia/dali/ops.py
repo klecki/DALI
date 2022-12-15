@@ -1311,6 +1311,13 @@ def _arithm_op(name, *inputs):
     Create arguments for ArithmeticGenericOp and call it with supplied inputs.
     Select the `gpu` device if at least one of the inputs is `gpu`, otherwise `cpu`.
     """
+
+    from nvidia.dali._debug_mode import _PipelineDebug
+    from nvidia.dali import _conditionals
+    print(f"Executing {name}")
+    current_pipeline = _PipelineDebug.current()
+    if getattr(current_pipeline, '_conditionals_enabled', False):
+        inputs, _ = _conditionals._apply_conditional_split(inputs, {})
     categories_idxs, edges, integers, reals = _group_inputs(inputs)
     input_desc = _generate_input_desc(categories_idxs, integers, reals)
     expression_desc = "{}({})".format(name, input_desc)
@@ -1327,7 +1334,11 @@ def _arithm_op(name, *inputs):
     else:
         dev_inputs = edges
     # Call it immediately
-    return op(*dev_inputs)
+
+    captured = op(*dev_inputs)
+    if getattr(current_pipeline, '_conditionals_enabled', False):
+        _conditionals._register_data_nodes(captured)
+    return captured
 
 
 def cpu_ops():
