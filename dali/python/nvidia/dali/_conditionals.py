@@ -37,6 +37,7 @@ class _StackEntry:
         self.branch = _Branch.Undefined
         self.nodes = {}
         self.produced = set()
+        self.produced_bkp = set()
 
     def __str__(self):
         return f"StackEntry: pred={self.predicate}, branch={self.branch}, nodes={self.nodes}, produced={self.produced}"
@@ -141,11 +142,11 @@ _CONDITION_STACK = _ConditionStack()
 def _cond_manager(predicate):
     print("> > Starting if > ")
     _CONDITION_STACK.push_predicate(predicate)
-    try:
-        yield
-    finally:
-        assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
-        _CONDITION_STACK.pop()
+    # try:
+    yield
+    # finally:
+        # assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
+        # _CONDITION_STACK.pop()
 
 @contextmanager
 def _cond_true():
@@ -154,6 +155,7 @@ def _cond_true():
     _CONDITION_STACK.top().branch = _Branch.TrueBrach
     yield
     # clear what we produced, we do not cross contaminate branches
+    _CONDITION_STACK.top().produced_bkp = _CONDITION_STACK.top().produced
     _CONDITION_STACK.top().produced = set()
 
 
@@ -163,6 +165,18 @@ def _cond_false():
     assert _CONDITION_STACK.top().branch == _Branch.TrueBrach
     _CONDITION_STACK.top().branch = _Branch.FalseBranch
     yield
+    # For the validation of merge
+    _CONDITION_STACK.top().produced |= _CONDITION_STACK.top().produced_bkp
+
+@contextmanager
+def _cond_merge():
+    print("> > Starting Merge > ")
+    assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
+    prev = _CONDITION_STACK.pop()
+    produced_bkp = _CONDITION_STACK.top().produced
+    _CONDITION_STACK.top().produced |= prev.produced
+    yield
+    _CONDITION_STACK.top().produced = produced_bkp
 
 def _current_branch():
     return _CONDITION_STACK.top().branch
@@ -232,8 +246,13 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # Build the state that is the combination of both branches. Only the actual outputs
             # should be affected by the if/else blocks, the rest can be reused from-before split.
             output_values = []
-            for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
-                output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=cond))
+            # Merge is tricky. The new values are produced in some "child" scopes (if/else block),
+            # but the predicate is one level above.
+            # We execute the merge _after_ both branches, and pretend for a moment, that it
+            # can see those values produced in child scopes.
+            with _cond_merge():
+                for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
+                    output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=cond))
 
         # No point in propagating the split/merged values for pure inputs
         output_values += init_state[nouts:]
