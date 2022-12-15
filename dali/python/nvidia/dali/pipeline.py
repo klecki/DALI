@@ -1561,6 +1561,13 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
                 pipe = Pipeline(**pipeline_args)
                 if conditionals_on:
                     pipe._conditionals_enabled = True
+                    # Add all parameters to the pipeline as "know" nodes for good measure.
+                    for arg in args:
+                        if isinstance(arg, DataNode):
+                            _conditionals._register_data_nodes(arg)
+                    for arg in fn_kwargs:
+                        if isinstance(arg, DataNode):
+                            _conditionals._register_data_nodes(arg)
                 with pipe:
                     pipe_outputs = pipe_func(*args, **fn_kwargs)
                     if isinstance(pipe_outputs, tuple):

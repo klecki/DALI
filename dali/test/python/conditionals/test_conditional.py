@@ -200,7 +200,7 @@ input_gens = [
     lambda x : np.array(0), lambda x: np.array(x)
 ]
 
-@params(*itertools.product(["cpu"], input_gens, pred_gens, pred_gens))
+@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
 def test_cond_after_cond(dev, input_gen, pred_gen_0, pred_gen_1):
     bs = 10
     kwargs = {
@@ -225,7 +225,12 @@ def test_cond_after_cond(dev, input_gen, pred_gen_0, pred_gen_1):
     baseline_output = []
     baseline_output2 = []
     for input_i, pred_0_i, pred_1_i in zip(input, pred_0, pred_1):
-      print(input_i, pred_0_i, pred_1_i)
+        #   print(input_i, pred_0_i, pred_1_i)
+      output_i, output2_i = cond_after_cond_scalar(input_i, pred_0_i, pred_1_i)
+      baseline_output.append(output_i)
+      baseline_output2.append(output2_i)
+    check_batch(output, baseline_output, bs)
+    check_batch(output2, baseline_output2, bs)
 
 
 
