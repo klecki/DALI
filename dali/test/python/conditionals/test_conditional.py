@@ -173,6 +173,21 @@ def cond_after_cond(dev):
         output2 = output + 4
     return output, output2
 
+
+@experimental.pipeline_def(enable_conditionals=True)
+def cond_after_cond_scalar_pipelined(input, pred_0, pred_1):
+    if pred_0:
+        output = input + 1
+    else:
+        output = input + 2
+
+    if pred_1:
+        output2 = output + 3
+    else:
+        output2 = output + 4
+    return output, output2
+
+
 def cond_after_cond_scalar(input, pred_0, pred_1):
     if pred_0:
         output = input + 1
@@ -215,7 +230,11 @@ def test_cond_after_cond(dev, input_gen, pred_gen_0, pred_gen_1):
     pred_0 = [pred_gen_0(i) for i in range(bs)]
     pred_1 = [pred_gen_1(i) for i in range(bs)]
 
-    pipe = cond_after_cond(dev, **kwargs)
+    input_dn = fn.external_source(name="input", device=dev)
+    pred_0_dn = fn.external_source(name="pred_0")
+    pred_1_dn = fn.external_source(name="pred_1")
+
+    pipe = cond_after_cond_scalar_pipelined(input_dn, pred_0_dn, pred_1_dn, **kwargs)
     pipe.build()
     pipe.feed_input("input", input)
     pipe.feed_input("pred_0", pred_0)
