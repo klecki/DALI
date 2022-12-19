@@ -35,17 +35,37 @@ class _StackEntry:
     def __init__(self, predicate):
         self.predicate = predicate
         self.branch = _Branch.Undefined
-        self.nodes = {}
-        self.produced = set()
-        self.produced_bkp = set()
+        self.splits = {}
+        self.produced_true = set()
+        self.produced_false = set()
+        self.produced_special = set()
+
+    @property
+    def produced(self):
+        if self.branch == _Branch.TrueBrach:
+            return self.produced_true
+        elif self.branch == _Branch.FalseBranch:
+            return self.produced_false
+        else:
+            return self.produced_special | self.produced_true | self.produced_false
+
+    @produced.setter
+    def produced(self, value):
+        if self.branch == _Branch.TrueBrach:
+            self.produced_true = value
+        elif self.branch == _Branch.FalseBranch:
+            self.produced_false = value
+        else:
+            self.produced_special = value
+
 
     def __str__(self):
-        return f"StackEntry: pred={self.predicate}, branch={self.branch}, nodes={self.nodes}, produced={self.produced}"
+        return f"StackEntry: pred={self.predicate}, branch={self.branch}, splits={self.splits}, produced={self.produced}"
 
     def has(self, dn):
         if dn in self.produced:
             return True
-        elif dn in self.nodes:
+        elif dn in self.splits:
             return True
         else:
             return False
@@ -55,7 +75,7 @@ class _StackEntry:
         if dn in self.produced:
             return dn
         else:
-            return self.nodes[dn][self.branch.value]
+            return self.splits[dn][self.branch.value]
 
 
 class _ConditionStack:
@@ -84,11 +104,11 @@ class _ConditionStack:
 
     def _realize_split(self, data_node, stack_level):
         assert 0 <= stack_level and stack_level < self.stack_depth() - 1
-        logging.log(7, f"{data_node} requires splitting from {stack_level}")
+        logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] {data_node} requires splitting from {stack_level}")
         produced_data_node = self._stack[stack_level].get(data_node)
         bottom = self._stack[: stack_level+1]
         top = self._stack[stack_level+1 :]
-        print(f"{bottom}:{top}")
+        # print(f"{bottom}:{top}")
         # We will be inserting new split nodes at this level. They are above the branches.
         self._stack = bottom
         level = stack_level+1
@@ -96,15 +116,23 @@ class _ConditionStack:
             current_entry = top.pop(0)
             predicate = current_entry.predicate
 
+            logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Inserting split for {data_node} at {level}: split({produced_data_node}, predicate={predicate}) ...")
+            # TODO(klecki): Make split not register the produced DataNodes automatically
             true, false = fn._conditional.split(produced_data_node, predicate=predicate)
-            logging.log(8, f"New split inserted at [{level}], {produced_data_node} -> if {predicate} -> ({true}, {false})")
-            current_entry.nodes[data_node] = (true, false)
-            current_entry.nodes[produced_data_node] = (true, false)
+            # logging.log(8, f"New split inserted at [{level}], {produced_data_node} -> if {predicate} -> ({true}, {false})")
+
+            logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Inserted split({produced_data_node}): if {predicate} -> ({true}, {false}) at {level}")
+            # Record the result of splitting the `data_node` that we are trying to look up (short-cut)
+            current_entry.splits[data_node] = (true, false)
+            # Record the direct preceding node as the producer:
+            current_entry.splits[produced_data_node] = (true, false)
+            current_entry.produced_true |= {true}
+            current_entry.produced_false |= {false}
             # current_entry.produced |= {true, false}
             produced_data_node = true if current_entry.branch == _Branch.TrueBrach else false
             self._stack.append(current_entry)
             level += 1
-        print(self._stack)
+        # print(self._stack)
         return produced_data_node
 
     def preprocess_input(self, data_node):
@@ -123,11 +151,11 @@ class _ConditionStack:
             _description_
         """
 
-        logging.log(5, f"Looking up {data_node}")
+        logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Looking up {data_node} from {_CONDITION_STACK.stack_depth() - 1}")
 
         stack_level = self._find_closest(data_node)
 
-        logging.log(6, f"{data_node} found at {stack_level}")
+        logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] {data_node} found at {stack_level}")
 
         # We already have it cached or produced in this scope.
         if stack_level == self.stack_depth() - 1:
@@ -140,51 +168,63 @@ _CONDITION_STACK = _ConditionStack()
 
 @contextmanager
 def _cond_manager(predicate):
-    print(f"> > Starting if > {predicate}")
-    _CONDITION_STACK.push_predicate(predicate)
-    # try:
-    yield
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF]: {predicate}"
+                    f" at {_CONDITION_STACK.stack_depth()}"))
+    # Split it for current level if needed, this would happen automatically either way
+    new_pred = _CONDITION_STACK.preprocess_input(predicate)
+    # Use that condition directly on this stack level
+    _CONDITION_STACK.push_predicate(new_pred)
+
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF/sliced]: {new_pred}"
+                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
+    # Return it so we can use it in merge
+    yield new_pred
     # finally:
-        # assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
+    # assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
     _CONDITION_STACK.pop()
 
 @contextmanager
 def _cond_true():
-    print("> > Starting True > ")
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[TRUE BRANCH]"
+                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
     assert _CONDITION_STACK.top().branch == _Branch.Undefined
     _CONDITION_STACK.top().branch = _Branch.TrueBrach
     yield
     # clear what we produced, we do not cross contaminate branches
-    _CONDITION_STACK.top().produced_bkp = _CONDITION_STACK.top().produced
-    _CONDITION_STACK.top().produced = set()
+    # _CONDITION_STACK.top().produced_bkp = _CONDITION_STACK.top().produced
+    # _CONDITION_STACK.top().produced = set()
 
 
 @contextmanager
 def _cond_false():
-    print("> > Starting False > ")
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[FALSE BRANCH]"
+                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
     assert _CONDITION_STACK.top().branch == _Branch.TrueBrach
     _CONDITION_STACK.top().branch = _Branch.FalseBranch
     yield
     # For the validation of merge
-    _CONDITION_STACK.top().produced |= _CONDITION_STACK.top().produced_bkp
+    # _CONDITION_STACK.top().produced |= _CONDITION_STACK.top().produced_bkp
 
 @contextmanager
 def _cond_merge():
-    print("> > Starting Merge > ")
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[MERGE OUTPUTS]"
+                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
     assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
-    # prev = _CONDITION_STACK.pop()
-    # produced_bkp = _CONDITION_STACK.top().produced
+    _CONDITION_STACK.top().branch = _Branch.Undefined
     # We merge everything that was produced using the predicate, so we treat it as "known"
-    _CONDITION_STACK.top().produced |= {_CONDITION_STACK.top().predicate}
+    # The correct merge predicate needs to be taken from one level above.
+    # TODO(klecki): encapsulate this in the CONDITION_STACK code.
+    tmp = _CONDITION_STACK.pop()
+    tmp.produced |= {_CONDITION_STACK.preprocess_input(tmp.predicate)}
+    _CONDITION_STACK._stack.append(tmp)
     yield
-    # no more produced, we quit
-    _CONDITION_STACK.top().produced = set()
 
 def _current_branch():
     return _CONDITION_STACK.top().branch
 
 def _register_data_nodes(dn):
-    print(f"Registering {dn}")
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Register nodes] {dn}"
+                    f" at {_CONDITION_STACK.stack_depth() -1}"))
     if isinstance(dn, data_node.DataNode):
         _CONDITION_STACK.top().produced |= {dn}
     else:
@@ -204,7 +244,7 @@ def _register_data_nodes(dn):
 #     produced = _CONDITION_STACK[found_at].get(dn)
 #     for i in range(found_at + 1, stack_depth):
 #         pred = _CONDITION_STACK[i].predicate
-#         _CONDITION_STACK[i].nodes[dn] = fn._conditional.split(produced, predicate=pred)
+#         _CONDITION_STACK[i].splits[dn] = fn._conditional.split(produced, predicate=pred)
 #         produced = _CONDITION_STACK[i].get(dn)
 #     return produced
 
@@ -227,7 +267,7 @@ class DaliOperatorOverload(_autograph.OperatorBase):
     def if_stmt(self, cond, body, orelse, get_state, set_state, symbol_names, nouts):
         # Initial checkpoint before if
         init_state = get_state()
-        with _cond_manager(cond):
+        with _cond_manager(cond) as merge_cond:
             # split all values, as we may have variables that are both inputs and outputs
             # TODO(klecki): what if something is undefined
             # TODO(klecki): what if something is not DALI-related?
@@ -265,7 +305,10 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # can see those values produced in child scopes.
             with _cond_merge():
                 for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
-                    output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=cond))
+                    logging.log(8, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Output] Inserting merge"
+                                    f" at {_CONDITION_STACK.stack_depth() -1}:"
+                                    f"merge({new_body_val}, {new_orelse_val}, predicate={cond}"))
+                    output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=merge_cond))
 
         # Register as produced the new nodes, they will be used in subsequent calls.
         _register_data_nodes(output_values)

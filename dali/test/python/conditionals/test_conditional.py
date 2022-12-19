@@ -83,15 +83,16 @@ def conditional_split_merge_pipe(dev):
     input = fn.external_source(name="input", device=dev)
     pred = fn.external_source(name="predicate")
 
-    def wrap_flip(horizontal):
-        nonlocal input
+    def wrap_flip(input, horizontal):
+        # nonlocal input
         horizontal = horizontal
         return fn.flip(input, horizontal=horizontal)
 
     if pred:
+        input = input
         output = fn.rotate(input, angle=15)
     else:
-        output = wrap_flip(horizontal=True)
+        output = wrap_flip(input, horizontal=True)
     return output
 
 
@@ -173,21 +174,6 @@ def cond_after_cond(dev):
         output2 = output + 4
     return output, output2
 
-
-@experimental.pipeline_def(enable_conditionals=True)
-def cond_after_cond_scalar_pipelined(input, pred_0, pred_1):
-    if pred_0:
-        output = input + 1
-    else:
-        output = input + 2
-
-    if pred_1:
-        output2 = output + 3
-    else:
-        output2 = output + 4
-    return output, output2
-
-
 def cond_after_cond_scalar(input, pred_0, pred_1):
     if pred_0:
         output = input + 1
@@ -200,6 +186,26 @@ def cond_after_cond_scalar(input, pred_0, pred_1):
         output2 = output + 4
     return output, output2
 
+
+def cond_nested(input, pred_0, pred_1):
+    if pred_0:
+        if pred_1:
+            output = input + 1
+        else:
+            output = input + 2
+    else:
+        output = input + 3
+    return output
+
+# def cond_nested_expression(input, pred_0, pred_1):
+#     if pred_0:
+#         if pred_0 == :
+#             output = input + 1
+#         else:
+#             output = input + 2
+#     else:
+#         output = input + 3
+#     return output
 
 
 
@@ -215,8 +221,10 @@ input_gens = [
     lambda x : np.array(0), lambda x: np.array(x)
 ]
 
-@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
-def test_cond_after_cond(dev, input_gen, pred_gen_0, pred_gen_1):
+if_functions = [cond_after_cond_scalar, cond_nested]
+
+@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens, if_functions))
+def test_two_preds(dev, input_gen, pred_gen_0, pred_gen_1, if_function):
     bs = 10
     kwargs = {
         "batch_size": bs,
@@ -234,22 +242,30 @@ def test_cond_after_cond(dev, input_gen, pred_gen_0, pred_gen_1):
     pred_0_dn = fn.external_source(name="pred_0")
     pred_1_dn = fn.external_source(name="pred_1")
 
-    pipe = cond_after_cond_scalar_pipelined(input_dn, pred_0_dn, pred_1_dn, **kwargs)
+    if_function_pipelined = experimental.pipeline_def(
+        enable_conditionals=True)(if_function)
+
+    pipe = if_function_pipelined(input_dn, pred_0_dn, pred_1_dn, **kwargs)
     pipe.build()
     pipe.feed_input("input", input)
     pipe.feed_input("pred_0", pred_0)
     pipe.feed_input("pred_1", pred_1)
-    output, output2 = pipe.run()
-    print(output, output2)
-    baseline_output = []
-    baseline_output2 = []
+    outputs = pipe.run()
+    print(outputs)
+    baseline_outputs = []
     for input_i, pred_0_i, pred_1_i in zip(input, pred_0, pred_1):
         #   print(input_i, pred_0_i, pred_1_i)
-      output_i, output2_i = cond_after_cond_scalar(input_i, pred_0_i, pred_1_i)
-      baseline_output.append(output_i)
-      baseline_output2.append(output2_i)
-    check_batch(output, baseline_output, bs)
-    check_batch(output2, baseline_output2, bs)
+        outputs_i = if_function(input_i, pred_0_i, pred_1_i)
+        # make it a tad more generic
+        if not isinstance(outputs_i, tuple):
+            outputs_i = outputs_i,
+        baseline_outputs.append(outputs_i)
+    # Repack list of tuples into tuple of lists.
+    baseline_outputs = tuple(zip(*baseline_outputs))
+    # make the elements actually lists:
+    baseline_outputs = (list(baseline) for baseline in baseline_outputs)
+    for out, baseline in zip(outputs, baseline_outputs):
+        check_batch(out, baseline, bs)
 
 
 
