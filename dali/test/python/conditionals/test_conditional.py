@@ -30,7 +30,7 @@ test_iters = 4
 
 from nvidia.dali._autograph.utils.ag_logging import set_verbosity
 
-set_verbosity(10, True)
+# set_verbosity(10, True)
 
 def consumer(input):
     output = input
@@ -197,6 +197,26 @@ def cond_nested(input, pred_0, pred_1):
         output = input + 3
     return output
 
+def cond_nested_2(input, pred_0, pred_1):
+    if pred_0:
+        if pred_1:
+            output = input + 1
+        else:
+            output = input + 2
+    else:
+        if pred_1:
+            output = input + 4
+        elif pred_1 == 0:
+            output = input + 5
+    return output
+
+
+def cond_returns(input, pred_0, pred_1):
+    if pred_0 & pred_1:
+        return input + 2
+    else:
+        return input + 100
+
 # def cond_nested_expression(input, pred_0, pred_1):
 #     if pred_0:
 #         if pred_0 == :
@@ -221,7 +241,96 @@ input_gens = [
     lambda x : np.array(0), lambda x: np.array(x)
 ]
 
-if_functions = [cond_after_cond_scalar, cond_nested]
+if_functions = [cond_after_cond_scalar, cond_nested, cond_returns]
+
+
+def generic_execute(input_gen_list, function, optional_params=None):
+    if optional_params is None:
+        optional_params = [{} for _ in input_gen_list]
+    assert len(input_gen_list) == len(optional_params), ("Optional param should be provided for"
+                                                         " every external source node.")
+    bs = 10
+    iters = 5
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+        "prefetch_queue_depth": 1  # so that it's easier to use external source
+    }
+
+    es_inputs = [fn.external_source(name=f"input_{i}", **params) for i, params in enumerate(optional_params)]
+
+    pipeline_definition = experimental.pipeline_def(enable_conditionals=True)(function)
+    def gen_batch(generator, bs):
+        return [generator(i) for i in range(bs)]
+
+    pipe = pipeline_definition(*es_inputs, **kwargs)
+    pipe.build()
+
+    for iter in range(iters):
+        batches = [gen_batch(gen, bs) for gen in input_gen_list]
+        for i, batch in enumerate(batches):
+            pipe.feed_input(f"input_{i}", batch)
+
+        outputs = pipe.run()
+
+        baseline_outputs = []
+        for inputs_i in zip(*batches):
+            outputs_i = function(*inputs_i)
+            # make it a tad more generic
+            if not isinstance(outputs_i, tuple):
+                outputs_i = outputs_i,
+            baseline_outputs.append(outputs_i)
+
+        # Repack list of tuples into tuple of lists.
+        baseline_outputs = tuple(zip(*baseline_outputs))
+        # make the elements actually lists:
+        baseline_outputs = (list(baseline) for baseline in baseline_outputs)
+
+        for out, baseline in zip(outputs, baseline_outputs):
+            check_batch(out, baseline, bs)
+
+
+@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens, if_functions))
+def test_generic(dev, input_gen, pred_gen_0, pred_gen_1, if_function):
+    generic_execute([input_gen, pred_gen_0, pred_gen_1], if_function, [{"device": dev}, {}, {}])
+
+
+
+def test_error():
+    bs = 10
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+    }
+    @experimental.pipeline_def(enable_conditionals=True)
+    def one_branch():
+        # need to create them within the pipeline scope
+        input = fn.external_source(name="input")
+        pred_0 = fn.external_source(name="pred_0")
+        if pred_0:
+            output = input + 1
+        return output
+    pipe = one_branch(**kwargs)
+    pipe.build()
+
+    # THIS DOESN'T WORK AS INTENDED
+    @experimental.pipeline_def(enable_conditionals=True)
+    def one_return():
+        # need to create them within the pipeline scope
+        input = fn.external_source(name="input")
+        pred_0 = fn.external_source(name="pred_0")
+        if pred_0:
+            output = input + 1
+            return output
+        else:
+            output =  input + 10
+        return input
+    pipe = one_return(**kwargs)
+    pipe.build()
+
+
 
 @params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens, if_functions))
 def test_two_preds(dev, input_gen, pred_gen_0, pred_gen_1, if_function):

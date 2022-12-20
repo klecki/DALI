@@ -18,6 +18,7 @@ from nvidia.dali import data_node
 from nvidia.dali import fn
 
 from nvidia.dali._autograph.utils import ag_logging as logging
+from nvidia.dali._autograph.operators import variables
 
 from contextlib import contextmanager
 
@@ -259,6 +260,20 @@ def _apply_conditional_split(inputs, kwargs):
             kwargs[key] = _CONDITION_STACK.preprocess_input(arg)
     return inputs, kwargs
 
+
+def _verify_branch_outputs(outputs, symbol_names, branch_name):
+    """Verifies variables output by a conditional branch for consistency."""
+    common_explanation = (
+        "Encountered inconsistent outputs out of the `if/else` control flow statement."
+        " Variables need to be initialized in every code path (both `if` branches).")
+    for name, output in zip(symbol_names, outputs):
+        if isinstance(output, variables.Undefined):
+            raise ValueError(f"{common_explanation} Variable '{name}' must also be initialized"
+                             f" in the `{branch_name}` branch.")
+        if isinstance(output, variables.UndefinedReturnValue):
+            raise ValueError(f"{common_explanation} The `{branch_name}` branch must also have"
+                             " a return statement.")
+
 class DaliOperatorOverload(_autograph.OperatorBase):
 
     def detect_overload_if_stmt(self, cond):
@@ -288,13 +303,18 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             set_state(init_state)
             with _cond_true():
                 body()
-            body_outputs = get_state()[:nouts]
+            body_state = get_state()
+            _verify_branch_outputs(body_state, symbol_names, "if")
+            body_outputs = body_state[:nouts]
 
             # Do the same for else block.
             set_state(init_state)
             with _cond_false():
                 orelse()
-            orelse_outputs = get_state()[:nouts]
+            orelse_state = get_state()
+            _verify_branch_outputs(orelse_state, symbol_names, "else")
+            orelse_outputs = orelse_state[:nouts]
+
 
             # Build the state that is the combination of both branches. Only the actual outputs
             # should be affected by the if/else blocks, the rest can be reused from-before split.
