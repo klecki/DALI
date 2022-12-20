@@ -1547,21 +1547,20 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
             conditionals_on = kwargs.get('enable_conditionals', pipeline_conditionals)
             if conditionals_on:
                 pipe_func = _conditionals._autograph.to_graph(func)
-                # print(_conditionals._autograph.to_code(func))
             else:
                 pipe_func = func
             ctor_args, fn_kwargs = _discriminate_args(pipe_func, **kwargs)
             pipeline_args = {**pipeline_kwargs, **ctor_args}  # Merge and overwrite dict
             if debug_mode_on:
-                pipe = _PipelineDebug(functools.partial(pipe_func, *args, **fn_kwargs), **pipeline_args)
-                # TODO(klecki): cross-validate those features
+                # TODO(klecki): cross-validate conditionals with eager mode
                 if conditionals_on:
-                    raise NotImplemented()
+                    raise NotImplemented("Conditionals are not supported in debug mode yet.")
+                pipe = _PipelineDebug(functools.partial(pipe_func, *args, **fn_kwargs), **pipeline_args)
             else:
                 pipe = Pipeline(**pipeline_args)
                 if conditionals_on:
                     pipe._conditionals_enabled = True
-                    # Add all parameters to the pipeline as "know" nodes for good measure.
+                    # Add all parameters to the pipeline as "know" nodes in the top scope.
                     for arg in args:
                         if isinstance(arg, DataNode):
                             _conditionals._register_data_nodes(arg)
