@@ -155,9 +155,6 @@ class CallTreeTransformer(converter.Base):
 
   def visit_Call(self, node):
     full_name = str(anno.getanno(node.func, anno.Basic.QN, default=''))
-    if (isinstance(node.func, gast.Attribute)):
-        print(gast.dump(node.func))
-        print("CALL: ", node.func.value, node.func.attr)
     function_context_name = self.state[_Function].context_name
     node = self.generic_visit(node)
 
