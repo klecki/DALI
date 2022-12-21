@@ -931,8 +931,7 @@ _TRANSPILER = None
 
 def initialize_autograph(operator_overload=hooks.OperatorBase(),
                          converter_name="autograph",
-                         do_not_convert_modules=["nvidia.dali._autograph"],
-                         force_convert_modules=[]):
+                         do_not_convert_modules=["nvidia.dali._autograph"]):
   """Initialize the AutoGraph with custom operator overloads.
 
   Parameters
@@ -949,17 +948,12 @@ def initialize_autograph(operator_overload=hooks.OperatorBase(),
       only filter out its own functions, provide the list of module that should be ignored.
       If the autograph is used under different name (for example included in the source as
       some_library._ag), this parameter should be adjusted , by default ["autograph"]
-  force_convert_modules : list, optional
-      List of exceptions for the do_not_convert_modules.
   """
   global _TRANSPILER
   if _TRANSPILER is not None:
     raise RuntimeError("AutoGraph already initialized")
   _TRANSPILER = PyToLib(converter_name, operator_overload)
   # Add the name of the initialized library to know libraries to stop recursive conversion
-  convert_rules = tuple(config.Convert(name) for name in force_convert_modules)
-  do_not_convert_rules = tuple(
-      config.DoNotConvert(name) for name in do_not_convert_modules)
-  config.CONVERSION_RULES = ((config.DoNotConvert(converter_name),) +
-                              convert_rules + do_not_convert_rules + config.CONVERSION_RULES)
-  return _TRANSPILER.get_extra_locals()
+  do_not_convert_rules = tuple(config.DoNotConvert(name) for name in do_not_convert_modules)
+  config.CONVERSION_RULES = ((config.DoNotConvert(converter_name),) + do_not_convert_rules +
+                             config.CONVERSION_RULES)
