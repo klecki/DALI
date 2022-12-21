@@ -11,10 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""This module contains the implementation of DALI if statement.
+
+It initializes AutoGraph with the DaliOperatorOverload that provides the overload for the if_stmt
+and adjust the filtered modules so DALI code is not converted.
+
+The if_stmt provides access to both branches as callables and the set_state/get_state functions
+that allows to capture and adjust all symbols modified within those branches. This allows to
+checkpoint the state and visit the code of both branches.
+
+if_stmt highlights which state variables are considered the outputs of the if/else pair - we can
+use the state captured after visiting if and else branches and produce fn._conditional.merge
+nodes for all of them.
+
+When visiting the if/else scopes, we are tracking tha path that we took and the predicates that
+were used via the _ConditionStack. As it is not easy to detect which state variables would be
+consumed as inputs to DALI operators, we inject additional code to the operator function.
+Every time a DataNode is consumed, we look up in which scope it was produced and travel the
+path from that point to the current scope in the _ConditionStack, applying necessary splits.
+All the return values are registered to the current scope for further lookups.
+"""
 
 from nvidia.dali import _autograph
-from nvidia.dali._autograph.operators import Undefined as _Undefined
-from nvidia.dali import data_node
+from nvidia.dali.data_node import DataNode as _DataNode
 from nvidia.dali import fn
 
 from nvidia.dali._autograph.utils import ag_logging as logging
@@ -22,28 +41,37 @@ from nvidia.dali._autograph.operators import variables
 
 from contextlib import contextmanager
 
-from collections import namedtuple
 from enum import Enum
 
 
 class _Branch(Enum):
-    TrueBrach = 0
+    TrueBranch = 0
     FalseBranch = 1
     Undefined = 2
 
 
 class _StackEntry:
+    """Information about 1 nesting level of if/else statement.
+
+    Keeps the current branch (if we entered if/else branch) and the data nodes that were
+    produced in their scopes. Keeps the mapping of DataNodes produced in higher scopes that
+    were already split for use in this scope.
+    """
+
     def __init__(self, predicate):
         self.predicate = predicate
         self.branch = _Branch.Undefined
         self.splits = {}
         self.produced_true = set()
         self.produced_false = set()
+        # The produced_special handles the case of producing something visible on the same nesting
+        # level, but not in one of the branches and is used by merge code.
         self.produced_special = set()
 
     @property
     def produced(self):
-        if self.branch == _Branch.TrueBrach:
+        """Access the set of DataNodes produced in the scope of currently selected branch."""
+        if self.branch == _Branch.TrueBranch:
             return self.produced_true
         elif self.branch == _Branch.FalseBranch:
             return self.produced_false
@@ -52,7 +80,8 @@ class _StackEntry:
 
     @produced.setter
     def produced(self, value):
-        if self.branch == _Branch.TrueBrach:
+        """Access the set of DataNodes produced in the scope of currently selected branch."""
+        if self.branch == _Branch.TrueBranch:
             self.produced_true = value
         elif self.branch == _Branch.FalseBranch:
             self.produced_false = value
@@ -61,31 +90,69 @@ class _StackEntry:
 
 
     def __str__(self):
-        return f"StackEntry: pred={self.predicate}, branch={self.branch}, splits={self.splits}, produced={self.produced}"
+        return (f"StackEntry: pred={self.predicate}, branch={self.branch}, splits={self.splits},"
+                f" produced={self.produced}")
 
-    def has(self, dn):
-        if dn in self.produced:
+    def has(self, data_node):
+        """Check if this DataNode was either produced in this scope or already split for this scope.
+        """
+        if data_node in self.produced:
             return True
-        elif dn in self.splits:
+        elif data_node in self.splits:
             return True
         else:
             return False
 
-    def get(self, dn):
-        assert self.has(dn)
-        if dn in self.produced:
-            return dn
+    def get(self, data_node):
+        """Return the `data_node` if it was produced in this scope, or the appropriate split node
+        that was created for accessing the `data_node` in this scope.
+        """
+        assert self.has(data_node)
+        if data_node in self.produced:
+            return data_node
         else:
-            return self.splits[dn][self.branch.value]
+            assert self.branch in {_Branch.TrueBranch, _Branch.FalseBranch}
+            return self.splits[data_node][self.branch.value]
 
 
 class _ConditionStack:
+    """Tracks the current if/else scope with the path that we took. Captures the used and produced
+    data nodes, applying the necessary splits based on the scope level where they were produced
+    and where they are used.
+    """
     def __init__(self):
         self._stack = [_StackEntry(None)]
 
     def push_predicate(self, predicate):
-        new_entry = _StackEntry(predicate)
+        """Add next level of if/else scope that is predicated with the `predicate`.
+        The user might have provided a predicate from a scope of higher level, which means
+        that `predicate` might be subject to additional slicing. Apply that slicing and return
+        the actual predicate that will be used for slicing when entering this scope.
+
+        The situation will happen for example in a case like this, where both predicates are
+        produced in global scope:
+
+        pred_0 = ...
+        pred_1 = ...
+
+        if pred_0:  # push_pred(pred_0) -> returns pred_0
+            if pred_1:  # push_pred(pred_1) ->
+                        # -> returns fn._conditional.slice(pred_1, predicate=pred_0)
+
+        Parameters
+        ----------
+        predicate : DataNode
+            Predicate guarding this scope.
+
+        Returns
+        -------
+        DataNode
+            Actual predicate after applying necessary slices to use it in this scope.
+        """
+        new_pred = _CONDITION_STACK.preprocess_input(predicate)
+        new_entry = _StackEntry(new_pred)
         self._stack.append(new_entry)
+        return new_pred
 
     def top(self):
         return self._stack[-1]
@@ -98,12 +165,30 @@ class _ConditionStack:
         return len(self._stack)
 
     def _find_closest(self, data_node):
+        """Find the closest scope level in the stack where we can access this node as produced
+        (or the split of this node closest to us).
+        """
         for level in range(self.stack_depth()-1, -1, -1):
             if self._stack[level].has(data_node):
                 return level
         raise ValueError(f"{data_node} was not produced within this trace.")
 
     def _realize_split(self, data_node, stack_level):
+        """The data_node was produced (or last accessed as via split) in scope earlier than the
+        current one, traverse the scopes between that level and current one, and insert split nodes.
+
+        Parameters
+        ----------
+        data_node : DataNode
+            The data node that we want to use in the current scope.
+        stack_level : int
+            Stack level where the data_node was last "seen".
+
+        Returns
+        -------
+        DataNode
+            New node that can be used in current branch and scope.
+        """
         assert 0 <= stack_level and stack_level < self.stack_depth() - 1
         logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] {data_node} requires splitting from {stack_level}")
         produced_data_node = self._stack[stack_level].get(data_node)
@@ -118,19 +203,19 @@ class _ConditionStack:
             predicate = current_entry.predicate
 
             logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Inserting split for {data_node} at {level}: split({produced_data_node}, predicate={predicate}) ...")
-            # TODO(klecki): Make split not register the produced DataNodes automatically
+            # TODO(klecki): Do not register the outputs in the current scope, track them only
+            # in the desired branches.
             true, false = fn._conditional.split(produced_data_node, predicate=predicate)
-            # logging.log(8, f"New split inserted at [{level}], {produced_data_node} -> if {predicate} -> ({true}, {false})")
 
             logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Inserted split({produced_data_node}): if {predicate} -> ({true}, {false}) at {level}")
-            # Record the result of splitting the `data_node` that we are trying to look up (short-cut)
+            # Record the result of splitting the `data_node` that we are trying to look up
+            # (short-cut for consecutive lookups)
             current_entry.splits[data_node] = (true, false)
             # Record the direct preceding node as the producer:
             current_entry.splits[produced_data_node] = (true, false)
             current_entry.produced_true |= {true}
             current_entry.produced_false |= {false}
-            # current_entry.produced |= {true, false}
-            produced_data_node = true if current_entry.branch == _Branch.TrueBrach else false
+            produced_data_node = true if current_entry.branch == _Branch.TrueBranch else false
             self._stack.append(current_entry)
             level += 1
         # print(self._stack)
@@ -140,16 +225,6 @@ class _ConditionStack:
         """Process the DataNode that is an input to an operator call. Detect if the DataNode was
         produced on the same nesting level. If not, split accordingly to the stack of the previous
         conditions. Caches the previously processed DataNodes to not do repeated splitting.
-
-        Parameters
-        ----------
-        data_node : _type_
-            _description_
-
-        Returns
-        -------
-        _type_
-            _description_
         """
 
         logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Looking up {data_node} from {_CONDITION_STACK.stack_depth() - 1}")
@@ -164,99 +239,89 @@ class _ConditionStack:
 
         return self._realize_split(data_node, stack_level)
 
-_CONDITION_STACK = _ConditionStack()
+    def track_true_branch(self):
+        self.top().branch = _Branch.TrueBranch
 
+    def track_false_branch(self):
+        self.top().branch = _Branch.FalseBranch
+
+    def no_branch(self):
+        self.top().branch = _Branch.Undefined
+
+    def track_merge(self, split_predicate):
+        self.no_branch()
+        self.top().produced |= {split_predicate}
+
+_CONDITION_STACK = _ConditionStack()
 
 @contextmanager
 def _cond_manager(predicate):
     logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF]: {predicate}"
                     f" at {_CONDITION_STACK.stack_depth()}"))
-    # Split it for current level if needed, this would happen automatically either way
-    new_pred = _CONDITION_STACK.preprocess_input(predicate)
-    # Use that condition directly on this stack level
-    _CONDITION_STACK.push_predicate(new_pred)
+    actual_predicate = _CONDITION_STACK.push_predicate(predicate)
 
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF/sliced]: {new_pred}"
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF/sliced]: {actual_predicate}"
                     f" at {_CONDITION_STACK.stack_depth() - 1}"))
     # Return it so we can use it in merge
-    yield new_pred
-    # finally:
-    # assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
+    yield actual_predicate
     _CONDITION_STACK.pop()
 
 @contextmanager
 def _cond_true():
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[TRUE BRANCH]"
-                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
-    assert _CONDITION_STACK.top().branch == _Branch.Undefined
-    _CONDITION_STACK.top().branch = _Branch.TrueBrach
+    _CONDITION_STACK.track_true_branch()
     yield
-    # clear what we produced, we do not cross contaminate branches
-    # _CONDITION_STACK.top().produced_bkp = _CONDITION_STACK.top().produced
-    # _CONDITION_STACK.top().produced = set()
+    _CONDITION_STACK.no_branch()
 
 
 @contextmanager
 def _cond_false():
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[FALSE BRANCH]"
-                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
-    assert _CONDITION_STACK.top().branch == _Branch.TrueBrach
-    _CONDITION_STACK.top().branch = _Branch.FalseBranch
+    _CONDITION_STACK.track_false_branch()
     yield
-    # For the validation of merge
-    # _CONDITION_STACK.top().produced |= _CONDITION_STACK.top().produced_bkp
+    _CONDITION_STACK.no_branch()
 
 @contextmanager
-def _cond_merge():
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[MERGE OUTPUTS]"
-                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
-    assert _CONDITION_STACK.top().branch == _Branch.FalseBranch
-    _CONDITION_STACK.top().branch = _Branch.Undefined
-    # We merge everything that was produced using the predicate, so we treat it as "known"
-    # The correct merge predicate needs to be taken from one level above.
-    # TODO(klecki): encapsulate this in the CONDITION_STACK code.
-    tmp = _CONDITION_STACK.pop()
-    tmp.produced |= {_CONDITION_STACK.preprocess_input(tmp.predicate)}
-    _CONDITION_STACK._stack.append(tmp)
+def _cond_merge(split_predicate):
+    _CONDITION_STACK.no_branch()
+    bkp = _CONDITION_STACK.top().produced
+    _CONDITION_STACK.top().produced |= {split_predicate}
     yield
+    _CONDITION_STACK.top().produced = bkp
+    _CONDITION_STACK.no_branch()
 
-def _current_branch():
-    return _CONDITION_STACK.top().branch
-
-def _register_data_nodes(dn):
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Register nodes] {dn}"
+def _register_data_nodes(data_node):
+    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Register nodes] {data_node}"
                     f" at {_CONDITION_STACK.stack_depth() -1}"))
-    if isinstance(dn, data_node.DataNode):
-        _CONDITION_STACK.top().produced |= {dn}
+    if isinstance(data_node, _DataNode):
+        _CONDITION_STACK.top().produced |= {data_node}
     else:
-        _CONDITION_STACK.top().produced |= set(dn)
+        _CONDITION_STACK.top().produced |= set(data_node)
 
-# def _process_input(dn):
-#     print(f"Looking for {dn}")
-#     # return dn
+# def _process_input(data_node):
+#     print(f"Looking for {data_node}")
+#     # return data_node
 #     stack_depth = len(_CONDITION_STACK)
 #     found_at = stack_depth - 1
 #     print(_CONDITION_STACK[found_at])
-#     if _CONDITION_STACK.top().has(dn):
-#         return _CONDITION_STACK.top().get(dn)
-#     while not _CONDITION_STACK[found_at].has(dn):
+#     if _CONDITION_STACK.top().has(data_node):
+#         return _CONDITION_STACK.top().get(data_node)
+#     while not _CONDITION_STACK[found_at].has(data_node):
 #         print(f"found_at: {found_at}, {_CONDITION_STACK[found_at]}")
 #         found_at -= 1
-#     produced = _CONDITION_STACK[found_at].get(dn)
+#     produced = _CONDITION_STACK[found_at].get(data_node)
 #     for i in range(found_at + 1, stack_depth):
 #         pred = _CONDITION_STACK[i].predicate
-#         _CONDITION_STACK[i].splits[dn] = fn._conditional.split(produced, predicate=pred)
-#         produced = _CONDITION_STACK[i].get(dn)
+#         _CONDITION_STACK[i].splits[data_node] = fn._conditional.split(produced, predicate=pred)
+#         produced = _CONDITION_STACK[i].get(data_node)
 #     return produced
 
 def _apply_conditional_split(inputs, kwargs):
     inputs_bkp = list(inputs)
     for i, input in enumerate(inputs):
-        if isinstance(input, data_node.DataNode):
+        if isinstance(input, _DataNode):
             inputs_bkp[i] = _CONDITION_STACK.preprocess_input(input)
     inputs = tuple(inputs_bkp)
     for key, arg in kwargs.items():
-        if isinstance(arg, data_node.DataNode):
+        if isinstance(arg, _DataNode):
             kwargs[key] = _CONDITION_STACK.preprocess_input(arg)
     return inputs, kwargs
 
@@ -277,29 +342,14 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
 class DaliOperatorOverload(_autograph.OperatorBase):
 
     def detect_overload_if_stmt(self, cond):
-        return isinstance(cond, data_node.DataNode)
+        return isinstance(cond, _DataNode)
 
     def if_stmt(self, cond, body, orelse, get_state, set_state, symbol_names, nouts):
         # Initial checkpoint before if
         init_state = get_state()
-        with _cond_manager(cond) as merge_cond:
-            # split all values, as we may have variables that are both inputs and outputs
-            # TODO(klecki): what if something is undefined
-            # TODO(klecki): what if something is not DALI-related?
-            body_inputs = []
-            orelse_inputs = []
-
-            # for input_value in init_state:
-            #     if isinstance(input_value, _Undefined):
-            #         body_val, orelse_val = input_value, input_value
-            #     else:
-            #         # TODO we need fn in ag__
-            #         body_val, orelse_val = fn._conditional.split(input_value, predicate=cond)
-            #     body_inputs.append(body_val)
-            #     orelse_inputs.append(orelse_val)
-
+        with _cond_manager(cond) as split_predicate:
             # Set the state for the body inputs, execute the body and collect the outputs.
-            # Get only the true outputs, we don't want to merge what is not used after the if.
+            # Verify if all outputs are initialized within the branch.
             set_state(init_state)
             with _cond_true():
                 body()
@@ -319,25 +369,23 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # Build the state that is the combination of both branches. Only the actual outputs
             # should be affected by the if/else blocks, the rest can be reused from-before split.
             output_values = []
-            # Merge is tricky. The new values are produced in some "child" scopes (if/else block),
-            # but the predicate is one level above.
             # We execute the merge _after_ both branches, and pretend for a moment, that it
             # can see those values produced in child scopes.
-            with _cond_merge():
+            with _cond_merge(split_predicate):
                 for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
                     logging.log(8, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Output] Inserting merge"
                                     f" at {_CONDITION_STACK.stack_depth() -1}:"
                                     f"merge({new_body_val}, {new_orelse_val}, predicate={cond}"))
-                    output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=merge_cond))
+                    output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=split_predicate))
 
-        # Register as produced the new nodes, they will be used in subsequent calls.
+        # Register the new nodes outside of the conditional scope, they will be used in subsequent
+        # calls.
         _register_data_nodes(output_values)
-        # No point in propagating the split/merged values for pure inputs
+        # No point in propagating the split/merged values that won't be read later.
         output_values += init_state[nouts:]
         set_state(output_values)
 
-
 _OVERLOADS = DaliOperatorOverload()
 
-_autograph.initialize_autograph(
-    _OVERLOADS, do_not_convert_modules=["nvidia.dali._autograph", "nvidia.dali"])
+_autograph.initialize_autograph(_OVERLOADS,
+                                do_not_convert_modules=["nvidia.dali._autograph", "nvidia.dali"])
