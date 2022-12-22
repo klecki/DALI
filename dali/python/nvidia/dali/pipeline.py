@@ -1555,7 +1555,8 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
                 # TODO(klecki): cross-validate conditionals with eager mode
                 if conditionals_on:
                     raise NotImplemented("Conditionals are not supported in debug mode yet.")
-                pipe = _PipelineDebug(functools.partial(pipe_func, *args, **fn_kwargs), **pipeline_args)
+                pipe = _PipelineDebug(functools.partial(pipe_func, *args, **fn_kwargs),
+                                      **pipeline_args)
             else:
                 pipe = Pipeline(**pipeline_args)
                 if conditionals_on:
@@ -1563,10 +1564,10 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
                     # Add all parameters to the pipeline as "know" nodes in the top scope.
                     for arg in args:
                         if isinstance(arg, DataNode):
-                            _conditionals._register_data_nodes(arg)
+                            _conditionals.register_data_nodes(arg)
                     for arg in fn_kwargs:
                         if isinstance(arg, DataNode):
-                            _conditionals._register_data_nodes(arg)
+                            _conditionals.register_data_nodes(arg)
                 with pipe:
                     pipe_outputs = pipe_func(*args, **fn_kwargs)
                     if isinstance(pipe_outputs, tuple):

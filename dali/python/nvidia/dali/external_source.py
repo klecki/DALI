@@ -876,11 +876,11 @@ provided memory is copied to the internal buffer.
             layout=layout, batch=batch, **kwargs)
     else:
         from nvidia.dali import _conditionals
-        captured = _external_source(source, num_outputs, cycle=cycle, name=name, device=device,
+        result = _external_source(source, num_outputs, cycle=cycle, name=name, device=device,
                                 layout=layout, dtype=dtype, ndim=ndim, cuda_stream=cuda_stream,
                                 use_copy_kernel=use_copy_kernel, batch=batch, **kwargs)
-        _conditionals._register_data_nodes(captured)
-        return captured
+        _conditionals.register_data_nodes(result)
+        return result
 
 
 external_source.__doc__ += ExternalSource._args_doc

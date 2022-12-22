@@ -1317,7 +1317,7 @@ def _arithm_op(name, *inputs):
     current_pipeline = _PipelineDebug.current()
     conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
     if conditionals_enabled:
-        inputs, _ = _conditionals._apply_conditional_split(inputs, {})
+        inputs, _ = _conditionals.apply_conditional_split(inputs, {})
     categories_idxs, edges, integers, reals = _group_inputs(inputs)
     input_desc = _generate_input_desc(categories_idxs, integers, reals)
     expression_desc = "{}({})".format(name, input_desc)
@@ -1337,7 +1337,7 @@ def _arithm_op(name, *inputs):
     # Call it immediately
     result = op(*dev_inputs)
     if conditionals_enabled:
-        _conditionals._register_data_nodes(result)
+        _conditionals.register_data_nodes(result)
     return result
 
 

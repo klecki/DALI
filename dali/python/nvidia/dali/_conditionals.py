@@ -88,7 +88,6 @@ class _StackEntry:
         else:
             self.produced_special = value
 
-
     def __str__(self):
         return (f"StackEntry: pred={self.predicate}, branch={self.branch}, splits={self.splits},"
                 f" produced={self.produced}")
@@ -120,8 +119,10 @@ class _ConditionStack:
     data nodes, applying the necessary splits based on the scope level where they were produced
     and where they are used.
     """
+
     def __init__(self):
         self._stack = [_StackEntry(None)]
+        self._is_registration_allowed = True
 
     def push_predicate(self, predicate):
         """Add next level of if/else scope that is predicated with the `predicate`.
@@ -155,20 +156,24 @@ class _ConditionStack:
         return new_pred
 
     def top(self):
+        """Get the top scope in the stack"""
         return self._stack[-1]
 
     def pop(self):
+        """Remove the top scope from the stack"""
         result = self._stack.pop()
         return result
 
     def stack_depth(self):
+        """Get the depth of the stack. Note, that by default there is at least one element
+        - the global scope."""
         return len(self._stack)
 
     def _find_closest(self, data_node):
         """Find the closest scope level in the stack where we can access this node as produced
         (or the split of this node closest to us).
         """
-        for level in range(self.stack_depth()-1, -1, -1):
+        for level in range(self.stack_depth() - 1, -1, -1):
             if self._stack[level].has(data_node):
                 return level
         raise ValueError(f"{data_node} was not produced within this trace.")
@@ -190,24 +195,23 @@ class _ConditionStack:
             New node that can be used in current branch and scope.
         """
         assert 0 <= stack_level and stack_level < self.stack_depth() - 1
-        logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] {data_node} requires splitting from {stack_level}")
         produced_data_node = self._stack[stack_level].get(data_node)
-        bottom = self._stack[: stack_level+1]
-        top = self._stack[stack_level+1 :]
-        # print(f"{bottom}:{top}")
-        # We will be inserting new split nodes at this level. They are above the branches.
+        bottom = self._stack[:stack_level + 1]
+        top = self._stack[stack_level + 1:]
         self._stack = bottom
-        level = stack_level+1
         while top:
             current_entry = top.pop(0)
             predicate = current_entry.predicate
 
-            logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Inserting split for {data_node} at {level}: split({produced_data_node}, predicate={predicate}) ...")
-            # TODO(klecki): Do not register the outputs in the current scope, track them only
-            # in the desired branches.
+            # Do not automatically register the outputs in the current scope, we track them below
+            # in their respective branches.
+            logging.log(9, (f"{_indent()}[IF] Inserting split"
+                            f" at {_CONDITION_STACK.stack_depth() -1}:"
+                            f" split({produced_data_node}, predicate={predicate}."))
+            self._is_registration_allowed = False
             true, false = fn._conditional.split(produced_data_node, predicate=predicate)
+            self._is_registration_allowed = True
 
-            logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Inserted split({produced_data_node}): if {predicate} -> ({true}, {false}) at {level}")
             # Record the result of splitting the `data_node` that we are trying to look up
             # (short-cut for consecutive lookups)
             current_entry.splits[data_node] = (true, false)
@@ -217,8 +221,6 @@ class _ConditionStack:
             current_entry.produced_false |= {false}
             produced_data_node = true if current_entry.branch == _Branch.TrueBranch else false
             self._stack.append(current_entry)
-            level += 1
-        # print(self._stack)
         return produced_data_node
 
     def preprocess_input(self, data_node):
@@ -226,18 +228,23 @@ class _ConditionStack:
         produced on the same nesting level. If not, split accordingly to the stack of the previous
         conditions. Caches the previously processed DataNodes to not do repeated splitting.
         """
-
-        logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] Looking up {data_node} from {_CONDITION_STACK.stack_depth() - 1}")
-
         stack_level = self._find_closest(data_node)
-
-        logging.log(8, f"{'  ' * _CONDITION_STACK.stack_depth()}[Input] {data_node} found at {stack_level}")
-
+        logging.log(8, (f"{_indent()}[IF/Input] {data_node} accessed at level"
+                        f" {self.stack_depth() - 1} found at {stack_level}."))
         # We already have it cached or produced in this scope.
         if stack_level == self.stack_depth() - 1:
             return self.top().get(data_node)
-
+        # otherwise, we need to fill in the splits.
         return self._realize_split(data_node, stack_level)
+
+    def register_data_nodes(self, data_node):
+        if not self._is_registration_allowed:
+            return
+        logging.log(8, (f"{_indent()}[IF/Register] {data_node} at {self.stack_depth() -1}"))
+        if isinstance(data_node, _DataNode):
+            _CONDITION_STACK.top().produced |= {data_node}
+        else:
+            _CONDITION_STACK.top().produced |= set(data_node)
 
     def track_true_branch(self):
         self.top().branch = _Branch.TrueBranch
@@ -252,23 +259,28 @@ class _ConditionStack:
         self.no_branch()
         self.top().produced |= {split_predicate}
 
+
 _CONDITION_STACK = _ConditionStack()
+
+
+def _indent():
+    """Helper for indenting the log messages to resemble visited scopes"""
+    return '  ' * (_CONDITION_STACK.stack_depth() - 1)
+
 
 @contextmanager
 def _cond_manager(predicate):
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF]: {predicate}"
-                    f" at {_CONDITION_STACK.stack_depth()}"))
     actual_predicate = _CONDITION_STACK.push_predicate(predicate)
-
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[IF/sliced]: {actual_predicate}"
-                    f" at {_CONDITION_STACK.stack_depth() - 1}"))
+    logging.log(7, (f"{_indent()}[IF]: {predicate} at {_CONDITION_STACK.stack_depth() - 1}"))
     # Return it so we can use it in merge
     yield actual_predicate
     _CONDITION_STACK.pop()
 
+
 @contextmanager
 def _cond_true():
     _CONDITION_STACK.track_true_branch()
+    logging.log(7, (f"{_indent()}[IF]: `if` branch at {_CONDITION_STACK.stack_depth() - 1}"))
     yield
     _CONDITION_STACK.no_branch()
 
@@ -276,8 +288,10 @@ def _cond_true():
 @contextmanager
 def _cond_false():
     _CONDITION_STACK.track_false_branch()
+    logging.log(7, (f"{_indent()}[IF]: `else` branch at {_CONDITION_STACK.stack_depth() - 1}"))
     yield
     _CONDITION_STACK.no_branch()
+
 
 @contextmanager
 def _cond_merge(split_predicate):
@@ -288,33 +302,22 @@ def _cond_merge(split_predicate):
     _CONDITION_STACK.top().produced = bkp
     _CONDITION_STACK.no_branch()
 
-def _register_data_nodes(data_node):
-    logging.log(7, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Register nodes] {data_node}"
-                    f" at {_CONDITION_STACK.stack_depth() -1}"))
-    if isinstance(data_node, _DataNode):
-        _CONDITION_STACK.top().produced |= {data_node}
-    else:
-        _CONDITION_STACK.top().produced |= set(data_node)
 
-# def _process_input(data_node):
-#     print(f"Looking for {data_node}")
-#     # return data_node
-#     stack_depth = len(_CONDITION_STACK)
-#     found_at = stack_depth - 1
-#     print(_CONDITION_STACK[found_at])
-#     if _CONDITION_STACK.top().has(data_node):
-#         return _CONDITION_STACK.top().get(data_node)
-#     while not _CONDITION_STACK[found_at].has(data_node):
-#         print(f"found_at: {found_at}, {_CONDITION_STACK[found_at]}")
-#         found_at -= 1
-#     produced = _CONDITION_STACK[found_at].get(data_node)
-#     for i in range(found_at + 1, stack_depth):
-#         pred = _CONDITION_STACK[i].predicate
-#         _CONDITION_STACK[i].splits[data_node] = fn._conditional.split(produced, predicate=pred)
-#         produced = _CONDITION_STACK[i].get(data_node)
-#     return produced
+def register_data_nodes(data_node):
+    """Register the outputs of the operator as produced in the scope of the current conditional
+    branch.
 
-def _apply_conditional_split(inputs, kwargs):
+    Parameters
+    ----------
+    data_node : DataNode or a list/tuple of DataNode
+        The output of the operator to be registered.
+    """
+    _CONDITION_STACK.register_data_nodes(data_node)
+
+
+def apply_conditional_split(inputs, kwargs):
+    """Preprocess the inputs and kwargs of the operator to obtain correctly split inputs for the
+    current if scope."""
     inputs_bkp = list(inputs)
     for i, input in enumerate(inputs):
         if isinstance(input, _DataNode):
@@ -338,6 +341,7 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
         if isinstance(output, variables.UndefinedReturnValue):
             raise ValueError(f"{common_explanation} The `{branch_name}` branch must also have"
                              " a return statement.")
+
 
 class DaliOperatorOverload(_autograph.OperatorBase):
 
@@ -365,7 +369,6 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             _verify_branch_outputs(orelse_state, symbol_names, "else")
             orelse_outputs = orelse_state[:nouts]
 
-
             # Build the state that is the combination of both branches. Only the actual outputs
             # should be affected by the if/else blocks, the rest can be reused from-before split.
             output_values = []
@@ -373,17 +376,21 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # can see those values produced in child scopes.
             with _cond_merge(split_predicate):
                 for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
-                    logging.log(8, (f"{'  ' * _CONDITION_STACK.stack_depth()}[Output] Inserting merge"
+                    logging.log(9, (f"{_indent()}[IF] Inserting merge"
                                     f" at {_CONDITION_STACK.stack_depth() -1}:"
-                                    f"merge({new_body_val}, {new_orelse_val}, predicate={cond}"))
-                    output_values.append(fn._conditional.merge(new_body_val, new_orelse_val, predicate=split_predicate))
+                                    f" merge({new_body_val}, {new_orelse_val}, predicate="
+                                    f"{split_predicate}."))
+                    merged = fn._conditional.merge(new_body_val, new_orelse_val,
+                                                   predicate=split_predicate)
+                    output_values.append(merged)
 
         # Register the new nodes outside of the conditional scope, they will be used in subsequent
         # calls.
-        _register_data_nodes(output_values)
+        register_data_nodes(output_values)
         # No point in propagating the split/merged values that won't be read later.
         output_values += init_state[nouts:]
         set_state(output_values)
+
 
 _OVERLOADS = DaliOperatorOverload()
 

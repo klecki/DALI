@@ -86,13 +86,13 @@ def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
         current_pipeline = _PipelineDebug.current()
         conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
         if conditionals_enabled:
-            inputs, kwargs = _conditionals._apply_conditional_split(inputs, kwargs)
+            inputs, kwargs = _conditionals.apply_conditional_split(inputs, kwargs)
         if getattr(current_pipeline, '_debug_on', False):
             return current_pipeline._wrap_op_call(op_class, wrapper_name, *inputs, **kwargs)
         else:
             result = op_wrapper(*inputs, **kwargs)
             if conditionals_enabled:
-                _conditionals._register_data_nodes(result)
+                _conditionals.register_data_nodes(result)
             return result
 
     fn_wrapper.__name__ = wrapper_name
