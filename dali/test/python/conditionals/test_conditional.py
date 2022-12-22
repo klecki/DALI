@@ -30,7 +30,7 @@ test_iters = 4
 
 from nvidia.dali._autograph.utils.ag_logging import set_verbosity
 
-# set_verbosity(10, True)
+set_verbosity(10, True)
 
 def consumer(input):
     output = input
@@ -295,6 +295,24 @@ def generic_execute(input_gen_list, function, optional_params=None):
 def test_generic(dev, input_gen, pred_gen_0, pred_gen_1, if_function):
     generic_execute([input_gen, pred_gen_0, pred_gen_1], if_function, [{"device": dev}, {}, {}])
 
+
+def test_inputless():
+    bs = 10
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+    }
+    @experimental.pipeline_def(enable_conditionals=True)
+    def inputless():
+        if fn.random.coin_flip() == 0:
+            output = fn.random.uniform()
+        else:
+            output = fn.random.uniform()
+        return output
+    pipe = inputless(**kwargs)
+    pipe.build()
+    print(pipe.run())
 
 
 def test_error():

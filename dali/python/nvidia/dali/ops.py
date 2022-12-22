@@ -1337,7 +1337,7 @@ def _arithm_op(name, *inputs):
     # Call it immediately
     result = op(*dev_inputs)
     if conditionals_enabled:
-        _conditionals.register_data_nodes(result)
+        _conditionals.register_data_nodes(result, dev_inputs)
     return result
 
 

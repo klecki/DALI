@@ -313,7 +313,7 @@ def _cond_merge(split_predicate):
     _CONDITION_STACK.no_branch()
 
 
-def register_data_nodes(data_node, inputs):
+def register_data_nodes(data_node, inputs=[]):
     """Register the outputs of the operator as produced in the scope of the current conditional
     branch.
 
@@ -321,9 +321,13 @@ def register_data_nodes(data_node, inputs):
     ----------
     data_node : DataNode or a list/tuple of DataNode
         The output of the operator to be registered.
+    inputs : List of DataNode
+        Optional list of inputs of the operator whose outputs we are registering.
+        If there were no inputs, the outputs are considered as produced in global scope.
     """
 
     any_input = any(isinstance(input, _DataNode) for input in inputs)
+    print(any_input)
     # TODO(klecki): In theory we have two approaches for inputless operators. Here we insert their
     # outputs to top level and let the automatic splitting handle the situation. Otherwise we could
     # pass the scope information and batch_size within that scope to all operators that are invoked
@@ -370,16 +374,19 @@ class DaliOperatorOverload(_autograph.OperatorBase):
         with _cond_manager(cond) as split_predicate:
             # Set the state for the body inputs, execute the body and collect the outputs.
             # Verify if all outputs are initialized within the branch.
-            set_state(init_state)
+            # TODO(klecki): We actually need to split it, as we won't see assignments :V
             with _cond_true():
+                true_init_state, _ = apply_conditional_split(init_state, {})
+                set_state(true_init_state)
                 body()
             body_state = get_state()
             _verify_branch_outputs(body_state, symbol_names, "if")
             body_outputs = body_state[:nouts]
 
             # Do the same for else block.
-            set_state(init_state)
             with _cond_false():
+                false_init_state, _ = apply_conditional_split(init_state, {})
+                set_state(false_init_state)
                 orelse()
             orelse_state = get_state()
             _verify_branch_outputs(orelse_state, symbol_names, "else")
@@ -402,7 +409,7 @@ class DaliOperatorOverload(_autograph.OperatorBase):
 
         # Register the new nodes outside of the conditional scope, they will be used in subsequent
         # calls.
-        register_data_nodes(output_values)
+        _CONDITION_STACK.register_data_nodes(output_values)
         # No point in propagating the split/merged values that won't be read later.
         output_values += init_state[nouts:]
         set_state(output_values)
