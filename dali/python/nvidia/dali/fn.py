@@ -92,7 +92,7 @@ def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
         else:
             result = op_wrapper(*inputs, **kwargs)
             if conditionals_enabled:
-                _conditionals.register_data_nodes(result)
+                _conditionals.register_data_nodes(result, inputs)
             return result
 
     fn_wrapper.__name__ = wrapper_name

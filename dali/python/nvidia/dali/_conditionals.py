@@ -237,25 +237,38 @@ class _ConditionStack:
         # otherwise, we need to fill in the splits.
         return self._realize_split(data_node, stack_level)
 
-    def register_data_nodes(self, data_node):
+    def register_data_nodes(self, data_node, global_scope=False):
+        """Register the data nodes as produced in current scope, otherwise if `global_scope` is True
+        put them in the outermost scope.
+        """
         if not self._is_registration_allowed:
             return
         logging.log(8, (f"{_indent()}[IF/Register] {data_node} at {self.stack_depth() -1}"))
+        scope = self._stack[0] if global_scope else self.top()
         if isinstance(data_node, _DataNode):
-            _CONDITION_STACK.top().produced |= {data_node}
+            scope.produced |= {data_node}
         else:
-            _CONDITION_STACK.top().produced |= set(data_node)
+            scope.produced |= set(data_node)
 
     def track_true_branch(self):
+        """Mark `if` (true) branch as current scope."""
         self.top().branch = _Branch.TrueBranch
 
     def track_false_branch(self):
+        """Mark `else` (false) branch as current scope."""
         self.top().branch = _Branch.FalseBranch
 
     def no_branch(self):
+        """Mark no branch being tracked, the scope "level" stays related to the same if/else
+        statement."""
         self.top().branch = _Branch.Undefined
 
     def track_merge(self, split_predicate):
+        """Enter the merge section of the if/else statement. It adds the corresponding
+        split_predicate to the nodes visible as produced in the current scope, so all data nodes
+        are directly accessible in this scope when looked up by the merge operator.
+        We don't care about removing it as it's the last thing happening in that statement.
+        """
         self.no_branch()
         self.top().produced |= {split_predicate}
 
@@ -295,15 +308,12 @@ def _cond_false():
 
 @contextmanager
 def _cond_merge(split_predicate):
-    _CONDITION_STACK.no_branch()
-    bkp = _CONDITION_STACK.top().produced
-    _CONDITION_STACK.top().produced |= {split_predicate}
+    _CONDITION_STACK.track_merge(split_predicate)
     yield
-    _CONDITION_STACK.top().produced = bkp
     _CONDITION_STACK.no_branch()
 
 
-def register_data_nodes(data_node):
+def register_data_nodes(data_node, inputs):
     """Register the outputs of the operator as produced in the scope of the current conditional
     branch.
 
@@ -312,7 +322,13 @@ def register_data_nodes(data_node):
     data_node : DataNode or a list/tuple of DataNode
         The output of the operator to be registered.
     """
-    _CONDITION_STACK.register_data_nodes(data_node)
+
+    any_input = any(isinstance(input, _DataNode) for input in inputs)
+    # TODO(klecki): In theory we have two approaches for inputless operators. Here we insert their
+    # outputs to top level and let the automatic splitting handle the situation. Otherwise we could
+    # pass the scope information and batch_size within that scope to all operators that are invoked
+    # within that scope.
+    _CONDITION_STACK.register_data_nodes(data_node, global_scope=not any_input)
 
 
 def apply_conditional_split(inputs, kwargs):
