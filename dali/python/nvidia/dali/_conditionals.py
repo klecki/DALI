@@ -414,7 +414,7 @@ class DaliOperatorOverload(_autograph.OperatorBase):
 
         # Register the new nodes outside of the conditional scope, they will be used in subsequent
         # calls.
-        register_data_nodes(output_values)
+        _CONDITION_STACK.register_data_nodes(output_values, False)
         # No point in propagating the split/merged values that won't be read later.
         output_values += init_state[nouts:]
         set_state(output_values)
