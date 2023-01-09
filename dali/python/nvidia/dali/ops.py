@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -1317,7 +1317,7 @@ def _arithm_op(name, *inputs):
     current_pipeline = _PipelineDebug.current()
     conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
     if conditionals_enabled:
-        inputs, _ = _conditionals.apply_conditional_split(inputs, {})
+        inputs, _ = _conditionals.apply_conditional_split_to_args(inputs, {})
     categories_idxs, edges, integers, reals = _group_inputs(inputs)
     input_desc = _generate_input_desc(categories_idxs, integers, reals)
     expression_desc = "{}({})".format(name, input_desc)

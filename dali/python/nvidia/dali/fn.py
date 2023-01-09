@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -86,7 +86,7 @@ def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
         current_pipeline = _PipelineDebug.current()
         conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
         if conditionals_enabled:
-            inputs, kwargs = _conditionals.apply_conditional_split(inputs, kwargs)
+            inputs, kwargs = _conditionals.apply_conditional_split_to_args(inputs, kwargs)
         if getattr(current_pipeline, '_debug_on', False):
             return current_pipeline._wrap_op_call(op_class, wrapper_name, *inputs, **kwargs)
         else:

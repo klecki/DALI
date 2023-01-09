@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -314,6 +314,25 @@ def test_inputless():
     pipe.build()
     print(pipe.run())
 
+
+def test_inputless2():
+    bs = 10
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+    }
+    @experimental.pipeline_def(enable_conditionals=True)
+    def inputless():
+        input1 = fn.random.uniform()
+        if fn.random.coin_flip() == 0:
+            output = input1
+        else:
+            output = fn.random.uniform() + 10
+        return output
+    pipe = inputless(**kwargs)
+    pipe.build()
+    print(pipe.run())
 
 def test_error():
     bs = 10

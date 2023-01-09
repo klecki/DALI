@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -327,25 +327,27 @@ def register_data_nodes(data_node, inputs=[]):
     """
 
     any_input = any(isinstance(input, _DataNode) for input in inputs)
-    print(any_input)
     # TODO(klecki): In theory we have two approaches for inputless operators. Here we insert their
     # outputs to top level and let the automatic splitting handle the situation. Otherwise we could
     # pass the scope information and batch_size within that scope to all operators that are invoked
     # within that scope.
     _CONDITION_STACK.register_data_nodes(data_node, global_scope=not any_input)
 
+def apply_conditional_split(input):
+    """Preprocess the DataNode to obtain correctly split batch for the current if scope."""
+    return _CONDITION_STACK.preprocess_input(input)
 
-def apply_conditional_split(inputs, kwargs):
+def apply_conditional_split_to_args(inputs, kwargs):
     """Preprocess the inputs and kwargs of the operator to obtain correctly split inputs for the
     current if scope."""
     inputs_bkp = list(inputs)
     for i, input in enumerate(inputs):
         if isinstance(input, _DataNode):
-            inputs_bkp[i] = _CONDITION_STACK.preprocess_input(input)
+            inputs_bkp[i] = apply_conditional_split(input)
     inputs = tuple(inputs_bkp)
     for key, arg in kwargs.items():
         if isinstance(arg, _DataNode):
-            kwargs[key] = _CONDITION_STACK.preprocess_input(arg)
+            kwargs[key] = apply_conditional_split(arg)
     return inputs, kwargs
 
 
@@ -365,6 +367,13 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
 
 class DaliOperatorOverload(_autograph.OperatorBase):
 
+    def detect_overload_ld(self, v):
+        return isinstance(v, _DataNode)
+
+    def ld(self, v):
+        branch_v = apply_conditional_split(v)
+        return branch_v
+
     def detect_overload_if_stmt(self, cond):
         return isinstance(cond, _DataNode)
 
@@ -374,19 +383,15 @@ class DaliOperatorOverload(_autograph.OperatorBase):
         with _cond_manager(cond) as split_predicate:
             # Set the state for the body inputs, execute the body and collect the outputs.
             # Verify if all outputs are initialized within the branch.
-            # TODO(klecki): We actually need to split it, as we won't see assignments :V
             with _cond_true():
-                true_init_state, _ = apply_conditional_split(init_state, {})
-                set_state(true_init_state)
                 body()
             body_state = get_state()
             _verify_branch_outputs(body_state, symbol_names, "if")
             body_outputs = body_state[:nouts]
 
             # Do the same for else block.
+            set_state(init_state)
             with _cond_false():
-                false_init_state, _ = apply_conditional_split(init_state, {})
-                set_state(false_init_state)
                 orelse()
             orelse_state = get_state()
             _verify_branch_outputs(orelse_state, symbol_names, "else")
@@ -409,7 +414,7 @@ class DaliOperatorOverload(_autograph.OperatorBase):
 
         # Register the new nodes outside of the conditional scope, they will be used in subsequent
         # calls.
-        _CONDITION_STACK.register_data_nodes(output_values)
+        register_data_nodes(output_values)
         # No point in propagating the split/merged values that won't be read later.
         output_values += init_state[nouts:]
         set_state(output_values)
