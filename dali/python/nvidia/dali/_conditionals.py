@@ -385,17 +385,25 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # Verify if all outputs are initialized within the branch.
             with _cond_true():
                 body()
-            body_state = get_state()
-            _verify_branch_outputs(body_state, symbol_names, "if")
-            body_outputs = body_state[:nouts]
+
+                body_state = get_state()
+                _verify_branch_outputs(body_state, symbol_names, "if")
+                body_outputs = body_state[:nouts]
+                # no splitting will happen if the branch is empty, we need to do it manually
+                # for the outputs.
+                body_outputs, _ = apply_conditional_split_to_args(body_outputs, {})
+
 
             # Do the same for else block.
             set_state(init_state)
             with _cond_false():
                 orelse()
-            orelse_state = get_state()
-            _verify_branch_outputs(orelse_state, symbol_names, "else")
-            orelse_outputs = orelse_state[:nouts]
+
+                orelse_state = get_state()
+                _verify_branch_outputs(orelse_state, symbol_names, "else")
+                orelse_outputs = orelse_state[:nouts]
+                # Same here, this should allow to handle if without else branch. (TODO)
+                orelse_outputs, _ = apply_conditional_split_to_args(orelse_outputs, {})
 
             # Build the state that is the combination of both branches. Only the actual outputs
             # should be affected by the if/else blocks, the rest can be reused from-before split.

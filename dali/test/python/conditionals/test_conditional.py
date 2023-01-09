@@ -33,219 +33,16 @@ from nvidia.dali._autograph.utils.ag_logging import set_verbosity
 
 set_verbosity(10, True)
 
-def consumer(input):
-    output = input
-    return output
 
+rng = np.random.default_rng()
 
-def to_batch(tl, batch_size):
-    return [np.array(tl[i]) for i in range(batch_size)]
-
-
-@pipeline_def
-def rotate_pipe(dev):
-    input = fn.external_source(name="input", device=dev)
-    return fn.rotate(input, angle=15)
-
-
-@pipeline_def
-def flip_pipe(dev):
-    input = fn.external_source(name="input", device=dev)
-    return fn.flip(input, horizontal=True)
-
-
-# @experimental.pipeline_def(enable_conditionals=True)
-# def conditional_split_merge_pipe(dev):
-#     input = fn.external_source(name="input", device=dev)
-#     input2 = input
-#     def modify_nonlocal():
-#         nonlocal input2
-#         input2 = input2 + 1
-#     pred = fn.external_source(name="predicate")
-#     if pred:
-#         output = fn.rotate(input, angle=15)
-#         modify_nonlocal()
-#         input2 = input + 1
-#         x = consumer(input)
-#     else:
-#         output = fn.flip(input, horizontal=True)
-#         modify_nonlocal()
-#         x = consumer(input)
-#     return output, x, input2
-
-def wrap_rotate(input, angle):
-    input = input
-    angle = angle
-    return fn.rotate(input, angle=angle)
-
-
-@experimental.pipeline_def(enable_conditionals=True)
-def conditional_split_merge_pipe(dev):
-    input = fn.external_source(name="input", device=dev)
-    pred = fn.external_source(name="predicate")
-
-    def wrap_flip(input, horizontal):
-        # nonlocal input
-        horizontal = horizontal
-        return fn.flip(input, horizontal=horizontal)
-
-    if pred:
-        input = input
-        output = fn.rotate(input, angle=15)
-    else:
-        output = wrap_flip(input, horizontal=True)
-    return output
-
-
-def check_conditional_split_merge(dev, pred_gen):
-    bs = 10
-    kwargs = {
-        "batch_size": bs,
-        "num_threads": 4,
-        "device_id": 0,
-        "prefetch_queue_depth": 1  # so that it's easier to use external source
-    }
-    pipe_sm = conditional_split_merge_pipe(dev, **kwargs)
-    pipe_true = rotate_pipe(dev, **kwargs)
-    pipe_false = flip_pipe(dev, **kwargs)
-    pipe_sm.build()
-    pipe_true.build()
-    pipe_false.build()
-    data_iter = RandomlyShapedDataIterator(bs, min_shape=(20, 20, 3), max_shape=(40, 30, 3))
-    data_iter = iter(data_iter)
-    for _ in range(test_iters):
-        predicate = [pred_gen(i) for i in range(bs)]
-        data = next(data_iter)
-        data_true = [data[i] for i in range(bs) if predicate[i]]
-        data_false = [data[i] for i in range(bs) if not predicate[i]]
-        pipe_sm.feed_input("input", data)
-        pipe_sm.feed_input("predicate", predicate)
-        if data_true:
-            pipe_true.feed_input("input", data_true)
-            out_true, = pipe_true.run()
-        else:
-            out_true = []
-        if data_false:
-            pipe_false.feed_input("input", data_false)
-            out_false, = pipe_false.run()
-        else:
-            out_false = []
-        out, = pipe_sm.run()
-        out_baseline = []
-        idx_true = 0
-        idx_false = 0
-        for p in predicate:
-            if p:
-                out_baseline.append(out_true[idx_true])
-                idx_true = idx_true + 1
-            else:
-                out_baseline.append(out_false[idx_false])
-                idx_false = idx_false + 1
-        if dev == "gpu":
-            out = [out[i].as_cpu() for i in range(bs)]
-            out_baseline = [out_baseline[i].as_cpu() for i in range(bs)]
-        check_batch(out, out_baseline, bs)
-
-
-def test_conditional_split_merge():
-    rng = np.random.default_rng()
-    for dev in ["cpu", "gpu"]:
-        for pred_gen in [
-                lambda x: np.array(x < 3), lambda x: np.array(x % 2 == 0),
-                lambda x: np.array(x % 3 == 0), lambda _: np.array(False),
-                lambda _: rng.choice([np.array(True), np.array(False)])
-        ]:
-            yield check_conditional_split_merge, dev, pred_gen
-
-import pdb
-
-@experimental.pipeline_def(enable_conditionals=True)
-def cond_after_cond(dev):
-    # need to create them within the pipeline scope
-    input = fn.external_source(name="input", device=dev)
-    pred_0 = fn.external_source(name="pred_0")
-    pred_1 = fn.external_source(name="pred_1")
-    if pred_0:
-        output = input + 1
-    else:
-        output = 2 + input
-    if pred_1:
-        output2 = output + 3
-    else:
-        output2 = output + 4
-    return output, output2
-
-def cond_after_cond_scalar(input, pred_0, pred_1):
-    if pred_0:
-        output = input + 1
-    else:
-        output = input + 2
-
-    if pred_1:
-        output2 = output + 3
-    else:
-        output2 = output + 4
-    return output, output2
-
-
-def cond_nested(input, pred_0, pred_1):
-    if pred_0:
-        if pred_1:
-            output = input + 1
-        else:
-            output = input + 2
-    else:
-        output = input + 3
-    return output
-
-def cond_nested_2(input, pred_0, pred_1):
-    if pred_0:
-        if pred_1:
-            output = input + 1
-        else:
-            output = input + 2
-    else:
-        if pred_1:
-            output = input + 4
-        elif pred_1 == 0:
-            output = input + 5
-    return output
-
-
-def cond_returns(input, pred_0, pred_1):
-    if pred_0 & pred_1:
-        return input + 2
-    else:
-        return input + 100
-
-# def cond_nested_expression(input, pred_0, pred_1):
-#     if pred_0:
-#         if pred_0 == :
-#             output = input + 1
-#         else:
-#             output = input + 2
-#     else:
-#         output = input + 3
-#     return output
-
-
-
-rng = np.random.default_rng( )
-pred_gens = [
-    lambda x: np.array(x.idx_in_batch < 3),
-    lambda x: np.array(x.idx_in_batch % 2 == 0),
-    lambda x: np.array(x.idx_in_batch % 3 == 0),
-    lambda x: np.array((x.idx_in_batch + (x.iteration % 2)) % 2 == 0),
-    lambda _: np.array(False),
-    lambda _: rng.choice([np.array(True), np.array(False)])
+num_gens = [
+    lambda x: np.int32(x.idx_in_batch - 3),
+    lambda x: np.int32(-1 if x.idx_in_batch % 2 == 0 else 1),
+    lambda _: np.int32(1),
+    lambda _: np.int32(-1),
+    lambda _: rng.choice([np.int32(-2), np.int32(2)])
 ]
-
-
-input_gens = [
-    lambda x : np.array(0), lambda x: np.array(x.idx_in_epoch)
-]
-
-if_functions = [cond_after_cond_scalar, cond_nested, cond_returns]
 
 
 def generic_execute(function, input_gen_list, optional_params=None):
@@ -312,6 +109,197 @@ def generic_execute(function, input_gen_list, optional_params=None):
 
         for out, baseline in zip(outputs, baseline_outputs):
             check_batch(out, baseline, bs)
+
+
+# Tests below are ported from dali/test/python/autograph/converters/test_control_flow.py
+
+@params(*num_gens)
+def test_basic(num_gen):
+    def f(n):
+        a = np.int32(0)
+        b = np.int32(0)
+        if n > 0:
+            a = -n
+        else:
+            b = 2 * n
+        return a, b
+
+    generic_execute(f, [num_gen])
+
+@params(*num_gens)
+def test_complex_outputs(num_gen):
+    class DataClass(object):
+        def __init__(self, a, b):
+            self.a = a
+            self.b = b
+
+    def f(n, obj):
+        obj.a = 0
+        obj.b = 0
+        if n > 0:
+            obj.a = -n
+        else:
+            obj.b = 2 * n
+        return obj.a, obj.b
+
+    generic_execute(lambda input: f(input, DataClass(0, 0)), [num_gen])
+
+
+@params(*num_gens)
+def test_single_output(num_gen):
+    def f(n):
+        if n > 0:
+            n = -n
+        return n
+
+    generic_execute(f, [num_gen])
+
+@params(*num_gens)
+def test_unbalanced(num_gen):
+    def f(n):
+        if n > 0:
+            n = np.int32(3)
+        return n
+
+    generic_execute(f, [num_gen])
+
+
+@params(*num_gens)
+def test_local_var(num_gen):
+    def f(n):
+        if n > 0:
+            b = np.int32(4)
+            n = b + 1
+        return n
+
+    generic_execute(f, [num_gen])
+
+
+@params(*num_gens)
+def test_local_remains_local(num_gen):
+
+    def f(n):
+        if n > 0:
+            b = 4
+            n = b + 1
+        return n
+
+    generic_execute(f, [num_gen])
+
+@params(*num_gens)
+def test_global_local(num_gen):
+    pass
+    # def f(n):
+    #     if n > 0:
+    #         global for_test_global_local
+    #         if for_test_global_local is None:
+    #             for_test_global_local = 1
+    #         else:
+    #             for_test_global_local += 1
+    #             n += for_test_global_local
+    #     return n
+
+
+    # generic_execute(f, [num_gen])
+
+@params(*num_gens)
+def test_no_outputs(num_gen):
+
+    def f(n):
+        if n > 0:
+            b = 4  # pylint:disable=unused-variable # noqa: F841
+        return n
+
+    generic_execute(f, [num_gen])
+
+
+@params(*num_gens)
+def test_created_outputs(num_gen):
+
+    def f(i):
+        if i == 0:
+            result = i - 1
+        else:
+            result = i + 1
+        return result
+
+    generic_execute(f, [num_gen])
+
+
+
+def cond_after_cond_scalar(input, pred_0, pred_1):
+    if pred_0:
+        output = input + 1
+    else:
+        output = input + 2
+
+    if pred_1:
+        output2 = output + 3
+    else:
+        output2 = output + 4
+    return output, output2
+
+
+def cond_nested(input, pred_0, pred_1):
+    if pred_0:
+        if pred_1:
+            output = input + 1
+        else:
+            output = input + 2
+    else:
+        output = input + 3
+    return output
+
+def cond_nested_2(input, pred_0, pred_1):
+    if pred_0:
+        if pred_1:
+            output = input + 1
+        else:
+            output = input + 2
+    else:
+        if pred_1:
+            output = input + 4
+        elif pred_1 == 0:
+            output = input + 5
+    return output
+
+
+def cond_returns(input, pred_0, pred_1):
+    if pred_0 & pred_1:
+        return input + 2
+    else:
+        return input + 100
+
+# def cond_nested_expression(input, pred_0, pred_1):
+#     if pred_0:
+#         if pred_0 == :
+#             output = input + 1
+#         else:
+#             output = input + 2
+#     else:
+#         output = input + 3
+#     return output
+
+
+
+pred_gens = [
+    lambda x: np.array(x.idx_in_batch < 3),
+    lambda x: np.array(x.idx_in_batch % 2 == 0),
+    lambda x: np.array(x.idx_in_batch % 3 == 0),
+    lambda x: np.array((x.idx_in_batch + (x.iteration % 2)) % 2 == 0),
+    lambda _: np.array(False),
+    lambda _: rng.choice([np.array(True), np.array(False)])
+]
+
+
+input_gens = [
+    lambda x : np.array(0), lambda x: np.array(x.idx_in_epoch)
+]
+
+if_functions = [cond_after_cond_scalar, cond_nested, cond_returns]
+
+
+
 
 
 @params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens, if_functions))
