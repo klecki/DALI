@@ -132,7 +132,6 @@ def is_allowlisted(
     m = functools
   else:
     m = inspect.getmodule(o)
-  print(f"Checking if allowed {o}")
 
   # Examples of callables that lack a __module__ property include builtins.
   if hasattr(m, '__name__'):
