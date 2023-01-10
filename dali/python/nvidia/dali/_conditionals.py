@@ -70,7 +70,8 @@ class _StackEntry:
 
     @property
     def produced(self):
-        """Access the set of DataNodes produced in the scope of currently selected branch."""
+        """Access the set of hashes of DataNodes produced in the scope of currently selected branch.
+        """
         if self.branch == _Branch.TrueBranch:
             return self.produced_true
         elif self.branch == _Branch.FalseBranch:
@@ -80,13 +81,42 @@ class _StackEntry:
 
     @produced.setter
     def produced(self, value):
-        """Access the set of DataNodes produced in the scope of currently selected branch."""
+        """Access the set of hashes of DataNodes produced in the scope of currently selected branch.
+        """
         if self.branch == _Branch.TrueBranch:
             self.produced_true = value
         elif self.branch == _Branch.FalseBranch:
             self.produced_false = value
         else:
             self.produced_special = value
+
+    def add_produced(self, data_node):
+        """Add the DataNode or DataNodes to produced in the scope of currently selected branch."""
+        if isinstance(data_node, _DataNode):
+            self.produced |= {hash(data_node)}
+        else:
+            self.produced |= set(hash(dn) for dn in data_node)
+
+    def add_split(self, source_data_node, producer_node, true_node, false_node):
+        """Register the outputs of split node that were produced from the source_data_node
+        (or its descendant on this scope, the shortcut node).
+
+        Parameters
+        ----------
+        source_data_node : DataNode
+            Original source node that was looked up, record for faster consecutive lookups
+        producer_node : DataNode
+            The closest node on the path from source_data_node to this split
+        true_node : DataNode
+            True branch split
+        false_node : DataNode
+            False branch split
+        """
+        self.splits[hash(source_data_node)] = (true_node, false_node)
+        # Record the direct preceding node as the producer:
+        self.splits[hash(producer_node)] = (true_node, false_node)
+        self.produced_true |= {hash(true_node)}
+        self.produced_false |= {hash(false_node)}
 
     def __str__(self):
         return (f"StackEntry: pred={self.predicate}, branch={self.branch}, splits={self.splits},"
@@ -214,11 +244,7 @@ class _ConditionStack:
 
             # Record the result of splitting the `data_node` that we are trying to look up
             # (short-cut for consecutive lookups)
-            current_entry.splits[hash(data_node)] = (true, false)
-            # Record the direct preceding node as the producer:
-            current_entry.splits[hash(produced_data_node)] = (true, false)
-            current_entry.produced_true |= {hash(true)}
-            current_entry.produced_false |= {hash(false)}
+            current_entry.add_split(data_node, produced_data_node, true, false)
             produced_data_node = true if current_entry.branch == _Branch.TrueBranch else false
             self._stack.append(current_entry)
         return produced_data_node
@@ -245,10 +271,7 @@ class _ConditionStack:
             return
         logging.log(8, (f"{_indent()}[IF/Register] {data_node} at {self.stack_depth() -1}"))
         scope = self._stack[0] if global_scope else self.top()
-        if isinstance(data_node, _DataNode):
-            scope.produced |= {hash(data_node)}
-        else:
-            scope.produced |= set(hash(dn) for dn in data_node)
+        scope.add_produced(data_node)
 
     def track_true_branch(self):
         """Mark `if` (true) branch as current scope."""
@@ -270,7 +293,7 @@ class _ConditionStack:
         We don't care about removing it as it's the last thing happening in that statement.
         """
         self.no_branch()
-        self.top().produced |= {hash(split_predicate)}
+        self.top().add_produced(split_predicate)
 
 
 _CONDITION_STACK = _ConditionStack()
