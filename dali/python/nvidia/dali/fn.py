@@ -85,8 +85,11 @@ def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
         from nvidia.dali._debug_mode import _PipelineDebug
         current_pipeline = _PipelineDebug.current()
         conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
-        if conditionals_enabled:
-            inputs, kwargs = _conditionals.apply_conditional_split_to_args(inputs, kwargs)
+        # TODO(klecki): This would be a nice place to preprocess the inputs and kwargs,
+        # but of course we have layers of additional processing, like a hidden Constant op
+        # insertion, that is only visible inside the ancient `ops` API, so we need to put it there.
+        # if conditionals_enabled:
+        #     inputs, kwargs = _conditionals.apply_conditional_split_to_args(inputs, kwargs)
         if getattr(current_pipeline, '_debug_on', False):
             return current_pipeline._wrap_op_call(op_class, wrapper_name, *inputs, **kwargs)
         else:

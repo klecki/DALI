@@ -337,14 +337,24 @@ def apply_conditional_split(input):
     """Preprocess the DataNode to obtain correctly split batch for the current if scope."""
     return _CONDITION_STACK.preprocess_input(input)
 
+
+def apply_conditional_split_to_branch_outputs(branch_outputs, promote_constants=True):
+    from nvidia.dali.types import Constant
+    inputs_bkp = list(branch_outputs)
+    for i, input in enumerate(branch_outputs):
+        if isinstance(input, _DataNode):
+            inputs_bkp[i] = apply_conditional_split(input)
+        elif promote_constants:
+            constant_node = Constant(input, device="cpu")  # TODO(klecki): we guess that it's ok to use cpu here
+            register_data_nodes(constant_node)
+            inputs_bkp[i] = apply_conditional_split(constant_node)
+            # TODO(klecki): no handling for ScalarConstants
+    return tuple(inputs_bkp)
+
 def apply_conditional_split_to_args(inputs, kwargs):
     """Preprocess the inputs and kwargs of the operator to obtain correctly split inputs for the
     current if scope."""
-    inputs_bkp = list(inputs)
-    for i, input in enumerate(inputs):
-        if isinstance(input, _DataNode):
-            inputs_bkp[i] = apply_conditional_split(input)
-    inputs = tuple(inputs_bkp)
+    inputs = apply_conditional_split_to_branch_outputs(inputs, False)
     for key, arg in kwargs.items():
         if isinstance(arg, _DataNode):
             kwargs[key] = apply_conditional_split(arg)
@@ -363,7 +373,6 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
         if isinstance(output, variables.UndefinedReturnValue):
             raise ValueError(f"{common_explanation} The `{branch_name}` branch must also have"
                              " a return statement.")
-
 
 class DaliOperatorOverload(_autograph.OperatorBase):
 
@@ -391,7 +400,7 @@ class DaliOperatorOverload(_autograph.OperatorBase):
                 body_outputs = body_state[:nouts]
                 # no splitting will happen if the branch is empty, we need to do it manually
                 # for the outputs.
-                body_outputs, _ = apply_conditional_split_to_args(body_outputs, {})
+                body_outputs = apply_conditional_split_to_branch_outputs(body_outputs)
 
 
             # Do the same for else block.
@@ -402,8 +411,8 @@ class DaliOperatorOverload(_autograph.OperatorBase):
                 orelse_state = get_state()
                 _verify_branch_outputs(orelse_state, symbol_names, "else")
                 orelse_outputs = orelse_state[:nouts]
-                # Same here, this should allow to handle if without else branch. (TODO)
-                orelse_outputs, _ = apply_conditional_split_to_args(orelse_outputs, {})
+                # Same here, this should allow to handle if without else branch.
+                orelse_outputs = apply_conditional_split_to_branch_outputs(orelse_outputs)
 
             # Build the state that is the combination of both branches. Only the actual outputs
             # should be affected by the if/else blocks, the rest can be reused from-before split.

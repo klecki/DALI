@@ -32,6 +32,7 @@ from nvidia.dali.types import \
         CUDAStream as _CUDAStream, \
         ScalarConstant as _ScalarConstant, \
         Constant as _Constant
+from nvidia.dali import _conditionals
 
 
 cupy = None
@@ -417,6 +418,12 @@ class _OperatorInstance(object):
                 if isinstance(inp, _ScalarConstant):
                     inputs[i] = _instantiate_constant_node(default_input_device, inp)
             inputs = tuple(inputs)
+
+        from nvidia.dali._debug_mode import _PipelineDebug
+        current_pipeline = _PipelineDebug.current()
+        conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
+        if conditionals_enabled:
+            inputs, kwargs = _conditionals.apply_conditional_split_to_args(inputs, kwargs)
 
         self._inputs = inputs
 

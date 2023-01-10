@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ from nvidia.dali.backend_impl.types import DALIDataType, DALIImageType, DALIInte
 
 # TODO: Handle forwarding imports from backend_impl
 from nvidia.dali.backend_impl.types import *        # noqa: F401, F403
+
+from nvidia.dali import _conditionals
 
 try:
     from nvidia.dali import tfrecord as tfrec
@@ -533,7 +535,14 @@ def ConstantNode(device, value, dtype, shape, layout, **kwargs):
                       dtype=dtype,
                       layout=layout,
                       **constructor_args)
-    return op(**call_args)
+    from nvidia.dali._debug_mode import _PipelineDebug
+    current_pipeline = _PipelineDebug.current()
+    conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
+    result = op(**call_args)
+    if conditionals_enabled:
+        # No inputs to constant op
+        _conditionals.register_data_nodes(result, [])
+    return result
 
 
 def _is_scalar_value(value):

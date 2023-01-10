@@ -86,6 +86,7 @@ def generic_execute(function, input_gen_list, optional_params=None):
 
     pipe = pipeline_definition(*es_inputs, **kwargs)
     pipe.build()
+    pipe.save_graph_to_dot_file("cond.dot", True, True, True)
 
     for iter in range(iters):
         batches = [gen_batch(gen, bs, iter) for gen in input_gen_list]
