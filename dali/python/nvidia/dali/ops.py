@@ -1323,8 +1323,8 @@ def _arithm_op(name, *inputs):
     from nvidia.dali import _conditionals
     current_pipeline = _PipelineDebug.current()
     conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
-    if conditionals_enabled:
-        inputs, _ = _conditionals.apply_conditional_split_to_args(inputs, {})
+    # if conditionals_enabled:
+    #     inputs, _ = _conditionals.apply_conditional_split_to_args(inputs, {})
     categories_idxs, edges, integers, reals = _group_inputs(inputs)
     input_desc = _generate_input_desc(categories_idxs, integers, reals)
     expression_desc = "{}({})".format(name, input_desc)

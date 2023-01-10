@@ -95,9 +95,9 @@ class _StackEntry:
     def has(self, data_node):
         """Check if this DataNode was either produced in this scope or already split for this scope.
         """
-        if data_node in self.produced:
+        if hash(data_node) in self.produced:
             return True
-        elif data_node in self.splits:
+        elif hash(data_node) in self.splits:
             return True
         else:
             return False
@@ -107,11 +107,11 @@ class _StackEntry:
         that was created for accessing the `data_node` in this scope.
         """
         assert self.has(data_node)
-        if data_node in self.produced:
+        if hash(data_node) in self.produced:
             return data_node
         else:
             assert self.branch in {_Branch.TrueBranch, _Branch.FalseBranch}
-            return self.splits[data_node][self.branch.value]
+            return self.splits[hash(data_node)][self.branch.value]
 
 
 class _ConditionStack:
@@ -214,11 +214,11 @@ class _ConditionStack:
 
             # Record the result of splitting the `data_node` that we are trying to look up
             # (short-cut for consecutive lookups)
-            current_entry.splits[data_node] = (true, false)
+            current_entry.splits[hash(data_node)] = (true, false)
             # Record the direct preceding node as the producer:
-            current_entry.splits[produced_data_node] = (true, false)
-            current_entry.produced_true |= {true}
-            current_entry.produced_false |= {false}
+            current_entry.splits[hash(produced_data_node)] = (true, false)
+            current_entry.produced_true |= {hash(true)}
+            current_entry.produced_false |= {hash(false)}
             produced_data_node = true if current_entry.branch == _Branch.TrueBranch else false
             self._stack.append(current_entry)
         return produced_data_node
@@ -246,9 +246,9 @@ class _ConditionStack:
         logging.log(8, (f"{_indent()}[IF/Register] {data_node} at {self.stack_depth() -1}"))
         scope = self._stack[0] if global_scope else self.top()
         if isinstance(data_node, _DataNode):
-            scope.produced |= {data_node}
+            scope.produced |= {hash(data_node)}
         else:
-            scope.produced |= set(data_node)
+            scope.produced |= set(hash(dn) for dn in data_node)
 
     def track_true_branch(self):
         """Mark `if` (true) branch as current scope."""
@@ -270,7 +270,7 @@ class _ConditionStack:
         We don't care about removing it as it's the last thing happening in that statement.
         """
         self.no_branch()
-        self.top().produced |= {split_predicate}
+        self.top().produced |= {hash(split_predicate)}
 
 
 _CONDITION_STACK = _ConditionStack()
