@@ -104,7 +104,7 @@ class _StackEntry:
                 self.add_produced(flat_list)
         else:
             raise ValueError(f"Unexpected operator result to register: {data_node}. Expected up to"
-                              " two-level nesting of DataNode.")
+                             " two-level nesting of DataNode.")
 
     def add_split(self, source_data_node, producer_node, true_node, false_node):
         """Register the outputs of split node that were produced from the source_data_node
@@ -244,6 +244,9 @@ class _ConditionStack:
 
             # Do not automatically register the outputs in the current scope, we track them below
             # in their respective branches.
+            logging.log(9, (f"{self._indent()}[IF] Inserting split"
+                            f" at {self.stack_depth() -1}:"
+                            f" split({produced_data_node}, predicate={predicate}."))
             self._is_registration_allowed = False
             true, false = fn._conditional.split(produced_data_node, predicate=predicate)
             self._is_registration_allowed = True
@@ -261,6 +264,8 @@ class _ConditionStack:
         conditions. Caches the previously processed DataNodes to not do repeated splitting.
         """
         stack_level = self._find_closest(data_node)
+        logging.log(8, (f"{self._indent()}[IF/Input] {data_node} accessed at level"
+                        f" {self.stack_depth() - 1} found at {stack_level}."))
         # We already have it cached or produced in this scope.
         if stack_level == self.stack_depth() - 1:
             return self.top().get(data_node)
@@ -273,6 +278,7 @@ class _ConditionStack:
         """
         if not self._is_registration_allowed:
             return
+        logging.log(8, (f"{self._indent()}[IF/Register] {data_node} at {self.stack_depth() -1}"))
         scope = self._stack[0] if global_scope else self.top()
         scope.add_produced(data_node)
 
@@ -298,10 +304,16 @@ class _ConditionStack:
         self.no_branch()
         self.top().add_produced(split_predicate)
 
+    def _indent(self):
+        """Helper for indenting the log messages to resemble visited scopes"""
+        return '  ' * (self.stack_depth() - 1)
+
 
 @contextmanager
 def _cond_manager(predicate):
     actual_predicate = this_condition_stack().push_predicate(predicate)
+    logging.log(7, (f"{this_condition_stack()._indent()}[IF]: {predicate}"
+                    f" at {this_condition_stack().stack_depth() - 1}"))
     # Return it so we can use it in merge
     yield actual_predicate
     this_condition_stack().pop()
@@ -310,6 +322,8 @@ def _cond_manager(predicate):
 @contextmanager
 def _cond_true():
     this_condition_stack().track_true_branch()
+    logging.log(7, (f"{this_condition_stack()._indent()}[IF]: `if` branch"
+                    f" at {this_condition_stack().stack_depth() - 1}"))
     yield
     this_condition_stack().no_branch()
 
@@ -317,6 +331,8 @@ def _cond_true():
 @contextmanager
 def _cond_false():
     this_condition_stack().track_false_branch()
+    logging.log(7, (f"{this_condition_stack()._indent()}[IF]: `else` branch"
+                    f" at {this_condition_stack().stack_depth() - 1}"))
     yield
     this_condition_stack().no_branch()
 
@@ -367,6 +383,7 @@ def register_data_nodes(data_node, inputs=[]):
     # within that scope.
     this_condition_stack().register_data_nodes(data_node, global_scope=not any_input)
 
+
 def apply_conditional_split(input):
     """Preprocess the DataNode to obtain correctly split batch for the current if scope."""
     return this_condition_stack().preprocess_input(input)
@@ -400,6 +417,7 @@ def apply_conditional_split_to_branch_outputs(branch_outputs, promote_constants=
             inputs_bkp[i] = apply_conditional_split(constant_node)
     return tuple(inputs_bkp)
 
+
 def apply_conditional_split_to_args(inputs, kwargs):
     """Preprocess the inputs and kwargs of the operator to obtain correctly split inputs for the
     current if scope."""
@@ -422,6 +440,7 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
         if isinstance(output, variables.UndefinedReturnValue):
             raise ValueError(f"{common_explanation} The `{branch_name}` branch must also have"
                              " a return statement.")
+
 
 class DaliOperatorOverload(_autograph.OperatorBase):
 
@@ -450,7 +469,6 @@ class DaliOperatorOverload(_autograph.OperatorBase):
                 body_outputs = body_state[:nouts]
                 body_outputs = apply_conditional_split_to_branch_outputs(body_outputs)
 
-
             # Do the same for else block.
             set_state(init_state)
             with _cond_false():
@@ -468,6 +486,10 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # can see those values produced in child scopes.
             with _cond_merge(split_predicate):
                 for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
+                    logging.log(9, (f"{this_condition_stack()._indent()}[IF] Inserting merge"
+                                    f" at {this_condition_stack().stack_depth() -1}:"
+                                    f" merge({new_body_val}, {new_orelse_val}, predicate="
+                                    f"{split_predicate}."))
                     merged = fn._conditional.merge(new_body_val, new_orelse_val,
                                                    predicate=split_predicate)
                     output_values.append(merged)

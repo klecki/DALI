@@ -22,9 +22,11 @@ from nvidia.dali import _conditionals
 from nvidia.dali.data_node import DataNode
 
 import numpy as np
+import os
 
-from test_utils import check_batch, RandomlyShapedDataIterator
+from test_utils import check_batch, compare_pipelines
 from nose_utils import assert_raises
+from test_utils import get_dali_extra_path
 from nose2.tools import params
 
 import itertools
@@ -256,7 +258,7 @@ def test_local_remains_local(num_gen):
 
     def f(n):
         if n > 0:
-            b = 4
+            b = np.int32(4)
             n = b + 1
         return n
 
@@ -283,7 +285,7 @@ def test_no_outputs(num_gen):
 
     def f(n):
         if n > 0:
-            b = 4  # pylint:disable=unused-variable # noqa: F841
+            b = np.int32(4)  # pylint:disable=unused-variable # noqa: F841
         return n
 
     generic_execute(f, [num_gen])
@@ -437,6 +439,98 @@ def test_nested_with_assignment(dev, input, pred_0, pred_1):
         return output
 
     generic_execute(f, [input, pred_0, pred_1], [{"device": dev}, {}, {}])
+
+
+@params(*itertools.product(["cpu", "gpu"], input_gens, num_gens))
+def test_multiple_nests(dev, input, num):
+
+    def f(input, num):
+        if num == -2:
+            if num == -1:
+                if num == 0:
+                    if num == 1:
+                        if num == 2:
+                            if num > 3:
+                                output = input - 100
+                            else:
+                                output = input + 100
+                        else:
+                            output = input - 200
+                    else:
+                        output = input + 400
+                else:
+                    output = input - 800
+            else:
+                output = input + 1600
+        else:
+            output = input - 3200
+        return output
+
+    generic_execute(f, [input, num], [{"device": dev}, {}])
+
+
+
+# Compare pure Split/Merge with if
+def test_against_split_merge():
+    test_data_root = get_dali_extra_path()
+    caffe_db_folder = os.path.join(test_data_root, 'db', 'lmdb')
+
+    bs = 10
+    iters = 5
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+        "seed": 42
+    }
+
+    @pipeline_def(**kwargs)
+    def regular_pipe():
+        encoded, label = fn.readers.caffe(path=caffe_db_folder)
+        decoded = fn.decoders.image(encoded, device="mixed")
+        pred = fn.random.coin_flip(dtype=types.DALIDataType.BOOL)
+        true, false = fn._conditional.split(decoded, predicate=pred)
+        output_true = fn.rotate(true, angle=30)
+        output_false = fn.flip(false, horizontal=True)
+        return fn._conditional.merge(output_true, output_false, predicate=pred)
+
+    @experimental.pipeline_def(enable_conditionals=True, **kwargs)
+    def conditional_pipe():
+        encoded, label = fn.readers.caffe(path=caffe_db_folder)
+        decoded = fn.decoders.image(encoded, device="mixed")
+        pred = fn.random.coin_flip(dtype=types.DALIDataType.BOOL)
+        if pred:
+            output = fn.rotate(decoded, angle=30)
+        else:
+            output = fn.flip(decoded, horizontal=True)
+        return output
+
+    pipes = [regular_pipe(), conditional_pipe()]
+    for pipe in pipes:
+        pipe.build()
+    pipes[0].save_graph_to_dot_file("regular.dot", True, True, True)
+    pipes[1].save_graph_to_dot_file("cond.dot", True, True, True)
+    compare_pipelines(*pipes, bs, iters)
+
+
+
+# Unified return
+
+
+
+# Generator tests
+
+
+# External Source within pipeline
+
+
+
+
+
+# Mismatched branches test (uninitialized values)
+
+
+
 
 
 def cond_nested(input, pred_0, pred_1):
