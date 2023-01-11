@@ -94,8 +94,15 @@ class _StackEntry:
         """Add the DataNode or DataNodes to produced in the scope of currently selected branch."""
         if isinstance(data_node, _DataNode):
             self.produced |= {hash(data_node)}
+        elif isinstance(data_node, list):
+            if isinstance(data_node[0], _DataNode):
+                self.produced |= set(hash(dn) for dn in data_node)
+            elif isinstance(data_node[0], list):
+                flat_list = [item for sublist in data_node for item in sublist]
+                self.add_produced(flat_list)
         else:
-            self.produced |= set(hash(dn) for dn in data_node)
+            raise ValueError(f"Unexpected operator result to register: {data_node}. Expected up to"
+                              " two-level nesting of DataNode.")
 
     def add_split(self, source_data_node, producer_node, true_node, false_node):
         """Register the outputs of split node that were produced from the source_data_node
@@ -336,6 +343,15 @@ def _cond_merge(split_predicate):
     _CONDITION_STACK.no_branch()
 
 
+def conditionals_enabled():
+    """Check (within a Pipeline context) if the conditionals are enabled.
+    """
+    from nvidia.dali._debug_mode import _PipelineDebug
+    current_pipeline = _PipelineDebug.current()
+    enabled = getattr(current_pipeline, '_conditionals_enabled', False)
+    return enabled
+
+
 def register_data_nodes(data_node, inputs=[]):
     """Register the outputs of the operator as produced in the scope of the current conditional
     branch.
@@ -362,16 +378,31 @@ def apply_conditional_split(input):
 
 
 def apply_conditional_split_to_branch_outputs(branch_outputs, promote_constants=True):
+    """Apply splitting to the branch outputs. This may be necessary for DataNodes that are
+    branch outputs but were not touched in that branch (for example that branch is no-op).
+
+    Parameters
+    ----------
+    branch_outputs : tuple of DataNode
+        Outputs of the branch
+    promote_constants : bool, optional
+        Whether to promote constants to cpu-based Constant op, by default True
+
+    Returns
+    -------
+    tuple of DataNode
+    """
     from nvidia.dali.types import Constant
     inputs_bkp = list(branch_outputs)
     for i, input in enumerate(branch_outputs):
         if isinstance(input, _DataNode):
             inputs_bkp[i] = apply_conditional_split(input)
         elif promote_constants:
-            constant_node = Constant(input, device="cpu")  # TODO(klecki): we guess that it's ok to use cpu here
+            # We assume that any return from the branch must be merged, so constants are promoted
+            # to batches using constant op, and thus can be used in merge.
+            constant_node = Constant(input, device="cpu")
             register_data_nodes(constant_node)
             inputs_bkp[i] = apply_conditional_split(constant_node)
-            # TODO(klecki): no handling for ScalarConstants
     return tuple(inputs_bkp)
 
 def apply_conditional_split_to_args(inputs, kwargs):
@@ -414,15 +445,14 @@ class DaliOperatorOverload(_autograph.OperatorBase):
         init_state = get_state()
         with _cond_manager(cond) as split_predicate:
             # Set the state for the body inputs, execute the body and collect the outputs.
-            # Verify if all outputs are initialized within the branch.
+            # Verify if all outputs are initialized within the branch, split the outputs if they
+            # were just passed through, so they can be merged with the other branch.
             with _cond_true():
                 body()
 
                 body_state = get_state()
                 _verify_branch_outputs(body_state, symbol_names, "if")
                 body_outputs = body_state[:nouts]
-                # no splitting will happen if the branch is empty, we need to do it manually
-                # for the outputs.
                 body_outputs = apply_conditional_split_to_branch_outputs(body_outputs)
 
 
@@ -434,7 +464,6 @@ class DaliOperatorOverload(_autograph.OperatorBase):
                 orelse_state = get_state()
                 _verify_branch_outputs(orelse_state, symbol_names, "else")
                 orelse_outputs = orelse_state[:nouts]
-                # Same here, this should allow to handle if without else branch.
                 orelse_outputs = apply_conditional_split_to_branch_outputs(orelse_outputs)
 
             # Build the state that is the combination of both branches. Only the actual outputs

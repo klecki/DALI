@@ -535,14 +535,7 @@ def ConstantNode(device, value, dtype, shape, layout, **kwargs):
                       dtype=dtype,
                       layout=layout,
                       **constructor_args)
-    from nvidia.dali._debug_mode import _PipelineDebug
-    current_pipeline = _PipelineDebug.current()
-    conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
-    result = op(**call_args)
-    if conditionals_enabled:
-        # No inputs to constant op
-        _conditionals.register_data_nodes(result, [])
-    return result
+    return op(**call_args)
 
 
 def _is_scalar_value(value):

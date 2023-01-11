@@ -419,10 +419,7 @@ class _OperatorInstance(object):
                     inputs[i] = _instantiate_constant_node(default_input_device, inp)
             inputs = tuple(inputs)
 
-        from nvidia.dali._debug_mode import _PipelineDebug
-        current_pipeline = _PipelineDebug.current()
-        conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
-        if conditionals_enabled:
+        if _conditionals.conditionals_enabled():
             inputs, kwargs = _conditionals.apply_conditional_split_to_args(inputs, kwargs)
 
         self._inputs = inputs
@@ -663,11 +660,16 @@ def python_op_factory(name, schema_name=None):
 
             # If we don't have multiple input sets, flatten the result
             if len(op_instances) == 1:
-                return op_instances[0].unwrapped_outputs
-            outputs = []
-            for op in op_instances:
-                outputs.append(op.outputs)
-            return self._repack_output_sets(outputs)
+                result = op_instances[0].unwrapped_outputs
+            else:
+                outputs = []
+                for op in op_instances:
+                    outputs.append(op.outputs)
+                result = self._repack_output_sets(outputs)
+            if _conditionals.conditionals_enabled():
+                # Take any input set
+                _conditionals.register_data_nodes(result, input_sets[0])
+            return result
 
         # Check if any of inputs is a list
         def _detect_multiple_input_sets(self, inputs):
@@ -1318,13 +1320,6 @@ def _arithm_op(name, *inputs):
     Create arguments for ArithmeticGenericOp and call it with supplied inputs.
     Select the `gpu` device if at least one of the inputs is `gpu`, otherwise `cpu`.
     """
-
-    from nvidia.dali._debug_mode import _PipelineDebug
-    from nvidia.dali import _conditionals
-    current_pipeline = _PipelineDebug.current()
-    conditionals_enabled = getattr(current_pipeline, '_conditionals_enabled', False)
-    # if conditionals_enabled:
-    #     inputs, _ = _conditionals.apply_conditional_split_to_args(inputs, {})
     categories_idxs, edges, integers, reals = _group_inputs(inputs)
     input_desc = _generate_input_desc(categories_idxs, integers, reals)
     expression_desc = "{}({})".format(name, input_desc)
@@ -1343,7 +1338,7 @@ def _arithm_op(name, *inputs):
 
     # Call it immediately
     result = op(*dev_inputs)
-    if conditionals_enabled:
+    if _conditionals.conditionals_enabled():
         _conditionals.register_data_nodes(result, dev_inputs)
     return result
 
