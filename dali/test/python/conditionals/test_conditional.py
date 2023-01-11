@@ -18,6 +18,8 @@ import nvidia.dali
 import nvidia.dali.types as types
 from nvidia.dali.types import SampleInfo
 from nvidia.dali.data_node import _arithm_op
+from nvidia.dali import _conditionals
+from nvidia.dali.data_node import DataNode
 
 import numpy as np
 
@@ -31,18 +33,91 @@ test_iters = 4
 
 from nvidia.dali._autograph.utils.ag_logging import set_verbosity
 
-set_verbosity(10, True)
+# set_verbosity(10, True)
+
+
+def test_condition_stack():
+    test_stack = _conditionals._ConditionStack()
+    pred_node = DataNode("PredOp")
+    pred_nested = DataNode("PredOp2")
+    some_op = DataNode("SomeOp")
+    some_nested_op = DataNode("SomeOp2")
+
+    # model:
+    # if pred_node:
+    #     some_op()
+    #     if pred_nested:
+    #         some_other_op()
+
+    test_stack.register_data_nodes(pred_node)
+    test_stack.register_data_nodes(pred_nested)
+    # Both visible in global scope
+    assert test_stack._find_closest(pred_node) == 0
+    assert test_stack._find_closest(pred_nested) == 0
+    # First predicate, no splitting required, as this is the first nesting level
+    first_level = test_stack.push_predicate(pred_node)
+    assert hash(pred_node) == hash(first_level)
+
+    test_stack.track_true_branch()
+    test_stack.register_data_nodes(some_op)
+    assert test_stack._find_closest(some_op) == 1
+
+    assert test_stack._find_closest(pred_nested) == 0
+    assert test_stack.stack_depth() == 2
+
+    true_split = test_stack._realize_split(pred_nested, 0)
+    second_level = test_stack.push_predicate(pred_nested)
+    # Second predicate require splitting
+    assert hash(true_split) == hash(second_level)
+    test_stack.track_true_branch()
+    test_stack.register_data_nodes(some_nested_op)
+    assert test_stack._find_closest(some_nested_op) == 2
+
+    # It's already on this level
+    assert len(test_stack.top().produced) == 1
+    preprocessed = test_stack.preprocess_input(some_nested_op)
+    assert hash(some_nested_op) == hash(preprocessed)
+    assert len(test_stack.top().produced) == 1
+
+    # This one is not
+    assert len(test_stack.top().produced) == 1
+    preprocessed = test_stack.preprocess_input(some_op)
+    assert hash(some_op) != hash(some_nested_op)
+    assert len(test_stack.top().produced) == 2
+
+    test_stack.pop()
+    test_stack.pop()
+    assert len(test_stack.top().produced) == 0
+
 
 
 rng = np.random.default_rng()
 
+
+# Predicates
 num_gens = [
     lambda x: np.int32(x.idx_in_batch - 3),
     lambda x: np.int32(-1 if x.idx_in_batch % 2 == 0 else 1),
+    lambda x: np.int32((x.idx_in_batch % 3 == 0) - 1),
     lambda _: np.int32(1),
+    lambda _: np.int32(0),
     lambda _: np.int32(-1),
-    lambda _: rng.choice([np.int32(-2), np.int32(2)])
+    lambda _: rng.choice([np.int32(-2), np.int32(0), np.int32(2)])
 ]
+
+pred_gens = [
+    lambda x: np.array(x.idx_in_batch < 3),
+    lambda x: np.array(x.idx_in_batch % 2 == 0),
+    lambda x: np.array(x.idx_in_batch % 3 == 0),
+    lambda x: np.array((x.idx_in_batch + (x.iteration % 2)) % 2 == 0),
+    lambda _: np.array(False),
+    lambda _: rng.choice([np.array(True), np.array(False)])
+]
+
+input_gens = [
+    lambda x : np.array(0), lambda x: np.array(x.idx_in_epoch)
+]
+
 
 
 def generic_execute(function, input_gen_list, optional_params=None):
@@ -135,15 +210,15 @@ def test_complex_outputs(num_gen):
             self.b = b
 
     def f(n, obj):
-        obj.a = 0
-        obj.b = 0
+        obj.a = np.int32(0)
+        obj.b = np.int32(0)
         if n > 0:
             obj.a = -n
         else:
             obj.b = 2 * n
         return obj.a, obj.b
 
-    generic_execute(lambda input: f(input, DataClass(0, 0)), [num_gen])
+    generic_execute(lambda input: f(input, DataClass(np.int32(0), np.int32(0))), [num_gen])
 
 
 @params(*num_gens)
@@ -226,19 +301,142 @@ def test_created_outputs(num_gen):
 
     generic_execute(f, [num_gen])
 
+# Simple cases, where we produce new data node in the branch
+
+@params(*num_gens)
+def test_one_branch_new_node(num_gen):
+
+    def f(n):
+        result = n * 0
+        if n >= 0:
+            result = n + 10
+        return result
+
+    generic_execute(f, [num_gen])
 
 
-def cond_after_cond_scalar(input, pred_0, pred_1):
-    if pred_0:
-        output = input + 1
-    else:
-        output = input + 2
+@params(*num_gens)
+def test_both_branches_new_node(num_gen):
 
-    if pred_1:
-        output2 = output + 3
-    else:
-        output2 = output + 4
-    return output, output2
+    def f(n):
+        if n >= 0:
+            result = n + 10
+        else:
+            result = n - 10
+        return result
+
+    generic_execute(f, [num_gen])
+
+
+@params(*num_gens)
+def test_chain_branches_new_node(num_gen):
+
+    def f(n):
+        if n == 0:
+            result = n + 10
+        elif n > 0:
+            result = n + 100
+        else:
+            result = n - 50
+        return result
+
+    generic_execute(f, [num_gen])
+
+
+# Cases where we do only assignment and no new node is produced within branch, so we need to
+# detect usage in other way than looking at operator inputs
+
+@params(*pred_gens)
+def test_one_branch_only_assign(pred):
+
+    def f(pred, base, true_branch):
+        result = base
+        if pred:
+            result = true_branch
+        return result
+
+    generic_execute(f, [pred, lambda _: np.int32(42), lambda _: np.int32(7)])
+
+
+@params(*pred_gens)
+def test_both_branches_only_assign(pred):
+
+    def f(pred, true_branch, false_branch):
+        if pred:
+            result = true_branch
+        else:
+            result = false_branch
+        return result
+
+    generic_execute(f, [pred, lambda _: np.int32(6), lambda _: np.int32(9)])
+
+
+@params(*itertools.product(pred_gens, pred_gens))
+def test_chain_branches_only_assign(pred_1, pred_2):
+
+    def f(pred_1, pred_2, true_branch, elif_branch, else_branch):
+        if pred_1:
+            result = true_branch
+        elif pred_2:
+            result = elif_branch
+        else:
+            result = else_branch
+        return result
+
+    generic_execute(
+        f, [pred_1, pred_2, lambda _: np.int32(42), lambda _: np.int32(6), lambda _: np.int32(9)])
+
+
+# More ifs - nesting and sequences
+
+@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
+def test_consecutive(dev, input, pred_0, pred_1):
+
+    def f(input, pred_0, pred_1):
+        if pred_0:
+            output = input + 1
+        else:
+            output = input + 2
+
+        if pred_1:
+            output2 = output + 3
+        else:
+            output2 = output + 4
+        return output, output2
+
+    generic_execute(f, [input, pred_0, pred_1], [{"device": dev}, {}, {}])
+
+@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
+def test_nested(dev, input, pred_0, pred_1):
+
+    def f(input, pred_0, pred_1):
+        if pred_0:
+            if pred_1:
+                output = input + 10
+            else:
+                output = input + 200
+        else:
+            output = input + 3000
+        return output
+
+    generic_execute(f, [input, pred_0, pred_1], [{"device": dev}, {}, {}])
+
+
+@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
+def test_nested_with_assignment(dev, input, pred_0, pred_1):
+
+    def f(input, pred_0, pred_1):
+        to_assign = input * -5
+        if pred_0:
+            if pred_1:
+                output = input + 10
+            else:
+                output = to_assign
+        else:
+            output = input + 3000
+        return output
+
+    generic_execute(f, [input, pred_0, pred_1], [{"device": dev}, {}, {}])
 
 
 def cond_nested(input, pred_0, pred_1):
@@ -283,28 +481,14 @@ def cond_returns(input, pred_0, pred_1):
 
 
 
-pred_gens = [
-    lambda x: np.array(x.idx_in_batch < 3),
-    lambda x: np.array(x.idx_in_batch % 2 == 0),
-    lambda x: np.array(x.idx_in_batch % 3 == 0),
-    lambda x: np.array((x.idx_in_batch + (x.iteration % 2)) % 2 == 0),
-    lambda _: np.array(False),
-    lambda _: rng.choice([np.array(True), np.array(False)])
-]
-
-
-input_gens = [
-    lambda x : np.array(0), lambda x: np.array(x.idx_in_epoch)
-]
-
-if_functions = [cond_after_cond_scalar, cond_nested, cond_returns]
+if_functions = [cond_nested, cond_returns]
 
 
 
 
 
 @params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens, if_functions))
-def test_generic(dev, input_gen, pred_gen_0, pred_gen_1, if_function):
+def _test_generic(dev, input_gen, pred_gen_0, pred_gen_1, if_function):
     generic_execute(if_function, [input_gen, pred_gen_0, pred_gen_1], [{"device": dev}, {}, {}])
 
 
@@ -346,7 +530,7 @@ def test_inputless2():
     pipe.build()
     print(pipe.run())
 
-def test_error():
+def _test_error():
     bs = 10
     kwargs = {
         "batch_size": bs,

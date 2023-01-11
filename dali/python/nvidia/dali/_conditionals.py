@@ -95,6 +95,8 @@ class _StackEntry:
         if isinstance(data_node, _DataNode):
             self.produced |= {hash(data_node)}
         elif isinstance(data_node, list):
+            if not data_node:
+                return
             if isinstance(data_node[0], _DataNode):
                 self.produced |= set(hash(dn) for dn in data_node)
             elif isinstance(data_node[0], list):
@@ -187,7 +189,7 @@ class _ConditionStack:
         DataNode
             Actual predicate after applying necessary slices to use it in this scope.
         """
-        new_pred = _CONDITION_STACK.preprocess_input(predicate)
+        new_pred = self.preprocess_input(predicate)
         new_entry = _StackEntry(new_pred)
         self._stack.append(new_entry)
         return new_pred
