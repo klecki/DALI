@@ -29,12 +29,6 @@ from nose2.tools import params
 
 import itertools
 
-test_iters = 4
-
-from nvidia.dali._autograph.utils.ag_logging import set_verbosity
-
-# set_verbosity(10, True)
-
 
 def test_condition_stack():
     test_stack = _conditionals._ConditionStack()
@@ -90,34 +84,25 @@ def test_condition_stack():
     assert len(test_stack.top().produced) == 2
 
 
-
 rng = np.random.default_rng()
-
 
 # Predicates
 num_gens = [
-    lambda x: np.int32(x.idx_in_batch - 3),
-    lambda x: np.int32(-1 if x.idx_in_batch % 2 == 0 else 1),
-    lambda x: np.int32((x.idx_in_batch % 3 == 0) - 1),
-    lambda _: np.int32(1),
-    lambda _: np.int32(0),
+    lambda x: np.int32(x.idx_in_batch - 3), lambda x: np.int32(-1
+                                                               if x.idx_in_batch % 2 == 0 else 1),
+    lambda x: np.int32((x.idx_in_batch % 3 == 0) - 1), lambda _: np.int32(1), lambda _: np.int32(0),
     lambda _: np.int32(-1),
     lambda _: rng.choice([np.int32(-2), np.int32(0), np.int32(2)])
 ]
 
 pred_gens = [
-    lambda x: np.array(x.idx_in_batch < 3),
-    lambda x: np.array(x.idx_in_batch % 2 == 0),
-    lambda x: np.array(x.idx_in_batch % 3 == 0),
-    lambda x: np.array((x.idx_in_batch + (x.iteration % 2)) % 2 == 0),
-    lambda _: np.array(False),
+    lambda x: np.array(x.idx_in_batch < 3), lambda x: np.array(x.idx_in_batch % 2 == 0),
+    lambda x: np.array(x.idx_in_batch % 3 == 0), lambda x: np.array(
+        (x.idx_in_batch + (x.iteration % 2)) % 2 == 0), lambda _: np.array(False),
     lambda _: rng.choice([np.array(True), np.array(False)])
 ]
 
-input_gens = [
-    lambda x : np.array(0), lambda x: np.array(x.idx_in_epoch)
-]
-
+input_gens = [lambda x: np.array(0), lambda x: np.array(x.idx_in_epoch)]
 
 
 def generic_execute(function, input_gen_list, optional_params=None):
@@ -153,9 +138,12 @@ def generic_execute(function, input_gen_list, optional_params=None):
     }
 
     # Prepare external source nodes with placeholder names, convert
-    es_inputs = [fn.external_source(name=f"input_{i}", **params) for i, params in enumerate(optional_params)]
+    es_inputs = [
+        fn.external_source(name=f"input_{i}", **params) for i, params in enumerate(optional_params)
+    ]
 
     pipeline_definition = experimental.pipeline_def(enable_conditionals=True)(function)
+
     def gen_batch(generator, bs, iter):
         return [generator(SampleInfo(bs * iter + i, i, iter, 0)) for i in range(bs)]
 
@@ -188,8 +176,10 @@ def generic_execute(function, input_gen_list, optional_params=None):
 
 # Tests below are ported from dali/test/python/autograph/converters/test_control_flow.py
 
+
 @params(*num_gens)
 def test_basic(num_gen):
+
     def f(n):
         a = np.int32(0)
         b = np.int32(0)
@@ -201,9 +191,12 @@ def test_basic(num_gen):
 
     generic_execute(f, [num_gen])
 
+
 @params(*num_gens)
 def test_complex_outputs(num_gen):
+
     class DataClass(object):
+
         def __init__(self, a, b):
             self.a = a
             self.b = b
@@ -222,6 +215,7 @@ def test_complex_outputs(num_gen):
 
 @params(*num_gens)
 def test_single_output(num_gen):
+
     def f(n):
         if n > 0:
             n = -n
@@ -229,8 +223,10 @@ def test_single_output(num_gen):
 
     generic_execute(f, [num_gen])
 
+
 @params(*num_gens)
 def test_unbalanced(num_gen):
+
     def f(n):
         if n > 0:
             n = np.int32(3)
@@ -241,6 +237,7 @@ def test_unbalanced(num_gen):
 
 @params(*num_gens)
 def test_local_var(num_gen):
+
     def f(n):
         if n > 0:
             b = np.int32(4)
@@ -261,21 +258,6 @@ def test_local_remains_local(num_gen):
 
     generic_execute(f, [num_gen])
 
-@params(*num_gens)
-def test_global_local(num_gen):
-    pass
-    # def f(n):
-    #     if n > 0:
-    #         global for_test_global_local
-    #         if for_test_global_local is None:
-    #             for_test_global_local = 1
-    #         else:
-    #             for_test_global_local += 1
-    #             n += for_test_global_local
-    #     return n
-
-
-    # generic_execute(f, [num_gen])
 
 @params(*num_gens)
 def test_no_outputs(num_gen):
@@ -300,7 +282,9 @@ def test_created_outputs(num_gen):
 
     generic_execute(f, [num_gen])
 
+
 # Simple cases, where we produce new data node in the branch
+
 
 @params(*num_gens)
 def test_one_branch_new_node(num_gen):
@@ -345,6 +329,7 @@ def test_chain_branches_new_node(num_gen):
 # Cases where we do only assignment and no new node is produced within branch, so we need to
 # detect usage in other way than looking at operator inputs
 
+
 @params(*pred_gens)
 def test_one_branch_only_assign(pred):
 
@@ -388,6 +373,7 @@ def test_chain_branches_only_assign(pred_1, pred_2):
 
 # More ifs - nesting and sequences
 
+
 @params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
 def test_consecutive(dev, input, pred_0, pred_1):
 
@@ -404,6 +390,7 @@ def test_consecutive(dev, input, pred_0, pred_1):
         return output, output2
 
     generic_execute(f, [input, pred_0, pred_1], [{"device": dev}, {}, {}])
+
 
 @params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens))
 def test_nested(dev, input, pred_0, pred_1):
@@ -466,20 +453,14 @@ def test_multiple_nests(dev, input, num):
     generic_execute(f, [input, num], [{"device": dev}, {}])
 
 
-
-# Compare pure Split/Merge with if
+# Compare pure Split/Merge operators with if statement
 def test_against_split_merge():
     test_data_root = get_dali_extra_path()
     caffe_db_folder = os.path.join(test_data_root, 'db', 'lmdb')
 
     bs = 10
     iters = 5
-    kwargs = {
-        "batch_size": bs,
-        "num_threads": 4,
-        "device_id": 0,
-        "seed": 42
-    }
+    kwargs = {"batch_size": bs, "num_threads": 4, "device_id": 0, "seed": 42}
 
     @pipeline_def(**kwargs)
     def regular_pipe():
@@ -508,10 +489,10 @@ def test_against_split_merge():
     compare_pipelines(*pipes, bs, iters)
 
 
-# Unified return - TODO(klecki)
-
+# Unified return tests - TODO(klecki)
 
 # Generator tests, remove the random predicate to test the same predicate in both pipelines.
+
 
 @params(*(pred_gens[:-1]))
 def test_generators(pred):
@@ -520,12 +501,7 @@ def test_generators(pred):
 
     bs = 10
     iters = 5
-    kwargs = {
-        "batch_size": bs,
-        "num_threads": 4,
-        "device_id": 0,
-        "seed": 42
-    }
+    kwargs = {"batch_size": bs, "num_threads": 4, "device_id": 0, "seed": 42}
 
     @pipeline_def(**kwargs)
     def baseline_pipe():
@@ -552,7 +528,6 @@ def test_generators(pred):
             rand_out = types.Constant(np.float32(0.), device="cpu")
         return encoded_out, rand_out
 
-
     pipes = [baseline_pipe(), conditional_pipe()]
     for pipe in pipes:
         pipe.build()
@@ -562,166 +537,37 @@ def test_generators(pred):
 # Mismatched branches test (uninitialized values)
 
 
-
-
-
-def cond_nested(input, pred_0, pred_1):
-    if pred_0:
-        if pred_1:
-            output = input + 1
-        else:
-            output = input + 2
-    else:
-        output = input + 3
-    return output
-
-def cond_nested_2(input, pred_0, pred_1):
-    if pred_0:
-        if pred_1:
-            output = input + 1
-        else:
-            output = input + 2
-    else:
-        if pred_1:
-            output = input + 4
-        elif pred_1 == 0:
-            output = input + 5
-    return output
-
-
-def cond_returns(input, pred_0, pred_1):
-    if pred_0 & pred_1:
-        return input + 2
-    else:
-        return input + 100
-
-# def cond_nested_expression(input, pred_0, pred_1):
-#     if pred_0:
-#         if pred_0 == :
-#             output = input + 1
-#         else:
-#             output = input + 2
-#     else:
-#         output = input + 3
-#     return output
-
-
-
-if_functions = [cond_nested, cond_returns]
-
-
-
-
-
-@params(*itertools.product(["cpu", "gpu"], input_gens, pred_gens, pred_gens, if_functions))
-def _test_generic(dev, input_gen, pred_gen_0, pred_gen_1, if_function):
-    generic_execute(if_function, [input_gen, pred_gen_0, pred_gen_1], [{"device": dev}, {}, {}])
-
-
-def test_inputless():
+def test_uninitialized():
     bs = 10
     kwargs = {
         "batch_size": bs,
         "num_threads": 4,
         "device_id": 0,
     }
-    @experimental.pipeline_def(enable_conditionals=True)
-    def inputless():
-        if fn.random.coin_flip() == 0:
-            output = fn.random.uniform()
-        else:
-            output = fn.random.uniform()
-        return output
-    pipe = inputless(**kwargs)
-    pipe.build()
-    print(pipe.run())
 
-
-def test_inputless2():
-    bs = 10
-    kwargs = {
-        "batch_size": bs,
-        "num_threads": 4,
-        "device_id": 0,
-    }
-    @experimental.pipeline_def(enable_conditionals=True)
-    def inputless():
-        input1 = fn.random.uniform()
-        if fn.random.coin_flip() == 0:
-            output = input1
-        else:
-            output = fn.random.uniform() + 10
-        return output
-    pipe = inputless(**kwargs)
-    pipe.build()
-    print(pipe.run())
-
-def _test_error():
-    bs = 10
-    kwargs = {
-        "batch_size": bs,
-        "num_threads": 4,
-        "device_id": 0,
-    }
-    @experimental.pipeline_def(enable_conditionals=True)
+    @experimental.pipeline_def(enable_conditionals=True, **kwargs)
     def one_branch():
-        # need to create them within the pipeline scope
-        input = fn.external_source(name="input")
-        pred_0 = fn.external_source(name="pred_0")
-        if pred_0:
-            output = input + 1
+        pred = fn.random.coin_flip(dtype=types.DALIDataType.BOOL)
+        if pred:
+            output = fn.random.uniform()
         return output
-    pipe = one_branch(**kwargs)
-    pipe.build()
 
-    # THIS DOESN'T WORK AS INTENDED
-    @experimental.pipeline_def(enable_conditionals=True)
+    with assert_raises(
+            RuntimeError, glob=("Encountered inconsistent outputs out of the `if/else` control flow"
+                                " statement. Variables need to be initialized in every code path"
+                                " (both `if` branches). Variable 'output' must also be initialized"
+                                " in the `else` branch.")):
+        one_branch()
+
+    @experimental.pipeline_def(enable_conditionals=True, **kwargs)
     def one_return():
-        # need to create them within the pipeline scope
-        input = fn.external_source(name="input")
-        pred_0 = fn.external_source(name="pred_0")
-        if pred_0:
-            output = input + 1
-            return output
-        else:
-            output =  input + 10
-        return input
-    pipe = one_return(**kwargs)
-    pipe.build()
+        pred = fn.random.coin_flip(dtype=types.DALIDataType.BOOL)
+        if pred:
+            return fn.random.uniform()
 
-
-# @pipeline_def
-# def conditional_split_merge_reinterpret_pipe(dtype, layout, shape):
-#     batch_size = Pipeline.current().max_batch_size
-#     input = fn.external_source(
-#         source=[[np.full((10, 10, 3), 42, dtype=np.int32) for _ in range(batch_size)]], cycle=True)
-#     pred = fn.external_source(
-#         source=[[np.array(i % 2 == 0, dtype=np.bool) for i in range(batch_size)]], cycle=True)
-#     true_branch, false_branch = fn._conditional.split(input, predicate=pred)
-#     false_changed = fn.reinterpret(false_branch, dtype=dtype, layout=layout, shape=shape)
-#     return fn._conditional.merge(true_branch, false_changed, predicate=pred)
-
-
-# def run_conditional_split_merge_reinterpret(dtype, layout, shape):
-#     bs = 10
-#     kwargs = {
-#         "batch_size": bs,
-#         "num_threads": 4,
-#         "device_id": 0,
-#         "prefetch_queue_depth": 1  # so that it's easier to use external source
-#     }
-#     pipe = conditional_split_merge_reinterpret_pipe(dtype, layout, shape, **kwargs)
-#     pipe.build()
-#     pipe.run()
-
-
-# @params((types.UINT32, None, None, "types*"),
-#         (None, "HWC", None, "layouts*"),
-#         (None, None, [10, -1], "sample dimensions*"))
-# def test_fail_conditional_split_merge(dtype, layout, shape, err_glob):
-#     base = ("Divergent data found in different branches of conditional operation. All paths in "
-#             "conditional operation are merged into one batch which must have consistent type, "
-#             "number of dimensions, layout and other metadata. Found distinct ")
-
-#     with assert_raises(RuntimeError, glob=base + err_glob):
-#         run_conditional_split_merge_reinterpret(dtype, layout, shape)
+    with assert_raises(
+            RuntimeError, glob=("Encountered inconsistent outputs out of the `if/else` control flow"
+                                " statement. Variables need to be initialized in every code path"
+                                " (both `if` branches). The `else` branch must also have a return"
+                                " statement.")):
+        one_return()

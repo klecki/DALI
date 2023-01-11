@@ -435,11 +435,11 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
         " Variables need to be initialized in every code path (both `if` branches).")
     for name, output in zip(symbol_names, outputs):
         if isinstance(output, variables.Undefined):
-            raise ValueError(f"{common_explanation} Variable '{name}' must also be initialized"
-                             f" in the `{branch_name}` branch.")
+            raise RuntimeError(f"{common_explanation} Variable '{name}' must also be initialized"
+                               f" in the `{branch_name}` branch.")
         if isinstance(output, variables.UndefinedReturnValue):
-            raise ValueError(f"{common_explanation} The `{branch_name}` branch must also have"
-                             " a return statement.")
+            raise RuntimeError(f"{common_explanation} The `{branch_name}` branch must also have"
+                                " a return statement.")
 
 
 class DaliOperatorOverload(_autograph.OperatorBase):
