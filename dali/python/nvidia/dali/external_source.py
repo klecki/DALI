@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -875,11 +875,9 @@ provided memory is copied to the internal buffer.
             source=source, num_outputs=num_outputs, cycle=cycle, name=name, device=device,
             layout=layout, batch=batch, **kwargs)
     else:
-        from nvidia.dali import _conditionals
         result = _external_source(source, num_outputs, cycle=cycle, name=name, device=device,
                                 layout=layout, dtype=dtype, ndim=ndim, cuda_stream=cuda_stream,
                                 use_copy_kernel=use_copy_kernel, batch=batch, **kwargs)
-        _conditionals.register_data_nodes(result)
         return result
 
 

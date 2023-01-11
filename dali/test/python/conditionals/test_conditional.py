@@ -87,7 +87,7 @@ def test_condition_stack():
 
     test_stack.pop()
     test_stack.pop()
-    assert len(test_stack.top().produced) == 0
+    assert len(test_stack.top().produced) == 2
 
 
 

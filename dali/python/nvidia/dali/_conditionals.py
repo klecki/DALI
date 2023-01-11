@@ -244,9 +244,6 @@ class _ConditionStack:
 
             # Do not automatically register the outputs in the current scope, we track them below
             # in their respective branches.
-            logging.log(9, (f"{_indent()}[IF] Inserting split"
-                            f" at {_CONDITION_STACK.stack_depth() -1}:"
-                            f" split({produced_data_node}, predicate={predicate}."))
             self._is_registration_allowed = False
             true, false = fn._conditional.split(produced_data_node, predicate=predicate)
             self._is_registration_allowed = True
@@ -264,8 +261,6 @@ class _ConditionStack:
         conditions. Caches the previously processed DataNodes to not do repeated splitting.
         """
         stack_level = self._find_closest(data_node)
-        logging.log(8, (f"{_indent()}[IF/Input] {data_node} accessed at level"
-                        f" {self.stack_depth() - 1} found at {stack_level}."))
         # We already have it cached or produced in this scope.
         if stack_level == self.stack_depth() - 1:
             return self.top().get(data_node)
@@ -278,7 +273,6 @@ class _ConditionStack:
         """
         if not self._is_registration_allowed:
             return
-        logging.log(8, (f"{_indent()}[IF/Register] {data_node} at {self.stack_depth() -1}"))
         scope = self._stack[0] if global_scope else self.top()
         scope.add_produced(data_node)
 
@@ -305,44 +299,33 @@ class _ConditionStack:
         self.top().add_produced(split_predicate)
 
 
-_CONDITION_STACK = _ConditionStack()
-
-
-def _indent():
-    """Helper for indenting the log messages to resemble visited scopes"""
-    return '  ' * (_CONDITION_STACK.stack_depth() - 1)
-
-
 @contextmanager
 def _cond_manager(predicate):
-    actual_predicate = _CONDITION_STACK.push_predicate(predicate)
-    logging.log(7, (f"{_indent()}[IF]: {predicate} at {_CONDITION_STACK.stack_depth() - 1}"))
+    actual_predicate = this_condition_stack().push_predicate(predicate)
     # Return it so we can use it in merge
     yield actual_predicate
-    _CONDITION_STACK.pop()
+    this_condition_stack().pop()
 
 
 @contextmanager
 def _cond_true():
-    _CONDITION_STACK.track_true_branch()
-    logging.log(7, (f"{_indent()}[IF]: `if` branch at {_CONDITION_STACK.stack_depth() - 1}"))
+    this_condition_stack().track_true_branch()
     yield
-    _CONDITION_STACK.no_branch()
+    this_condition_stack().no_branch()
 
 
 @contextmanager
 def _cond_false():
-    _CONDITION_STACK.track_false_branch()
-    logging.log(7, (f"{_indent()}[IF]: `else` branch at {_CONDITION_STACK.stack_depth() - 1}"))
+    this_condition_stack().track_false_branch()
     yield
-    _CONDITION_STACK.no_branch()
+    this_condition_stack().no_branch()
 
 
 @contextmanager
 def _cond_merge(split_predicate):
-    _CONDITION_STACK.track_merge(split_predicate)
+    this_condition_stack().track_merge(split_predicate)
     yield
-    _CONDITION_STACK.no_branch()
+    this_condition_stack().no_branch()
 
 
 def conditionals_enabled():
@@ -352,6 +335,16 @@ def conditionals_enabled():
     current_pipeline = _PipelineDebug.current()
     enabled = getattr(current_pipeline, '_conditionals_enabled', False)
     return enabled
+
+
+def this_condition_stack():
+    """Return the condition stack of current Pipeline"""
+    from nvidia.dali._debug_mode import _PipelineDebug
+    current_pipeline = _PipelineDebug.current()
+    if current_pipeline._condition_stack is None:
+        raise ValueError("Cannot access current condition stack when conditionals"
+                         " were not enabled for a given pipeline.")
+    return current_pipeline._condition_stack
 
 
 def register_data_nodes(data_node, inputs=[]):
@@ -372,11 +365,11 @@ def register_data_nodes(data_node, inputs=[]):
     # outputs to top level and let the automatic splitting handle the situation. Otherwise we could
     # pass the scope information and batch_size within that scope to all operators that are invoked
     # within that scope.
-    _CONDITION_STACK.register_data_nodes(data_node, global_scope=not any_input)
+    this_condition_stack().register_data_nodes(data_node, global_scope=not any_input)
 
 def apply_conditional_split(input):
     """Preprocess the DataNode to obtain correctly split batch for the current if scope."""
-    return _CONDITION_STACK.preprocess_input(input)
+    return this_condition_stack().preprocess_input(input)
 
 
 def apply_conditional_split_to_branch_outputs(branch_outputs, promote_constants=True):
@@ -475,17 +468,13 @@ class DaliOperatorOverload(_autograph.OperatorBase):
             # can see those values produced in child scopes.
             with _cond_merge(split_predicate):
                 for new_body_val, new_orelse_val in zip(body_outputs, orelse_outputs):
-                    logging.log(9, (f"{_indent()}[IF] Inserting merge"
-                                    f" at {_CONDITION_STACK.stack_depth() -1}:"
-                                    f" merge({new_body_val}, {new_orelse_val}, predicate="
-                                    f"{split_predicate}."))
                     merged = fn._conditional.merge(new_body_val, new_orelse_val,
                                                    predicate=split_predicate)
                     output_values.append(merged)
 
         # Register the new nodes outside of the conditional scope, they will be used in subsequent
         # calls.
-        _CONDITION_STACK.register_data_nodes(output_values, False)
+        this_condition_stack().register_data_nodes(output_values, False)
         # No point in propagating the split/merged values that won't be read later.
         output_values += init_state[nouts:]
         set_state(output_values)

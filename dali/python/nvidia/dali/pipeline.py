@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -254,6 +254,7 @@ Parameters
         else:
             raise TypeError("Expected prefetch_queue_depth to be either int or Dict[int, int]")
         self._conditionals_enabled = False
+        self._condition_stack = None
 
         # Assign and validate output_dtype
         if isinstance(output_dtype, (list, tuple)):
@@ -1561,14 +1562,16 @@ def _pipeline_def_experimental(fn=None, **pipeline_kwargs):
                 pipe = Pipeline(**pipeline_args)
                 if conditionals_on:
                     pipe._conditionals_enabled = True
-                    # Add all parameters to the pipeline as "know" nodes in the top scope.
-                    for arg in args:
-                        if isinstance(arg, DataNode):
-                            _conditionals.register_data_nodes(arg)
-                    for arg in fn_kwargs:
-                        if isinstance(arg, DataNode):
-                            _conditionals.register_data_nodes(arg)
+                    pipe._condition_stack = _conditionals._ConditionStack()
                 with pipe:
+                    if conditionals_on:
+                        # Add all parameters to the pipeline as "know" nodes in the top scope.
+                        for arg in args:
+                            if isinstance(arg, DataNode):
+                                _conditionals.register_data_nodes(arg)
+                        for arg in fn_kwargs:
+                            if isinstance(arg, DataNode):
+                                _conditionals.register_data_nodes(arg)
                     pipe_outputs = pipe_func(*args, **fn_kwargs)
                     if isinstance(pipe_outputs, tuple):
                         po = pipe_outputs
