@@ -667,7 +667,8 @@ def python_op_factory(name, schema_name=None):
                     outputs.append(op.outputs)
                 result = self._repack_output_sets(outputs)
             if _conditionals.conditionals_enabled():
-                # Take any input set
+                if len(op_instances) != 1:
+                    raise ValueError("Multiple input sets are not supported with conditionals.")
                 _conditionals.register_data_nodes(result, input_sets[0])
             return result
 

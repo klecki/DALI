@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nvidia.dali.pipeline import pipeline_def, Pipeline, experimental
+from nvidia.dali.pipeline import pipeline_def, experimental
 import nvidia.dali.fn as fn
-import nvidia.dali
 import nvidia.dali.types as types
 from nvidia.dali.types import SampleInfo
-from nvidia.dali.data_node import _arithm_op
 from nvidia.dali import _conditionals
 from nvidia.dali.data_node import DataNode
 
@@ -163,7 +161,6 @@ def generic_execute(function, input_gen_list, optional_params=None):
 
     pipe = pipeline_definition(*es_inputs, **kwargs)
     pipe.build()
-    pipe.save_graph_to_dot_file("cond.dot", True, True, True)
 
     for iter in range(iters):
         batches = [gen_batch(gen, bs, iter) for gen in input_gen_list]
@@ -486,7 +483,7 @@ def test_against_split_merge():
 
     @pipeline_def(**kwargs)
     def regular_pipe():
-        encoded, label = fn.readers.caffe(path=caffe_db_folder)
+        encoded, _ = fn.readers.caffe(path=caffe_db_folder)
         decoded = fn.decoders.image(encoded, device="mixed")
         pred = fn.random.coin_flip(dtype=types.DALIDataType.BOOL)
         true, false = fn._conditional.split(decoded, predicate=pred)
@@ -496,7 +493,7 @@ def test_against_split_merge():
 
     @experimental.pipeline_def(enable_conditionals=True, **kwargs)
     def conditional_pipe():
-        encoded, label = fn.readers.caffe(path=caffe_db_folder)
+        encoded, _ = fn.readers.caffe(path=caffe_db_folder)
         decoded = fn.decoders.image(encoded, device="mixed")
         pred = fn.random.coin_flip(dtype=types.DALIDataType.BOOL)
         if pred:
@@ -508,23 +505,58 @@ def test_against_split_merge():
     pipes = [regular_pipe(), conditional_pipe()]
     for pipe in pipes:
         pipe.build()
-    pipes[0].save_graph_to_dot_file("regular.dot", True, True, True)
-    pipes[1].save_graph_to_dot_file("cond.dot", True, True, True)
     compare_pipelines(*pipes, bs, iters)
 
 
-
-# Unified return
-
+# Unified return - TODO(klecki)
 
 
-# Generator tests
+# Generator tests, remove the random predicate to test the same predicate in both pipelines.
+
+@params(*(pred_gens[:-1]))
+def test_generators(pred):
+    test_data_root = get_dali_extra_path()
+    caffe_db_folder = os.path.join(test_data_root, 'db', 'lmdb')
+
+    bs = 10
+    iters = 5
+    kwargs = {
+        "batch_size": bs,
+        "num_threads": 4,
+        "device_id": 0,
+        "seed": 42
+    }
+
+    @pipeline_def(**kwargs)
+    def baseline_pipe():
+        encoded, _ = fn.readers.caffe(path=caffe_db_folder)
+        rand = fn.random.uniform()
+        predicate = fn.external_source(source=pred, batch=False)
+        true_encoded, _ = fn._conditional.split(encoded, predicate=predicate)
+        true_rand, _ = fn._conditional.split(rand, predicate=predicate)
+        _, false_u8 = fn._conditional.split(np.uint8([0]), predicate=predicate)
+        _, false_f32 = fn._conditional.split(np.float32(0.), predicate=predicate)
+        encoded_out = fn._conditional.merge(true_encoded, false_u8, predicate=predicate)
+        rand_out = fn._conditional.merge(true_rand, false_f32, predicate=predicate)
+        return encoded_out, rand_out
+
+    @experimental.pipeline_def(enable_conditionals=True, **kwargs)
+    def conditional_pipe():
+        predicate = fn.external_source(source=pred, batch=False)
+        # Generators work by running in top scope and splitting for particular nesting
+        if predicate:
+            encoded_out, _ = fn.readers.caffe(path=caffe_db_folder)
+            rand_out = fn.random.uniform()
+        else:
+            encoded_out = types.Constant(np.uint8([0]), device="cpu")
+            rand_out = types.Constant(np.float32(0.), device="cpu")
+        return encoded_out, rand_out
 
 
-# External Source within pipeline
-
-
-
+    pipes = [baseline_pipe(), conditional_pipe()]
+    for pipe in pipes:
+        pipe.build()
+    compare_pipelines(*pipes, bs, iters)
 
 
 # Mismatched branches test (uninitialized values)
