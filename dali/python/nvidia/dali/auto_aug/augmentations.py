@@ -205,8 +205,7 @@ def auto_contrast(samples, _):
     # choose div so that scale ends up being 255 / (hi - lo) if hi > 0 and 1 otherwise
     div_by = diff * mask_scale + 255 * mask_id
     scale = 255 / div_by
-    lo_scale = scale * mask_scale
-    scaled = samples * scale - lo * lo_scale
+    scaled = (samples - lo * mask_scale) * scale
     return fn.cast_like(scaled, samples)
 
 
