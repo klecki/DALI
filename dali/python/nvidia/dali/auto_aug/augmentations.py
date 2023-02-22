@@ -15,6 +15,7 @@
 import numpy as np
 
 from nvidia.dali import fn
+from nvidia.dali import types
 from nvidia.dali.auto_aug.core import augmentation
 """
 This module contains a standard suite of augmentations used by AutoAugment policy for ImageNet,
@@ -164,23 +165,29 @@ def posterize(samples, mask):
 
 @augmentation(mag_range=(256, 0), param_device="gpu")
 def solarize(samples, threshold):
-    samples_inv = 255 - samples
+    samples_inv = types.Constant(255, dtype=types.UINT8) - samples
     mask_unchanged = samples < threshold
-    mask_inverted = 1 - mask_unchanged
-    return fn.cast_like(mask_unchanged * samples + mask_inverted * samples_inv, samples)
+    mask_inverted = mask_unchanged ^ True
+    return mask_unchanged * samples + mask_inverted * samples_inv
 
 
-@augmentation(mag_range=(0, 110), param_device="gpu")
-def solarize_add(samples, shift, solarize_add_threshold=128):
-    samples_shifted = fn.cast_like(samples + shift, samples)
-    mask_shifted = samples < solarize_add_threshold
-    mask_id = 1 - mask_shifted
-    return fn.cast_like(mask_shifted * samples_shifted + mask_id * samples, samples)
+def solarize_add_shift(shift):
+    if shift >= 128:
+        raise Exception("The solarize_add augmentation accepts shifts from 0 to 128")
+    return np.uint8(shift)
+
+
+@augmentation(mag_range=(0, 110), param_device="gpu", as_param=solarize_add_shift)
+def solarize_add(samples, shift):
+    mask_shifted = samples < types.Constant(128, dtype=types.UINT8)
+    mask_id = mask_shifted ^ True
+    samples_shifted = samples + shift
+    return mask_shifted * samples_shifted + mask_id * samples
 
 
 @augmentation
 def invert(samples, _):
-    return fn.cast_like(255 - samples, samples)
+    return types.Constant(255, dtype=types.UINT8) - samples
 
 
 @augmentation
