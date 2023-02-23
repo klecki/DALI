@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2017-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -48,10 +48,13 @@
 namespace dali {
 
 struct DLL_PUBLIC ExecutorMeta {
-  size_t real_size;
-  size_t max_real_size;
-  size_t reserved;
-  size_t max_reserved;
+  size_t real_size;  // nbytes in the output (total)
+  size_t max_real_size;  // max sample
+  size_t reserved;  // total reserved bytes)
+  size_t max_reserved;  // max reserved sample
+  size_t immediate_real_size;  // immediate output value in current iter
+  size_t immediate_reserved_size;  // reserved bytes in current iter
+  bool shares_data;
 };
 using ExecutorMetaMap = std::unordered_map<std::string, std::vector<ExecutorMeta>>;
 
@@ -192,13 +195,16 @@ class DLL_PUBLIC Executor : public ExecutorBase, public QueuePolicy {
           max_out_size = 0;
           reserved_size = 0;
           max_reserved_size = 0;
+          bool shares_data = false;
           if (ws.OutputIsType<CPUBackend>(i)) {
             auto &out = ws.Output<CPUBackend>(i);
+            shares_data = out.shares_data();
             out_size = out.nbytes();
             reserved_size = out.capacity();
             GetMaxSizes(out, max_out_size, max_reserved_size);
           } else {
             auto &out = ws.Output<GPUBackend>(i);
+            shares_data = out.shares_data();
             out_size = out.nbytes();
             reserved_size = out.capacity();
             GetMaxSizes(out, max_out_size, max_reserved_size);
@@ -207,6 +213,9 @@ class DLL_PUBLIC Executor : public ExecutorBase, public QueuePolicy {
           stats[i].max_real_size = std::max(max_out_size, stats[i].max_real_size);
           stats[i].reserved = std::max(reserved_size, stats[i].reserved);
           stats[i].max_reserved = std::max(max_reserved_size, stats[i].max_reserved);
+          stats[i].immediate_real_size = out_size;
+          stats[i].immediate_reserved_size = reserved_size;
+          stats[i].shares_data = shares_data;
         }
       }
   }

@@ -1,4 +1,4 @@
-// Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -134,6 +134,7 @@ void Merge<Backend>::RunImpl(Workspace &ws) {
       // TODO(klecki): Do one allocation, where samples that we share are 0-volumed - this might
       // be perf optimization reducing the number of allocations to 1.
       CopySampleToOutput(output, output_sample_idx, input, input_sample_idx, ws);
+      DALI_FAIL("DATA WAS COPIED INSTEAD OF SET");
     }
   }
   FinalizeCopy(ws);

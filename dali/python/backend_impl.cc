@@ -1483,16 +1483,25 @@ py::dict ExecutorMetaToDict(const ExecutorMetaMap &meta) {
     py::list reserved_memory_size;
     py::list max_real_memory_size;
     py::list max_reserved_memory_size;
+    py::list immediate_real_memory_size;
+    py::list immediate_reserved_memory_size;
+    py::list shares_data;
     for (const auto &entry : stat.second) {
       real_memory_size.append(entry.real_size);
       max_real_memory_size.append(entry.max_real_size);
       reserved_memory_size.append(entry.reserved);
       max_reserved_memory_size.append(entry.max_reserved);
+      immediate_real_memory_size.append(entry.immediate_real_size);
+      immediate_reserved_memory_size.append(entry.immediate_reserved_size);
+      shares_data.append(entry.shares_data);
     }
     op_dict["real_memory_size"] = real_memory_size;
     op_dict["max_real_memory_size"] = max_real_memory_size;
     op_dict["reserved_memory_size"] = reserved_memory_size;
     op_dict["max_reserved_memory_size"] = max_reserved_memory_size;
+    op_dict["immediate_real_memory_size"] = immediate_real_memory_size;
+    op_dict["immediate_reserved_memory_size"] = immediate_reserved_memory_size;
+    op_dict["shares_data"] = shares_data;
     d[stat.first.c_str()] = op_dict;
   }
   return d;
