@@ -32,7 +32,6 @@ import torch
 import numpy as np
 from PIL import Image
 from functools import partial
-
 from image_classification.autoaugment import AutoaugmentImageNetPolicy
 
 DATA_BACKEND_CHOICES = ["pytorch", "synthetic"]
@@ -78,8 +77,30 @@ def load_jpeg_from_file(path, cuda=True):
 class DALIWrapper(object):
     def gen_wrapper(dalipipeline, num_classes, one_hot, memory_format):
         for data in dalipipeline:
-            input = data[0]["data"].contiguous(memory_format=memory_format)
+
+            if memory_format == torch.channels_last:
+                d = data[0]["data"]
+                shape = d.shape
+                stride = d.stride()
+                # permute shape and stride from NHWC to NCHW
+                def nhwc_to_nchw(t):
+                    return t[0], t[3], t[1], t[2]
+
+
+                # d = data[0]["data"]
+                # print(f'>>>>>>>>>>>> {d.shape}, {d.stride()}, {d.is_contiguous(memory_format=memory_format)} {memory_format}')
+                # input = data[0]["data"].contiguous(memory_format=memory_format)
+                # in2 = d.view([256, 3, 224, 224])
+                # in3 = torch.as_strided(d, size=(256, 3, 224, 224), stride=(150528, 1, 672, 3))
+                input = torch.as_strided(data[0]["data"], size=nhwc_to_nchw(shape), stride=nhwc_to_nchw(stride))
+            else:
+                input = data[0]["data"].contiguous(memory_format=memory_format)
+            # print(f'>>>>>>>>>>>> {input.shape}, {input.stride()}, {input.is_contiguous(memory_format=memory_format)}')
+            # print(f'>>>>>>>>>>>> {in2.shape}, {in2.stride()}')
+            # print(f'>>>>>>>>>>>> {in3.shape}, {in3.stride()}')
+            # raise ValueError("PyTorch is backward")
             target = torch.reshape(data[0]["label"], [-1]).cuda().long()
+            # print(f'{input.shape}, {target.shape}')
             if one_hot:
                 target = expand(num_classes, torch.float, target)
             yield input, target
@@ -270,6 +291,8 @@ class PrefetchedWrapper(object):
             torch.cuda.current_stream().wait_stream(stream)
             input = next_input
             target = next_target
+            print(f">>>>>>>>> {input.shape}, {input.stride()}" )
+            raise ValueError("WTTT")
 
         yield input, target
 
