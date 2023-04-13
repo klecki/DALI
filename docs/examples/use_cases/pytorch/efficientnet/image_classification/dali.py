@@ -20,7 +20,7 @@ from nvidia.dali.pipeline.experimental import pipeline_def
 from nvidia.dali.auto_aug import auto_augment, trivial_augment
 
 
-@pipeline_def(enable_conditionals=True)
+@pipeline_def(enable_conditionals=True, debug=False)
 def training_pipe(data_dir, interpolation, image_size, output_layout, automatic_augmentation,
                   dali_device="gpu", rank=0, world_size=1):
     rng = fn.random.coin_flip(probability=0.5)
