@@ -780,8 +780,9 @@ def _op_name(op_schema_name, api="fn"):
 
 
 def _wrap_op(op_class, submodule=[], parent_module=None):
-    return _functional._wrap_op(op_class, submodule, parent_module,
-                                _docstring_generator_fn(op_class))
+    pass
+    # return _functional._wrap_op(op_class, submodule, parent_module,
+    #                             _docstring_generator_fn(op_class))
 
 
 def _load_ops():
@@ -1362,6 +1363,10 @@ def gpu_ops():
 
 def mixed_ops():
     return _mixed_ops
+
+
+def _registered_ops():
+    return _cpu_ops.union(_gpu_ops).union(_mixed_ops)
 
 
 def register_cpu_op(name):
