@@ -16,13 +16,20 @@
 import sys
 
 from nvidia.dali import backend as _b
+from nvidia.dali import internal as _internal
 from nvidia.dali.ops._operator_registration import (cpu_ops, gpu_ops, mixed_ops, register_cpu_op,
                                                     register_gpu_op, Reload)
 
 from nvidia.dali.ops import _operator_registration
 
+from nvidia.dali.ops._operator import _process_op_name, python_op_factory, _wrap_op
+
 from nvidia.dali.ops._copmpose_op import Compose
-from nvidia.dali.ops._tf_record_op import _load_readers_tfrecord
+
+
+# TODO custom ops:
+# from nvidia.dali.ops._tf_record_op import _load_readers_tfrecord
+# from nvidia.dali.ops._python_op import ...
 
 def _load_ops():
     _operator_registration._discover_ops()
@@ -53,8 +60,9 @@ def Reload():
     _load_ops()
 
 
-_wrap_op(PythonFunction)
-_wrap_op(DLTensorPythonFunction)
+# TODO: python ops
+# _wrap_op(PythonFunction)
+# _wrap_op(DLTensorPythonFunction)
 
 
 
@@ -73,11 +81,13 @@ register_cpu_op("Compose")
 register_gpu_op("Compose")
 _load_ops()
 
-try:
-    _load_readers_tfrecord()
-except RuntimeError:
-    # TFRecord can be disabled (custom build). No need to fail
-    pass
+
+# TODO: tfrecord
+# try:
+#     _load_readers_tfrecord()
+# except RuntimeError:
+#     # TFRecord can be disabled (custom build). No need to fail
+#     pass
 
 # Load _arithm_op wrapper, that requires ArithmGenericOp to be already present
 from nvidia.dali.ops._arithm_op import _arithm_op

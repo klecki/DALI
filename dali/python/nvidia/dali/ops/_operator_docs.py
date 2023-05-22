@@ -20,6 +20,14 @@ from nvidia.dali.types import _default_converter, _type_name_convert_to_string
 
 
 def _numpydoc_formatter(name, type, doc, optional=False):
+    """
+    Format the documentation for single argument, `name`, `type` and `doc` are expected to be
+    strings.
+
+    The formatting is:
+    <name> : <type>[, optional]
+        <doc>
+    """
     indent = "\n" + " " * 4
     if optional:
         type += ", optional"
@@ -27,6 +35,20 @@ def _numpydoc_formatter(name, type, doc, optional=False):
 
 
 def _get_inputs_doc(schema):
+    """
+    Generate numpydoc-formatted docstring section for operator inputs (positional arguments)
+    based on the schema.
+
+    The inputs are represented in `Args` section using `_numpydoc_formatter`.
+
+    If schema provides names and docstrings for inputs, they are used, otherwise placeholder
+    text is used indicating the supported number of inputs.
+
+    Note: The type of input is indicated as TensorList with supported layouts listed.
+
+    schema : OpSchema
+       Schema of the operator to be documented
+    """
     # Inputs section
     if schema.MaxNumInput() == 0:
         return ""
@@ -68,10 +90,11 @@ Args
 
 def _get_kwargs(schema):
     """
-    Get the keywords arguments from the schema.
+    Get the numpydoc-formatted docstring section for keywords arguments.
 
-    `schema`
-        the schema in which to lookup arguments
+
+    schema : OpSchema
+       Schema of the operator to be documented
     """
     ret = ""
     for arg in schema.GetArgumentNames():
