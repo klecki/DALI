@@ -113,7 +113,7 @@ class DLL_PUBLIC SliceFlipNormalizeGPU {
                            const Args &args);
 
   void Run(KernelContext &ctx, const OutListGPU<Out, ndim> &out,
-           const InListGPU<In, ndim> &in, const Args &args, bool old);
+           const InListGPU<In, ndim> &in, const Args &args, int version);
 };
 
 }  // namespace slice_flip_normalize

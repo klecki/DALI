@@ -56,7 +56,7 @@ class SliceFlipNormalizeGPUTest : public ::testing::Test {
     auto out_sh = req.output_shapes[0].template to_static<ndim>();
     output.reshape(out_sh);
 
-    kernel.Run(ctx, output.gpu(), input.gpu(), args, false);
+    kernel.Run(ctx, output.gpu(), input.gpu(), args, 1);
 
     CUDA_CALL(cudaStreamSynchronize(0));
   }
@@ -277,11 +277,11 @@ TEST(SliceFlipNormalizeGPUTest, BenchmarkNew) {
     CUDAEvent started  = CUDAEvent::CreateWithFlags(0);  // timing enabled
     CUDAEvent finished = CUDAEvent::CreateWithFlags(0);
     CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
-    kernel.Run(ctx, out_view, in_view, args, false);
+    kernel.Run(ctx, out_view, in_view, args, 1);
     int iters = 1;
     CUDA_CALL(cudaEventRecord(started, ctx.gpu.stream));
     for (int i = 0; i < iters; i++)
-      kernel.Run(ctx, out_view, in_view, args, false);
+      kernel.Run(ctx, out_view, in_view, args, 1);
     CUDA_CALL(cudaEventRecord(finished, ctx.gpu.stream));
     CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
     float time_ms = 0;
@@ -341,11 +341,11 @@ TEST(SliceFlipNormalizeGPUTest, BenchmarkCurrent) {
     CUDAEvent started  = CUDAEvent::CreateWithFlags(0);  // timing enabled
     CUDAEvent finished = CUDAEvent::CreateWithFlags(0);
     CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
-    kernel.Run(ctx, out_view, in_view, args, true);
+    kernel.Run(ctx, out_view, in_view, args, 0);
     int iters = 1;
     CUDA_CALL(cudaEventRecord(started, ctx.gpu.stream));
     for (int i = 0; i < iters; i++)
-      kernel.Run(ctx, out_view, in_view, args, true);
+      kernel.Run(ctx, out_view, in_view, args, 0);
     CUDA_CALL(cudaEventRecord(finished, ctx.gpu.stream));
     CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
     float time_ms = 0;

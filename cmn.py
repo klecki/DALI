@@ -24,7 +24,7 @@ def pipe1(option=1):
         out = fn.crop_mirror_normalize(
             images,
             output_layout="CHW",
-            run_old=True,
+            run_version=0,
             mean=[128., 128., 128.], std=[1., 1., 1.]
         )
     if option == 1:
@@ -32,7 +32,7 @@ def pipe1(option=1):
         out = fn.crop_mirror_normalize(
             images,
             output_layout="CHW",
-            run_old=False,
+            run_version=1,
             mean=[128., 128., 128.], std=[1., 1., 1.]
         )
     elif option == 2:

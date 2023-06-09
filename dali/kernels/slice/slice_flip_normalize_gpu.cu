@@ -133,7 +133,7 @@ SliceFlipNormalizeGPU<Out, In, spatial_ndim, channel_dim>::SetupParams(KernelCon
 template <typename Out, typename In, int spatial_ndim, int channel_dim>
 void SliceFlipNormalizeGPU<Out, In, spatial_ndim, channel_dim>::Run(
     KernelContext &ctx, const OutListGPU<Out, ndim> &out, const InListGPU<In, ndim> &in,
-    const Args &args, bool old) {
+    const Args &args, int run_version) {
   using Tile = kernels::BlockDesc<spatial_ndim>;
   using Sample = SampleDesc<Out, In, spatial_ndim>;
   int nsamples = in.num_samples();
@@ -192,10 +192,10 @@ void SliceFlipNormalizeGPU<Out, In, spatial_ndim, channel_dim>::Run(
     sample.norm_mul = norm_mul_gpu + i * nchannels_;
     sample.fill_values = fill_values_gpu + i * out_nchannels_;
   }
-  if (old) {
+  if (run_version == 0 || run_version == 2) {
     block_setup_.SetDefaultBlockSize({64, 64});
     block_setup_.SetBlockDim(dim3(32, 32, 1));
-  } else {
+  } else if (run_version == 1) {
     block_setup_.SetDefaultBlockSize({kTileSizeX, kTileSizeY});
     block_setup_.SetBlockDim(dim3(32, 8, 1));
   }
@@ -214,11 +214,14 @@ void SliceFlipNormalizeGPU<Out, In, spatial_ndim, channel_dim>::Run(
       SliceNormalizeKernel_2D<Out, In>
           <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(samples_gpu, tiles_gpu);
     } else {
-      if (old) {
+      if (run_version == 0) {
         SliceNormalizeKernel_2D_NoPad_classic<Out, In>
             <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(samples_gpu, tiles_gpu);
-      } else {
+      } else if (run_version == 1) {
         SliceNormalizeKernel_2D_NoPad<Out, In>
+            <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(samples_gpu, tiles_gpu);
+      } else if (run_version == 2) {
+        SliceNormalizeKernel_2D_NoPad_classic_v2<Out, In>
             <<<grid_dim, block_dim, 0, ctx.gpu.stream>>>(samples_gpu, tiles_gpu);
       }
     }

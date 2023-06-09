@@ -53,7 +53,7 @@ class NewCropMirrorNormalizeGPU : public Operator<GPUBackend> {
         std_arg_("std", spec),
         scale_(spec.GetArgument<float>("scale")),
         shift_(spec.GetArgument<float>("shift")),
-        run_old_(spec.GetArgument<bool>("run_old")) {
+        run_version_(spec.GetArgument<int32_t>("run_version")) {
     if (out_of_bounds_policy_ == OutOfBoundsPolicy::Pad) {
       fill_values_ = spec.GetRepeatedArgument<float>("fill_values");
     }
@@ -200,8 +200,8 @@ class NewCropMirrorNormalizeGPU : public Operator<GPUBackend> {
     ), DALI_FAIL(make_string("Not supported input type:", input_type_)););  // NOLINT
   }
 
-  template <typename Out, typename In, int spatial_ndim, int channel_dim, bool old>
-  void RunImplTyped(const Workspace &ws) {
+  template <typename Out, typename In, int spatial_ndim, int channel_dim>
+  void RunImplTyped(const Workspace &ws, int run_version) {
     static constexpr int ndim = spatial_ndim + 1;
     using Kernel =
         kernels::slice_flip_normalize::SliceFlipNormalizeGPU<Out, In, spatial_ndim, channel_dim>;
@@ -213,7 +213,7 @@ class NewCropMirrorNormalizeGPU : public Operator<GPUBackend> {
     auto out_view = view<Out, ndim>(output);
     kernels::KernelContext ctx;
     ctx.gpu.stream = ws.stream();
-    kmgr_.Run<Kernel>(0, ctx, out_view, in_view, args, old);
+    kmgr_.Run<Kernel>(0, ctx, out_view, in_view, args, run_version);
   }
 
   void RunImpl(Workspace &ws) override {
@@ -221,28 +221,16 @@ class NewCropMirrorNormalizeGPU : public Operator<GPUBackend> {
       fallback_.Run(ws);
       return;
     }
-    if (run_old_) {
-      TYPE_SWITCH(input_type_, type2id, InputType, IN_TYPES, (
-        TYPE_SWITCH(output_type_, type2id, OutputType, OUT_TYPES, (
-          VALUE_SWITCH(spatial_ndim_, SpatialNdim, SPATIAL_NDIMS, (
-            VALUE_SWITCH(channel_dim_idx_, ChannelDim, CHANNEL_DIMS, (
-              RunImplTyped<OutputType, InputType, SpatialNdim, ChannelDim, true>(ws);
-            ), DALI_FAIL(make_string("Not supported channel dimension:", channel_dim_idx_)););  // NOLINT
-          ), DALI_FAIL(make_string("Not supported number of spatial dimensions:", spatial_ndim_)););  // NOLINT
-        ), DALI_FAIL(make_string("Not supported output type:", output_type_)););  // NOLINT
-      ), DALI_FAIL(make_string("Not supported input type:", input_type_)););  // NOLINT
-    } else {
-      TYPE_SWITCH(input_type_, type2id, InputType, IN_TYPES, (
-        TYPE_SWITCH(output_type_, type2id, OutputType, OUT_TYPES, (
-          VALUE_SWITCH(spatial_ndim_, SpatialNdim, SPATIAL_NDIMS, (
-            VALUE_SWITCH(channel_dim_idx_, ChannelDim, CHANNEL_DIMS, (
-              RunImplTyped<OutputType, InputType, SpatialNdim, ChannelDim, false>(ws);
-            ), DALI_FAIL(make_string("Not supported channel dimension:", channel_dim_idx_)););  // NOLINT
-          ), DALI_FAIL(make_string("Not supported number of spatial dimensions:", spatial_ndim_)););  // NOLINT
-        ), DALI_FAIL(make_string("Not supported output type:", output_type_)););  // NOLINT
-      ), DALI_FAIL(make_string("Not supported input type:", input_type_)););  // NOLINT
+    TYPE_SWITCH(input_type_, type2id, InputType, IN_TYPES, (
+      TYPE_SWITCH(output_type_, type2id, OutputType, OUT_TYPES, (
+        VALUE_SWITCH(spatial_ndim_, SpatialNdim, SPATIAL_NDIMS, (
+          VALUE_SWITCH(channel_dim_idx_, ChannelDim, CHANNEL_DIMS, (
+            RunImplTyped<OutputType, InputType, SpatialNdim, ChannelDim>(ws, run_version_);
+          ), DALI_FAIL(make_string("Not supported channel dimension:", channel_dim_idx_)););  // NOLINT
+        ), DALI_FAIL(make_string("Not supported number of spatial dimensions:", spatial_ndim_)););  // NOLINT
+      ), DALI_FAIL(make_string("Not supported output type:", output_type_)););  // NOLINT
+    ), DALI_FAIL(make_string("Not supported input type:", input_type_)););  // NOLINT
 
-    }
   }
 
   bool CanInferOutputs() const override {
@@ -260,7 +248,7 @@ class NewCropMirrorNormalizeGPU : public Operator<GPUBackend> {
   int spatial_ndim_;
   bool pad_output_;  // Whether to pad channel dimension to the next power of 2
   bool use_fallback_ = false;  // whether to use old implementation
-  bool run_old_ = false;
+  int run_version_ = 1;
 
   std::vector<float> fill_values_;
   OutOfBoundsPolicy out_of_bounds_policy_ = OutOfBoundsPolicy::Error;

@@ -71,7 +71,7 @@ This argument is useful when using integer outputs to improve dynamic range util
 
 This argument is useful when using unsigned integer outputs to improve dynamic range utilization.)",
     0.0f)
-  .AddOptionalArg("run_old", "AAAA", false)
+  .AddOptionalArg("run_version", "0 - current, 1 - experiment with Shared mem", 1)
   .AddParent("CropAttr")
   .AddParent("OutOfBoundsAttr");
 
