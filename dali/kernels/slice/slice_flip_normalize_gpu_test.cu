@@ -56,7 +56,7 @@ class SliceFlipNormalizeGPUTest : public ::testing::Test {
     auto out_sh = req.output_shapes[0].template to_static<ndim>();
     output.reshape(out_sh);
 
-    kernel.Run(ctx, output.gpu(), input.gpu(), args);
+    kernel.Run(ctx, output.gpu(), input.gpu(), args, false);
 
     CUDA_CALL(cudaStreamSynchronize(0));
   }
@@ -238,7 +238,7 @@ TEST_F(SliceFlipNormalizeGPUTest_float_uint8_2D_HWC, pad_normalize) {
 }
 
 
-TEST(SliceFlipNormalizeGPUTest, Benchmark) {
+TEST(SliceFlipNormalizeGPUTest, BenchmarkNew) {
   using Kernel = SliceFlipNormalizeGPU<float, uint8_t, 2, 2>;
   typename Kernel::Args args;
   Kernel kernel;
@@ -277,11 +277,75 @@ TEST(SliceFlipNormalizeGPUTest, Benchmark) {
     CUDAEvent started  = CUDAEvent::CreateWithFlags(0);  // timing enabled
     CUDAEvent finished = CUDAEvent::CreateWithFlags(0);
     CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
-    kernel.Run(ctx, out_view, in_view, args);
+    kernel.Run(ctx, out_view, in_view, args, false);
     int iters = 1;
     CUDA_CALL(cudaEventRecord(started, ctx.gpu.stream));
     for (int i = 0; i < iters; i++)
-      kernel.Run(ctx, out_view, in_view, args);
+      kernel.Run(ctx, out_view, in_view, args, false);
+    CUDA_CALL(cudaEventRecord(finished, ctx.gpu.stream));
+    CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
+    float time_ms = 0;
+    CUDA_CALL(cudaEventElapsedTime(&time_ms, started, finished));
+    time_ms /= iters;
+    // note: using out_view.num_elements() twice in purpose (we are not reading all input)
+    int64_t data_size =
+        out_view.num_elements() * sizeof(InType) + out_view.num_elements() * sizeof(OutType);
+    std::cout << data_size * 1e-6 / time_ms << " GB/s" << std::endl;
+  };
+
+  std::cout << "with transpose: ";
+  args.perm = {2, 0, 1};
+  bench();
+  std::cout << "no transpose: ";
+  args.perm = {0, 1, 2};
+  bench();
+}
+
+
+TEST(SliceFlipNormalizeGPUTest, BenchmarkCurrent) {
+  using Kernel = SliceFlipNormalizeGPU<float, uint8_t, 2, 2>;
+  typename Kernel::Args args;
+  Kernel kernel;
+
+  int nsamples = 64;
+  using InType = uint8_t;
+  using OutType = float;
+  TestTensorList<InType, 3> in;
+  TensorListShape<3> in_sh = uniform_list_shape(nsamples, TensorShape<3>{1280, 900, 3});
+  in.reshape(in_sh);
+
+  args.perm = {2, 0, 1};
+  args.sample_args.resize(nsamples);
+  for (int i = 0; i < nsamples; i++) {
+    args.sample_args[i] = {Roi<2>{{400, 300}, {400 + 256, 300 + 256}},
+         {false, false},
+         {255 * 0.495f, 255 * 0.466f, 255 * 0.396f},
+         {1.0f / (255 * 0.226f), 1.0f / (255 * 0.229f), 1.0f / (255 * 0.222f)}};
+  }
+
+  auto bench = [&]() {
+    auto stream = CUDAStreamPool::instance().Get();
+
+    KernelContext ctx;
+    ctx.gpu.stream = stream;
+    DynamicScratchpad scratch;
+    ctx.scratchpad = &scratch;
+
+    TestTensorList<OutType, 3> out;
+    auto req = kernel.Setup(ctx, in_sh, args);
+    out.reshape(req.output_shapes[0].to_static<3>());
+    auto out_view = out.gpu();
+    auto in_view = in.gpu();
+
+    // warm-up
+    CUDAEvent started  = CUDAEvent::CreateWithFlags(0);  // timing enabled
+    CUDAEvent finished = CUDAEvent::CreateWithFlags(0);
+    CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
+    kernel.Run(ctx, out_view, in_view, args, true);
+    int iters = 1;
+    CUDA_CALL(cudaEventRecord(started, ctx.gpu.stream));
+    for (int i = 0; i < iters; i++)
+      kernel.Run(ctx, out_view, in_view, args, true);
     CUDA_CALL(cudaEventRecord(finished, ctx.gpu.stream));
     CUDA_CALL(cudaStreamSynchronize(ctx.gpu.stream));
     float time_ms = 0;

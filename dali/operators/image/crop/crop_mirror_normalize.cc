@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+// Copyright (c) 2019-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -71,6 +71,7 @@ This argument is useful when using integer outputs to improve dynamic range util
 
 This argument is useful when using unsigned integer outputs to improve dynamic range utilization.)",
     0.0f)
+  .AddOptionalArg("run_old", "AAAA", false)
   .AddParent("CropAttr")
   .AddParent("OutOfBoundsAttr");
 
