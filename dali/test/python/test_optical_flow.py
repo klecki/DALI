@@ -1,4 +1,4 @@
-# Copyright (c) 2019-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ def is_of_supported(device_id=0):
     try:
         import pynvml
         pynvml.nvmlInit()
-        driver_version = pynvml.nvmlSystemGetDriverVersion().decode('utf-8')
+        driver_version = pynvml.nvmlSystemGetDriverVersion()
         driver_version_major = int(driver_version.split('.')[0])
     except ModuleNotFoundError:
         print("NVML not found")
@@ -226,7 +226,7 @@ def flow_to_color(flow_uv, clip_flow=None, convert_to_bgr=False):
     return flow_compute_color(u, v, convert_to_bgr)
 
 
-interactive = False
+interactive = True
 
 
 def check_optflow(output_grid=1, hint_grid=1, use_temporal_hints=False):
@@ -245,7 +245,7 @@ def check_optflow(output_grid=1, hint_grid=1, use_temporal_hints=False):
                           glob="hint grid size: * is not supported, supported are:")
             raise SkipTest('Skipped as hint grid size is not supported for this arch')
 
-    for _ in range(2):
+    for iter in range(2):
         out = pipe.run()
         for i in range(batch_size):
             seq = out[0].at(i)
@@ -254,12 +254,17 @@ def check_optflow(output_grid=1, hint_grid=1, use_temporal_hints=False):
             dsize = (out_field.shape[1], out_field.shape[0])
             ref_field = cv2.resize(ref_field, dsize=dsize, interpolation=cv2.INTER_AREA)
             if interactive:
-                cv2.imshow("out", flow_to_color(out_field, None, True))
-                cv2.imshow("ref", flow_to_color(ref_field, None, True))
                 print(np.max(out_field))
                 print(np.max(ref_field))
-                cv2.imshow("dif", flow_to_color(ref_field - out_field, None, True))
-                cv2.waitKey(0)
+                cv2.imwrite(
+                    f"optflow_{output_grid}_{hint_grid}_{use_temporal_hints}_{iter}_{i}_out.png",
+                    flow_to_color(out_field, None, True))
+                cv2.imwrite(
+                    f"optflow_{output_grid}_{hint_grid}_{use_temporal_hints}_{iter}_{i}_ref.png",
+                    flow_to_color(ref_field, None, True))
+                cv2.imwrite(
+                    f"optflow_{output_grid}_{hint_grid}_{use_temporal_hints}_{iter}_{i}_diff.png",
+                    flow_to_color(ref_field - out_field, None, True))
             err = np.linalg.norm(ref_field - out_field, ord=2, axis=2)
             assert np.mean(err) < 1  # average error of less than one pixel
             assert np.max(err) < 100  # no point more than 100px off
