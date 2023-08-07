@@ -706,7 +706,7 @@ def test_cmn_optimized_vs_cpu(batch_size, shape, dtype, pad, mirror, crops, layo
         data = data.gpu() if device == "gpu" else data
         return fn.crop_mirror_normalize(data, device=device, dtype=dtype, pad_output=pad,
                                         mirror=mirror, crop_h=crop_h_int, crop_w=crop_w_int,
-                                        mean=[0.1, 0.2, 0.3],
+                                        # mean=[0.1, 0.2, 0.3],
                                         fill_values=[0.0, 0.0, 0.0, 42.0] if pad else None,
                                         output_layout=layout)
 

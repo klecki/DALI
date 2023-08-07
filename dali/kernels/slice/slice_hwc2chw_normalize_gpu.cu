@@ -483,7 +483,7 @@ __global__ void Hwc2HwcNormalizePadFp16(const Hwc2ChwSampleDesc<Out, In> *sample
 
   float norm_mul[kOutChannels], norm_add[kOutChannels];
 
-  __shared__ float tile[kStaticChannels][kBlockSize / kStaticChannels + 4];
+  __shared__ float tile[kStaticChannels][kBlockSize / kStaticChannels + 4 * 3];
 
   #pragma unroll kStaticChannels
   for (int c = 0; c < kStaticChannels; c++) {
@@ -570,16 +570,14 @@ __global__ void Hwc2HwcNormalizePadFp16(const Hwc2ChwSampleDesc<Out, In> *sample
   int64_t end_x_padded = ::min(start_x_padded + block_4, sample_size_4);
 
 
+  // This is already divisible by sizeof(Out) == 2
   auto out_start = reinterpret_cast<std::uintptr_t>(sample.out + start_x_padded);
   // Find aligned start that is shifted by the whole pixels
-  uint32_t values_skipped_out = 0;
-  auto aligned_out_start = out_start;
-  while (aligned_out_start % 4) {
-    values_skipped_out += kStaticChannels;
-    aligned_out_start += kStaticChannels * sizeof(Out);
-  }
+  auto aligned_out_start = align_up(out_start, 4);
+  uint32_t values_skipped_out = (aligned_out_start - out_start) / sizeof(Out);
 
   auto *out_aligned = sample.out + values_skipped_out + start_x_padded;
+  printf("%ld hmm\n", start_x_padded);
 
   for (int64_t idx = threadIdx.x + start_x_padded, base_x = threadIdx.x;
     idx < start_x_padded + values_skipped_out; idx += blockDim.x, base_x += blockDim.x) {
@@ -588,11 +586,11 @@ __global__ void Hwc2HwcNormalizePadFp16(const Hwc2ChwSampleDesc<Out, In> *sample
     int base_offset = base_x >> 2;
     int c = idx & 3;
     if (c < kStaticChannels) {
-      __half fpin = tile[c][base_offset];
-      __half fpout = __hfma(fpin, norm_mul[c], norm_add[c]);
-      sample.out[idx] = 42;//ConvertSat<Out>(fpout);
+      float fpin = tile[c][base_offset];
+      float fpout = fmaf(fpin, norm_mul[c], norm_add[c]);
+      sample.out[idx] = ConvertSat<Out>(fpout); //ConvertSat<Out>(fpout);
     } else {
-      sample.out[idx] = 43; //norm_add[3];
+      sample.out[idx] = sample.fill_values[3]; //norm_add[3];
     }
   }
 
@@ -609,34 +607,65 @@ __global__ void Hwc2HwcNormalizePadFp16(const Hwc2ChwSampleDesc<Out, In> *sample
     int64_t idx = base_x * 2 + start_x;
     int base_offset = base_x / 2;
     int c = idx & 3;
-    if (c == 0) {
-      // __half fpin0 = tile[0][base_offset];
-      // __half fpin1 = tile[1][base_offset];
-      // __half2 fpin = make_half2(fpin0, fpin1);
+    if (values_skipped_out == 0) {
+      if (c == 0) {
+        // __half fpin0 = tile[0][base_offset];
+        // __half fpin1 = tile[1][base_offset];
+        // __half2 fpin = make_half2(fpin0, fpin1);
 
-      // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
-      // out[base_x] = fpout;
+        // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
+        // out[base_x] = fpout;
 
-      float fpin0 = tile[0][base_offset];
-      float fpin1 = tile[1][base_offset];
+        float fpin0 = tile[0][base_offset];
+        float fpin1 = tile[1][base_offset];
 
-      float fpout0 = fmaf(fpin0, norm_mul[0], norm_add[0]);
-      float fpout1 = fmaf(fpin1, norm_mul[1], norm_add[1]);
-      out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+        float fpout0 = fmaf(fpin0, norm_mul[0], norm_add[0]);
+        float fpout1 = fmaf(fpin1, norm_mul[1], norm_add[1]);
+        out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      } else {
+        // __half fpin0 = tile[2][base_offset];
+        // __half fpin1 = {};   // doesn't matter
+        // __half2 fpin = make_half2(fpin0, fpin1);
+
+        // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
+        // out[base_x] = fpout;
+
+        __half fpin0 = tile[2][base_offset];
+
+        float fpout0 = fmaf(fpin0, norm_mul[2], norm_add[2]);
+        float fpout1 = norm_add[3];
+        out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      }
     } else {
+      if (c == 0) {
+        // __half fpin0 = tile[0][base_offset];
+        // __half fpin1 = tile[1][base_offset];
+        // __half2 fpin = make_half2(fpin0, fpin1);
 
-      // __half fpin0 = tile[2][base_offset];
-      // __half fpin1 = {};   // doesn't matter
-      // __half2 fpin = make_half2(fpin0, fpin1);
+        // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
+        // out[base_x] = fpout;
 
-      // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
-      // out[base_x] = fpout;
+        float fpin0 = tile[3][base_offset];
+        float fpin1 = tile[0][base_offset + 1];
 
-      __half fpin0 = tile[2][base_offset];
+        float fpout0 = norm_add[3];
+        float fpout1 = fmaf(fpin1, norm_mul[0], norm_add[0]);
+        out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      } else {
+        // __half fpin0 = tile[2][base_offset];
+        // __half fpin1 = {};   // doesn't matter
+        // __half2 fpin = make_half2(fpin0, fpin1);
 
-      float fpout0 = fmaf(fpin0, norm_mul[2], norm_add[2]);
-      float fpout1 = norm_add[3];
-      out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+        // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
+        // out[base_x] = fpout;
+
+        float fpin0 = tile[1][base_offset + 1];
+        float fpin1 = tile[2][base_offset + 1];
+
+        float fpout0 = fmaf(fpin0, norm_mul[1], norm_add[1]);
+        float fpout1 = fmaf(fpin0, norm_mul[2], norm_add[2]);
+        out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      }
     }
   }
 
@@ -648,11 +677,11 @@ __global__ void Hwc2HwcNormalizePadFp16(const Hwc2ChwSampleDesc<Out, In> *sample
     int base_offset = base_x >> 2;
     int c = idx & 3;
     if (c < kStaticChannels) {
-      __half fpin = tile[c][base_offset];
-      __half fpout = __hfma(fpin, norm_mul[c], norm_add[c]);
-      sample.out[idx] = 69;  //ConvertSat<Out>(fpout);
+      float fpin = tile[c][base_offset];
+      float fpout = fmaf(fpin, norm_mul[c], norm_add[c]);
+      sample.out[idx] = ConvertSat<Out>(fpout);  //ConvertSat<Out>(fpout);
     } else {
-      sample.out[idx] =  70; // norm_add[3];
+      sample.out[idx] =  sample.fill_values[3]; // norm_add[3];
     }
   }
 
