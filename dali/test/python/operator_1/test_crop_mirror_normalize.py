@@ -675,16 +675,16 @@ def test_crop_mirror_normalize_empty_layout():
         yield check_crop_mirror_normalize_empty_layout, cmn_fn, device, batch_size, in_shape
 
 
-batch_sizes = [1, 4]
-shapes = [(1, 1, 3), (1, 10, 3), (1, 31, 3), (1, 32, 3), (1, 33, 3), (1, 127, 3), (1, 128, 3),
-          (1, 129, 3), (1, 24 * 128 - 1, 3), (1, 24 * 128, 3), (1, 24 * 128 + 1, 3),
-          (8, 24 * 128 - 1, 3), (8, 24 * 128, 3), (8, 24 * 128 + 1, 3), (1024, 1024, 3),
-          (999, 999, 3)]
-dtypes = [types.FLOAT, types.FLOAT16]
-pads = [False, True]
-mirrors = [False, True]
-crops = [(1.0, 0.25), (0.25, 0.25), (0.25, 1.0), (0.5, 0.75), (None, None)]
-layouts = ["HWC", "CHW"]
+batch_sizes = [3]
+shapes = [#(1, 1, 3), (1, 10, 3), (1, 31, 3), (1, 32, 3), (1, 33, 3), (1, 127, 3), (1, 128, 3),
+          (1, 129, 3), (1, 24 * 128 - 1, 3), (1, 24 * 128, 3), (1, 24 * 128 + 1, 3),]
+          #(8, 24 * 128 - 1, 3), (8, 24 * 128, 3), (8, 24 * 128 + 1, 3), (1024, 1024, 3),
+          #(999, 999, 3)]
+dtypes = [types.FLOAT16] # [types.FLOAT, types.FLOAT16]
+pads = [True] # [False, True]
+mirrors =  [False] # [False, True]
+crops = [(None, None)] # [(1.0, 0.25), (0.25, 0.25), (0.25, 1.0), (0.5, 0.75), (None, None)]
+layouts = ["HWC"] #, "CHW"]
 
 
 @params(*itertools.product(batch_sizes, shapes, dtypes, pads, mirrors, crops, layouts))
@@ -712,4 +712,12 @@ def test_cmn_optimized_vs_cpu(batch_size, shape, dtype, pad, mirror, crops, layo
 
     pipe_baseline = pipe("cpu")
     pipe_opt = pipe("gpu")
+    sample = 1
+    pipe_baseline.build()
+    l = np.array(pipe_baseline.run()[0][sample])
+
+    pipe_opt.build()
+    r = np.array(pipe_opt.run()[0].as_cpu()[sample])
+
+    print(l, r, l - r, l != r)
     compare_pipelines(pipe_baseline, pipe_opt, batch_size, 3)

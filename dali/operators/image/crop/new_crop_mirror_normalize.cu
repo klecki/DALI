@@ -90,6 +90,7 @@ class NewCropMirrorNormalizeGPU : public Operator<GPUBackend> {
     if (in_type == DALI_UINT8 && (out_type == DALI_FLOAT || out_type == DALI_FLOAT16) &&
         in_layout == "HWC" && (out_layout == "CHW" || out_layout == "HWC") &&
         (oobp == OutOfBoundsPolicy::Error || oobp == OutOfBoundsPolicy::TrimToShape)) {
+      // TODO(klecki): Check if we are padding from 3 to 4 dimensions.
       // Only 3-channels supported in this version
       if (in_shape.num_samples() > 0 && in_shape.tensor_shape_span(0)[2] == 3)
         return CmnImplKind::SliceHwc2ChwNormalize;

@@ -468,6 +468,197 @@ __global__ void Hwc2HwcNormalize(const Hwc2ChwSampleDesc<Out, In> *samples, uint
   }
 }
 
+// HWC -> HWC + pad
+template <typename Out, typename In, bool enable_mirror, int kBlockSize, int kStaticChannels>
+__global__ void Hwc2HwcNormalizePadFp16(const Hwc2ChwSampleDesc<Out, In> *samples, uint32_t *first_blocks,
+                                    uint32_t num_samples) {
+
+  constexpr int kOutChannels = kStaticChannels + 1;
+
+  int sample_idx = FindSampleIdx(first_blocks, num_samples);
+  const auto sample = samples[sample_idx];
+
+  int64_t start_x = (blockIdx.x - sample.first_block) * kBlockSize;
+  int64_t end_x = ::min(start_x + kBlockSize, sample.sample_size);
+
+  float norm_mul[kOutChannels], norm_add[kOutChannels];
+
+  __shared__ float tile[kStaticChannels][kBlockSize / kStaticChannels + 4];
+
+  #pragma unroll kStaticChannels
+  for (int c = 0; c < kStaticChannels; c++) {
+    norm_mul[c] = sample.norm_mul[c];
+    norm_add[c] = sample.norm_add[c];
+  }
+
+   // put the fill value so it will be produced as a result of FMA
+  norm_mul[3] = 0;
+  norm_add[3] = sample.fill_values[3];
+
+  // TODO(klecki): assumes u8, 3 and 4 channels
+
+  auto in_start = reinterpret_cast<std::uintptr_t>(sample.in + start_x);
+  auto aligned_in_start = align_up(in_start, 3*4);
+  uint32_t bytes_skipped = aligned_in_start - in_start;
+
+  const In *prologue_in = sample.in + start_x;
+
+  const uchar4 *aligned_in_char4 =
+      reinterpret_cast<const uchar4 *>(sample.in + start_x + bytes_skipped);
+
+  fast_div<uint32_t> channel(kStaticChannels);
+  // prologue
+  for (uint32_t idx = threadIdx.x; idx < bytes_skipped; idx += blockDim.x) {
+    uint32_t xy, c;
+    xy = div_mod(c, idx, channel);
+    tile[c][xy] = prologue_in[idx];
+  }
+
+  uint32_t left_after_prologue = end_x - start_x - bytes_skipped;
+
+  // aligned load
+  for (uint32_t idx = threadIdx.x; idx < left_after_prologue / 4; idx += blockDim.x) {
+    uint32_t flat_idx = idx * 4 + bytes_skipped;
+    uint32_t xy, c;
+    xy = div_mod(c, flat_idx, channel);
+    uchar4 in = aligned_in_char4[idx];
+
+    tile[c][xy] = in.x;
+
+    c++;
+    if (c == kStaticChannels) {
+      c = 0;
+      xy++;
+    }
+    tile[c][xy] = in.y;
+
+    c++;
+    if (c == kStaticChannels) {
+      c = 0;
+      xy++;
+    }
+    tile[c][xy] = in.z;
+
+
+    c++;
+    if (c == kStaticChannels) {
+      c = 0;
+      xy++;
+    }
+    tile[c][xy] = in.w;
+  }
+
+  uint32_t processed_in_main = left_after_prologue & -4;  // equivalent to (x / 4) * 4
+  uint32_t left_after_main = left_after_prologue - processed_in_main;
+
+  // epilogue
+  const In *epilogue_in = reinterpret_cast<const In *>(aligned_in_char4 + (processed_in_main >> 2));
+
+  for (uint32_t idx = threadIdx.x; idx < left_after_main; idx++) {
+    uint32_t flat_idx = processed_in_main + idx;
+    uint32_t xy, c;
+    xy = div_mod(c, flat_idx, channel);
+    tile[c][xy] = epilogue_in[idx];
+  }
+
+  __syncthreads();
+
+
+  int64_t block_4 = (kBlockSize / kStaticChannels) * kOutChannels;
+  int64_t sample_size_4 = (sample.sample_size / kStaticChannels) * kOutChannels;
+  int64_t start_x_padded = static_cast<int64_t>(blockIdx.x - sample.first_block) * block_4;
+  int64_t end_x_padded = ::min(start_x_padded + block_4, sample_size_4);
+
+
+  auto out_start = reinterpret_cast<std::uintptr_t>(sample.out + start_x_padded);
+  // Find aligned start that is shifted by the whole pixels
+  uint32_t values_skipped_out = 0;
+  auto aligned_out_start = out_start;
+  while (aligned_out_start % 4) {
+    values_skipped_out += kStaticChannels;
+    aligned_out_start += kStaticChannels * sizeof(Out);
+  }
+
+  auto *out_aligned = sample.out + values_skipped_out + start_x_padded;
+
+  for (int64_t idx = threadIdx.x + start_x_padded, base_x = threadIdx.x;
+    idx < start_x_padded + values_skipped_out; idx += blockDim.x, base_x += blockDim.x) {
+
+    int offset = idx >> 2;
+    int base_offset = base_x >> 2;
+    int c = idx & 3;
+    if (c < kStaticChannels) {
+      __half fpin = tile[c][base_offset];
+      __half fpout = __hfma(fpin, norm_mul[c], norm_add[c]);
+      sample.out[idx] = 42;//ConvertSat<Out>(fpout);
+    } else {
+      sample.out[idx] = 43; //norm_add[3];
+    }
+  }
+
+  auto to_write = end_x_padded - start_x_padded - values_skipped_out;
+  auto *out = reinterpret_cast<__half2*>(out_aligned);
+
+
+  // __half2 mul_lo = make_half2(norm_mul[0], norm_mul[1]);
+  // __half2 mul_hi = make_half2(norm_mul[2], norm_mul[3]);
+  // __half2 add_lo = make_half2(norm_add[0], norm_add[1]);
+  // __half2 add_hi = make_half2(norm_add[2], norm_add[3]);
+
+  for (int64_t base_x = threadIdx.x; base_x < (to_write) / 2; base_x += blockDim.x) {
+    int64_t idx = base_x * 2 + start_x;
+    int base_offset = base_x / 2;
+    int c = idx & 3;
+    if (c == 0) {
+      // __half fpin0 = tile[0][base_offset];
+      // __half fpin1 = tile[1][base_offset];
+      // __half2 fpin = make_half2(fpin0, fpin1);
+
+      // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
+      // out[base_x] = fpout;
+
+      float fpin0 = tile[0][base_offset];
+      float fpin1 = tile[1][base_offset];
+
+      float fpout0 = fmaf(fpin0, norm_mul[0], norm_add[0]);
+      float fpout1 = fmaf(fpin1, norm_mul[1], norm_add[1]);
+      out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+    } else {
+
+      // __half fpin0 = tile[2][base_offset];
+      // __half fpin1 = {};   // doesn't matter
+      // __half2 fpin = make_half2(fpin0, fpin1);
+
+      // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
+      // out[base_x] = fpout;
+
+      __half fpin0 = tile[2][base_offset];
+
+      float fpout0 = fmaf(fpin0, norm_mul[2], norm_add[2]);
+      float fpout1 = norm_add[3];
+      out[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+    }
+  }
+
+
+  for (int64_t idx = threadIdx.x + start_x_padded + values_skipped_out + to_write, base_x = threadIdx.x + values_skipped_out + to_write;
+    idx < end_x_padded; idx += blockDim.x, base_x += blockDim.x) {
+
+    int offset = idx >> 2;
+    int base_offset = base_x >> 2;
+    int c = idx & 3;
+    if (c < kStaticChannels) {
+      __half fpin = tile[c][base_offset];
+      __half fpout = __hfma(fpin, norm_mul[c], norm_add[c]);
+      sample.out[idx] = 69;  //ConvertSat<Out>(fpout);
+    } else {
+      sample.out[idx] =  70; // norm_add[3];
+    }
+  }
+
+
+}
+
 
 // HWC -> HWC + pad channels variant
 template <typename Out, typename In, bool enable_mirror, bool enable_pad, int kBlockSize,
@@ -855,9 +1046,15 @@ void SliceHwc2ChwNormalizeGPU<Out>::Run(KernelContext &ctx,
                               kStaticChannels><<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(
             samples, blocks, nonempty_samples);
       } else {
-        Hwc2HwcNormalize<Out, In, flip_x_v.value, pad_v.value, kBlockSizeMul * kBlockWidth,
+        if constexpr (std::is_same_v<Out, float16> && pad_v.value) {
+          Hwc2HwcNormalizePadFp16<Out, In, flip_x_v.value, kBlockSizeMul * kBlockWidth,
                          kStaticChannels><<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(
             samples, blocks, nonempty_samples);
+        } else {
+          Hwc2HwcNormalize<Out, In, flip_x_v.value, pad_v.value, kBlockSizeMul * kBlockWidth,
+                          kStaticChannels><<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(
+              samples, blocks, nonempty_samples);
+        }
       }
     };
 
