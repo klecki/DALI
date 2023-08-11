@@ -731,7 +731,9 @@ __global__ void Hwc2HwcNormalizePadFp16(const Hwc2HwcChwSampleDesc<Out, In> *sam
   } else {
     // out_start % 4 == 2, due to using the fp16 output here. We are effectively shifted by single
     // channel value.
-
+    // TOODO(klecki): THIS NEVER HAPPENS, NEED TO TEST, BUT WITH 4 CHANNELS IN OUTPUT, WE ARE
+    // ARE GUARANTEED TO BE ALIGNED, AS THE POINTER IS ALIGNED. NEED TO FIND WEIRD CASE
+    // WHERE IT IS NOT
     if constexpr (enable_mirror) {
       if (sample.flip_x) {
         uint32_t to_write = end_x_padded - start_x_padded;
