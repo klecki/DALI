@@ -253,6 +253,107 @@ __device__ __forceinline__ Tile *slice_load_linear_tile(
   return tile;
 }
 
+/**
+ * @brief Load the slices of linear tile into planar smem buffers.
+ *
+ * During the loading the values are distributed into separate planes in smem (keeping the same
+ * sequential XY coordinates/offsets). Allows for faster access when building padded HWC output.
+ * Each smem plane must hold kBlockSize / kStaticChannels elements.
+ *
+ * @tparam kBlockSize Tile size
+ * @tparam kStaticChannels Number of input channels
+ * @tparam Tile Type of the data kept after loading in the smem tile.
+ * @tparam Out Output data type
+ * @tparam In Input data type
+ * @tparam kLoadAlign - Alignment (in bytes) of the main loop.
+ * @param tile Shared memory where to load the data.
+ * @param sample Sample description
+ * @return Tile * - the pointer to the smem where the start of the loaded data is.
+ */
+template <int kBlockSize, int kStaticChannels, typename Tile, typename Out, typename In,
+          int kLoadAlign = 4>
+__device__ __forceinline__ void load_planar_tile(Tile tile[][kBlockSize / kStaticChannels],
+                                                 const Hwc2HwcChwSampleDesc<Out, In> sample) {
+  static_assert(std::is_same_v<In, uint8_t>, "Only uint8_t types allowed now.");
+  static_assert(kStaticChannels == 3, "Only 3 input channels allowed now.");
+  static_assert(kLoadAlign % 4 == 0, "The loading alignment should be divisible by 4.");
+
+  int64_t start_x = (blockIdx.x - sample.first_block) * kBlockSize;
+  int64_t end_x = ::min(start_x + kBlockSize, sample.sample_size);
+
+  auto in_start = reinterpret_cast<std::uintptr_t>(sample.in + start_x);
+  auto aligned_in_start = align_up(in_start, kLoadAlign);
+  uint32_t bytes_to_alignment = ::min(aligned_in_start - in_start, end_x - start_x);
+
+  const In *prologue_in = sample.in + start_x;
+
+  const uchar4 *aligned_in_char4 =
+      reinterpret_cast<const uchar4 *>(sample.in + start_x + bytes_to_alignment);
+
+  // The tiles are multiple of 3, so we are always reading from the start of the pixel.
+
+  fast_div<uint32_t> channel(kStaticChannels);
+  // prologue
+  for (uint32_t idx = threadIdx.x; idx < bytes_to_alignment; idx += blockDim.x) {
+    uint32_t xy, c;
+    xy = div_mod(c, idx, channel);
+    tile[c][xy] = prologue_in[idx];
+  }
+
+  // this might be 0, as the prologue may be the full extend of the tile
+  uint32_t left_after_prologue = end_x - start_x - bytes_to_alignment;
+
+
+  // We read 4 values in each iteration
+  uint32_t main_loop_length = left_after_prologue >> 2;
+
+  // main loop: aligned load and unpacking
+  for (uint32_t idx = threadIdx.x; idx < main_loop_length; idx += blockDim.x) {
+    uint32_t flat_idx = idx * 4 + bytes_to_alignment;
+    uint32_t xy, c;
+    xy = div_mod(c, flat_idx, channel);
+    uchar4 in = aligned_in_char4[idx];
+
+    tile[c][xy] = in.x;
+
+    c++;
+    if (c == kStaticChannels) {
+      c = 0;
+      xy++;
+    }
+    tile[c][xy] = in.y;
+
+    c++;
+    if (c == kStaticChannels) {
+      c = 0;
+      xy++;
+    }
+    tile[c][xy] = in.z;
+
+
+    c++;
+    if (c == kStaticChannels) {
+      c = 0;
+      xy++;
+    }
+    tile[c][xy] = in.w;
+  }
+
+  uint32_t processed_in_main = left_after_prologue & -4;  // equivalent to (x / 4) * 4
+  uint32_t left_after_main = left_after_prologue - processed_in_main;
+
+  // epilogue
+  const In *epilogue_in = reinterpret_cast<const In *>(aligned_in_char4 + main_loop_length);
+
+  for (uint32_t idx = threadIdx.x; idx < left_after_main; idx++) {
+    uint32_t flat_idx = processed_in_main + bytes_to_alignment + idx;
+    uint32_t xy, c;
+    xy = div_mod(c, flat_idx, channel);
+    tile[c][xy] = epilogue_in[idx];
+  }
+}
+
+
 /** @} */  // end of Hwc2HwcChwLoad
 
 
@@ -523,6 +624,238 @@ __global__ void SliceHwc2HwcNormalize(const Hwc2HwcChwSampleDesc<Out, In> *sampl
   store_hwc<kBlockSize, kStaticChannels, enable_mirror, enable_pad, Out>(loaded_tile, sample);
 }
 
+/**
+ * @brief Hwc2Hwc Normalize [Mirror-x] Pad-channel-always kernel for FP16.
+ *
+ * This kernel utilizes 4-byte reads and writes. The smem intermediate tile uses planar layout,
+ * for better access to the image values during writing of the output.
+ */
+template <typename Out, typename In, bool enable_mirror, int kBlockSize, int kStaticChannels>
+__global__ void Hwc2HwcNormalizePadFp16(const Hwc2HwcChwSampleDesc<Out, In> *samples,
+                                        uint32_t *first_blocks, uint32_t num_samples) {
+  static_assert(std::is_same<In, uint8_t>::value, "Only uint8_t supported as input");
+
+  constexpr int kOutChannels = kStaticChannels + 1;
+
+  int sample_idx = FindSampleIdx(first_blocks, num_samples);
+  const auto sample = samples[sample_idx];
+
+  int64_t start_x = (blockIdx.x - sample.first_block) * kBlockSize;
+  int64_t end_x = ::min(start_x + kBlockSize, sample.sample_size);
+
+  float norm_mul[kOutChannels], norm_add[kOutChannels];
+
+
+#pragma unroll kStaticChannels
+  for (int c = 0; c < kStaticChannels; c++) {
+    norm_mul[c] = sample.norm_mul[c];
+    norm_add[c] = sample.norm_add[c];
+  }
+
+  // put the fill value so it will be produced as a result of FMA
+  norm_mul[3] = 0;
+  norm_add[3] = sample.fill_values[3];
+
+  __shared__ float tile[kStaticChannels][kBlockSize / kStaticChannels];
+  load_planar_tile<kBlockSize, kStaticChannels>(tile, sample);
+
+  __syncthreads();
+
+
+  // TODO(klecki): some of that doesn't need to be int64_t
+  int64_t block_4 = (kBlockSize / kStaticChannels) * kOutChannels;
+  int64_t sample_size_4 = (sample.sample_size / kStaticChannels) * kOutChannels;
+  int64_t start_x_padded = static_cast<int64_t>(blockIdx.x - sample.first_block) * block_4;
+  int64_t end_x_padded = ::min(start_x_padded + block_4, sample_size_4);
+
+  auto out_start = reinterpret_cast<std::uintptr_t>(sample.out);
+  if (out_start % 4 == 0) {
+    // TODO(klecki) in the version without mirror, we can keep one offset, as we can start the
+    // output pointer at the output tile.
+    auto *out_aligned = sample.out;  // + start_x_padded;
+    auto *out_h2 = reinterpret_cast<__half2 *>(out_aligned);
+    uint32_t to_write = end_x_padded - start_x_padded;
+    // loop is divided by two as we write two elements in each thread
+    for (uint32_t base_x = threadIdx.x; base_x < to_write / 2; base_x += blockDim.x) {
+      int base_offset = base_x / 2;
+      int c = base_x & 1;
+
+      int64_t out_offset;
+
+      if constexpr (enable_mirror) {
+        if (sample.flip_x) {
+          int64_t idx = start_x_padded + base_x * 2;
+          int y = idx / (sample.W * kOutChannels);
+          int xc = idx - (int64_t)y * sample.W * kOutChannels;
+          int x = xc / kOutChannels;
+          int target_x = sample.W - 1 - x;
+          // basically we divide the out_offset by two, that why we multiply by two, maybe it's
+          // better to spell it out. The C is either 0 or 1.
+          out_offset = (int64_t)y * sample.W * 2 + target_x * 2 + c;
+        } else {
+          out_offset = start_x_padded / 2 + base_x;
+        }
+      } else {
+        out_offset = start_x_padded / 2 + base_x;
+      }
+
+      if (c == 0) {
+        // __half fpin0 = tile[0][base_offset];
+        // __half fpin1 = tile[1][base_offset];
+        // __half2 fpin = make_half2(fpin0, fpin1);
+
+        // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
+        // out[base_x] = fpout;
+
+        float fpin0 = tile[0][base_offset];
+        float fpin1 = tile[1][base_offset];
+
+        float fpout0 = fmaf(fpin0, norm_mul[0], norm_add[0]);
+        float fpout1 = fmaf(fpin1, norm_mul[1], norm_add[1]);
+        out_h2[out_offset] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      } else {
+        // __half fpin0 = tile[2][base_offset];
+        // __half fpin1 = {};   // doesn't matter
+        // __half2 fpin = make_half2(fpin0, fpin1);
+
+        // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
+        // out[base_x] = fpout;
+
+        float fpin0 = tile[2][base_offset];
+
+        float fpout0 = fmaf(fpin0, norm_mul[2], norm_add[2]);
+        float fpout1 = norm_add[3];
+        out_h2[out_offset] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      }
+    }
+  } else {
+    // out_start % 4 == 2, due to using the fp16 output here. We are effectively shifted by single
+    // channel value.
+
+    if constexpr (enable_mirror) {
+      if (sample.flip_x) {
+        uint32_t to_write = end_x_padded - start_x_padded;
+
+        // we can't really move back, as this would be considered UB :P
+        auto *out_h2 = reinterpret_cast<__half2 *>(sample.out + 1);
+
+        // loop is divided by two as we write two elements in each thread
+        // we need one more loop revolution to write some last padding value, most prob
+        for (uint32_t base_x = threadIdx.x; base_x < to_write / 2; base_x += blockDim.x) {
+          int base_offset = base_x / 2;
+          int c = base_x & 1;
+
+
+          int64_t idx = start_x_padded + base_x * 2;
+          int y = idx / (sample.W * kOutChannels);
+          int xc = idx - (int64_t)y * sample.W * kOutChannels;
+          int x = xc / kOutChannels;
+          int target_x = sample.W - 1 - x;
+          // basically we divide the out_offset by two, that why we multiply by two, maybe it's
+          // better to spell it out. The C is either 0 or 1.
+          int64_t out_offset =
+              (int64_t)y * sample.W * 2 + target_x * 2;  // start of the offset, but keep in mind we
+                                                         // have already built in shift of 1 element
+          // Let's assume that this branch is supposed to handle the R, with the preceding fill
+          // value
+          if (c == 0) {
+            // __half fpin0 = tile[0][base_offset];
+            // __half fpin1 = tile[1][base_offset];
+            // __half2 fpin = make_half2(fpin0, fpin1);
+
+            // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
+            // out[base_x] = fpout;
+
+            // float fpin0 = tile[0][base_offset];
+            float fpin1 = tile[0][base_offset];
+
+            float fpout0 = norm_add[3];
+            float fpout1 = fmaf(fpin1, norm_mul[0], norm_add[0]);
+            // x == 0 && y == 0
+            if (out_offset == 0) {
+              sample.out[0] = fpout1;
+              // } else if (out_offset == <end of image>) {
+            } else {
+              out_h2[out_offset - 1] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+            }
+          } else {
+            // __half fpin0 = tile[2][base_offset];
+            // __half fpin1 = {};   // doesn't matter
+            // __half2 fpin = make_half2(fpin0, fpin1);
+
+            // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
+            // out[base_x] = fpout;
+
+            float fpin0 = tile[1][base_offset];
+            float fpin1 = tile[2][base_offset];
+
+            float fpout0 = fmaf(fpin0, norm_mul[1], norm_add[1]);
+            float fpout1 = fmaf(fpin1, norm_mul[2], norm_add[2]);
+            out_h2[out_offset] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+          }
+        }
+
+        // THE LAST VALUE, AGAIN
+        // WHY IS THIS VALUE NOT MISSING IN THE OUTPUT IF I DON'T INCLUDE THIS?
+        float fpout_A = norm_add[3];
+        sample.out[end_x_padded - 1] = ConvertSat<Out>(fpout_A);
+        return;
+      } else {
+        // write it as god intended.
+      }
+    }
+    // let all threads smash the same value?
+    float fpin = tile[0][0];
+    float fpout_R = fma(fpin, norm_mul[0], norm_add[0]);
+    sample.out[start_x_padded] = ConvertSat<Out>(fpout_R);
+
+
+    auto *out_aligned = sample.out + start_x_padded + 1;
+    auto *out_h2 = reinterpret_cast<__half2 *>(out_aligned);
+
+    uint32_t to_write = end_x_padded - start_x_padded - 2;
+
+    for (int64_t base_x = threadIdx.x; base_x < to_write / 2; base_x += blockDim.x) {
+      int base_offset = base_x / 2;
+      int c = base_x & 1;
+      // This is reversed, we write GB here, and than AR
+      if (c == 0) {
+        // __half fpin0 = tile[0][base_offset];
+        // __half fpin1 = tile[1][base_offset];
+        // __half2 fpin = make_half2(fpin0, fpin1);
+
+        // __half2 fpout = __hfma2(fpin, mul_lo, add_lo);
+        // out[base_x] = fpout;
+
+        float fpin0 = tile[1][base_offset];
+        float fpin1 = tile[2][base_offset];
+
+        float fpout0 = fmaf(fpin0, norm_mul[1], norm_add[1]);
+        float fpout1 = fmaf(fpin1, norm_mul[2], norm_add[2]);
+        out_h2[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      } else {
+        // __half fpin0 = tile[2][base_offset];
+        // __half fpin1 = {};   // doesn't matter
+        // __half2 fpin = make_half2(fpin0, fpin1);
+
+        // __half2 fpout = __hfma2(fpin, mul_hi, add_hi);
+        // out[base_x] = fpout;
+
+        float fpin0 = tile[0][base_offset + 1];
+
+        float fpout0 = norm_add[3];
+        float fpout1 = fmaf(fpin0, norm_mul[0], norm_add[0]);
+        out_h2[base_x] = make_half2(ConvertSat<Out>(fpout0), ConvertSat<Out>(fpout1));
+      }
+    }
+    // THE LAST VALUE, AGAIN
+
+    float fpout_A = norm_add[3];
+    sample.out[end_x_padded - 1] = ConvertSat<Out>(fpout_A);
+  }
+}
+
+
 /** @} */  // end of Hwc2HwcChw
 
 template <typename Out>
@@ -756,9 +1089,16 @@ void SliceHwc2HwcChwNormalizeGPU<Out>::Run(KernelContext &ctx,
                               kStaticChannels><<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(
             samples, blocks, nonempty_samples);
       } else {
-        Hwc2HwcNormalize<Out, In, flip_x_v.value, pad_v.value, kBlockSizeMul * kBlockWidth,
-                          kStaticChannels><<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(
-            samples, blocks, nonempty_samples);
+        if constexpr (std::is_same_v<Out, float16> && pad_v.value) {
+          Hwc2HwcNormalizePadFp16<Out, In, flip_x_v.value, kBlockSizeMul * kBlockWidth,
+                                  kStaticChannels>
+              <<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(samples, blocks,
+                                                                    nonempty_samples);
+        } else {
+          Hwc2HwcNormalize<Out, In, flip_x_v.value, pad_v.value, kBlockSizeMul * kBlockWidth,
+                           kStaticChannels><<<offset_blk, kThreadBlockSize, 0, ctx.gpu.stream>>>(
+              samples, blocks, nonempty_samples);
+        }
       }
     };
 
