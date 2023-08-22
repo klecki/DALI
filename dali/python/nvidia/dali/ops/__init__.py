@@ -37,6 +37,7 @@ def _load_ops():
     ops_module = sys.modules[__name__]
 
     for op_reg_name in _all_ops:
+        # TODO(klecki): Make this a function: _add_op(op_reg_name) and invoke it immediately with register_xxx_op()
         schema = _b.TryGetSchema(op_reg_name)
         make_hidden = schema.IsDocHidden() if schema else False
         _, submodule, op_name = _process_op_name(op_reg_name, make_hidden)

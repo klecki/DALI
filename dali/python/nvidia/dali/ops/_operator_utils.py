@@ -13,12 +13,29 @@
 # limitations under the License.
 
 
+from nvidia.dali.data_node import DataNode as _DataNode
+from nvidia.dali.types import ScalarConstant as _ScalarConstant
+
+
 def _instantiate_constant_node(device, constant):
     return _Constant(device=device, value=constant.value, dtype=constant.dtype,
                      shape=constant.shape)
 
 
 def _choose_device(inputs):
+    """Check the input DataNodes to deduce the placement of this operator.
+    If any of the input is placed on GPU, place the op on GPU, otherwise it's placed on CPU.
+
+    Parameters
+    ----------
+    inputs : DataNode or tuple of DataNode
+        The positional inputs to the operator call.
+
+    Returns
+    -------
+    str
+        deduced operator placement.
+    """
     for input in inputs:
         if isinstance(input, (tuple, list)):
             if any(getattr(inp, "device", None) == "gpu" for inp in input):
@@ -29,15 +46,35 @@ def _choose_device(inputs):
 
 
 def _preprocess_inputs(inputs, op_name, device, schema=None):
+    """Preprocess positional inputs to the operator, replacing Python constants with
+    proper Constant operator nodes.
+
+    Parameters
+    ----------
+    inputs : tuple
+        Positional inputs to DALI operator in pipeline definition. Those can be DataNodes,
+        ScalarConstants and all Python constants that are accepted by Constant operator.
+        Accepts multiple input sets.
+    op_name : str
+        Name of the invoked operator, for error reporting purposes.
+    device : str
+        Placement of the operator, allowing efficient placement of the input nodes.
+    schema : OpSchema, optional
+
+    Returns
+    -------
+    List of positional input DataNodes / List of lists of DataNodes
+        DataNode-only representation of positional inputs to operator.
+    """
     if isinstance(inputs, tuple):
         inputs = list(inputs)
 
     def is_input(x):
-        if isinstance(x, (_DataNode, nvidia.dali.types.ScalarConstant)):
+        if isinstance(x, (_DataNode, _ScalarConstant)):
             return True
         return (isinstance(x, (list))
                 and any(isinstance(y, _DataNode) for y in x)
-                and all(isinstance(y, (_DataNode, nvidia.dali.types.ScalarConstant)) for y in x))
+                and all(isinstance(y, (_DataNode, _ScalarConstant)) for y in x))
 
     default_input_device = "gpu" if device == "gpu" else "cpu"
 
@@ -47,7 +84,7 @@ def _preprocess_inputs(inputs, op_name, device, schema=None):
                 input_device = schema.GetInputDevice(idx) or default_input_device
             else:
                 input_device = default_input_device
-            if not isinstance(inp, nvidia.dali.types.ScalarConstant):
+            if not isinstance(inp, _ScalarConstant):
                 try:
                     inp = _Constant(inp, device=input_device)
                 except Exception as ex:
@@ -60,3 +97,118 @@ Attempt to convert it to a constant node failed.""") from ex
 
         inputs[idx] = inp
     return inputs
+
+
+
+
+
+
+
+
+# Unzip the list from [[out0, out1, out2], [out0', out1', out2'], ...]
+# to [[out0, out0', ...], [out1, out1', ...], [out2, out2', ...]]
+# Assume that all elements of input have the same length
+# If the inputs were 1-elem lists, return just a list, that is:
+# [[out0], [out0'], [out0''], ...] -> [out0, out0', out0'', ...]
+def _repack_output_sets(self, outputs):
+    if len(outputs) > 1 and len(outputs[0]) == 1:
+        output = []
+        for elem in outputs:
+            output.append(elem[0])
+        return output
+    return self._repack_list(outputs, list)
+
+def _repack_list(sets, fn):
+    """Repack list from [[a, b, c], [a', b', c'], ....]
+    to [fn(a, a', ...), fn(b, b', ...), fn(c, c', ...)]
+    where fn can be `tuple` or `list`
+    Assume that all elements of input have the same length
+    """
+    output_list = []
+    arg_list_len = len(sets[0])
+    for i in range(arg_list_len):
+        output_list.append(fn(input_set[i] for input_set in sets))
+    return output_list
+
+
+def _build_input_sets(inputs, op_name):
+    """Detect if the list of positional inputs [Inp_0, Inp_1, Inp_2, ...], represents Multiple
+    Input Sets (MIS) to operator and prepare lists of regular DataNode-only positional inputs to
+    individual operator instances.
+
+    If all Inp_i are DataNodes there are no MIS involved.
+    If any of Inp_i is a list of DataNodes, this is considered a MIS. In that case, non-list
+    Inp_i is repeated to match the length of the one that is a list, and those lists are regrouped,
+    for example:
+
+    inputs = [a, b, [x, y, z], [u, v, w]]
+
+    # "a" and "b" are repeated to match the length of [x, y, z]:
+    -> [[a, a, a], [b, b, b], [x, y, z], [u, v, w]]
+
+    # input sets are rearranged, so they form a regular tuples of DataNodes suitable to being passed
+    # to one Operator Instance.
+    -> [(a, b, x, u), (a, b, y, v), (a, b, z, w)]
+
+    This allows to create 3 operator instances, each with 4 positional inputs.
+
+    Parameters
+    ----------
+    inputs : List of positional inputs
+        The inputs are either DataNodes or lists of DataNodes indicating MIS.
+    op_name : str
+        Name of the invoked operator, for error reporting purposes.
+    """
+    def _detect_multiple_input_sets(inputs):
+        """Check if any of inputs is a list, indicating a usage of MIS."""
+        return any(isinstance(input, list) for input in inputs)
+
+    def _safe_len(input):
+        if isinstance(input, list):
+            return len(input)
+        else:
+            return 1
+
+    def _check_common_length(inputs):
+        """Check if all list representing multiple input sets have the same length and return it"""
+        arg_list_len = max(_safe_len(input) for input in inputs)
+        for input in inputs:
+            if isinstance(input, list):
+                if len(input) != arg_list_len:
+                    raise ValueError(f"All argument lists for Multiple Input Sets used "
+                                     f"with operator {op_name} must have "
+                                     f"the same length")
+        return arg_list_len
+
+    def _unify_lists(inputs, arg_list_len):
+        """Pack single _DataNodes into lists, so they are treated as Multiple Input Sets
+        consistently with the ones already present
+
+        Parameters
+        ----------
+        arg_list_len : int
+            Number of MIS.
+        """
+        result = ()
+        for input in inputs:
+            if isinstance(input, list):
+                result = result + (input, )
+            else:
+                result = result + ([input] * arg_list_len, )
+        return result
+
+    def _repack_input_sets(inputs):
+        """Zip the list from [[arg0, arg0', arg0''], [arg1', arg1'', arg1''], ...]
+        to [(arg0, arg1, ...), (arg0', arg1', ...), (arg0'', arg1'', ...)]
+        """
+        return _repack_list(inputs, tuple)
+
+    input_sets = []
+    if _detect_multiple_input_sets(inputs):
+        arg_list_len = _check_common_length(inputs)
+        packed_inputs = _unify_lists(inputs, arg_list_len)
+        input_sets = _repack_input_sets(packed_inputs)
+    else:
+        input_sets = [inputs]
+
+    return input_sets

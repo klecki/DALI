@@ -14,6 +14,9 @@
 
 
 
+from nvidia.dali.ops import _preprocess_inputs
+
+
 class PythonFunctionBase(metaclass=_DaliOperatorMeta):
 
     def __init__(self, impl_name, function, num_outputs=1, device='cpu', **kwargs):

@@ -32,7 +32,7 @@ from nvidia.dali import _conditionals
 
 from nvidia.dali.ops._operator_docs import (_docstring_generator, _docstring_generator_call,
                                             _docstring_generator_fn)
-from nvidia.dali.ops._operator_utils import _instantiate_constant_node, _preprocess_inputs
+from nvidia.dali.ops._operator_utils import (_instantiate_constant_node, _preprocess_inputs, _build_input_sets)
 
 
 cupy = None
@@ -49,6 +49,9 @@ def _schema_name(cls):
 
 
 class _OpCounter(object):
+    """Atomic counter used for auto-naming new operator instances throughout the lifetime of the
+    process.
+    """
     # pylint: disable=too-few-public-methods
     _lock = threading.Lock()
     _op_count = count(0)
@@ -120,8 +123,24 @@ def _add_spec_args(schema, spec, kwargs):
         converted_value = _type_convert_value(dtype, value)
         spec.AddArg(key, converted_value)
 
+# TODO(klecki): Why do we have:
+# * _OperatorInstance
+# python_op_factory with class Operator
+# metaclass _DaliOperatorMeta
+
 
 class _OperatorInstance(object):
+    """Operator Instance is created when the __call__ function of respective DALI API is invoked.
+    It is responsible for preparing the output DataNodes of that __call__ function.
+
+    The `__init__` is part of the API's operator `__call__` that generates the name of the operator
+    instance for the backend and fills the OpSpec with Argument Inputs.
+
+    Parameters
+    ----------
+    object : _type_
+        _description_
+    """
 
     def __init__(self, inputs, op, **kwargs):
         self._counter = _OpCounter()
@@ -366,7 +385,7 @@ def python_op_factory(name, schema_name=None):
 
             inputs = _preprocess_inputs(inputs, self.__class__.__name__, self._device, self._schema)
 
-            input_sets = self._build_input_sets(inputs)
+            input_sets = _build_input_sets(inputs, self.__class__.__name__)
 
             # Create OperatorInstance for every input set
             op_instances = []
@@ -394,85 +413,12 @@ def python_op_factory(name, schema_name=None):
                 _conditionals.register_data_nodes(result, input_sets[0], kwargs)
             return result
 
-        # Check if any of inputs is a list
-        def _detect_multiple_input_sets(self, inputs):
-            return any(isinstance(input, list) for input in inputs)
-
-        # Check if all list representing multiple input sets have the same length and return it
-        def _check_common_length(self, inputs):
-            arg_list_len = max(self._safe_len(input) for input in inputs)
-            for input in inputs:
-                if isinstance(input, list):
-                    if len(input) != arg_list_len:
-                        raise ValueError(f"All argument lists for Multiple Input Sets used "
-                                         f"with operator {type(self).__name__} must have "
-                                         f"the same length")
-            return arg_list_len
-
-        def _safe_len(self, input):
-            if isinstance(input, list):
-                return len(input)
-            else:
-                return 1
-
-        # Pack single _DataNodes into lists, so they are treated as Multiple Input Sets
-        # consistently with the ones already present
-        def _unify_lists(self, inputs, arg_list_len):
-            result = ()
-            for input in inputs:
-                if isinstance(input, list):
-                    result = result + (input, )
-                else:
-                    result = result + ([input] * arg_list_len, )
-            return result
-
-        # Zip the list from [[arg0, arg0', arg0''], [arg1', arg1'', arg1''], ...]
-        # to [(arg0, arg1, ...), (arg0', arg1', ...), (arg0'', arg1'', ...)]
-        def _repack_input_sets(self, inputs):
-            return self._repack_list(inputs, tuple)
-
-        # Unzip the list from [[out0, out1, out2], [out0', out1', out2'], ...]
-        # to [[out0, out0', ...], [out1, out1', ...], [out2, out2', ...]]
-        # Assume that all elements of input have the same length
-        # If the inputs were 1-elem lists, return just a list, that is:
-        # [[out0], [out0'], [out0''], ...] -> [out0, out0', out0'', ...]
-        def _repack_output_sets(self, outputs):
-            if len(outputs) > 1 and len(outputs[0]) == 1:
-                output = []
-                for elem in outputs:
-                    output.append(elem[0])
-                return output
-            return self._repack_list(outputs, list)
-
-        # Repack list from [[a, b, c], [a', b', c'], ....]
-        # to [fn(a, a', ...), fn(b, b', ...), fn(c, c', ...)]
-        # where fn can be `tuple` or `list`
-        # Assume that all elements of input have the same length
-        def _repack_list(self, sets, fn):
-            output_list = []
-            arg_list_len = len(sets[0])
-            for i in range(arg_list_len):
-                output_list.append(fn(input_set[i] for input_set in sets))
-            return output_list
-
         def _check_schema_num_inputs(self, inputs):
             if len(inputs) < self._schema.MinNumInput() or len(inputs) > self._schema.MaxNumInput():
                 raise ValueError(
                     f"Operator {type(self).__name__} expects "
                     f"from {self._schema.MinNumInput()} to {self._schema.MaxNumInput()} inputs, "
                     f"but received {len(inputs)}.")
-
-        def _build_input_sets(self, inputs):
-            # Build input sets, most of the time we only have one
-            input_sets = []
-            if self._detect_multiple_input_sets(inputs):
-                arg_list_len = self._check_common_length(inputs)
-                packed_inputs = self._unify_lists(inputs, arg_list_len)
-                input_sets = self._repack_input_sets(packed_inputs)
-            else:
-                input_sets = [inputs]
-
-            return input_sets
 
     Operator.__name__ = str(name)
     Operator.schema_name = schema_name or Operator.__name__
