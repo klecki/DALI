@@ -20,6 +20,7 @@ from itertools import count
 
 import nvidia.dali.python_function_plugin
 from nvidia.dali import backend as _b
+from nvidia.dali.backend import OpSchema as _OpSchema, OpSpec as _OpSpec
 from nvidia.dali import fn as _functional
 from nvidia.dali import internal as _internal
 from nvidia.dali.data_node import DataNode as _DataNode
@@ -68,7 +69,9 @@ class _OpCounter(object):
 
 
 def _separate_kwargs(kwargs, arg_input_type=_DataNode):
-    """Separates arguments into ones that should go to operator's __init__ and to __call__.
+    """Separates arguments into ones that should go to operator's __init__ and to __call__,
+    the former are the scalar arguments passed via AddArg to the OpSpec,
+    the latter are the argument inputs represented by DataNodes/TensorLists.
 
     Returns a pair of dictionaries of kwargs - the first for __init__, the second for __call__.
 
@@ -108,6 +111,16 @@ def _separate_kwargs(kwargs, arg_input_type=_DataNode):
     return init_args, call_args
 
 
+def _check_arg_input(schema, op_name, name):
+    if name == "name":
+        return
+    if not schema.IsTensorArgument(name):
+        expected_type_name = _type_name_convert_to_string(schema.GetArgumentType(name), False)
+        raise TypeError(
+            f"The argument `{name}` for operator `{op_name}` should not be a `DataNode` but a "
+            f"{expected_type_name}")
+
+
 def _add_spec_args(schema, spec, kwargs):
     for key, value in kwargs.items():
         if value is None:
@@ -122,6 +135,33 @@ def _add_spec_args(schema, spec, kwargs):
                 continue
         converted_value = _type_convert_value(dtype, value)
         spec.AddArg(key, converted_value)
+
+def _handle_argument_deprecation(schema, op_name, kwargs):
+    # For whatever reason, we do it only for scalar arguments
+    # TODO(klecki): Extend this to handle other kinds of arguments as well
+    # Check for any deprecated arguments that should be replaced or removed
+    arg_names = list(kwargs.keys())
+    for arg_name in arg_names:
+        if not schema.IsDeprecatedArg(arg_name):
+            continue
+        meta = schema.DeprecatedArgMeta(arg_name)
+        new_name = meta['renamed_to']
+        removed = meta['removed']
+        msg = meta['msg']
+        if new_name:
+            if new_name in kwargs:
+                raise TypeError(f"Operator {op_name} got an unexpected"
+                                f" '{arg_name}' deprecated argument when '{new_name}'"
+                                f" was already provided")
+            kwargs[new_name] = kwargs[arg_name]
+            del kwargs[arg_name]
+        elif removed:
+            del kwargs[arg_name]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("default")
+            warnings.warn(msg, DeprecationWarning, stacklevel=2)
+    return kwargs
 
 # TODO(klecki): Why do we have:
 # * _OperatorInstance
@@ -150,6 +190,7 @@ class _OperatorInstance(object):
         self._spec = op.spec.copy()
         self._relation_id = self._counter.id
 
+        # TODO(klecki): We already did _preprocess_inputs, so we should have already replaced ScalarConstants.
         if inputs is not None:
             default_input_device = "gpu" if op.device == "gpu" else "cpu"
             inputs = list(inputs)
@@ -159,14 +200,19 @@ class _OperatorInstance(object):
                     inputs[i] = _instantiate_constant_node(default_input_device, inp)
             inputs = tuple(inputs)
 
+        # TODO(klecki): We didn't include the ones from __init__ in class API, tough luck,
+        # go to the fn API.
         if _conditionals.conditionals_enabled():
             inputs, kwargs = _conditionals.apply_conditional_split_to_args(inputs, kwargs)
 
         self._inputs = inputs
 
         spec_args, kwargs = _separate_kwargs(kwargs)
+        # TODO(klecki): HANDLE DEPRECATION FOR ARGUMENTS AGAIN :V
+        spec_args = _handle_argument_deprecation(op._schema, type(op).__name__, spec_args)
         _add_spec_args(op._schema, self._spec, spec_args)
 
+        # TODO(klecki): Extract it as a specific ops API call job to merge both stages
         call_args = {**self._default_call_args}
         for k, v in kwargs.items():
             if v is None:
@@ -176,11 +222,14 @@ class _OperatorInstance(object):
                 raise ValueError("The argument `{}` was already specified in __init__.".format(k))
             call_args[k] = v
 
+        # TODO(klecki): Handle the name of this instance once
         name = call_args.get("name", None)
         if name is not None:
             self._name = name
         else:
             self._name = '__' + type(op).__name__ + "_" + str(self._counter.id)
+        # TODO(klecki): MIS will work with the same name if it was provided in init xDDD
+
         # Add inputs
         if inputs:
             for inp in inputs:
@@ -192,8 +241,10 @@ class _OperatorInstance(object):
         for k in sorted(call_args.keys()):
             if k not in ["name"]:
                 arg_inp = call_args[k]
+                # TODO(klecki): Extract none filtering once!
                 if arg_inp is None:
                     continue
+                # TODO(klecki): _preprocess_inputs here as well?
                 if isinstance(arg_inp, _ScalarConstant):
                     arg_inp = _instantiate_constant_node("cpu", arg_inp)
                 if not isinstance(arg_inp, _DataNode):
@@ -230,6 +281,7 @@ class _OperatorInstance(object):
         pipeline = _Pipeline.current()
         if pipeline is None and self._op.preserve:
             _Pipeline._raise_pipeline_required("Operators with side-effects ")
+        # TODO(klecki): THIS IS THE MOST XD PART OF THE LIBRARY
         # Add outputs
         if self._op.device == "gpu" or self._op.device == "mixed":
             output_device = "gpu"
@@ -300,14 +352,6 @@ class _DaliOperatorMeta(type):
         return _docstring_generator(self)
 
 
-def _check_arg_input(schema, op_name, name):
-    if name == "name":
-        return
-    if not schema.IsTensorArgument(name):
-        expected_type_name = _type_name_convert_to_string(schema.GetArgumentType(name), False)
-        raise TypeError(
-            f"The argument `{name}` for operator `{op_name}` should not be a `DataNode` but a "
-            f"{expected_type_name}")
 
 
 def python_op_factory(name, schema_name=None):
@@ -338,28 +382,7 @@ def python_op_factory(name, schema_name=None):
             self._spec.AddArg("preserve", self._preserve)
             self._preserve = self._preserve or self._schema.IsNoPrune()
 
-            # Check for any deprecated arguments that should be replaced or removed
-            arg_names = list(kwargs.keys())
-            for arg_name in arg_names:
-                if not self._schema.IsDeprecatedArg(arg_name):
-                    continue
-                meta = self._schema.DeprecatedArgMeta(arg_name)
-                new_name = meta['renamed_to']
-                removed = meta['removed']
-                msg = meta['msg']
-                if new_name:
-                    if new_name in kwargs:
-                        raise TypeError(f"Operator {type(self).__name__} got an unexpected"
-                                        f"'{arg_name}' deprecated argument when '{new_name}'"
-                                        f"was already provided")
-                    kwargs[new_name] = kwargs[arg_name]
-                    del kwargs[arg_name]
-                elif removed:
-                    del kwargs[arg_name]
-
-                with warnings.catch_warnings():
-                    warnings.simplefilter("default")
-                    warnings.warn(msg, DeprecationWarning, stacklevel=2)
+            kwargs = _handle_argument_deprecation(self._schema, type(self).__name__, kwargs)
 
             # Store the specified arguments
             _add_spec_args(self._schema, self._spec, kwargs)

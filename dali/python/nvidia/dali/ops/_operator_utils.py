@@ -46,6 +46,7 @@ def _choose_device(inputs):
 
 
 def _preprocess_inputs(inputs, op_name, device, schema=None):
+    # TODO(klecki): Check if we actually handle the MIS here, or not?
     """Preprocess positional inputs to the operator, replacing Python constants with
     proper Constant operator nodes.
 
