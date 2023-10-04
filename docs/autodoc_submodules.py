@@ -16,7 +16,7 @@ ops_modules = {
 
 
 exclude_ops_members = {
-    'nvidia.dali.ops': ["PythonFunctionBase"]
+    'nvidia.dali.ops': []
 }
 
 

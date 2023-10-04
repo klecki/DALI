@@ -32,63 +32,34 @@ def _setup_cupy():
         import cupy as cupy
 
 
-class PythonFunctionBase(metaclass=ops._DaliOperatorMeta):
+class PythonFunctionBase(
+        ops.python_op_factory("DLTensorPythonFunctionImpl", "DLTensorPythonFunctionImpl"),
+        metaclass=ops._DaliOperatorMeta):
 
     def __init__(self, impl_name, function, num_outputs=1, device='cpu', **kwargs):
-        self._schema = _b.GetSchema(impl_name)
-        self._spec = _b.OpSpec(impl_name)
-        self._device = device
+        super().__init__(device=device, **kwargs)
+        self._preserve = True
         self._impl_name = impl_name
-
-        kwargs, self._call_args = ops._separate_kwargs(kwargs)
-
-        for key, value in kwargs.items():
-            self._spec.AddArg(key, value)
-
         self.function = function
         self.num_outputs = num_outputs
-        self._preserve = True
-
-    @property
-    def spec(self):
-        return self._spec
-
-    @property
-    def schema(self):
-        return self._schema
-
-    @property
-    def device(self):
-        return self._device
-
-    @property
-    def preserve(self):
-        return self._preserve
 
     def __call__(self, *inputs, **kwargs):
-        inputs = ops._preprocess_inputs(inputs, self._impl_name, self._device, None)
         pipeline = _Pipeline.current()
         if pipeline is None:
             _Pipeline._raise_pipeline_required("PythonFunction operator")
 
-        if (len(inputs) > self._schema.MaxNumInput() or len(inputs) < self._schema.MinNumInput()):
-            raise ValueError(
-                f"Operator {type(self).__name__} expects "
-                f"from {self._schema.MinNumInput()} to {self._schema.MaxNumInput()} inputs, "
-                f"but received {len(inputs)}.")
         for inp in inputs:
             if not isinstance(inp, _DataNode):
                 raise TypeError(f"Expected inputs of type `DataNode`. "
                                 f"Received input of type '{type(inp).__name__}'. "
                                 f"Python Operators do not support Multiple Input Sets.")
 
-        args, arg_inputs = ops._separate_kwargs(kwargs)
-        op_instance = ops._OperatorInstance(inputs, arg_inputs, args, {}, self)
-        op_instance.spec.AddArg("function_id", id(self.function))
-        op_instance.spec.AddArg("num_outputs", self.num_outputs)
-        op_instance.spec.AddArg("device", self.device)
+        kwargs |= {
+            "function_id": id(self.function),
+            "num_outputs": self.num_outputs
+        }
 
-        return op_instance.unwrapped_outputs
+        return super().__call__(*inputs, **kwargs)
 
 
 def _dlpack_to_array(dlpack):
