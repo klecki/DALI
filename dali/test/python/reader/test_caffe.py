@@ -1,4 +1,4 @@
-# Copyright (c) 2019, NVIDIA CORPORATION. All rights reserved.
+# Copyright (c) 2019-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,9 +23,9 @@ from test_utils import compare_pipelines
 from test_utils import get_dali_extra_path
 
 test_data_root = get_dali_extra_path()
-caffe_db_folder = os.path.join(test_data_root, 'db', 'lmdb')
-c2lmdb_db_folder = os.path.join(test_data_root, 'db', 'c2lmdb')
-c2lmdb_no_label_db_folder = os.path.join(test_data_root, 'db', 'c2lmdb_no_label')
+caffe_db_folder = os.path.join(test_data_root, "db", "lmdb")
+c2lmdb_db_folder = os.path.join(test_data_root, "db", "c2lmdb")
+c2lmdb_no_label_db_folder = os.path.join(test_data_root, "db", "c2lmdb_no_label")
 
 
 class CaffeReaderPipeline(Pipeline):
@@ -33,11 +33,9 @@ class CaffeReaderPipeline(Pipeline):
         super(CaffeReaderPipeline, self).__init__(batch_size, num_threads, device_id)
         self.input = ops.readers.Caffe(path=path, shard_id=device_id, num_shards=num_gpus)
 
-        self.decode = ops.decoders.ImageCrop(device="cpu",
-                                             crop=(224, 224),
-                                             crop_pos_x=0.3,
-                                             crop_pos_y=0.2,
-                                             output_type=types.RGB)
+        self.decode = ops.decoders.ImageCrop(
+            device="cpu", crop=(224, 224), crop_pos_x=0.3, crop_pos_y=0.2, output_type=types.RGB
+        )
 
     def define_graph(self):
         inputs, labels = self.input(name="Reader")
@@ -80,8 +78,7 @@ def test_reader_path_vs_paths():
             for batch_size2 in {1, 16, 31}:
                 for num_threads1 in {1}:
                     for num_threads2 in {1, 2}:
-                        yield check_reader_path_vs_paths, paths, \
-                          batch_size1, batch_size2, num_threads1, num_threads2
+                        yield check_reader_path_vs_paths, paths, batch_size1, batch_size2, num_threads1, num_threads2
 
 
 batch_size_alias_test = 64
