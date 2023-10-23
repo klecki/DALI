@@ -21,7 +21,6 @@ import inspect
 
 from nvidia.dali._autograph.utils import hooks
 
-
 UNSPECIFIED = object()
 
 
@@ -45,9 +44,8 @@ def _find_originating_frame(caller_fn_scope, innermost=True):
         break
     ctx_frame = ctx_frame.f_back
 
-  assert result is not None, (
-      'the conversion process should ensure the caller_fn_scope is always'
-      ' found somewhere on the call stack')
+  assert result is not None, ('the conversion process should ensure the caller_fn_scope is always'
+                              ' found somewhere on the call stack')
 
   return result
 
@@ -180,8 +178,7 @@ def _py_len(s):
 def print_(*objects, **kwargs):
   """Overload of the print builtin."""
   # Note: Python 2.6 doesn't support explicit keywords after starargs.
-  unknown_kwargs = tuple(
-      set(kwargs.keys()) - set(('sep', 'end', 'file', 'flush')))
+  unknown_kwargs = tuple(set(kwargs.keys()) - set(('sep', 'end', 'file', 'flush')))
   if unknown_kwargs:
     raise ValueError('invalid keyword arguments: {}'.format(unknown_kwargs))
   if hooks._DISPATCH.detect_overload_print_(objects):
@@ -316,8 +313,8 @@ def _py_sorted(iterable, key, reverse):
   return sorted(iterable)
 
 
-SUPPORTED_BUILTINS = (abs, float, int, len, print, range, enumerate, zip, map,
-                      filter, any, all, sorted)
+SUPPORTED_BUILTINS = (abs, float, int, len, print, range, enumerate, zip, map, filter, any, all,
+                      sorted)
 
 BUILTIN_FUNCTIONS_MAP = {
     'abs': abs_,

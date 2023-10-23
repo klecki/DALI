@@ -21,7 +21,6 @@ import threading
 from nvidia.dali._autograph.utils import ag_logging
 from nvidia.dali._autograph.utils.all_utils import export_symbol
 
-
 stacks = threading.local()
 
 
@@ -70,8 +69,7 @@ class ControlStatusCtx(object):
     return self
 
   def __repr__(self):
-    return '{}[status={}, options={}]'.format(
-        self.__class__.__name__, self.status, self.options)
+    return '{}[status={}, options={}]'.format(self.__class__.__name__, self.status, self.options)
 
   def __exit__(self, unused_type, unused_value, unused_traceback):
     assert _control_ctx()[-1] is self
@@ -97,9 +95,8 @@ try:
   inspect.getsource(ag_logging.log)
 except OSError:
   INSPECT_SOURCE_SUPPORTED = False
-  ag_logging.warning(
-      'AutoGraph is not available in this environment: functions lack code'
-      ' information. This is typical of some environments like the interactive'
-      ' Python shell, functions with native bindings or functions created'
-      ' dynamically using `exec` or `eval`. Use `inspect.findsource` to check'
-      ' if the source code is available for the function you are trying to convert.')
+  ag_logging.warning('AutoGraph is not available in this environment: functions lack code'
+                     ' information. This is typical of some environments like the interactive'
+                     ' Python shell, functions with native bindings or functions created'
+                     ' dynamically using `exec` or `eval`. Use `inspect.findsource` to check'
+                     ' if the source code is available for the function you are trying to convert.')

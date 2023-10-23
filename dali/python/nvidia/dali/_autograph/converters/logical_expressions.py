@@ -29,7 +29,6 @@ from nvidia.dali._autograph.pyct import templates
 # Used to signal that an operand is safe for non-lazy evaluation.
 SAFE_BOOLEAN_OPERAND = 'SAFE_BOOLEAN_OPERAND'
 
-
 LOGICAL_OPERATORS = {
     gast.And: 'ag__.and_',
     gast.Not: 'ag__.not_',
@@ -58,11 +57,10 @@ class LogicalExpressionTransformer(converter.Base):
     return templates.replace_as_expression('lambda: expr', expr=expr)
 
   def _as_binary_function(self, func_name, arg1, arg2):
-    return templates.replace_as_expression(
-        'func_name(arg1, arg2)',
-        func_name=parser.parse_expression(func_name),
-        arg1=arg1,
-        arg2=arg2)
+    return templates.replace_as_expression('func_name(arg1, arg2)',
+                                           func_name=parser.parse_expression(func_name),
+                                           arg1=arg1,
+                                           arg2=arg2)
 
   def _as_binary_operation(self, op, arg1, arg2):
     template = templates.replace_as_expression(
@@ -73,8 +71,9 @@ class LogicalExpressionTransformer(converter.Base):
     return template
 
   def _as_unary_function(self, func_name, arg):
-    return templates.replace_as_expression(
-        'func_name(arg)', func_name=parser.parse_expression(func_name), arg=arg)
+    return templates.replace_as_expression('func_name(arg)',
+                                           func_name=parser.parse_expression(func_name),
+                                           arg=arg)
 
   def _process_binop(self, op, left, right):
     overload = self._overload_of(op)
@@ -95,8 +94,7 @@ class LogicalExpressionTransformer(converter.Base):
       op, right = ops_and_comps.pop(0)
       binary_comparison = self._process_binop(op, left, right)
       if op_tree is not None:
-        op_tree = self._as_binary_function('ag__.and_',
-                                           self._as_lambda(op_tree),
+        op_tree = self._as_binary_function('ag__.and_', self._as_lambda(op_tree),
                                            self._as_lambda(binary_comparison))
       else:
         op_tree = binary_comparison
@@ -120,9 +118,8 @@ class LogicalExpressionTransformer(converter.Base):
     right = node.values.pop()
     while node_values:
       left = node_values.pop()
-      right = self._as_binary_function(
-          self._overload_of(node.op), self._as_lambda(left),
-          self._as_lambda(right))
+      right = self._as_binary_function(self._overload_of(node.op), self._as_lambda(left),
+                                       self._as_lambda(right))
     return right
 
 

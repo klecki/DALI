@@ -16,13 +16,10 @@
 
 import collections
 
-
 # TODO(mdan): This is where macro override controls fit.
 
 
-class DispatchContext(collections.namedtuple(
-    'DispatchContext',
-    ('options',))):
+class DispatchContext(collections.namedtuple('DispatchContext', ('options',))):
   """Allows passing additional parameters to the specific implementations.
 
   Attributes:

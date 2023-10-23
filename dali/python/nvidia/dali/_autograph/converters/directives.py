@@ -35,7 +35,6 @@ from nvidia.dali._autograph.core import converter
 from nvidia.dali._autograph.lang import directives
 from nvidia.dali._autograph.pyct import anno
 
-
 STATIC_VALUE = 'static_value'
 """Used for AST annotations, see visit_Name."""
 
@@ -70,15 +69,12 @@ def _map_args(call_node, function):
   # defaults should be present.
   unexpected_defaults = []
   for k in call_args:
-    if (k not in kwds
-        and call_args[k] not in args
-        and call_args[k] is not directives.UNSPECIFIED):
+    if (k not in kwds and call_args[k] not in args and call_args[k] is not directives.UNSPECIFIED):
       unexpected_defaults.append(k)
   if unexpected_defaults:
-    raise ValueError('Unexpected keyword argument values, %s, for function %s'
-                     % (zip(unexpected_defaults,
-                            [call_args[k] for k in unexpected_defaults]),
-                        function))
+    raise ValueError(
+        'Unexpected keyword argument values, %s, for function %s' %
+        (zip(unexpected_defaults, [call_args[k] for k in unexpected_defaults]), function))
   return {k: v for k, v in call_args.items() if v is not directives.UNSPECIFIED}
 
 
@@ -97,12 +93,9 @@ class DirectivesTransformer(converter.Base):
 
   def _process_statement_directive(self, call_node, directive):
     if self.state[_LoopScope].statements_visited > 1:
-      raise ValueError(
-          '"%s" must be the first statement in the loop block' % (
-              directive.__name__))
+      raise ValueError('"%s" must be the first statement in the loop block' % (directive.__name__))
     if self.state[_LoopScope].level < 2:
-      raise ValueError(
-          '"%s" must be used inside a statement' % directive.__name__)
+      raise ValueError('"%s" must be used inside a statement' % directive.__name__)
     target = self.state[_LoopScope].ast_node
     node_anno = anno.getanno(target, anno.Basic.DIRECTIVES, {})
     node_anno[directive] = _map_args(call_node, directive)

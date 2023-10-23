@@ -24,7 +24,6 @@ from nvidia.dali._autograph.pyct import templates
 from nvidia.dali._autograph.pyct.static_analysis import activity
 from nvidia.dali._autograph.pyct.static_analysis.annos import NodeAnno
 
-
 BODY_DEFINITELY_RETURNS = 'BODY_DEFINITELY_RETURNS'
 ORELSE_DEFINITELY_RETURNS = 'ORELSE_DEFINITELY_RETURNS'
 STMT_DEFINITELY_RETURNS = 'STMT_DEFINITELY_RETURNS'
@@ -77,11 +76,10 @@ class ConditionalReturnRewriter(converter.Base):
     # a single conditional with possibly returns on both branches. This
     # reduces the use of None return values, which don't work with TF
     # conditionals.
-    if (isinstance(node, gast.If)
-        and anno.getanno(node, BODY_DEFINITELY_RETURNS, default=False)):
+    if (isinstance(node, gast.If) and anno.getanno(node, BODY_DEFINITELY_RETURNS, default=False)):
       return node, node.orelse
-    elif (isinstance(node, gast.If)
-          and anno.getanno(node, ORELSE_DEFINITELY_RETURNS, default=False)):
+    elif (isinstance(node, gast.If) and
+          anno.getanno(node, ORELSE_DEFINITELY_RETURNS, default=False)):
       return node, node.body
 
     return node, None
@@ -131,13 +129,11 @@ class ConditionalReturnRewriter(converter.Base):
   def visit_If(self, node):
     node.test = self.visit(node.test)
 
-    node.body, body_definitely_returns = self._visit_statement_block(
-        node, node.body)
+    node.body, body_definitely_returns = self._visit_statement_block(node, node.body)
     if body_definitely_returns:
       anno.setanno(node, BODY_DEFINITELY_RETURNS, True)
 
-    node.orelse, orelse_definitely_returns = self._visit_statement_block(
-        node, node.orelse)
+    node.orelse, orelse_definitely_returns = self._visit_statement_block(node, node.orelse)
     if orelse_definitely_returns:
       anno.setanno(node, ORELSE_DEFINITELY_RETURNS, True)
 
@@ -161,8 +157,7 @@ class _Block(object):
     self.create_guard_now = False
 
   def __repr__(self):
-    return 'used: {}'.format(
-        self.return_used)
+    return 'used: {}'.format(self.return_used)
 
 
 class _Function(object):
@@ -172,8 +167,8 @@ class _Function(object):
     self.retval_var_name = None
 
   def __repr__(self):
-    return 'return control: {}, return value: {}'.format(
-        self.do_return_var_name, self.retval_var_name)
+    return 'return control: {}, return value: {}'.format(self.do_return_var_name,
+                                                         self.retval_var_name)
 
 
 class ReturnStatementsTransformer(converter.Base):
@@ -239,11 +234,10 @@ class ReturnStatementsTransformer(converter.Base):
         do_return_var_name = False
         raise
     """
-    node = templates.replace(
-        template,
-        do_return_var_name=self.state[_Function].do_return_var_name,
-        retval_var_name=self.state[_Function].retval_var_name,
-        retval=retval)
+    node = templates.replace(template,
+                             do_return_var_name=self.state[_Function].do_return_var_name,
+                             retval_var_name=self.state[_Function].retval_var_name,
+                             retval=retval)
 
     return node
 
@@ -257,10 +251,9 @@ class ReturnStatementsTransformer(converter.Base):
         if not do_return_var_name:
           original_node
       """
-      cond, = templates.replace(
-          template,
-          do_return_var_name=self.state[_Function].do_return_var_name,
-          original_node=node)
+      cond, = templates.replace(template,
+                                do_return_var_name=self.state[_Function].do_return_var_name,
+                                original_node=node)
       node, block = cond, cond.body
     else:
       node, block = node, None
@@ -305,8 +298,7 @@ class ReturnStatementsTransformer(converter.Base):
             control_var=self.state[_Function].do_return_var_name)
       else:
         extra_test = templates.replace_as_expression(
-            'not control_var',
-            control_var=self.state[_Function].do_return_var_name)
+            'not control_var', control_var=self.state[_Function].do_return_var_name)
       anno.setanno(node, anno.Basic.EXTRA_LOOP_TEST, extra_test)
 
     node.orelse = self._visit_statement_block(node, node.orelse)
@@ -340,8 +332,7 @@ class ReturnStatementsTransformer(converter.Base):
         block.is_function = True
 
         scope = anno.getanno(node, NodeAnno.BODY_SCOPE)
-        do_return_var_name = self.ctx.namer.new_symbol('do_return',
-                                                       scope.referenced)
+        do_return_var_name = self.ctx.namer.new_symbol('do_return', scope.referenced)
         retval_var_name = self.ctx.namer.new_symbol('retval_', scope.referenced)
         fn.do_return_var_name = do_return_var_name
         fn.retval_var_name = retval_var_name
@@ -355,8 +346,8 @@ class ReturnStatementsTransformer(converter.Base):
             # entire body. If the function had a docstring, the body has two
             # nodes, with the `with` as the second node.
             wrapper_node = node.body[-1]
-            assert isinstance(wrapper_node, gast.With), (
-                'This transformer requires the functions converter.')
+            assert isinstance(wrapper_node,
+                              gast.With), ('This transformer requires the functions converter.')
 
             template = """
               do_return_var_name = False
@@ -365,22 +356,21 @@ class ReturnStatementsTransformer(converter.Base):
               return function_context.ret(retval_var_name, do_return_var_name)
             """
 
-            wrapper_node.body = templates.replace(
-                template,
-                body=wrapper_node.body,
-                do_return_var_name=do_return_var_name,
-                function_context=anno.getanno(node, 'function_context_name'),
-                retval_var_name=retval_var_name)
+            wrapper_node.body = templates.replace(template,
+                                                  body=wrapper_node.body,
+                                                  do_return_var_name=do_return_var_name,
+                                                  function_context=anno.getanno(
+                                                      node, 'function_context_name'),
+                                                  retval_var_name=retval_var_name)
           else:
             template = """
               body
               return retval_var_name
             """
-            node.body = templates.replace(
-                template,
-                body=node.body,
-                do_return_var_name=do_return_var_name,
-                retval_var_name=retval_var_name)
+            node.body = templates.replace(template,
+                                          body=node.body,
+                                          do_return_var_name=do_return_var_name,
+                                          retval_var_name=retval_var_name)
 
     return node
 
@@ -396,7 +386,6 @@ def transform(node, ctx, default_to_null_return=True):
 
   node = qual_names.resolve(node)
   node = activity.resolve(node, ctx, None)
-  transformer = ReturnStatementsTransformer(
-      ctx, allow_missing_return=default_to_null_return)
+  transformer = ReturnStatementsTransformer(ctx, allow_missing_return=default_to_null_return)
   node = transformer.visit(node)
   return node

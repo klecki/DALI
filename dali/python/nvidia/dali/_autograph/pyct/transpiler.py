@@ -32,9 +32,8 @@ from nvidia.dali._autograph.pyct import transformer
 from nvidia.dali._autograph.utils import ag_logging as logging
 
 
-def _wrap_into_factory(nodes, entity_name, inner_factory_name,
-                       outer_factory_name, closure_vars, factory_args,
-                       future_features):
+def _wrap_into_factory(nodes, entity_name, inner_factory_name, outer_factory_name, closure_vars,
+                       factory_args, future_features):
   """Wraps an AST into the body of a factory with consistent lexical context.
 
   The AST is expected to define some symbol with a name given by `entity_name`.
@@ -117,8 +116,7 @@ def _wrap_into_factory(nodes, entity_name, inner_factory_name,
     future_imports = []
 
   factory_args = [
-      gast.Name(name, ctx=gast.Param(), annotation=None, type_comment=None)
-      for name in factory_args
+      gast.Name(name, ctx=gast.Param(), annotation=None, type_comment=None) for name in factory_args
   ]
 
   template = """
@@ -130,15 +128,14 @@ def _wrap_into_factory(nodes, entity_name, inner_factory_name,
         return entity_name
       return inner_factory_name
   """
-  return templates.replace(
-      template,
-      dummy_closure_defs=dummy_closure_defs,
-      entity_defs=nodes,
-      entity_name=entity_name,
-      factory_args=factory_args,
-      future_imports=future_imports,
-      inner_factory_name=inner_factory_name,
-      outer_factory_name=outer_factory_name)
+  return templates.replace(template,
+                           dummy_closure_defs=dummy_closure_defs,
+                           entity_defs=nodes,
+                           entity_name=entity_name,
+                           factory_args=factory_args,
+                           future_imports=future_imports,
+                           inner_factory_name=inner_factory_name,
+                           outer_factory_name=outer_factory_name)
 
 
 class _PythonFnFactory(object):
@@ -173,22 +170,16 @@ class _PythonFnFactory(object):
 
     inner_factory_name = namer.new_symbol(inner_factory_name, ())
     outer_factory_name = namer.new_symbol(outer_factory_name, ())
-    nodes = _wrap_into_factory(nodes, self._name, inner_factory_name,
-                               outer_factory_name, self._freevars,
-                               self._extra_locals.keys(), future_features)
+    nodes = _wrap_into_factory(nodes, self._name, inner_factory_name, outer_factory_name,
+                               self._freevars, self._extra_locals.keys(), future_features)
 
-    module, _, source_map = loader.load_ast(
-        nodes, include_source_map=True)
+    module, _, source_map = loader.load_ast(nodes, include_source_map=True)
     outer_factory = getattr(module, outer_factory_name)
     self._unbound_factory = outer_factory()
     self.module = module
     self.source_map = source_map
 
-  def instantiate(self,
-                  globals_,
-                  closure,
-                  defaults=None,
-                  kwdefaults=None):
+  def instantiate(self, globals_, closure, defaults=None, kwdefaults=None):
     """Creates a new function instance."""
     if self._unbound_factory is None:
       raise ValueError('call create first')
@@ -196,19 +187,16 @@ class _PythonFnFactory(object):
     factory_code = self._unbound_factory.__code__
     factory_freevars = factory_code.co_freevars
     closure_map = dict(zip(self._freevars, closure))
-    factory_closure = tuple(
-        closure_map[name] for name in factory_code.co_freevars)
+    factory_closure = tuple(closure_map[name] for name in factory_code.co_freevars)
     if len(factory_closure) != len(closure):
-      raise ValueError(
-          'closure mismatch, requested {}, but source function had {}'.format(
-              self._freevars, factory_freevars))
+      raise ValueError('closure mismatch, requested {}, but source function had {}'.format(
+          self._freevars, factory_freevars))
 
-    bound_factory = types.FunctionType(
-        code=factory_code,
-        globals=globals_,
-        name=self._name,
-        argdefs=(),
-        closure=factory_closure)
+    bound_factory = types.FunctionType(code=factory_code,
+                                       globals=globals_,
+                                       name=self._name,
+                                       argdefs=(),
+                                       closure=factory_closure)
 
     # The lint override is a false positive.
     new_fn = bound_factory(**self._extra_locals)  # pylint:disable=not-callable
@@ -348,12 +336,11 @@ class GenericTranspiler(object):
     namespace = inspect_utils.getnamespace(fn)
     namer = naming.Namer(namespace)
     new_name = namer.new_symbol(self.get_transformed_name(node), ())
-    entity_info = transformer.EntityInfo(
-        name=new_name,
-        source_code=source,
-        source_file='<fragment>',
-        future_features=future_features,
-        namespace=namespace)
+    entity_info = transformer.EntityInfo(name=new_name,
+                                         source_code=source,
+                                         source_file='<fragment>',
+                                         future_features=future_features,
+                                         namespace=namespace)
     context = transformer.Context(entity_info, namer, user_context)
 
     node = self._erase_arg_defaults(node)
@@ -426,8 +413,7 @@ class PyToPy(GenericTranspiler):
 
   def _cached_factory(self, fn, cache_subkey):
     cached_factory = self._cache[fn][cache_subkey]
-    logging.log(3, 'Cache hit for %s subkey %s: %s', fn, cache_subkey,
-                cached_factory)
+    logging.log(3, 'Cache hit for %s subkey %s: %s', fn, cache_subkey, cached_factory)
     return cached_factory
 
   def transform_function(self, fn, user_context):
@@ -467,31 +453,24 @@ class PyToPy(GenericTranspiler):
           nodes, ctx = super(PyToPy, self).transform_function(fn, user_context)
 
           if isinstance(nodes, gast.Lambda):
-            nodes = gast_util.compat_assign(
-                targets=[
-                    gast.Name(
-                        ctx.info.name,
-                        ctx=gast.Store(),
-                        annotation=None,
-                        type_comment=None)
-                ],
-                value=nodes,
-                type_comment=None)
+            nodes = gast_util.compat_assign(targets=[
+                gast.Name(ctx.info.name, ctx=gast.Store(), annotation=None, type_comment=None)
+            ],
+                                            value=nodes,
+                                            type_comment=None)
           else:
             nodes.name = ctx.info.name
 
           if logging.has_verbosity(2):
             logging.log(2, 'Transformed %s:\n\n%s\n', fn, parser.unparse(nodes))
 
-          factory = _PythonFnFactory(
-              ctx.info.name, fn.__code__.co_freevars, self.get_extra_locals())
-          factory.create(
-              nodes, ctx.namer, future_features=ctx.info.future_features)
+          factory = _PythonFnFactory(ctx.info.name, fn.__code__.co_freevars,
+                                     self.get_extra_locals())
+          factory.create(nodes, ctx.namer, future_features=ctx.info.future_features)
           self._cache[fn][cache_subkey] = factory
 
-    transformed_fn = factory.instantiate(
-        globals_=fn.__globals__,
-        closure=fn.__closure__ or (),
-        defaults=fn.__defaults__,
-        kwdefaults=getattr(fn, '__kwdefaults__', None))
+    transformed_fn = factory.instantiate(globals_=fn.__globals__,
+                                         closure=fn.__closure__ or (),
+                                         defaults=fn.__defaults__,
+                                         kwdefaults=getattr(fn, '__kwdefaults__', None))
     return transformed_fn, factory.module, factory.source_map

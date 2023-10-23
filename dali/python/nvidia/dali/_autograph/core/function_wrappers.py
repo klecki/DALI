@@ -18,7 +18,6 @@ from nvidia.dali._autograph.core import ag_ctx
 from nvidia.dali._autograph.core import converter
 from nvidia.dali._autograph.operators import variables
 
-
 # TODO(mdan): Move this into operators - it represents a function definition.
 
 
@@ -41,8 +40,7 @@ class FunctionScope(object):
     self.options = options
 
     if options.user_requested:
-      self.autograph_ctx = ag_ctx.ControlStatusCtx(ag_ctx.Status.ENABLED,
-                                                   options)
+      self.autograph_ctx = ag_ctx.ControlStatusCtx(ag_ctx.Status.ENABLED, options)
     self.callopts = options.call_options()
 
   def _sanitize(self, name):

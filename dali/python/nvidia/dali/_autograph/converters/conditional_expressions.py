@@ -33,12 +33,11 @@ class ConditionalExpressionTransformer(converter.Base):
             expr_repr)
     '''
     expr_repr = parser.unparse(node.test, include_encoding_marker=False).strip()
-    return templates.replace_as_expression(
-        template,
-        test=node.test,
-        true_expr=node.body,
-        false_expr=node.orelse,
-        expr_repr=gast.Constant(expr_repr, kind=None))
+    return templates.replace_as_expression(template,
+                                           test=node.test,
+                                           true_expr=node.body,
+                                           false_expr=node.orelse,
+                                           expr_repr=gast.Constant(expr_repr, kind=None))
 
 
 def transform(node, ctx):

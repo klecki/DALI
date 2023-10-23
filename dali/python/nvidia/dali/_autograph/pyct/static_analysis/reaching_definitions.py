@@ -65,9 +65,7 @@ class _NodeState(object):
   def __init__(self, init_from=None):
     if init_from:
       if isinstance(init_from, _NodeState):
-        self.value = {
-            s: set(other_infos) for s, other_infos in init_from.value.items()
-        }
+        self.value = {s: set(other_infos) for s, other_infos in init_from.value.items()}
       elif isinstance(init_from, dict):
         self.value = {s: set((init_from[s],)) for s in init_from}
       else:
@@ -132,8 +130,7 @@ class Analyzer(cfg.GraphVisitor):
         # Every binding operation (assign, nonlocal, global, etc.) counts as a
         # definition, with the exception of del, which only deletes without
         # creating a new variable.
-        newly_defined = ((node_scope.bound | node_scope.globals) -
-                         node_scope.deleted)
+        newly_defined = ((node_scope.bound | node_scope.globals) - node_scope.deleted)
         for s in newly_defined:
           def_ = self._definition_factory()
           node_symbols[s] = def_
@@ -206,16 +203,13 @@ class TreeAnnotator(transformer.Base):
     analyzer = self.current_analyzer
     cfg_node = self.current_cfg_node
 
-    assert cfg_node is not None, ('name node, %s, outside of any statement?'
-                                  % node.id)
+    assert cfg_node is not None, ('name node, %s, outside of any statement?' % node.id)
 
     qn = anno.getanno(node, anno.Basic.QN)
     if isinstance(node.ctx, gast.Load):
-      anno.setanno(node, anno.Static.DEFINITIONS,
-                   tuple(analyzer.in_[cfg_node].value.get(qn, ())))
+      anno.setanno(node, anno.Static.DEFINITIONS, tuple(analyzer.in_[cfg_node].value.get(qn, ())))
     else:
-      anno.setanno(node, anno.Static.DEFINITIONS,
-                   tuple(analyzer.out[cfg_node].value.get(qn, ())))
+      anno.setanno(node, anno.Static.DEFINITIONS, tuple(analyzer.out[cfg_node].value.get(qn, ())))
 
     return node
 
@@ -263,8 +257,7 @@ class TreeAnnotator(transformer.Base):
   def visit(self, node):
     parent = self.current_cfg_node
 
-    if (self.current_analyzer is not None and
-        node in self.current_analyzer.graph.index):
+    if (self.current_analyzer is not None and node in self.current_analyzer.graph.index):
       self.current_cfg_node = self.current_analyzer.graph.index[node]
     node = super(TreeAnnotator, self).visit(node)
 

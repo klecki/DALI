@@ -62,8 +62,7 @@ class QN(object):
 
     if attr is not None:
       if not isinstance(base, QN):
-        raise ValueError(
-            'for attribute QNs, base must be a QN; got instead "%s"' % base)
+        raise ValueError('for attribute QNs, base must be a QN; got instead "%s"' % base)
       if not isinstance(attr, str):
         raise ValueError('attr may only be a string; got instead "%s"' % attr)
       self._parent = base
@@ -81,9 +80,8 @@ class QN(object):
     else:
       if not isinstance(base, (str, Literal)):
         # TODO(mdan): Require Symbol instead of string.
-        raise ValueError(
-            'for simple QNs, base must be a string or a Literal object;'
-            ' got instead "%s"' % type(base))
+        raise ValueError('for simple QNs, base must be a string or a Literal object;'
+                         ' got instead "%s"' % type(base))
       assert '.' not in base and '[' not in base and ']' not in base
       self._parent = None
       self.qn = (base,)
@@ -159,8 +157,7 @@ class QN(object):
 
   def __eq__(self, other):
     return (isinstance(other, QN) and self.qn == other.qn and
-            self.has_subscript() == other.has_subscript() and
-            self.has_attr() == other.has_attr())
+            self.has_subscript() == other.has_subscript() and self.has_attr() == other.has_attr())
 
   def __lt__(self, other):
     return str(self) < str(other)
@@ -196,18 +193,13 @@ class QN(object):
     """AST representation."""
     # The caller must adjust the context appropriately.
     if self.has_subscript():
-      return gast.Subscript(
-          value=self.parent.ast(),
-          slice=self.qn[-1].ast(),
-          ctx=CallerMustSetThis)
+      return gast.Subscript(value=self.parent.ast(), slice=self.qn[-1].ast(), ctx=CallerMustSetThis)
     if self.has_attr():
-      return gast.Attribute(
-          value=self.parent.ast(), attr=self.qn[-1], ctx=CallerMustSetThis)
+      return gast.Attribute(value=self.parent.ast(), attr=self.qn[-1], ctx=CallerMustSetThis)
 
     base = self.qn[0]
     if isinstance(base, str):
-      return gast.Name(
-          base, ctx=CallerMustSetThis, annotation=None, type_comment=None)
+      return gast.Name(base, ctx=CallerMustSetThis, annotation=None, type_comment=None)
     elif isinstance(base, Literal):
       return gast.Constant(base.value, kind=None)
     else:
@@ -229,8 +221,7 @@ class QnResolver(gast.NodeTransformer):
   def visit_Attribute(self, node):
     node = self.generic_visit(node)
     if anno.hasanno(node.value, anno.Basic.QN):
-      anno.setanno(node, anno.Basic.QN,
-                   QN(anno.getanno(node.value, anno.Basic.QN), attr=node.attr))
+      anno.setanno(node, anno.Basic.QN, QN(anno.getanno(node.value, anno.Basic.QN), attr=node.attr))
     return node
 
   def visit_Subscript(self, node):
@@ -251,8 +242,7 @@ class QnResolver(gast.NodeTransformer):
         return node
     if anno.hasanno(node.value, anno.Basic.QN):
       anno.setanno(node, anno.Basic.QN,
-                   QN(anno.getanno(node.value, anno.Basic.QN),
-                      subscript=subscript))
+                   QN(anno.getanno(node.value, anno.Basic.QN), subscript=subscript))
     return node
 
 

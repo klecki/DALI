@@ -34,9 +34,8 @@ def allowlist(f):
   if 'allowlisted_module_for_testing' not in sys.modules:
     allowlisted_mod = imp.new_module('allowlisted_module_for_testing')
     sys.modules['allowlisted_module_for_testing'] = allowlisted_mod
-    config.CONVERSION_RULES = (
-        (config.DoNotConvert('allowlisted_module_for_testing'),) +
-        config.CONVERSION_RULES)
+    config.CONVERSION_RULES = ((config.DoNotConvert('allowlisted_module_for_testing'),) +
+                               config.CONVERSION_RULES)
 
   f.__module__ = 'allowlisted_module_for_testing'
 
@@ -49,8 +48,7 @@ def is_inside_generated_code():
 
     internal_stack_functions = ('converted_call', '_call_unconverted')
     # Walk up the stack until we're out of the internal functions.
-    while (frame is not None and
-           frame.f_code.co_name in internal_stack_functions):
+    while (frame is not None and frame.f_code.co_name in internal_stack_functions):
       frame = frame.f_back
     if frame is None:
       return False
@@ -105,11 +103,14 @@ class TestCase(unittest.TestCase):
     finally:
       sys.stdout = sys.__stdout__
 
-  def transform(self, f, converter_module, include_ast=False, ag_overrides=None,
+  def transform(self,
+                f,
+                converter_module,
+                include_ast=False,
+                ag_overrides=None,
                 operator_overload=hooks.OperatorBase()):
-    program_ctx = converter.ProgramContext(
-        options=converter.ConversionOptions(recursive=True),
-        autograph_module=api)
+    program_ctx = converter.ProgramContext(options=converter.ConversionOptions(recursive=True),
+                                           autograph_module=api)
 
     tr = TestingTranspiler(converter_module, ag_overrides, operator_overload=operator_overload)
     transformed, _, _ = tr.transform_function(f, program_ctx)

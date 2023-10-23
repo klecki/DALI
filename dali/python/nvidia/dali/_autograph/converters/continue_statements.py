@@ -29,8 +29,7 @@ class _Continue(object):
     self.control_var_name = None
 
   def __repr__(self):
-    return '<_Continue(used: {}, var: {})>'.format(self.used,
-                                                   self.control_var_name)
+    return '<_Continue(used: {}, var: {})>'.format(self.used, self.control_var_name)
 
 
 class _Block(object):
@@ -69,8 +68,7 @@ class ContinueCanonicalizationTransformer(converter.Base):
     template = """
       var_name = True
     """
-    return templates.replace(
-        template, var_name=self.state[_Continue].control_var_name)
+    return templates.replace(template, var_name=self.state[_Continue].control_var_name)
 
   def _postprocess_statement(self, node):
     if self.state[_Continue].used:
@@ -84,10 +82,9 @@ class ContinueCanonicalizationTransformer(converter.Base):
           if not var_name:
             original_node
         """
-        cond, = templates.replace(
-            template,
-            var_name=self.state[_Continue].control_var_name,
-            original_node=node)
+        cond, = templates.replace(template,
+                                  var_name=self.state[_Continue].control_var_name,
+                                  original_node=node)
         return cond, cond.body
     return node, None
 

@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from nvidia.dali.backend_impl import (
-    Init, OpSpec, LoadLibrary, GetCudaVersion, GetCufftVersion, GetNppVersion, GetNvjpegVersion)
+from nvidia.dali.backend_impl import (Init, OpSpec, LoadLibrary, GetCudaVersion, GetCufftVersion,
+                                      GetNppVersion, GetNvjpegVersion)
 
 # TODO: Handle forwarding imports from backend_impl
-from nvidia.dali.backend_impl import *        # noqa: F401, F403
+from nvidia.dali.backend_impl import *  # noqa: F401, F403
 
 from . import __cuda_version__
 import warnings

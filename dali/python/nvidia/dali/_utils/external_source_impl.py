@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,6 @@ class SourceDescription:
 _tf_sample_error_msg = (
     "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
     "DALI TensorCPU representing sample. Got `{}` instead.")
-
 
 _tf_batch_error_msg = (
     "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
@@ -131,8 +130,7 @@ def sample_to_numpy(sample, error_str="Unsupported callback return type. Got: `{
 
 
 def batch_to_numpy(
-        batch,
-        error_str="Unsupported callback return type. Got: `{}`.",
+        batch, error_str="Unsupported callback return type. Got: `{}`.",
         non_uniform_str="Uniform input is required (batch of tensors of equal shapes), got {}."):
     import_numpy()
     assert_cpu_batch_data_type(batch, error_str)
@@ -152,6 +150,7 @@ def batch_to_numpy(
 
 
 class _CycleIter:
+
     def __init__(self, iterable, mode):
         self.source = iterable
         self.signaling = (mode == "raise")
@@ -172,6 +171,7 @@ class _CycleIter:
 
 
 class _CycleGenFunc():
+
     def __init__(self, gen_func, mode):
         self.source = gen_func
         self.signaling = (mode == "raise")
@@ -305,12 +305,12 @@ def _inspect_data(data, is_batched):
     if is_batched:
         as_numpy = batch_to_numpy(data, _tf_batch_error_msg, non_uniform_str=_tf_uniform_error_msg)
         if isinstance(as_numpy, list):
-            return as_numpy[0].dtype, (None,) * (as_numpy[0].ndim + 1)
+            return as_numpy[0].dtype, (None, ) * (as_numpy[0].ndim + 1)
         else:
-            return as_numpy.dtype, (None,) * as_numpy.ndim
+            return as_numpy.dtype, (None, ) * as_numpy.ndim
     else:
         as_numpy = sample_to_numpy(data, _tf_sample_error_msg)
-        return as_numpy.dtype, (None,) * as_numpy.ndim
+        return as_numpy.dtype, (None, ) * as_numpy.ndim
 
 
 def get_batch_iterable_from_callback(source_desc: SourceDescription):

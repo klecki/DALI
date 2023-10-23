@@ -102,17 +102,9 @@ class DALIGenericIterator(_DaliBaseIterator):
         JAX iterator does not support LastBatchPolicy.PARTIAL.
     """
 
-    def __init__(
-            self,
-            pipelines,
-            output_map,
-            size=-1,
-            reader_name=None,
-            auto_reset=False,
-            last_batch_padded=False,
-            last_batch_policy=LastBatchPolicy.FILL,
-            prepare_first_batch=True,
-            sharding=None):
+    def __init__(self, pipelines, output_map, size=-1, reader_name=None, auto_reset=False,
+                 last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
+                 prepare_first_batch=True, sharding=None):
 
         # check the assert first as _DaliBaseIterator would run the prefetch
         if len(set(output_map)) != len(output_map):
@@ -162,8 +154,7 @@ class DALIGenericIterator(_DaliBaseIterator):
 
         next_output = dict()
         for category_id, category_name in enumerate(self.output_map):
-            category_outputs = self._gather_outputs_for_category(
-                pipelines_outputs, category_id)
+            category_outputs = self._gather_outputs_for_category(pipelines_outputs, category_id)
 
             if self._num_gpus == 1:
                 next_output[category_name] = category_outputs[0]
@@ -196,9 +187,8 @@ class DALIGenericIterator(_DaliBaseIterator):
         """Builds sharded jax.Array with `jax.device_put_sharded`. This output is compatible
         with pmppped JAX functions.
         """
-        category_outputs_devices = tuple(map(
-            lambda jax_shard: jax_shard.device(),
-            category_outputs))
+        category_outputs_devices = tuple(map(lambda jax_shard: jax_shard.device(),
+                                             category_outputs))
 
         distinct_category_outputs_devices = set(category_outputs_devices)
 
@@ -219,8 +209,8 @@ class DALIGenericIterator(_DaliBaseIterator):
         """
         shard_shape = category_outputs[0].shape
         global_shape = (self._num_gpus * shard_shape[0], *shard_shape[1:])
-        return jax.make_array_from_single_device_arrays(
-            global_shape, self._sharding, category_outputs)
+        return jax.make_array_from_single_device_arrays(global_shape, self._sharding,
+                                                        category_outputs)
 
     def _assert_shards_shapes(self, category_outputs):
         for shard in category_outputs:
@@ -228,21 +218,16 @@ class DALIGenericIterator(_DaliBaseIterator):
                 "Shards shapes have to be the same."
 
 
-def data_iterator_impl(
-        iterator_type,
-        pipeline_fn=None,
-        output_map=[],
-        size=-1,
-        reader_name=None,
-        auto_reset=False,
-        last_batch_padded=False,
-        last_batch_policy=LastBatchPolicy.FILL,
-        prepare_first_batch=True,
-        sharding=None):
+def data_iterator_impl(iterator_type, pipeline_fn=None, output_map=[], size=-1, reader_name=None,
+                       auto_reset=False, last_batch_padded=False,
+                       last_batch_policy=LastBatchPolicy.FILL, prepare_first_batch=True,
+                       sharding=None):
     """ Implementation of the data_iterator decorator. It is extracted to a separate function
     to be reused by the peekable iterator decorator.
     """
+
     def data_iterator_decorator(func):
+
         def create_iterator(*args, **wrapper_kwargs):
             pipeline_def_fn = pipeline_def(func)
 
@@ -259,40 +244,25 @@ def data_iterator_impl(
                 for id, device in enumerate(jax.local_devices()):
                     # How device_id, shard_id and num_shards are used in the pipeline
                     # is affected by: https://github.com/google/jax/issues/16024
-                    pipeline = pipeline_def_fn(
-                        *args,
-                        **wrapper_kwargs,
-                        device_id=id,
-                        shard_id=device.id,
-                        num_shards=len(jax.devices()))
+                    pipeline = pipeline_def_fn(*args, **wrapper_kwargs, device_id=id,
+                                               shard_id=device.id, num_shards=len(jax.devices()))
 
                     pipelines.append(pipeline)
 
-            return iterator_type(
-                pipelines=pipelines,
-                output_map=output_map,
-                size=size,
-                reader_name=reader_name,
-                auto_reset=auto_reset,
-                last_batch_padded=last_batch_padded,
-                last_batch_policy=last_batch_policy,
-                prepare_first_batch=prepare_first_batch,
-                sharding=sharding)
+            return iterator_type(pipelines=pipelines, output_map=output_map, size=size,
+                                 reader_name=reader_name, auto_reset=auto_reset,
+                                 last_batch_padded=last_batch_padded,
+                                 last_batch_policy=last_batch_policy,
+                                 prepare_first_batch=prepare_first_batch, sharding=sharding)
 
         return create_iterator
+
     return data_iterator_decorator(pipeline_fn) if pipeline_fn else data_iterator_decorator
 
 
-def data_iterator(
-        pipeline_fn=None,
-        output_map=[],
-        size=-1,
-        reader_name=None,
-        auto_reset=False,
-        last_batch_padded=False,
-        last_batch_policy=LastBatchPolicy.FILL,
-        prepare_first_batch=True,
-        sharding=None):
+def data_iterator(pipeline_fn=None, output_map=[], size=-1, reader_name=None, auto_reset=False,
+                  last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
+                  prepare_first_batch=True, sharding=None):
     """Decorator for DALI iterator for JAX. Decorated function when called returns DALI
     iterator for JAX.
 
@@ -379,14 +349,6 @@ def data_iterator(
     Note:
         JAX iterator does not support LastBatchPolicy.PARTIAL.
     """
-    return data_iterator_impl(
-        DALIGenericIterator,
-        pipeline_fn,
-        output_map,
-        size,
-        reader_name,
-        auto_reset,
-        last_batch_padded,
-        last_batch_policy,
-        prepare_first_batch,
-        sharding)
+    return data_iterator_impl(DALIGenericIterator, pipeline_fn, output_map, size, reader_name,
+                              auto_reset, last_batch_padded, last_batch_policy, prepare_first_batch,
+                              sharding)

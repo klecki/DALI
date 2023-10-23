@@ -29,8 +29,7 @@ class NodeSampler(object):
 
   def sample(self):
     nodes, magnitudes = zip(*self.sample_map.items())
-    return np.random.choice(
-        nodes, p=np.array(magnitudes, dtype='float32') / np.sum(magnitudes))
+    return np.random.choice(nodes, p=np.array(magnitudes, dtype='float32') / np.sum(magnitudes))
 
 
 class StatementSampler(NodeSampler):
@@ -135,8 +134,7 @@ class CodeGenerator(object):
     return statements
 
   def generate_Name(self, ctx=gast.Load()):
-    variable_name = '_' + ''.join(
-        random.choice(string.ascii_lowercase) for _ in range(4))
+    variable_name = '_' + ''.join(random.choice(string.ascii_lowercase) for _ in range(4))
     return gast.Name(variable_name, ctx=ctx, annotation=None)
 
   def generate_BinOp(self):
@@ -176,16 +174,14 @@ class CodeGenerator(object):
     test = self.generate_Compare()
 
     # Generate true branch statements
-    body = self.sample_node_list(
-        low=1,
-        high=N_CONTROLFLOW_STATEMENTS // 2,
-        generator=self.generate_statement)
+    body = self.sample_node_list(low=1,
+                                 high=N_CONTROLFLOW_STATEMENTS // 2,
+                                 generator=self.generate_statement)
 
     # Generate false branch statements
-    orelse = self.sample_node_list(
-        low=1,
-        high=N_CONTROLFLOW_STATEMENTS // 2,
-        generator=self.generate_statement)
+    orelse = self.sample_node_list(low=1,
+                                   high=N_CONTROLFLOW_STATEMENTS // 2,
+                                   generator=self.generate_statement)
 
     node = gast.If(test, body, orelse)
     return node
@@ -194,8 +190,9 @@ class CodeGenerator(object):
     """Generate a While node."""
 
     test = self.generate_Compare()
-    body = self.sample_node_list(
-        low=1, high=N_CONTROLFLOW_STATEMENTS, generator=self.generate_statement)
+    body = self.sample_node_list(low=1,
+                                 high=N_CONTROLFLOW_STATEMENTS,
+                                 generator=self.generate_statement)
     orelse = []  # not generating else statements
 
     node = gast.While(test, body, orelse)
@@ -214,13 +211,15 @@ class CodeGenerator(object):
     """Generate a FunctionDef node."""
 
     # Generate the arguments, register them as available
-    arg_vars = self.sample_node_list(
-        low=2, high=10, generator=lambda: self.generate_Name(gast.Param()))
+    arg_vars = self.sample_node_list(low=2,
+                                     high=10,
+                                     generator=lambda: self.generate_Name(gast.Param()))
     args = gast.arguments(arg_vars, None, [], [], None, [])
 
     # Generate the function body
-    body = self.sample_node_list(
-        low=1, high=N_FUNCTIONDEF_STATEMENTS, generator=self.generate_statement)
+    body = self.sample_node_list(low=1,
+                                 high=N_FUNCTIONDEF_STATEMENTS,
+                                 generator=self.generate_statement)
     body.append(self.generate_Return())
     fn_name = self.generate_Name().id
     node = gast.FunctionDef(fn_name, args, body, (), None)

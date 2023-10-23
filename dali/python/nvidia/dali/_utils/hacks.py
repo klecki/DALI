@@ -1,4 +1,4 @@
-# Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ _original_check = None
 
 
 class _NotIterable:
+
     def __iter__(self):
         raise TypeError("The objects of type `", type(self), "` are not iterable.")
 
@@ -37,7 +38,7 @@ def _hook_iterable_check():
     _original_check = type(collections.abc.Iterable).__instancecheck__
     type(collections.abc.Iterable).__instancecheck__ = _check_iterable
     if len(_not_iterable) == 0:
-        _not_iterable = (_NotIterable,)
+        _not_iterable = (_NotIterable, )
 
 
 def not_iterable(cls, add_iter=True):

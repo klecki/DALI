@@ -60,10 +60,7 @@ class ListTransformer(converter.Base):
     template = """
       target = ag__.list_append(target, element)
     """
-    return templates.replace(
-        template,
-        target=node.func.value,
-        element=node.args[0])
+    return templates.replace(template, target=node.func.value, element=node.args[0])
 
   def _replace_pop_call(self, node):
     # Expressions that use pop() are converted to a statement + expression.
@@ -106,11 +103,10 @@ class ListTransformer(converter.Base):
 
   def _replace_stack_call(self, node):
     assert len(node.args) == 1
-    dtype = self.get_definition_directive(
-        node.args[0],
-        directives.set_element_type,
-        'dtype',
-        default=templates.replace_as_expression('None'))
+    dtype = self.get_definition_directive(node.args[0],
+                                          directives.set_element_type,
+                                          'dtype',
+                                          default=templates.replace_as_expression('None'))
     template = """
       ag__.list_stack(
           target,
@@ -118,11 +114,10 @@ class ListTransformer(converter.Base):
               element_dtype=dtype,
               original_call=orig_call))
     """
-    return templates.replace_as_expression(
-        template,
-        dtype=dtype,
-        target=node.args[0],
-        orig_call=node.func)
+    return templates.replace_as_expression(template,
+                                           dtype=dtype,
+                                           target=node.args[0],
+                                           orig_call=node.func)
 
   def visit_Call(self, node):
     node = self.generic_visit(node)
@@ -159,29 +154,26 @@ class ListTransformer(converter.Base):
     # The reason why it won't work is because it's unclear how to annotate
     # the list as a "list of lists with a certain element type" when using
     # operations like `l.pop().pop()`.
-    dtype = self.get_definition_directive(
-        original_call_node.func.value,
-        directives.set_element_type,
-        'dtype',
-        default=templates.replace_as_expression('None'))
-    shape = self.get_definition_directive(
-        original_call_node.func.value,
-        directives.set_element_type,
-        'shape',
-        default=templates.replace_as_expression('None'))
+    dtype = self.get_definition_directive(original_call_node.func.value,
+                                          directives.set_element_type,
+                                          'dtype',
+                                          default=templates.replace_as_expression('None'))
+    shape = self.get_definition_directive(original_call_node.func.value,
+                                          directives.set_element_type,
+                                          'shape',
+                                          default=templates.replace_as_expression('None'))
 
     template = """
       target, pop_var_name = ag__.list_pop(
           target, element,
           opts=ag__.ListPopOpts(element_dtype=dtype, element_shape=shape))
     """
-    return templates.replace(
-        template,
-        target=original_call_node.func.value,
-        pop_var_name=pop_var_name,
-        element=pop_element,
-        dtype=dtype,
-        shape=shape)
+    return templates.replace(template,
+                             target=original_call_node.func.value,
+                             pop_var_name=pop_var_name,
+                             element=pop_element,
+                             dtype=dtype,
+                             shape=shape)
 
   def _postprocess_statement(self, node):
     """Inserts any separate pop() calls that node may use."""
@@ -189,18 +181,16 @@ class ListTransformer(converter.Base):
     if pop_uses:
       replacements = []
       for original_call_node, pop_var_name in pop_uses:
-        replacements.extend(
-            self._generate_pop_operation(original_call_node, pop_var_name))
+        replacements.extend(self._generate_pop_operation(original_call_node, pop_var_name))
       replacements.append(node)
       node = replacements
     self.state[_Statement].exit()
     return node, None
 
   def _visit_and_process_block(self, block):
-    return self.visit_block(
-        block,
-        before_visit=self.state[_Statement].enter,
-        after_visit=self._postprocess_statement)
+    return self.visit_block(block,
+                            before_visit=self.state[_Statement].enter,
+                            after_visit=self._postprocess_statement)
 
   def visit_FunctionDef(self, node):
     node.args = self.generic_visit(node.args)

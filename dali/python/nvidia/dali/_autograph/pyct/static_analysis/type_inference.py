@@ -143,9 +143,7 @@ class _TypeMap(object):
   def __init__(self, init_from=None):
     if init_from:
       assert isinstance(init_from, _TypeMap)
-      self.types = {
-          s: set(other_types) for s, other_types in init_from.types.items()
-      }
+      self.types = {s: set(other_types) for s, other_types in init_from.types.items()}
     else:
       self.types = {}
 
@@ -199,12 +197,8 @@ class StmtInferrer(gast.NodeVisitor):
     print(a)  # a = int; side effect of f() accounted for
   """
 
-  def __init__(self,
-               resolver: Resolver,
-               scope: activity.Scope,
-               namespace: Dict[qual_names.QN, Any],
-               closure_types: Dict[qual_names.QN, Set[Any]],
-               types_in: _TypeMap):
+  def __init__(self, resolver: Resolver, scope: activity.Scope, namespace: Dict[qual_names.QN, Any],
+               closure_types: Dict[qual_names.QN, Set[Any]], types_in: _TypeMap):
     self.resolver = resolver
     self.scope = scope
     self.namespace = namespace
@@ -228,8 +222,7 @@ class StmtInferrer(gast.NodeVisitor):
 
   def _check_set(self, value):
     if value is not None and not isinstance(value, set):
-      raise ValueError('{} method expected to return set, got {}'.format(
-          self.resolver, value))
+      raise ValueError('{} method expected to return set, got {}'.format(self.resolver, value))
 
   def visit_Constant(self, node):
     types = self.resolver.res_value(self.namespace, node.value)
@@ -244,8 +237,8 @@ class StmtInferrer(gast.NodeVisitor):
       # TODO(mdan): Find a better way to express unpacking.
       i_type = self.resolver.res_value(self.namespace, 0)
       for i, elt in enumerate(node.elts):
-        self.rtype = self.resolver.res_slice(
-            self.namespace, self.types_in.types, i, original_stype, i_type)
+        self.rtype = self.resolver.res_slice(self.namespace, self.types_in.types, i, original_stype,
+                                             i_type)
         self.visit(elt)
       self.rtype = original_stype
       return original_stype
@@ -282,8 +275,7 @@ class StmtInferrer(gast.NodeVisitor):
           if name in self.closure_types:
             types = self.closure_types[name]
           else:
-            types, value = self.resolver.res_name(
-                self.namespace, self.types_in.types, name)
+            types, value = self.resolver.res_name(self.namespace, self.types_in.types, name)
             if value is not None:
               anno.setanno(node, anno.Static.VALUE, value)
 
@@ -292,9 +284,8 @@ class StmtInferrer(gast.NodeVisitor):
       f_is_local = self.scope.parent.parent is not None
 
       type_name = anno.getanno(node.annotation, anno.Basic.QN, None)
-      types = self.resolver.res_arg(self.namespace, self.types_in.types,
-                                    self.scope.function_name, name, type_name,
-                                    f_is_local)
+      types = self.resolver.res_arg(self.namespace, self.types_in.types, self.scope.function_name,
+                                    name, type_name, f_is_local)
       if types is not None:
         self.new_symbols[name] = types
 
@@ -322,8 +313,8 @@ class StmtInferrer(gast.NodeVisitor):
       if static_value is NO_VALUE:
         # Unexpected failure to resolve attribute. Ask the resolver about the
         # full name instead.
-        types, static_value = self.resolver.res_name(
-            self.namespace, self.types_in, anno.Basic.QN.of(node))
+        types, static_value = self.resolver.res_name(self.namespace, self.types_in,
+                                                     anno.Basic.QN.of(node))
         anno.setanno(node, anno.Static.VALUE, static_value)
         if __debug__:
           self._check_set(types)
@@ -362,8 +353,8 @@ class StmtInferrer(gast.NodeVisitor):
 
     ret_types = None
     if node.returns:
-      ret_types, _ = self.resolver.res_name(
-          self.namespace, self.types_in.types, anno.Basic.QN.of(node.returns))
+      ret_types, _ = self.resolver.res_name(self.namespace, self.types_in.types,
+                                            anno.Basic.QN.of(node.returns))
       if __debug__:
         self._check_set(ret_types)
 
@@ -411,23 +402,19 @@ class StmtInferrer(gast.NodeVisitor):
         # No static type info available, nothing more to do.
         ret_type, side_effects = None, None
       else:
-        ret_type, side_effects = self._resolve_typed_callable(
-            f_type, arg_types, keyword_types)
+        ret_type, side_effects = self._resolve_typed_callable(f_type, arg_types, keyword_types)
 
     else:
       # Nonlocal function, resolve externally.
       f_type = anno.Static.TYPES.of(node.func, None)
-      ret_type, side_effects = self.resolver.res_call(self.namespace,
-                                                      self.types_in.types, node,
-                                                      f_type, arg_types,
-                                                      keyword_types)
+      ret_type, side_effects = self.resolver.res_call(self.namespace, self.types_in.types, node,
+                                                      f_type, arg_types, keyword_types)
 
     if __debug__:
       self._check_set(ret_type)
       if side_effects:
         if not isinstance(side_effects, dict):
-          raise ValueError(
-              'side effects must be dict, got {}'.format(side_effects))
+          raise ValueError('side effects must be dict, got {}'.format(side_effects))
         for k, v in side_effects.items():
           if not isinstance(k, qual_names.QN):
             raise ValueError('side effect keys must be QNs, got {}'.format(k))
@@ -455,8 +442,8 @@ class StmtInferrer(gast.NodeVisitor):
     if val_types is None or slice_types is None:
       return None
 
-    types = self.resolver.res_slice(
-        self.namespace, self.types_in.types, node, val_types, slice_types)
+    types = self.resolver.res_slice(self.namespace, self.types_in.types, node, val_types,
+                                    slice_types)
 
     if __debug__:
       self._check_set(types)
@@ -470,8 +457,8 @@ class StmtInferrer(gast.NodeVisitor):
     if left_types is None or any(t is None for t in right_types):
       return None
 
-    types = self.resolver.res_compare(
-        self.namespace, self.types_in.types, node, left_types, right_types)
+    types = self.resolver.res_compare(self.namespace, self.types_in.types, node, left_types,
+                                      right_types)
 
     if __debug__:
       self._check_set(types)
@@ -485,8 +472,8 @@ class StmtInferrer(gast.NodeVisitor):
     if left_types is None or right_types is None:
       return None
 
-    types = self.resolver.res_binop(
-        self.namespace, self.types_in.types, node, left_types, right_types)
+    types = self.resolver.res_binop(self.namespace, self.types_in.types, node, left_types,
+                                    right_types)
 
     if __debug__:
       self._check_set(types)
@@ -499,8 +486,7 @@ class StmtInferrer(gast.NodeVisitor):
     if opnd_types is None:
       return None
 
-    types = self.resolver.res_unop(
-        self.namespace, self.types_in.types, node, opnd_types)
+    types = self.resolver.res_unop(self.namespace, self.types_in.types, node, opnd_types)
 
     if __debug__:
       self._check_set(types)
@@ -527,9 +513,7 @@ class Analyzer(cfg.GraphVisitor):
     self.scope = scope
     self.closure_types = closure_types
 
-    context_types = {
-        n: t for n, t in closure_types.items() if n not in scope.bound
-    }
+    context_types = {n: t for n, t in closure_types.items() if n not in scope.bound}
     if context_types:
       self.context_types = _TypeMap()
       self.context_types.types = context_types
@@ -564,8 +548,7 @@ class Analyzer(cfg.GraphVisitor):
     types_out = _TypeMap(types_in)
     ast_node = node.ast_node
 
-    inferrer = StmtInferrer(self.resolver, self.scope, self.namespace,
-                            self.closure_types, types_in)
+    inferrer = StmtInferrer(self.resolver, self.scope, self.namespace, self.closure_types, types_in)
     inferrer.visit(ast_node)
     types_out.types.update(inferrer.new_symbols)
 
@@ -597,8 +580,7 @@ class FunctionVisitor(transformer.Base):
     scope = anno.getanno(node, annos.NodeAnno.ARGS_AND_BODY_SCOPE)
     closure_types = anno.getanno(node, anno.Static.CLOSURE_TYPES, {})
 
-    analyzer = Analyzer(subgraph, self.resolver, self.ctx.info.namespace, scope,
-                        closure_types)
+    analyzer = Analyzer(subgraph, self.resolver, self.ctx.info.namespace, scope, closure_types)
     analyzer.visit_forward()
 
     # Recursively process any remaining subfunctions.

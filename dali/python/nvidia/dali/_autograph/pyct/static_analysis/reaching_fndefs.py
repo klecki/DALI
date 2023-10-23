@@ -125,8 +125,7 @@ class TreeAnnotator(transformer.Base):
     parent_analyzer = self.current_analyzer
     subgraph = self.graphs[node]
 
-    if (self.current_analyzer is not None
-        and node in self.current_analyzer.graph.index):
+    if (self.current_analyzer is not None and node in self.current_analyzer.graph.index):
       cfg_node = self.current_analyzer.graph.index[node]
       defined_in = self.current_analyzer.in_[cfg_node].value
     else:
@@ -148,11 +147,9 @@ class TreeAnnotator(transformer.Base):
 
   def visit(self, node):
     # This can happen before entering the top level function
-    if (self.current_analyzer is not None
-        and node in self.current_analyzer.graph.index):
+    if (self.current_analyzer is not None and node in self.current_analyzer.graph.index):
       cfg_node = self.current_analyzer.graph.index[node]
-      anno.setanno(node, anno.Static.DEFINED_FNS_IN,
-                   self.current_analyzer.in_[cfg_node].value)
+      anno.setanno(node, anno.Static.DEFINED_FNS_IN, self.current_analyzer.in_[cfg_node].value)
 
     extra_node = anno.getanno(node, anno.Basic.EXTRA_LOOP_TEST, default=None)
     if extra_node is not None:

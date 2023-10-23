@@ -39,8 +39,7 @@ class SliceTransformer(converter.Base):
     template = """
       target = ag__.set_item(target, key, item)
     """
-    return templates.replace(
-        template, target=target.value, key=target.slice, item=value)
+    return templates.replace(template, target=target.value, key=target.slice, item=value)
 
   def visit_Assign(self, node):
     node = self.generic_visit(node)
@@ -63,11 +62,10 @@ class SliceTransformer(converter.Base):
       # also available.
       return node
 
-    dtype = self.get_definition_directive(
-        node.value,
-        directives.set_element_type,
-        'dtype',
-        default=templates.replace_as_expression('None'))
+    dtype = self.get_definition_directive(node.value,
+                                          directives.set_element_type,
+                                          'dtype',
+                                          default=templates.replace_as_expression('None'))
 
     template = """
       ag__.get_item(
@@ -75,8 +73,7 @@ class SliceTransformer(converter.Base):
           key,
           opts=ag__.GetItemOpts(element_dtype=dtype))
     """
-    return templates.replace_as_expression(
-        template, target=node.value, key=s, dtype=dtype)
+    return templates.replace_as_expression(template, target=node.value, key=s, dtype=dtype)
 
 
 def transform(node, ctx):

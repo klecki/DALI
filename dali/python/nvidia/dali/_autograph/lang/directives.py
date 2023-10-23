@@ -43,11 +43,10 @@ def set_element_type(entity, dtype, shape=UNSPECIFIED):
 
 
 @export_symbol('autograph.experimental.set_loop_options')
-def set_loop_options(
-    parallel_iterations=UNSPECIFIED,
-    swap_memory=UNSPECIFIED,
-    maximum_iterations=UNSPECIFIED,
-    shape_invariants=UNSPECIFIED):
+def set_loop_options(parallel_iterations=UNSPECIFIED,
+                     swap_memory=UNSPECIFIED,
+                     maximum_iterations=UNSPECIFIED,
+                     shape_invariants=UNSPECIFIED):
   """Specifies additional arguments to be passed to the enclosing while_loop.
 
   The parameters apply to and only to the immediately enclosing loop. It only

@@ -81,11 +81,7 @@ class SymbolRenamer(gast.NodeTransformer):
   def _process_name_node(self, node):
     qn = anno.getanno(node, anno.Basic.QN)
     if qn in self.name_map:
-      new_node = gast.Name(
-          str(self.name_map[qn]),
-          ctx=node.ctx,
-          annotation=None,
-          type_comment=None)
+      new_node = gast.Name(str(self.name_map[qn]), ctx=node.ctx, annotation=None, type_comment=None)
       # All annotations get carried over.
       for k in anno.keys(node):
         anno.copyanno(node, new_node, k)
@@ -326,11 +322,9 @@ def parallel_walk(node, other):
         continue
 
       if isinstance(n_child, (list, tuple)):
-        if (not isinstance(o_child, (list, tuple)) or
-            len(n_child) != len(o_child)):
-          raise ValueError(
-              'inconsistent values for field {}: {} and {}'.format(
-                  f, n_child, o_child))
+        if (not isinstance(o_child, (list, tuple)) or len(n_child) != len(o_child)):
+          raise ValueError('inconsistent values for field {}: {} and {}'.format(
+              f, n_child, o_child))
         node_stack.extend(n_child)
         other_stack.extend(o_child)
 
@@ -339,6 +333,4 @@ def parallel_walk(node, other):
         other_stack.append(o_child)
 
       elif n_child != o_child:
-        raise ValueError(
-            'inconsistent values for field {}: {} and {}'.format(
-                f, n_child, o_child))
+        raise ValueError('inconsistent values for field {}: {} and {}'.format(f, n_child, o_child))

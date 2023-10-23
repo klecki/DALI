@@ -33,10 +33,9 @@ class AssertTransformer(converter.Base):
     """
 
     if node.msg is None:
-      return templates.replace(
-          template,
-          test=node.test,
-          msg=gast.Constant('Assertion error', kind=None))
+      return templates.replace(template,
+                               test=node.test,
+                               msg=gast.Constant('Assertion error', kind=None))
     elif isinstance(node.msg, gast.Constant):
       return templates.replace(template, test=node.test, msg=node.msg)
     else:

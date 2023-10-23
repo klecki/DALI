@@ -26,7 +26,6 @@ import types
 
 import six
 
-
 # This lock seems to help avoid linecache concurrency errors.
 _linecache_lock = threading.Lock()
 
@@ -102,8 +101,7 @@ def isconstructor(cls):
     Bool
   """
   return (inspect.isclass(cls) and
-          not (issubclass(cls.__class__, type) and
-               hasattr(cls.__class__, '__call__') and
+          not (issubclass(cls.__class__, type) and hasattr(cls.__class__, '__call__') and
                cls.__class__.__call__ is not type.__call__))
 
 
@@ -207,13 +205,10 @@ def getqualifiedname(namespace, object_, max_depth=5, visited=None):
   parent = inspect.getmodule(object_)
   if (parent is not None and parent is not object_ and parent is not namespace):
     # No limit to recursion depth because of the guard above.
-    parent_name = getqualifiedname(
-        namespace, parent, max_depth=0, visited=visited)
+    parent_name = getqualifiedname(namespace, parent, max_depth=0, visited=visited)
     if parent_name is not None:
-      name_in_parent = getqualifiedname(
-          parent.__dict__, object_, max_depth=0, visited=visited)
-      assert name_in_parent is not None, (
-          'An object should always be found in its owner module')
+      name_in_parent = getqualifiedname(parent.__dict__, object_, max_depth=0, visited=visited)
+      assert name_in_parent is not None, ('An object should always be found in its owner module')
       return '{}.{}'.format(parent_name, name_in_parent)
 
   if max_depth:
@@ -224,8 +219,7 @@ def getqualifiedname(namespace, object_, max_depth=5, visited=None):
       value = namespace[name]
       if inspect.ismodule(value) and id(value) not in visited:
         visited.add(id(value))
-        name_in_module = getqualifiedname(value.__dict__, object_,
-                                          max_depth - 1, visited)
+        name_in_module = getqualifiedname(value.__dict__, object_, max_depth - 1, visited)
         if name_in_module is not None:
           return '{}.{}'.format(name, name_in_module)
   return None
@@ -283,8 +277,7 @@ def getmethodclass(m):
   """
 
   # Callable objects: return their own class.
-  if (not hasattr(m, '__name__') and hasattr(m, '__class__') and
-      hasattr(m, '__call__')):
+  if (not hasattr(m, '__name__') and hasattr(m, '__class__') and hasattr(m, '__call__')):
     if isinstance(m.__class__, six.class_types):
       return m.__class__
 
@@ -303,8 +296,7 @@ def getmethodclass(m):
     # TODO(mdan): This doesn't consider cell variables.
     # TODO(mdan): This won't work if the owner is hidden inside a container.
     # Cell variables may be pulled using co_freevars and the closure.
-    for v in itertools.chain(caller_frame.f_locals.values(),
-                             caller_frame.f_globals.values()):
+    for v in itertools.chain(caller_frame.f_locals.values(), caller_frame.f_globals.values()):
       if hasattr(v, m.__name__):
         candidate = getattr(v, m.__name__)
         # Py2 methods may be bound or unbound, extract im_func to get the

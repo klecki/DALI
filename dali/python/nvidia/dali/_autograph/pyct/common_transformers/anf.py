@@ -53,8 +53,7 @@ LEAVE = lambda _1, _2, _3: False
 ANY = object()
 
 
-class ASTEdgePattern(collections.namedtuple(
-    'ASTEdgePattern', ['parent', 'field', 'child'])):
+class ASTEdgePattern(collections.namedtuple('ASTEdgePattern', ['parent', 'field', 'child'])):
   """A pattern defining a type of AST edge.
 
   This consists of three components:
@@ -114,11 +113,13 @@ class AnfTransformer(transformer.Base):
       # A-normal form.  Thus they are left in by default, but could be pulled
       # out if the configuration calls for it.
       # Name is here to cover True, False, and None in Python 2
-      literal_node_types = (gast.Constant, gast.Name,)
+      literal_node_types = (
+          gast.Constant,
+          gast.Name,
+      )
 
-      self._overrides = [
-          (ASTEdgePattern(ANY, ANY, literal_node_types), LEAVE),
-          (ASTEdgePattern(ANY, ANY, gast.expr), REPLACE)]
+      self._overrides = [(ASTEdgePattern(ANY, ANY, literal_node_types), LEAVE),
+                         (ASTEdgePattern(ANY, ANY, gast.expr), REPLACE)]
     else:
       self._overrides = config
     self._gensym = DummyGensym()
@@ -147,8 +148,7 @@ class AnfTransformer(transformer.Base):
 
   def _do_transform_node(self, node):
     temp_name = self._gensym.new_name()
-    temp_assign = templates.replace(
-        'temp_name = expr', temp_name=temp_name, expr=node)[0]
+    temp_assign = templates.replace('temp_name = expr', temp_name=temp_name, expr=node)[0]
     self._add_pending_statement(temp_assign)
     answer = templates.replace('temp_name', temp_name=temp_name)[0]
     return answer
@@ -196,8 +196,8 @@ class AnfTransformer(transformer.Base):
         continue
       parent_supplied = node if parent is None else parent
       field_supplied = field if super_field is None else super_field
-      setattr(node, field, self._ensure_node_in_anf(
-          parent_supplied, field_supplied, getattr(node, field)))
+      setattr(node, field,
+              self._ensure_node_in_anf(parent_supplied, field_supplied, getattr(node, field)))
     return node
 
   def _visit_strict_statement(self, node, children_ok_to_transform=True):
@@ -313,8 +313,7 @@ class AnfTransformer(transformer.Base):
     # thereby need to live outside the body.
     for item in node.items:
       self.visit(item)
-    node.items = [self._ensure_node_in_anf(node, 'items', n)
-                  for n in node.items]
+    node.items = [self._ensure_node_in_anf(node, 'items', n) for n in node.items]
     contexts_stmts = self._consume_pending_statements()
     # This generic_visit will revisit node.items, but that is correct because by
     # this point the node.items link has been checked.  It may be somewhat
@@ -489,16 +488,37 @@ def _is_trivial(node):
       # Variable names
       gast.Name,
       # Non-nodes that show up as AST fields
-      bool, six.string_types,
+      bool,
+      six.string_types,
       # Binary operators
-      gast.Add, gast.Sub, gast.Mult, gast.Div, gast.Mod, gast.Pow,
-      gast.LShift, gast.RShift, gast.BitOr, gast.BitXor, gast.BitAnd,
+      gast.Add,
+      gast.Sub,
+      gast.Mult,
+      gast.Div,
+      gast.Mod,
+      gast.Pow,
+      gast.LShift,
+      gast.RShift,
+      gast.BitOr,
+      gast.BitXor,
+      gast.BitAnd,
       gast.FloorDiv,
       # Unary operators
-      gast.Invert, gast.Not, gast.UAdd, gast.USub,
+      gast.Invert,
+      gast.Not,
+      gast.UAdd,
+      gast.USub,
       # Comparison operators
-      gast.Eq, gast.NotEq, gast.Lt, gast.LtE, gast.Gt, gast.GtE,
-      gast.Is, gast.IsNot, gast.In, gast.NotIn,
+      gast.Eq,
+      gast.NotEq,
+      gast.Lt,
+      gast.LtE,
+      gast.Gt,
+      gast.GtE,
+      gast.Is,
+      gast.IsNot,
+      gast.In,
+      gast.NotIn,
       # Other leaf nodes that don't make sense standalone.
       gast.expr_context,
   )
