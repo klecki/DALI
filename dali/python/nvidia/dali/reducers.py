@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -93,12 +93,9 @@ def cell_unpickle():
 
 
 def cell_reducer(cell):
-    return (cell_unpickle,
-            tuple(),
-            {'cell_contents': cell.cell_contents},
-            None,
-            None,
-            set_cell_state)
+    return (cell_unpickle, tuple(), {
+        'cell_contents': cell.cell_contents
+    }, None, None, set_cell_state)
 
 
 class DaliCallbackPickler(pickle.Pickler):
