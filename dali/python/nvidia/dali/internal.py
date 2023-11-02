@@ -39,6 +39,7 @@ Parameters
         elif not isinstance(m, types.ModuleType):
             raise RuntimeError(
                 f"The module {root} already contains an attribute \"{part}\", "
-                f"which is not a module, but {m}")
+                f"which is not a module, but {m}"
+            )
         root = m
     return root

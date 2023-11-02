@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # pylint: disable=no-name-in-module, unused-import
-from nvidia.dali.backend import TensorCPU, TensorListCPU, TensorGPU, TensorListGPU      # noqa: F401
+from nvidia.dali.backend import TensorCPU, TensorListCPU, TensorGPU, TensorListGPU  # noqa: F401
 
 
 def _transfer_to_cpu(data, device):
@@ -38,9 +38,11 @@ def import_numpy():
         try:
             import numpy as np
         except ImportError:
-            raise RuntimeError('Could not import numpy. Numpy is required for '
-                               'Tensor and TensorList printing. '
-                               'Please make sure you have numpy installed.')
+            raise RuntimeError(
+                'Could not import numpy. Numpy is required for '
+                'Tensor and TensorList printing. '
+                'Please make sure you have numpy installed.'
+            )
 
 
 def _tensor_to_string(self):
@@ -74,8 +76,9 @@ def _tensorlist_to_string(self, indent=''):
 
     if data:
         if data.is_dense_tensor():
-            data_str = np.array2string(np.array(data.as_tensor()),
-                                       prefix=spaces_indent, edgeitems=edgeitems)
+            data_str = np.array2string(
+                np.array(data.as_tensor()), prefix=spaces_indent, edgeitems=edgeitems
+            )
         else:
             data = list(map(np.array, data))
 
@@ -88,22 +91,26 @@ def _tensorlist_to_string(self, indent=''):
             # Separator matching numpy standard.
             sep = '\n' * data[0].ndim + spaces_indent
 
-            data = [np.array2string(tensor, prefix=spaces_indent, edgeitems=edgeitems)
-                    for tensor in data]
+            data = [
+                np.array2string(tensor, prefix=spaces_indent, edgeitems=edgeitems)
+                for tensor in data
+            ]
             data_str = f'[{_join_string(data, crop, edgeitems, sep)}]'
 
     shape = self.shape()
     shape_len = len(shape)
     shape_prefix = 'shape=['
-    shape_crop = shape_len > 16 or (shape_len > 2 * edgeitems + 1 and
-                                    shape_len * len(shape[0]) > 100)
+    shape_crop = shape_len > 16 or (
+        shape_len > 2 * edgeitems + 1 and shape_len * len(shape[0]) > 100
+    )
     shape = list(map(str, shape))
     shape_str = _join_string(shape, shape_crop, edgeitems)
 
     if len(shape_str) > 75:
         # Break shapes into separate lines.
-        shape_str = _join_string(shape, shape_crop, edgeitems, ', \n' +
-                                 spaces_indent + ' ' * len(shape_prefix))
+        shape_str = _join_string(
+            shape, shape_crop, edgeitems, ', \n' + spaces_indent + ' ' * len(shape_prefix)
+        )
 
     params = [f'{type_name}(\n{spaces_indent}{data_str}', f'dtype={self.dtype}'] + \
         ([f'layout="{layout}"'] if layout else []) + \

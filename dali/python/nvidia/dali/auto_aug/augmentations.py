@@ -17,7 +17,8 @@ try:
 except ImportError:
     raise RuntimeError(
         "Could not import numpy. DALI's automatic augmentation examples depend on numpy. "
-        "Please install numpy to use the examples.")
+        "Please install numpy to use the examples."
+    )
 
 from nvidia.dali import fn
 from nvidia.dali import types
@@ -52,53 +53,66 @@ def warp_y_param(magnitude):
 @augmentation(mag_range=(0, 0.3), randomly_negate=True, mag_to_param=warp_x_param)
 def shear_x(data, shear, fill_value=128, interp_type=None):
     mt = fn.transforms.shear(shear=shear)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
-                          inverse_map=False)
+    return fn.warp_affine(
+        data, matrix=mt, fill_value=fill_value, interp_type=interp_type, inverse_map=False
+    )
 
 
 @augmentation(mag_range=(0, 0.3), randomly_negate=True, mag_to_param=warp_y_param)
 def shear_y(data, shear, fill_value=128, interp_type=None):
     mt = fn.transforms.shear(shear=shear)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
-                          inverse_map=False)
+    return fn.warp_affine(
+        data, matrix=mt, fill_value=fill_value, interp_type=interp_type, inverse_map=False
+    )
 
 
 @augmentation(mag_range=(0., 1.), randomly_negate=True, mag_to_param=warp_x_param)
 def translate_x(data, rel_offset, shape, fill_value=128, interp_type=None):
     offset = rel_offset * shape[1]
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
-                          inverse_map=False)
+    return fn.warp_affine(
+        data, matrix=mt, fill_value=fill_value, interp_type=interp_type, inverse_map=False
+    )
 
 
-@augmentation(mag_range=(0, 250), randomly_negate=True, mag_to_param=warp_x_param,
-              name="translate_x")
+@augmentation(
+    mag_range=(0, 250), randomly_negate=True, mag_to_param=warp_x_param, name="translate_x"
+)
 def translate_x_no_shape(data, offset, fill_value=128, interp_type=None):
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
-                          inverse_map=False)
+    return fn.warp_affine(
+        data, matrix=mt, fill_value=fill_value, interp_type=interp_type, inverse_map=False
+    )
 
 
 @augmentation(mag_range=(0., 1.), randomly_negate=True, mag_to_param=warp_y_param)
 def translate_y(data, rel_offset, shape, fill_value=128, interp_type=None):
     offset = rel_offset * shape[0]
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
-                          inverse_map=False)
+    return fn.warp_affine(
+        data, matrix=mt, fill_value=fill_value, interp_type=interp_type, inverse_map=False
+    )
 
 
-@augmentation(mag_range=(0, 250), randomly_negate=True, mag_to_param=warp_y_param,
-              name="translate_y")
+@augmentation(
+    mag_range=(0, 250), randomly_negate=True, mag_to_param=warp_y_param, name="translate_y"
+)
 def translate_y_no_shape(data, offset, fill_value=128, interp_type=None):
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
-                          inverse_map=False)
+    return fn.warp_affine(
+        data, matrix=mt, fill_value=fill_value, interp_type=interp_type, inverse_map=False
+    )
 
 
 @augmentation(mag_range=(0, 30), randomly_negate=True)
 def rotate(data, angle, fill_value=128, interp_type=None, rotate_keep_size=True):
-    return fn.rotate(data, angle=angle, fill_value=fill_value, interp_type=interp_type,
-                     keep_size=rotate_keep_size)
+    return fn.rotate(
+        data,
+        angle=angle,
+        fill_value=fill_value,
+        interp_type=interp_type,
+        keep_size=rotate_keep_size
+    )
 
 
 def shift_enhance_range(magnitude):
@@ -147,8 +161,9 @@ def sharpness_kernel_shifted(magnitude):
     return sharpness_kernel(magnitude - 1)
 
 
-@augmentation(mag_range=(0, 0.9), randomly_negate=True, mag_to_param=sharpness_kernel,
-              param_device="auto")
+@augmentation(
+    mag_range=(0, 0.9), randomly_negate=True, mag_to_param=sharpness_kernel, param_device="auto"
+)
 def sharpness(data, kernel):
     """
     The outputs correspond to PIL's ImageEnhance.Sharpness with the exception for 1px

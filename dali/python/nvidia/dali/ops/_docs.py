@@ -61,7 +61,8 @@ Args
         for i in range(schema.MaxNumInput()):
             optional = i >= schema.MinNumInput()
             input_type_str = schema.GetInputType(i) + _supported_layouts_str(
-                schema.GetSupportedLayouts(i))
+                schema.GetSupportedLayouts(i)
+            )
             dox = schema.GetInputDox(i)
             input_name = schema.GetInputName(i)
             ret += _numpydoc_formatter(input_name, input_type_str, dox, optional) + "\n"
@@ -117,13 +118,15 @@ def _get_kwargs(schema):
             if renamed_arg:
                 dtype = schema.GetArgumentType(renamed_arg)
                 type_name = _type_name_convert_to_string(
-                    dtype, allow_tensors=schema.IsTensorArgument(renamed_arg))
+                    dtype, allow_tensors=schema.IsTensorArgument(renamed_arg)
+                )
         # Try to get dtype only if not set already
         # (renamed args go through a different path, see above)
         if not dtype:
             dtype = schema.GetArgumentType(arg)
-            type_name = _type_name_convert_to_string(dtype,
-                                                     allow_tensors=schema.IsTensorArgument(arg))
+            type_name = _type_name_convert_to_string(
+                dtype, allow_tensors=schema.IsTensorArgument(arg)
+            )
         # Add argument documentation if necessary
         if not skip_full_doc:
             if schema.IsArgumentOptional(arg):

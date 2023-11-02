@@ -1,4 +1,4 @@
-# Copyright (c) 2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2022-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,6 @@
 
 from . import math  # noqa: F401
 from nvidia.dali._utils.eager_utils import _create_module_class
-
 """ Eager module implements eager versions of standard DALI operators.
 There are 3 main types of eager operators:
     stateless: callable directly as functions. Example:
@@ -54,7 +53,6 @@ class arithmetic(metaclass=_MetaArithmetic):
         >>> tl = dali.tensors.TensorListCPU(...)
         >>> out = tl ** 2
     """
-
     def __init__(self, enabled=True):
         self.prev = arithmetic._enabled
         arithmetic._enabled = enabled
@@ -86,7 +84,6 @@ class rng_state(_create_module_class()):
         >>> # And now we will create a new operator with new seed.
         >>> out3 = eager_state.random.normal(shape=[10, 10], batch_size=8)
     """
-
     def __init__(self, seed=None):
         import numpy as np
 

@@ -1,5 +1,5 @@
 # Copyright (c) 2019 PaddlePaddle Authors. All Rights Reserved.
-# Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,17 +30,16 @@ assert LooseVersion(paddle.__version__) == LooseVersion('0.0.0') or \
     LooseVersion(paddle.__version__) >= LooseVersion('2.0.0'), \
     "DALI PaddlePaddle support requires Paddle develop or release >= 2.0.0"
 
-
 dtype_map = {
-    types.DALIDataType.BOOL:    paddle.framework.core.VarDesc.VarType.BOOL,
-    types.DALIDataType.FLOAT:   paddle.framework.core.VarDesc.VarType.FP32,
+    types.DALIDataType.BOOL: paddle.framework.core.VarDesc.VarType.BOOL,
+    types.DALIDataType.FLOAT: paddle.framework.core.VarDesc.VarType.FP32,
     types.DALIDataType.FLOAT64: paddle.framework.core.VarDesc.VarType.FP64,
     types.DALIDataType.FLOAT16: paddle.framework.core.VarDesc.VarType.FP16,
-    types.DALIDataType.UINT8:   paddle.framework.core.VarDesc.VarType.UINT8,
-    types.DALIDataType.INT8:    paddle.framework.core.VarDesc.VarType.INT8,
-    types.DALIDataType.INT16:   paddle.framework.core.VarDesc.VarType.INT16,
-    types.DALIDataType.INT32:   paddle.framework.core.VarDesc.VarType.INT32,
-    types.DALIDataType.INT64:   paddle.framework.core.VarDesc.VarType.INT64
+    types.DALIDataType.UINT8: paddle.framework.core.VarDesc.VarType.UINT8,
+    types.DALIDataType.INT8: paddle.framework.core.VarDesc.VarType.INT8,
+    types.DALIDataType.INT16: paddle.framework.core.VarDesc.VarType.INT16,
+    types.DALIDataType.INT32: paddle.framework.core.VarDesc.VarType.INT32,
+    types.DALIDataType.INT64: paddle.framework.core.VarDesc.VarType.INT64
 }
 
 
@@ -218,18 +217,19 @@ class DALIGenericIterator(_DaliBaseIterator):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  -> last batch = ``[5, 6]``,
     next iteration will return ``[2, 3]``
     """
-
-    def __init__(self,
-                 pipelines,
-                 output_map,
-                 size=-1,
-                 reader_name=None,
-                 auto_reset=False,
-                 fill_last_batch=None,
-                 dynamic_shape=False,
-                 last_batch_padded=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
-                 prepare_first_batch=True):
+    def __init__(
+        self,
+        pipelines,
+        output_map,
+        size=-1,
+        reader_name=None,
+        auto_reset=False,
+        fill_last_batch=None,
+        dynamic_shape=False,
+        last_batch_padded=False,
+        last_batch_policy=LastBatchPolicy.FILL,
+        prepare_first_batch=True
+    ):
 
         normalized_map = {}
         for v in output_map:
@@ -245,15 +245,17 @@ class DALIGenericIterator(_DaliBaseIterator):
             "output_map names should be distinct"
         self.output_map = output_map
 
-        _DaliBaseIterator.__init__(self,
-                                   pipelines,
-                                   size,
-                                   reader_name,
-                                   auto_reset,
-                                   fill_last_batch,
-                                   last_batch_padded,
-                                   last_batch_policy,
-                                   prepare_first_batch=prepare_first_batch)
+        _DaliBaseIterator.__init__(
+            self,
+            pipelines,
+            size,
+            reader_name,
+            auto_reset,
+            fill_last_batch,
+            last_batch_padded,
+            last_batch_policy,
+            prepare_first_batch=prepare_first_batch
+        )
 
         self._counter = 0
 
@@ -330,14 +332,12 @@ class DALIGenericIterator(_DaliBaseIterator):
                 lod_tensor._set_dims(category_shapes[cat])
                 seq_len = category_lengths[cat]
                 lod_tensor.set_recursive_sequence_lengths(seq_len)
-                lod_tensor._mutable_data(category_place[cat],
-                                         category_pd_type[cat])
+                lod_tensor._mutable_data(category_place[cat], category_pd_type[cat])
             data_batches[i] = pd_tensors
 
             stream = paddle.device.cuda.current_stream(dev_id).cuda_stream
             for cat, tensor in category_tensors.items():
-                ptr = pd_tensors[cat]._mutable_data(category_place[cat],
-                                                    category_pd_type[cat])
+                ptr = pd_tensors[cat]._mutable_data(category_place[cat], category_pd_type[cat])
                 feed_ndarray(tensor, ptr, stream)
 
         self._schedule_runs()
@@ -360,8 +360,7 @@ class DALIGenericIterator(_DaliBaseIterator):
                                           (self._counter > self._size) and self._size > 0:
                 # First calculate how much data is required to
                 # return exactly self._size entries.
-                diff = self._num_gpus * self.batch_size - (self._counter
-                                                           - self._size)
+                diff = self._num_gpus * self.batch_size - (self._counter - self._size)
                 # Figure out how many GPUs to grab from.
                 num_gpus_to_grab = int(math.ceil(diff / self.batch_size))
                 # Figure out how many results to grab from the last GPU
@@ -378,8 +377,7 @@ class DALIGenericIterator(_DaliBaseIterator):
                 output[-1] = output[-1].copy()
                 for cat in self.output_map:
                     lod_tensor = output[-1][cat]
-                    output[-1][cat] = lod_tensor_clip(
-                        lod_tensor, data_from_last_gpu)
+                    output[-1][cat] = lod_tensor_clip(lod_tensor, data_from_last_gpu)
                 return output
 
         return data_batches
@@ -479,22 +477,26 @@ class DALIClassificationIterator(DALIGenericIterator):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  -> last batch = ``[5, 6]``,
     next iteration will return ``[2, 3]``
     """
-
-    def __init__(self,
-                 pipelines,
-                 size=-1,
-                 reader_name=None,
-                 auto_reset=False,
-                 fill_last_batch=None,
-                 dynamic_shape=False,
-                 last_batch_padded=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
-                 prepare_first_batch=True):
+    def __init__(
+        self,
+        pipelines,
+        size=-1,
+        reader_name=None,
+        auto_reset=False,
+        fill_last_batch=None,
+        dynamic_shape=False,
+        last_batch_padded=False,
+        last_batch_policy=LastBatchPolicy.FILL,
+        prepare_first_batch=True
+    ):
         super(DALIClassificationIterator, self).__init__(
-            pipelines, ["data", "label"], size, reader_name=reader_name,
+            pipelines, ["data", "label"],
+            size,
+            reader_name=reader_name,
             auto_reset=auto_reset,
             fill_last_batch=fill_last_batch,
             dynamic_shape=dynamic_shape,
             last_batch_padded=last_batch_padded,
             last_batch_policy=last_batch_policy,
-            prepare_first_batch=prepare_first_batch)
+            prepare_first_batch=prepare_first_batch
+        )

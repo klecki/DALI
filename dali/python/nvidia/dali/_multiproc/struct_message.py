@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import struct
 
 
 class Structure:
-
     """
     Utility around Python `struct` module (https://docs.python.org/3.6/library/struct.html)
      that allows to access and modify `_fields` like an ordinary object attributes
@@ -62,7 +60,9 @@ class Structure:
             raise RuntimeError(
                 "Failed to serialize object as C-like structure. "
                 "Tried to populate following fields: `{}` with respective values: `{}` ".format(
-                    self._fields, self.get_values())) from e
+                    self._fields, self.get_values()
+                )
+            ) from e
 
     def unpack_from(self, buf, offset):
         values = self._struct.unpack_from(buf, offset)

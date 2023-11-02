@@ -22,11 +22,14 @@ from collections.abc import Iterable
 
 
 def _iterator_deprecation_warning():
-    warnings.warn("Please set `reader_name` and don't set last_batch_padded and size manually " +
-                  "whenever possible. This may lead, in some situations, to missing some " +
-                  "samples or returning duplicated ones. Check the Sharding section of the "
-                  "documentation for more details.",
-                  Warning, stacklevel=2)
+    warnings.warn(
+        "Please set `reader_name` and don't set last_batch_padded and size manually " +
+        "whenever possible. This may lead, in some situations, to missing some " +
+        "samples or returning duplicated ones. Check the Sharding section of the "
+        "documentation for more details.",
+        Warning,
+        stacklevel=2
+    )
 
 
 @unique
@@ -134,16 +137,17 @@ class _DaliBaseIterator(object):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  -> last batch = ``[5, 6]``,
     next iteration will return ``[2, 3]``
     """
-
-    def __init__(self,
-                 pipelines,
-                 size=-1,
-                 reader_name=None,
-                 auto_reset=False,
-                 fill_last_batch=None,
-                 last_batch_padded=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
-                 prepare_first_batch=True):
+    def __init__(
+        self,
+        pipelines,
+        size=-1,
+        reader_name=None,
+        auto_reset=False,
+        fill_last_batch=None,
+        last_batch_padded=False,
+        last_batch_policy=LastBatchPolicy.FILL,
+        prepare_first_batch=True
+    ):
         assert pipelines is not None, "Number of provided pipelines has to be at least 1"
         if not isinstance(pipelines, list):
             pipelines = [pipelines]
@@ -164,16 +168,22 @@ class _DaliBaseIterator(object):
         self._prepare_first_batch = prepare_first_batch
 
         if fill_last_batch is not None:
-            warnings.warn("Please do not use `fill_last_batch` and use `last_batch_policy` \
-                           instead.", Warning, stacklevel=2)
+            warnings.warn(
+                "Please do not use `fill_last_batch` and use `last_batch_policy` \
+                           instead.",
+                Warning,
+                stacklevel=2
+            )
             if fill_last_batch:
                 self._last_batch_policy = LastBatchPolicy.FILL
             else:
                 self._last_batch_policy = LastBatchPolicy.PARTIAL
         else:
             if type(last_batch_policy) is not LastBatchPolicy:
-                raise ValueError("Wrong type for `last_batch_policy`. "
-                                 f"Expected {LastBatchPolicy}, got {type(last_batch_policy)}")
+                raise ValueError(
+                    "Wrong type for `last_batch_policy`. "
+                    f"Expected {LastBatchPolicy}, got {type(last_batch_policy)}"
+                )
             self._last_batch_policy = last_batch_policy
 
         self._last_batch_padded = last_batch_padded
@@ -206,7 +216,8 @@ class _DaliBaseIterator(object):
         for p in self._pipes:
             if p._enable_checkpointing != self._enable_checkpointing:
                 raise ValueError(
-                    "All wrapped pipelines must have the same value for `enable_checkpointing`.")
+                    "All wrapped pipelines must have the same value for `enable_checkpointing`."
+                )
 
         if self._enable_checkpointing:
             # Note: currently, checkpointing is not supported with last_batch_padded=False.
@@ -215,7 +226,8 @@ class _DaliBaseIterator(object):
 
             if self._last_batch_policy == LastBatchPolicy.DROP:
                 raise NotImplementedError(
-                    "Currently, checkpointing is not supported with last_batch_policy=DROP")
+                    "Currently, checkpointing is not supported with last_batch_policy=DROP"
+                )
 
             # Precompute the initial checkpoints, to prevent any problems
             # related to the `prepare_first_batch` flag.
@@ -248,15 +260,16 @@ class _DaliBaseIterator(object):
                        err_msg_gen(err_msg)
                 return input_meta[0][name]
 
-            self._size_no_pad = check_equality_and_get(readers_meta,
-                                                       "epoch_size", "size value")
-            self._shards_num = check_equality_and_get(readers_meta,
-                                                      "number_of_shards",
-                                                      "`num_shards` argument set")
-            self._last_batch_padded = check_all_or_none_and_get(readers_meta, "pad_last_batch",
-                                                                "`pad_last_batch` argument set")
-            self._is_stick_to_shard = check_all_or_none_and_get(readers_meta, "stick_to_shard",
-                                                                "`stick_to_shard` argument set")
+            self._size_no_pad = check_equality_and_get(readers_meta, "epoch_size", "size value")
+            self._shards_num = check_equality_and_get(
+                readers_meta, "number_of_shards", "`num_shards` argument set"
+            )
+            self._last_batch_padded = check_all_or_none_and_get(
+                readers_meta, "pad_last_batch", "`pad_last_batch` argument set"
+            )
+            self._is_stick_to_shard = check_all_or_none_and_get(
+                readers_meta, "stick_to_shard", "`stick_to_shard` argument set"
+            )
 
             self._shards_id = np.array([meta["shard_id"] for meta in readers_meta], dtype=np.int64)
 
@@ -269,8 +282,9 @@ class _DaliBaseIterator(object):
             else:
                 # get the size as a multiply of the batch size that is bigger or equal
                 # than the biggest shard
-                self._size = math.ceil(math.ceil(self._size_no_pad / self._shards_num) /
-                                       self.batch_size) * self.batch_size
+                self._size = math.ceil(
+                    math.ceil(self._size_no_pad / self._shards_num) / self.batch_size
+                ) * self.batch_size
 
             # count where we starts inside each GPU shard in given epoch,
             # if shards are uneven this will differ epoch2epoch
@@ -465,8 +479,10 @@ class _DaliBaseIterator(object):
                     with p._check_api_type_scope(types.PipelineAPIType.ITERATOR):
                         p.schedule_run()
         else:
-            logging.warning("DALI iterator does not support resetting while epoch is not finished. \
-                             Ignoring...")
+            logging.warning(
+                "DALI iterator does not support resetting while epoch is not finished. \
+                             Ignoring..."
+            )
 
     def next(self):
         """

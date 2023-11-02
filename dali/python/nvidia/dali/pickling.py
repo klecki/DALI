@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ from nvidia.dali import reducers
 
 
 class _DaliPickle:
-
     @staticmethod
     def dumps(obj, protocol=None, **kwargs):
         f = io.BytesIO()
@@ -32,7 +31,6 @@ class _DaliPickle:
 
 
 class _CustomPickler:
-
     @classmethod
     def create(cls, py_callback_pickler):
         if py_callback_pickler is None or isinstance(py_callback_pickler, cls):

@@ -56,7 +56,6 @@ class DataNode(object):
     arguments) but they also provide arithmetic operations which implicitly create appropriate
     operators that perform the expressions.
     """
-
     def __init__(self, name, device="cpu", source=None):
         self.name = name
         self.device = device
@@ -246,6 +245,8 @@ not_iterable(DataNode)
 
 def _check(maybe_node):
     if not isinstance(maybe_node, DataNode):
-        raise TypeError(f"Expected outputs of type compatible with \"DataNode\". "
-                        f"Received output type with name \"{type(maybe_node).__name__}\" "
-                        f"that does not match.")
+        raise TypeError(
+            f"Expected outputs of type compatible with \"DataNode\". "
+            f"Received output type with name \"{type(maybe_node).__name__}\" "
+            f"that does not match."
+        )

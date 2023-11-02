@@ -33,7 +33,6 @@ def tfrecord_enabled():
 
 class _TFRecordReaderImpl():
     """ custom wrappers around ops """
-
     def __init__(self, path, index_path, features, **kwargs):
         if isinstance(path, list):
             self._path = path
@@ -75,7 +74,8 @@ class _TFRecordReaderImpl():
             raise ValueError(
                 f"Operator {type(self).__name__} expects "
                 f"from {self._schema.MinNumInput()} to {self._schema.MaxNumInput()} inputs, "
-                f"but received {len(inputs)}.")
+                f"but received {len(inputs)}."
+            )
 
         op_instance = ops._OperatorInstance(inputs, self, **kwargs)
         outputs = {}

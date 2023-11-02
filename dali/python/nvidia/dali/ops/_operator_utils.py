@@ -73,7 +73,6 @@ def _build_input_sets(inputs, op_name):
     op_name : str
         Name of the invoked operator, for error reporting purposes.
     """
-
     def _detect_multiple_input_sets(inputs):
         """Check if any of inputs is a list, indicating a usage of MIS."""
         return any(isinstance(input, list) for input in inputs)
@@ -90,9 +89,11 @@ def _build_input_sets(inputs, op_name):
         for input in inputs:
             if isinstance(input, list):
                 if len(input) != arg_list_len:
-                    raise ValueError(f"All argument lists for Multiple Input Sets used "
-                                     f"with operator {op_name} must have "
-                                     f"the same length")
+                    raise ValueError(
+                        f"All argument lists for Multiple Input Sets used "
+                        f"with operator {op_name} must have "
+                        f"the same length"
+                    )
         return arg_list_len
 
     def _unify_lists(inputs, arg_list_len):

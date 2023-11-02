@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@ class SharedMem:
         When handle=None it is the size of shared memory to allocate in bytes, otherwise it must be
         the size of shared memory objects that provided handle represents.
     """
-
     def __init__(self, handle, size):
         if handle is None:
             handle = -1
