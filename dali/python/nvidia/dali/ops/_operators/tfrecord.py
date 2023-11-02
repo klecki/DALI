@@ -17,7 +17,7 @@ from nvidia.dali import _conditionals
 from nvidia.dali import ops
 from nvidia.dali.data_node import DataNode as _DataNode
 
-_internal_schemas = ['_TFRecordReader', 'readers___TFRecord']
+_internal_schemas = ["_TFRecordReader", "readers___TFRecord"]
 
 
 def tfrecord_enabled():
@@ -31,8 +31,8 @@ def tfrecord_enabled():
     return False
 
 
-class _TFRecordReaderImpl():
-    """ custom wrappers around ops """
+class _TFRecordReaderImpl:
+    """custom wrappers around ops"""
 
     def __init__(self, path, index_path, features, **kwargs):
         if isinstance(path, list):
@@ -71,11 +71,12 @@ class _TFRecordReaderImpl():
 
     def __call__(self, *inputs, **kwargs):
         # We do not handle multiple input sets for Reader as they do not have inputs
-        if (len(inputs) > self._schema.MaxNumInput() or len(inputs) < self._schema.MinNumInput()):
+        if len(inputs) > self._schema.MaxNumInput() or len(inputs) < self._schema.MinNumInput():
             raise ValueError(
                 f"Operator {type(self).__name__} expects "
                 f"from {self._schema.MinNumInput()} to {self._schema.MaxNumInput()} inputs, "
-                f"but received {len(inputs)}.")
+                f"but received {len(inputs)}."
+            )
 
         op_instance = ops._OperatorInstance(inputs, self, **kwargs)
         outputs = {}
@@ -103,8 +104,8 @@ class _TFRecordReaderImpl():
 
 
 class TFRecordReader(_TFRecordReaderImpl, metaclass=ops._DaliOperatorMeta):
-    _internal_schema_name = '_TFRecordReader'
+    _internal_schema_name = "_TFRecordReader"
 
 
 class TFRecord(_TFRecordReaderImpl, metaclass=ops._DaliOperatorMeta):
-    _internal_schema_name = 'readers___TFRecord'
+    _internal_schema_name = "readers___TFRecord"
