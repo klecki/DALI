@@ -196,7 +196,7 @@ class DataNode(object):
             return False
 
         if not isinstance(val, tuple):
-            val = (val, )
+            val = (val,)
         d = 0
         for v in val:
             if process_index(v, d):
@@ -204,7 +204,9 @@ class DataNode(object):
 
         if len(new_axis_names) != 0:
             if len(new_axis_names) != len(new_axes):
-                raise ValueError("New axis name must be specified for all axes or none.")
+                raise ValueError(
+                    "New axis name must be specified for all axes or none."
+                )
             new_axis_names = "".join(new_axis_names)
         else:
             new_axis_names = None
@@ -231,14 +233,20 @@ class DataNode(object):
             if len(new_axes) > 0 and isinstance(val[-1], _NewAxis):
                 sliced = self  # no check needed, ExpandDims will do the trick
             else:
-                sliced = nvidia.dali.fn.subscript_dim_check(self, num_subscripts=len(idxs))
+                sliced = nvidia.dali.fn.subscript_dim_check(
+                    self, num_subscripts=len(idxs)
+                )
         else:
-            sliced = nvidia.dali.fn.tensor_subscript(self, **slice_args, num_subscripts=len(idxs))
+            sliced = nvidia.dali.fn.tensor_subscript(
+                self, **slice_args, num_subscripts=len(idxs)
+            )
 
         if len(new_axes) == 0:
             return sliced
         else:
-            return nvidia.dali.fn.expand_dims(sliced, axes=new_axes, new_axis_names=new_axis_names)
+            return nvidia.dali.fn.expand_dims(
+                sliced, axes=new_axes, new_axis_names=new_axis_names
+            )
 
 
 not_iterable(DataNode)
@@ -246,6 +254,8 @@ not_iterable(DataNode)
 
 def _check(maybe_node):
     if not isinstance(maybe_node, DataNode):
-        raise TypeError(f"Expected outputs of type compatible with \"DataNode\". "
-                        f"Received output type with name \"{type(maybe_node).__name__}\" "
-                        f"that does not match.")
+        raise TypeError(
+            f'Expected outputs of type compatible with "DataNode". '
+            f'Received output type with name "{type(maybe_node).__name__}" '
+            f"that does not match."
+        )

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,9 +19,20 @@ import socket
 from collections import deque
 from multiprocessing import reduction
 from nvidia.dali._utils.external_source_impl import SourceKind, _is_generator_function
-from nvidia.dali._multiproc.shared_batch import SharedBatchWriter, SharedBatchMeta, BufShmChunk, \
-    assert_valid_data_type, read_shm_message, write_shm_message
-from nvidia.dali._multiproc.messages import CompletedTask, WorkerArgs, ShmMessageDesc, ScheduledTask
+from nvidia.dali._multiproc.shared_batch import (
+    SharedBatchWriter,
+    SharedBatchMeta,
+    BufShmChunk,
+    assert_valid_data_type,
+    read_shm_message,
+    write_shm_message,
+)
+from nvidia.dali._multiproc.messages import (
+    CompletedTask,
+    WorkerArgs,
+    ShmMessageDesc,
+    ScheduledTask,
+)
 from nvidia.dali._multiproc.shared_queue import Dispatcher
 
 
@@ -30,8 +41,9 @@ class _WorkerProcessingResult:
     thread to the dispatcher thread. The dispatcher thread serializes the batch or the error and
     forwards the result as `CompletedTask` to the main process"""
 
-    def __init__(self, scheduled, shm_chunk, data_batch=None, exception=None,
-                 traceback_str=None):
+    def __init__(
+        self, scheduled, shm_chunk, data_batch=None, exception=None, traceback_str=None
+    ):
         self.context_i = scheduled.context_i
         self.scheduled_i = scheduled.scheduled_i
         self.minibatch_i = scheduled.task.minibatch_i
@@ -46,7 +58,9 @@ class _WorkerProcessingResult:
 
     @classmethod
     def failed(cls, scheduled, shm_chunk, exception, traceback_str=None):
-        return cls(scheduled, shm_chunk, exception=exception, traceback_str=traceback_str)
+        return cls(
+            scheduled, shm_chunk, exception=exception, traceback_str=traceback_str
+        )
 
     def is_failed(self):
         return self.exception is not None
@@ -66,6 +80,7 @@ class SharedBatchDispatcher(Dispatcher):
         def on_thread_exit():
             for queue in recv_queues:
                 queue.close()
+
         super().__init__(result_queue, on_thread_exit)
         self.worker_id = worker_id
 
@@ -79,7 +94,8 @@ class SharedBatchDispatcher(Dispatcher):
         shm_chunk = processed_task.shm_chunk
         completed_task = CompletedTask.failed(self.worker_id, processed_task)
         return write_shm_message(
-            self.worker_id, shm_chunk, completed_task, 0, resize=True)
+            self.worker_id, shm_chunk, completed_task, 0, resize=True
+        )
 
     def _serialize_done_task(self, processed_task: _WorkerProcessingResult):
         """
@@ -101,7 +117,8 @@ class SharedBatchDispatcher(Dispatcher):
         batch_meta = SharedBatchMeta.from_writer(sbw)
         completed_task = CompletedTask.done(self.worker_id, processed_task, batch_meta)
         return write_shm_message(
-            self.worker_id, shm_chunk, completed_task, sbw.total_size, resize=True)
+            self.worker_id, shm_chunk, completed_task, sbw.total_size, resize=True
+        )
 
     def serialize_msgs(self, processed_tasks: List[_WorkerProcessingResult]):
         shm_msgs = []
@@ -214,7 +231,6 @@ class MixedTaskReceiver:
             self.thread.join()
 
     class MixedReceiverState:
-
         def __init__(self):
             self.lock = threading.Lock()
             self.tasks_cv = threading.Condition(lock=self.lock)
@@ -270,8 +286,12 @@ class MixedTaskReceiver:
         self.state = self.MixedReceiverState()
         self.receivers = []
         try:
-            self.receivers.append(self.EagerReceiverWorker(self.state, self.dedicated_task_queue))
-            self.receivers.append(self.IdleReceiverWorker(self.state, self.general_task_queue))
+            self.receivers.append(
+                self.EagerReceiverWorker(self.state, self.dedicated_task_queue)
+            )
+            self.receivers.append(
+                self.IdleReceiverWorker(self.state, self.general_task_queue)
+            )
         except:  # noqa E722
             self.close()
             raise
@@ -304,7 +324,10 @@ class IterableSource:
         if self.raised_stop_iter:
             # if iterator runs in "raise" mode and a new epoch started
             # (i.e. source context was reset)
-            if self.source_desc.cycle == "raise" and self.epoch_start < scheduled.epoch_start:
+            if (
+                self.source_desc.cycle == "raise"
+                and self.epoch_start < scheduled.epoch_start
+            ):
                 self._reset_iter(scheduled.epoch_start)
             else:
                 raise StopIteration
@@ -342,14 +365,15 @@ class IterableSource:
 
 
 class CallableSource:
-
     def __init__(self, source_desc):
         self.callback = source_desc.source
 
     def __call__(self, scheduled: ScheduledTask):
         task = scheduled.task
         if task.is_sample_mode():
-            data_batch = [self.callback(sample_info) for sample_info in task.sample_range]
+            data_batch = [
+                self.callback(sample_info) for sample_info in task.sample_range
+            ]
         else:
             data_batch = self.callback(*task.batch_args)
         return data_batch
@@ -369,8 +393,9 @@ class WorkerContext:
 
     def __init__(self, worker_args: WorkerArgs):
         self.worker_id = worker_args.worker_id
-        self.callbacks = self._init_callbacks(worker_args.source_descs,
-                                              worker_args.callback_pickler)
+        self.callbacks = self._init_callbacks(
+            worker_args.source_descs, worker_args.callback_pickler
+        )
         self.result_queue = worker_args.result_queue
         self.general_task_queue = worker_args.general_task_queue
         self.dedicated_task_queue = worker_args.dedicated_task_queue
@@ -384,14 +409,18 @@ class WorkerContext:
                 shm_chunk.open_shm(reduction.recv_handle(setup_socket))
             setup_socket.shutdown(socket.SHUT_RDWR)
             setup_socket.close()
-        self.shm_chunks = {shm_chunk.shm_chunk_id: shm_chunk for shm_chunk in shm_chunks}
+        self.shm_chunks = {
+            shm_chunk.shm_chunk_id: shm_chunk for shm_chunk in shm_chunks
+        }
         self.task_receiver = None
         self.batch_dispatcher = None
         try:
             self.task_receiver = self._init_task_receiver()
             self.batch_dispatcher = SharedBatchDispatcher(
-                worker_args.worker_id, worker_args.result_queue,
-                self.task_receiver.get_recv_queues())
+                worker_args.worker_id,
+                worker_args.result_queue,
+                self.task_receiver.get_recv_queues(),
+            )
         except:  # noqa E722
             self.close()
             raise
@@ -404,7 +433,8 @@ class WorkerContext:
                 source_desc.source = callback_pickler.loads(source_desc.source)
         return {
             context_i: get_source_from_desc(source_desc)
-            for context_i, source_desc in source_descs.items()}
+            for context_i, source_desc in source_descs.items()
+        }
 
     def _recv_queue_handles(self, setup_socket):
         self.result_queue.open_shm(reduction.recv_handle(setup_socket))
@@ -414,9 +444,13 @@ class WorkerContext:
             self.dedicated_task_queue.open_shm(reduction.recv_handle(setup_socket))
 
     def _init_task_receiver(self):
-        assert self.general_task_queue is not None or self.dedicated_task_queue is not None
+        assert (
+            self.general_task_queue is not None or self.dedicated_task_queue is not None
+        )
         if self.dedicated_task_queue is None or self.general_task_queue is None:
-            return SimpleQueueTaskReceiver(self.general_task_queue or self.dedicated_task_queue)
+            return SimpleQueueTaskReceiver(
+                self.general_task_queue or self.dedicated_task_queue
+            )
         return MixedTaskReceiver(self.dedicated_task_queue, self.general_task_queue)
 
     def get_task(self) -> Tuple[Optional[ScheduledTask], Optional[BufShmChunk]]:
@@ -461,9 +495,13 @@ def worker(worker_args: WorkerArgs):
                     assert_valid_data_type(sample)
             except Exception as exception:
                 tb_str = traceback.format_exc()
-                processed = _WorkerProcessingResult.failed(scheduled, shm_chunk, exception, tb_str)
+                processed = _WorkerProcessingResult.failed(
+                    scheduled, shm_chunk, exception, tb_str
+                )
             else:
-                processed = _WorkerProcessingResult.done(scheduled, shm_chunk, data_batch)
+                processed = _WorkerProcessingResult.done(
+                    scheduled, shm_chunk, data_batch
+                )
             worker_context.dispatch(processed)
     finally:
         worker_context.close()

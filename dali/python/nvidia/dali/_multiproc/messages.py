@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -37,10 +37,14 @@ class ShmMessageDesc(Structure):
     `num_bytes` : unsigned long long int
         Size in bytes of the serialized message
     """
-    _fields = (("worker_id", "i"),
-               ("shm_chunk_id", "i"),
-               ("shm_capacity", "Q"),
-               ("offset", "Q"), ("num_bytes", "Q"))
+
+    _fields = (
+        ("worker_id", "i"),
+        ("shm_chunk_id", "i"),
+        ("shm_capacity", "Q"),
+        ("offset", "Q"),
+        ("num_bytes", "Q"),
+    )
 
 
 class WorkerArgs:
@@ -67,10 +71,22 @@ class WorkerArgs:
         Python wrapper around Unix socket used to pass file descriptors identifying
         shared memory chunk to child process. None if `start_method='fork'`
     `callback_pickler`
-        Optional custom pickler that was applied to serialize callbacks in `source_descs`"""
+        Optional custom pickler that was applied to serialize callbacks in `source_descs`
+    """
 
-    def __init__(self, *, worker_id, start_method, source_descs, shm_chunks, general_task_queue,
-                 dedicated_task_queue, result_queue, setup_socket, callback_pickler):
+    def __init__(
+        self,
+        *,
+        worker_id,
+        start_method,
+        source_descs,
+        shm_chunks,
+        general_task_queue,
+        dedicated_task_queue,
+        result_queue,
+        setup_socket,
+        callback_pickler,
+    ):
         self.worker_id = worker_id
         self.start_method = start_method
         self.source_descs = source_descs
@@ -91,8 +107,16 @@ class SampleRange:
     description size on the batch size.
     """
 
-    def __init__(self, sample_start, sample_end, iteration, epoch_idx, *,
-                 slice_start=0, slice_end=None):
+    def __init__(
+        self,
+        sample_start,
+        sample_end,
+        iteration,
+        epoch_idx,
+        *,
+        slice_start=0,
+        slice_end=None,
+    ):
         self.sample_start = sample_start  # idx in epoch of first sample in batch
         self.sample_end = sample_end  # idx in epoch of one past last sample in batch
         self.iteration = iteration  # index of a batch within epoch
@@ -122,10 +146,13 @@ class SampleRange:
         slice_start = min(slice_start, self.slice_end)
         slice_end = max(min(slice_end, self.slice_end), slice_start)
         return SampleRange(
-            self.sample_start, self.sample_end,
-            self.iteration, self.epoch_idx,
+            self.sample_start,
+            self.sample_end,
+            self.iteration,
+            self.epoch_idx,
             slice_start=slice_start,
-            slice_end=slice_end)
+            slice_end=slice_end,
+        )
 
     def __getitem__(self, idx):
         if isinstance(idx, slice):
@@ -135,19 +162,21 @@ class SampleRange:
         else:
             idx_in_batch = self.slice_start + idx
         if idx_in_batch < self.slice_start or idx_in_batch >= self.slice_end:
-            raise IndexError("Index {} out of range for slice of length {}".format(idx, len(self)))
+            raise IndexError(
+                "Index {} out of range for slice of length {}".format(idx, len(self))
+            )
         return SampleInfo(
             self.sample_start + idx_in_batch,
             idx_in_batch,
             self.iteration,
-            self.epoch_idx)
+            self.epoch_idx,
+        )
 
     def __len__(self):
         return self.slice_end - self.slice_start
 
 
 class TaskArgs:
-
     @classmethod
     def make_sample(cls, sample_range):
         if len(sample_range) <= 0:
@@ -158,7 +187,9 @@ class TaskArgs:
     def make_batch(cls, batch_args):
         return cls(0, batch_args=batch_args)
 
-    def __init__(self, minibatch_i, sample_range: Optional[SampleRange] = None, batch_args=None):
+    def __init__(
+        self, minibatch_i, sample_range: Optional[SampleRange] = None, batch_args=None
+    ):
         self.minibatch_i = minibatch_i
         self.sample_range = sample_range
         self.batch_args = batch_args
@@ -217,8 +248,15 @@ class CompletedTask:
     """
 
     def __init__(
-            self, worker_id, context_i, scheduled_i, minibatch_i, batch_meta=None,
-            exception=None, traceback_str=None):
+        self,
+        worker_id,
+        context_i,
+        scheduled_i,
+        minibatch_i,
+        batch_meta=None,
+        exception=None,
+        traceback_str=None,
+    ):
         self.worker_id = worker_id
         self.context_i = context_i
         self.scheduled_i = scheduled_i
@@ -229,13 +267,24 @@ class CompletedTask:
 
     @classmethod
     def done(cls, worker_id, processed, batch_meta):
-        return cls(worker_id, processed.context_i, processed.scheduled_i, processed.minibatch_i,
-                   batch_meta=batch_meta)
+        return cls(
+            worker_id,
+            processed.context_i,
+            processed.scheduled_i,
+            processed.minibatch_i,
+            batch_meta=batch_meta,
+        )
 
     @classmethod
     def failed(cls, worker_id, processed):
-        return cls(worker_id, processed.context_i, processed.scheduled_i, processed.minibatch_i,
-                   exception=processed.exception, traceback_str=processed.traceback_str)
+        return cls(
+            worker_id,
+            processed.context_i,
+            processed.scheduled_i,
+            processed.minibatch_i,
+            exception=processed.exception,
+            traceback_str=processed.traceback_str,
+        )
 
     def is_failed(self):
         return self.exception is not None
