@@ -20,9 +20,9 @@ from nvidia.dali._autograph.pyct import origin_info
 
 
 class FrameInfo(
-    collections.namedtuple('FrameInfo',
-                           ('filename', 'lineno', 'function_name', 'code',
-                            'is_converted', 'is_allowlisted'))):
+    collections.namedtuple(
+        'FrameInfo',
+        ('filename', 'lineno', 'function_name', 'code', 'is_converted', 'is_allowlisted'))):
 
   __slots__ = ()
 
@@ -82,13 +82,12 @@ def _stack_trace_inside_mapped_code(tb, source_map, converter_filename):
     loc = origin_info.LineLocation(filename=filename, lineno=line_number)
     if loc in source_map:
       origin = source_map[loc]
-      fi = FrameInfo(
-          filename=origin.loc.filename,
-          lineno=origin.loc.lineno,
-          function_name=origin.function_name,
-          code=origin.source_code_line,
-          is_converted=True,
-          is_allowlisted=False)
+      fi = FrameInfo(filename=origin.loc.filename,
+                     lineno=origin.loc.lineno,
+                     function_name=origin.function_name,
+                     code=origin.source_code_line,
+                     is_converted=True,
+                     is_allowlisted=False)
       result_frames.append(fi)
       break
 
@@ -96,23 +95,21 @@ def _stack_trace_inside_mapped_code(tb, source_map, converter_filename):
       if result_frames:
         prev = result_frames[-1]
         assert not prev.is_converted  # See the if above.
-        fi = FrameInfo(
-            filename=prev.filename,
-            lineno=prev.lineno,
-            function_name=prev.function_name,
-            code=prev.code,
-            is_converted=False,
-            is_allowlisted=True)
+        fi = FrameInfo(filename=prev.filename,
+                       lineno=prev.lineno,
+                       function_name=prev.function_name,
+                       code=prev.code,
+                       is_converted=False,
+                       is_allowlisted=True)
         result_frames[-1] = fi
       continue
 
-    fi = FrameInfo(
-        filename=filename,
-        lineno=line_number,
-        function_name=function_name,
-        code=text,
-        is_converted=False,
-        is_allowlisted=False)
+    fi = FrameInfo(filename=filename,
+                   lineno=line_number,
+                   function_name=function_name,
+                   code=text,
+                   is_converted=False,
+                   is_allowlisted=False)
     result_frames.append(fi)
 
   return tuple(result_frames)
@@ -157,18 +154,15 @@ class ErrorMetadataBase(object):
 
   __slots__ = ('translated_stack', 'cause_message')
 
-  def __init__(self, callsite_tb, cause_metadata, cause_message, source_map,
-               converter_filename):
-    translated_stack = _stack_trace_inside_mapped_code(
-        callsite_tb, source_map, converter_filename)
+  def __init__(self, callsite_tb, cause_metadata, cause_message, source_map, converter_filename):
+    translated_stack = _stack_trace_inside_mapped_code(callsite_tb, source_map, converter_filename)
 
     if cause_metadata is None:
       self.translated_stack = translated_stack
       self.cause_message = cause_message
     else:
       # Daisy chain the translated stacks.
-      self.translated_stack = (
-          cause_metadata.translated_stack + (translated_stack[-1],))
+      self.translated_stack = (cause_metadata.translated_stack + (translated_stack[-1],))
       self.cause_message = cause_metadata.cause_message
 
   def get_message(self):

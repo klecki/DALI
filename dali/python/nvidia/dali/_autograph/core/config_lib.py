@@ -16,7 +16,6 @@
 
 import enum
 
-
 # TODO(mdan): For better performance, allow each rule to take a set names.
 
 
@@ -27,8 +26,7 @@ class Rule(object):
     self._prefix = module_prefix
 
   def matches(self, module_name):
-    return (module_name.startswith(self._prefix + '.') or
-            module_name == self._prefix)
+    return (module_name.startswith(self._prefix + '.') or module_name == self._prefix)
 
 
 class Action(enum.Enum):

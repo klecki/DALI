@@ -24,7 +24,6 @@ from nvidia.dali._autograph.pyct import cache
 from nvidia.dali._autograph.pyct import inspect_utils
 from nvidia.dali._autograph.utils import ag_logging as logging
 
-
 _ALLOWLIST_CACHE = cache.UnboundInstanceCache()
 
 
@@ -39,8 +38,7 @@ def _is_of_known_loaded_module(f, module_name):
 
 def _is_known_loaded_type(f, module_name, entity_name):
   """Tests whether the function or method is an instance of a known type."""
-  if (module_name not in sys.modules or
-      not hasattr(sys.modules[module_name], entity_name)):
+  if (module_name not in sys.modules or not hasattr(sys.modules[module_name], entity_name)):
     return False
   type_entity = getattr(sys.modules[module_name], entity_name)
   if isinstance(f, type_entity):
@@ -70,10 +68,9 @@ def is_unsupported(o):
   # TODO(b/122265385): Remove this bypass.
   if (_is_known_loaded_type(o, 'wrapt', 'FunctionWrapper') or
       _is_known_loaded_type(o, 'wrapt', 'BoundFunctionWrapper')):
-    logging.warning(
-        '{} appears to be decorated by wrapt, which is not yet supported'
-        ' by AutoGraph. The function will run as-is.'
-        ' You may still apply AutoGraph before the wrapt decorator.'.format(o))
+    logging.warning('{} appears to be decorated by wrapt, which is not yet supported'
+                    ' by AutoGraph. The function will run as-is.'
+                    ' You may still apply AutoGraph before the wrapt decorator.'.format(o))
     logging.log(2, 'Permanently allowed: %s: wrapt decorated', o)
     return True
 
@@ -90,16 +87,13 @@ def is_unsupported(o):
 
   # Other built-in modules are permanently allowed.
   # TODO(mdan): Figure out how to do this consistently for all stdlib modules.
-  if any(
-      _is_of_known_loaded_module(o, m)
-      for m in ('collections', 'pdb', 'copy', 'inspect', 're')):
+  if any(_is_of_known_loaded_module(o, m) for m in ('collections', 'pdb', 'copy', 'inspect', 're')):
     logging.log(2, 'Permanently allowed: %s: part of builtin module', o)
     return True
 
   # Custom ops and kernels are also permanently allowed.
   # See tensorflow.framework.load_library.
-  if (hasattr(o, '__module__') and
-      hasattr(o.__module__, '_IS_TENSORFLOW_PLUGIN')):
+  if (hasattr(o, '__module__') and hasattr(o.__module__, '_IS_TENSORFLOW_PLUGIN')):
     logging.log(2, 'Permanently allowed: %s: TensorFlow plugin', o)
     return True
 
@@ -107,8 +101,7 @@ def is_unsupported(o):
 
 
 # TODO(mdan): allow_namedtuple_subclass should be hardcoded to True.
-def is_allowlisted(
-    o, check_call_override=True, allow_namedtuple_subclass=False):
+def is_allowlisted(o, check_call_override=True, allow_namedtuple_subclass=False):
   """Checks whether an entity is allowed for use in graph mode.
 
   Examples of allowed entities include all members of the tensorflow
@@ -150,8 +143,7 @@ def is_allowlisted(
     logging.log(2, 'Allowlisted: %s: generator functions are not converted', o)
     return True
 
-  if (check_call_override and not inspect.isclass(o) and
-      hasattr(o, '__call__')):
+  if (check_call_override and not inspect.isclass(o) and hasattr(o, '__call__')):
     # Callable objects: allowed if their __call__ method is.
     # The type check avoids infinite recursion around the __call__ method
     # of function objects.
@@ -183,12 +175,8 @@ def is_allowlisted(
         return True
 
       owner_class = inspect_utils.getdefiningclass(o, owner_class)
-      if is_allowlisted(
-          owner_class,
-          check_call_override=False,
-          allow_namedtuple_subclass=True):
-        logging.log(2, 'Allowlisted: %s: owner is allowed %s', o,
-                    owner_class)
+      if is_allowlisted(owner_class, check_call_override=False, allow_namedtuple_subclass=True):
+        logging.log(2, 'Allowlisted: %s: owner is allowed %s', o, owner_class)
         return True
 
   if inspect_utils.isnamedtuple(o):

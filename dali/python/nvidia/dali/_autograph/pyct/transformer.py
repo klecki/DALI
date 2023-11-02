@@ -57,10 +57,8 @@ class Context(object):
 
 # TODO(mdan): Move to a standalone file.
 class EntityInfo(
-    collections.namedtuple(
-        'EntityInfo',
-        ('name', 'source_code', 'source_file', 'future_features', 'namespace'))
-):
+    collections.namedtuple('EntityInfo',
+                           ('name', 'source_code', 'source_file', 'future_features', 'namespace'))):
   """Contains information about a Python entity.
 
   Immutable.
@@ -422,8 +420,7 @@ class Base(NodeStateTracker, gast.NodeTransformer):
       # below is installed, because said handler will mess up if `node` is not,
       # in fact, a node.
       msg = ('invalid value for "node": expected "ast.AST", got "{}"; to'
-             ' visit lists of nodes, use "visit_block" instead').format(
-                 type(node))
+             ' visit lists of nodes, use "visit_block" instead').format(type(node))
       raise ValueError(msg)
 
     if anno.hasanno(node, anno.Basic.SKIP_PROCESSING):
@@ -447,15 +444,13 @@ class Base(NodeStateTracker, gast.NodeTransformer):
         # When the replacement is a list, it is assumed that the list came
         # from a template that contained a number of statements, which
         # themselves are standalone and don't require an enclosing Expr.
-        if isinstance(result.value,
-                      (list, tuple, gast.Assign, gast.AugAssign)):
+        if isinstance(result.value, (list, tuple, gast.Assign, gast.AugAssign)):
           result = result.value
 
       # By default, all replacements receive the origin info of the replaced
       # node.
       if result is not node and result is not None:
-        inherited_origin = anno.getanno(
-            node, anno.Basic.ORIGIN, default=parent_origin)
+        inherited_origin = anno.getanno(node, anno.Basic.ORIGIN, default=parent_origin)
         if inherited_origin is not None:
           nodes_to_adjust = result
           if isinstance(result, (list, tuple)):
@@ -529,8 +524,7 @@ class CodeGenerator(NodeStateTracker, gast.NodeVisitor):
       # node.
       eof_after = len(self._output_code)
       if eof_before - eof_after:
-        inherited_origin = anno.getanno(
-            node, anno.Basic.ORIGIN, default=parent_origin)
+        inherited_origin = anno.getanno(node, anno.Basic.ORIGIN, default=parent_origin)
         if inherited_origin is not None:
           self.source_map[(eof_before, eof_after)] = inherited_origin
       return ret

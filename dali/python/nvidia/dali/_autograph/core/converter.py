@@ -157,8 +157,8 @@ class ConversionOptions(object):
     self.optional_features = optional_features
 
   def as_tuple(self):
-    return (self.recursive, self.user_requested,
-            self.internal_convert_user_code, self.optional_features)
+    return (self.recursive, self.user_requested, self.internal_convert_user_code,
+            self.optional_features)
 
   def __hash__(self):
     return hash(self.as_tuple())
@@ -171,16 +171,14 @@ class ConversionOptions(object):
     return 'ConversionOptions[{}]'
 
   def uses(self, feature):
-    return (Feature.ALL in self.optional_features or
-            feature in self.optional_features)
+    return (Feature.ALL in self.optional_features or feature in self.optional_features)
 
   def call_options(self):
     """Returns the corresponding options to be used for recursive conversion."""
-    return ConversionOptions(
-        recursive=self.recursive,
-        user_requested=False,
-        internal_convert_user_code=self.recursive,
-        optional_features=self.optional_features)
+    return ConversionOptions(recursive=self.recursive,
+                             user_requested=False,
+                             internal_convert_user_code=self.recursive,
+                             optional_features=self.optional_features)
 
   def to_ast(self):
     """Returns a representation of this object as an AST node.
@@ -206,21 +204,20 @@ class ConversionOptions(object):
       return parser.parse_expression('({})'.format(', '.join(
           'ag__.{}'.format(str(v)) for v in values)))
 
-    expr_ast = templates.replace(
-        template,
-        recursive_val=parser.parse_expression(str(self.recursive)),
-        user_requested_val=parser.parse_expression(str(self.user_requested)),
-        internal_convert_user_code_val=parser.parse_expression(
-            str(self.internal_convert_user_code)),
-        optional_features_val=list_of_features(self.optional_features))
+    expr_ast = templates.replace(template,
+                                 recursive_val=parser.parse_expression(str(self.recursive)),
+                                 user_requested_val=parser.parse_expression(str(
+                                     self.user_requested)),
+                                 internal_convert_user_code_val=parser.parse_expression(
+                                     str(self.internal_convert_user_code)),
+                                 optional_features_val=list_of_features(self.optional_features))
     return expr_ast[0].value
 
 
-STANDARD_OPTIONS = ConversionOptions(
-    recursive=True,
-    user_requested=False,
-    internal_convert_user_code=True,
-    optional_features=None)
+STANDARD_OPTIONS = ConversionOptions(recursive=True,
+                                     user_requested=False,
+                                     internal_convert_user_code=True,
+                                     optional_features=None)
 
 
 class ProgramContext(object):
@@ -292,10 +289,9 @@ class Base(transformer.Base):
     for other_value in arg_values_found[1:]:
       if not ast_util.matches(first_value, other_value):
         qn = anno.getanno(node, anno.Basic.QN)
-        raise ValueError(
-            '%s has ambiguous annotations for %s(%s): %s, %s' %
-            (qn, directive.__name__, arg, parser.unparse(other_value).strip(),
-             parser.unparse(first_value).strip()))
+        raise ValueError('%s has ambiguous annotations for %s(%s): %s, %s' %
+                         (qn, directive.__name__, arg, parser.unparse(other_value).strip(),
+                          parser.unparse(first_value).strip()))
     return first_value
 
   def visit(self, node):

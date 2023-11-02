@@ -126,8 +126,8 @@ def rand_augment(
                             f"does not contain augmentation with this name. "
                             f"The augmentations in the suite are: {', '.join(augmentation_names)}.")
     selected_augments = [aug for aug in augmentations if aug.name not in excluded]
-    return apply_rand_augment(selected_augments, data, n, m,
-                              num_magnitude_bins=num_magnitude_bins, seed=seed, **aug_kwargs)
+    return apply_rand_augment(selected_augments, data, n, m, num_magnitude_bins=num_magnitude_bins,
+                              seed=seed, **aug_kwargs)
 
 
 def apply_rand_augment(augmentations: List[_Augmentation], data: _DataNode, n: int, m: int,

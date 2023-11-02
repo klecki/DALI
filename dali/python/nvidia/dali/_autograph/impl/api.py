@@ -123,8 +123,7 @@ def _attach_error_metadata(e, f):
 
   cause_tb = traceback.extract_tb(sys.exc_info()[2])[1:]
 
-  e.ag_error_metadata = _ErrorMetadata(cause_tb, metadata, message, source_map,
-                                       __file__)
+  e.ag_error_metadata = _ErrorMetadata(cause_tb, metadata, message, source_map, __file__)
 
 
 # class StackTraceMapper(tf_stack.StackTraceMapper):
@@ -161,7 +160,6 @@ def _attach_error_metadata(e, f):
 
 #     self._cached_map = effective_source_map
 #     return effective_source_map
-
 
 #
 # Actual source code transformation
@@ -305,8 +303,7 @@ def converted_call(f, args, kwargs, caller_fn_scope=None, options=None):
     Any, the result of executing a possibly-converted `f` with the given
       arguments.
   """
-  logging.log(1, 'Converted call: %s\n    args: %s\n    kwargs: %s\n', f, args,
-              kwargs)
+  logging.log(1, 'Converted call: %s\n    args: %s\n    kwargs: %s\n', f, args, kwargs)
 
   if options is None:
     if caller_fn_scope is None:
@@ -334,14 +331,12 @@ def converted_call(f, args, kwargs, caller_fn_scope=None, options=None):
     if kwargs is not None:
       new_kwargs.update(kwargs)
     new_args = f.args + args
-    logging.log(3, 'Forwarding call of partial %s with\n%s\n%s\n', f, new_args,
-                new_kwargs)
-    return converted_call(
-        f.func,
-        new_args,
-        new_kwargs,
-        caller_fn_scope=caller_fn_scope,
-        options=options)
+    logging.log(3, 'Forwarding call of partial %s with\n%s\n%s\n', f, new_args, new_kwargs)
+    return converted_call(f.func,
+                          new_args,
+                          new_kwargs,
+                          caller_fn_scope=caller_fn_scope,
+                          options=options)
 
   if inspect_utils.isbuiltin(f):
     if f is eval:
@@ -403,8 +398,7 @@ def converted_call(f, args, kwargs, caller_fn_scope=None, options=None):
   elif (hasattr(target_entity.__code__, 'co_filename') and
         target_entity.__code__.co_filename == '<string>'):
     # TODO(mdan): __globals__['txt'] might work in Py3.
-    logging.log(2, 'Permanently allowed: %s: dynamic code (exec?)',
-                target_entity)
+    logging.log(2, 'Permanently allowed: %s: dynamic code (exec?)', target_entity)
     return _call_unconverted(f, args, kwargs, options)
 
   try:
@@ -445,10 +439,9 @@ def _call_unconverted(f, args, kwargs, options, update_cache=True):
 def _fall_back_unconverted(f, args, kwargs, options, exc):
   """Falls back to calling the function unconverted, in case of error."""
   # TODO(mdan): Consider adding an internal metric.
-  warning_template = (
-      'AutoGraph could not transform %s and will run it as-is.\n'
-      '%s'
-      'Cause: %s\n')
+  warning_template = ('AutoGraph could not transform %s and will run it as-is.\n'
+                      '%s'
+                      'Cause: %s\n')
   # TODO(klecki): Expose the do_not_convert in DALI
   #   'To silence this warning, decorate the function with'
   #   ' @tf.autograph.experimental.do_not_convert')
@@ -550,14 +543,12 @@ def tf_convert(f, ctx, convert_by_default=True, user_requested=False):
   #     # The context is disabled here, but should be enabled in user user_fn
   #     tf_convert(user_fn, ctx=ctx)
   if ctx.status == ag_ctx.Status.ENABLED:
-    wrapper_factory = convert(
-        recursive=True, user_requested=user_requested, conversion_ctx=ctx)
+    wrapper_factory = convert(recursive=True, user_requested=user_requested, conversion_ctx=ctx)
   elif ctx.status == ag_ctx.Status.DISABLED:
     wrapper_factory = do_not_convert
   elif ctx.status == ag_ctx.Status.UNSPECIFIED:
     if convert_by_default:
-      wrapper_factory = convert(
-          recursive=True, user_requested=user_requested, conversion_ctx=ctx)
+      wrapper_factory = convert(recursive=True, user_requested=user_requested, conversion_ctx=ctx)
     else:
       wrapper_factory = call_with_unspecified_conversion_status
   else:
@@ -590,8 +581,7 @@ def _log_callargs(f, args, kwargs):
   else:
     callargs = inspect.getcallargs(f, *args)
 
-  formatted_callargs = '\n'.join(
-      '    {}: {}'.format(k, v) for k, v in callargs.items())
+  formatted_callargs = '\n'.join('    {}: {}'.format(k, v) for k, v in callargs.items())
   logging.log(2, 'Calling %s with\n%s\n', f, formatted_callargs)
 
 
@@ -660,10 +650,9 @@ def convert(recursive=False,
 
     def wrapper(*args, **kwargs):
       """Wrapper that calls the converted version of f."""
-      options = converter.ConversionOptions(
-          recursive=recursive,
-          user_requested=user_requested,
-          optional_features=optional_features)
+      options = converter.ConversionOptions(recursive=recursive,
+                                            user_requested=user_requested,
+                                            optional_features=optional_features)
       try:
         with conversion_ctx:
           return converted_call(f, args, kwargs, options=options)
@@ -744,16 +733,12 @@ tensorflow/python/autograph/g3doc/reference/index.md).
     ValueError: If the entity could not be converted.
   """
   try:
-    program_ctx = converter.ProgramContext(
-        options=converter.ConversionOptions(
-            recursive=recursive,
-            user_requested=True,
-            optional_features=experimental_optional_features))
+    program_ctx = converter.ProgramContext(options=converter.ConversionOptions(
+        recursive=recursive, user_requested=True, optional_features=experimental_optional_features))
     return autograph_artifact(_convert_actual(entity, program_ctx))
   except (ValueError, AttributeError, KeyError, NameError, AssertionError) as e:
     logging.error(1, 'Error converting %s', entity, exc_info=True)
-    raise ConversionError('converting {}: {}: {}'.format(
-        entity, e.__class__.__name__, str(e)))
+    raise ConversionError('converting {}: {}: {}'.format(entity, e.__class__.__name__, str(e)))
 
 
 @export_symbol(v1=['autograph.to_graph'])
@@ -821,10 +806,9 @@ def to_graph_v1(entity,
   """
   del arg_types
   del arg_values
-  return to_graph(
-      entity,
-      recursive=recursive,
-      experimental_optional_features=experimental_optional_features)
+  return to_graph(entity,
+                  recursive=recursive,
+                  experimental_optional_features=experimental_optional_features)
 
 
 @export_symbol(v1=['autograph.to_code'])
@@ -875,10 +859,9 @@ def to_code_v1(entity,
   del arg_values
   del arg_types
   del indentation
-  return to_code(
-      entity,
-      recursive=recursive,
-      experimental_optional_features=experimental_optional_features)
+  return to_code(entity,
+                 recursive=recursive,
+                 experimental_optional_features=experimental_optional_features)
 
 
 @export_symbol('autograph.to_code', v1=[])
@@ -919,10 +902,9 @@ def to_code(entity, recursive=True, experimental_optional_features=None):
     The converted code as string.
   """
   source = inspect.getsource(
-      to_graph(
-          entity,
-          recursive=recursive,
-          experimental_optional_features=experimental_optional_features))
+      to_graph(entity,
+               recursive=recursive,
+               experimental_optional_features=experimental_optional_features))
   return textwrap.dedent(source)
 
 

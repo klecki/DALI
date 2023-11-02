@@ -31,7 +31,6 @@ import gast
 from nvidia.dali._autograph.core import converter
 from nvidia.dali._autograph.pyct import templates
 
-
 # TODO(mdan): This should covert directly to operator calls.
 
 
@@ -68,8 +67,7 @@ class ListCompTransformer(converter.Base):
         for target in iter_:
           body
       """
-      body = templates.replace(
-          template, iter_=gen.iter, target=gen.target, body=body)
+      body = templates.replace(template, iter_=gen.iter, target=gen.target, body=body)
 
     return initialization + body
 

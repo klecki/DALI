@@ -37,6 +37,7 @@ class OperatorBase:
   See the documentation in operators/ for description of the arguments used in those overloads,
   the names of the functions are matching, so OperatorBase.for_stmt <-> control_flow.for_stmt.
   """
+
   def detect_overload(self, object):
     """Generic detection of custom user-defined type used for all overloads.
 

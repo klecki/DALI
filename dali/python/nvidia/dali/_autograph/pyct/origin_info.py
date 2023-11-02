@@ -28,8 +28,7 @@ from nvidia.dali._autograph.pyct import parser
 from nvidia.dali._autograph.pyct import pretty_printer
 
 
-class LineLocation(
-    collections.namedtuple('LineLocation', ('filename', 'lineno'))):
+class LineLocation(collections.namedtuple('LineLocation', ('filename', 'lineno'))):
   """Similar to Location, but without column information.
 
   Attributes:
@@ -39,8 +38,7 @@ class LineLocation(
   pass
 
 
-class Location(
-    collections.namedtuple('Location', ('filename', 'lineno', 'col_offset'))):
+class Location(collections.namedtuple('Location', ('filename', 'lineno', 'col_offset'))):
   """Encodes code location information.
 
   Attributes:
@@ -56,9 +54,7 @@ class Location(
 
 
 class OriginInfo(
-    collections.namedtuple(
-        'OriginInfo',
-        ('loc', 'function_name', 'source_code_line', 'comment'))):
+    collections.namedtuple('OriginInfo', ('loc', 'function_name', 'source_code_line', 'comment'))):
   """Container for information about the source code before conversion.
 
   Attributes:
@@ -70,14 +66,12 @@ class OriginInfo(
 
   def as_frame(self):
     """Returns a 4-tuple consistent with the return of traceback.extract_tb."""
-    return (self.loc.filename, self.loc.lineno, self.function_name,
-            self.source_code_line)
+    return (self.loc.filename, self.loc.lineno, self.function_name, self.source_code_line)
 
   def __repr__(self):
     if self.loc.filename:
       return '{}:{}:{}'.format(
-          os.path.split(self.loc.filename)[1], self.loc.lineno,
-          self.loc.col_offset)
+          os.path.split(self.loc.filename)[1], self.loc.lineno, self.loc.col_offset)
     return '<no file>:{}:{}'.format(self.loc.lineno, self.loc.col_offset)
 
 
@@ -140,12 +134,11 @@ def create_source_map(nodes, code, filepath):
     for n, rn in zip(nodes, reparsed_nodes):
       nodes_str = pretty_printer.fmt(n, color=False, noanno=True)
       reparsed_nodes_str = pretty_printer.fmt(rn, color=False, noanno=True)
-      diff = difflib.context_diff(
-          nodes_str.split('\n'),
-          reparsed_nodes_str.split('\n'),
-          fromfile='Original nodes',
-          tofile='Reparsed nodes',
-          n=7)
+      diff = difflib.context_diff(nodes_str.split('\n'),
+                                  reparsed_nodes_str.split('\n'),
+                                  fromfile='Original nodes',
+                                  tofile='Reparsed nodes',
+                                  n=7)
       diff = '\n'.join(diff)
       new_msg += diff + '\n'
     raise ValueError(new_msg)
@@ -162,8 +155,7 @@ class _Function(object):
 class OriginResolver(gast.NodeVisitor):
   """Annotates an AST with additional source information like file name."""
 
-  def __init__(self, root_node, source_lines, comments_map,
-               context_lineno, context_col_offset,
+  def __init__(self, root_node, source_lines, comments_map, context_lineno, context_col_offset,
                filepath):
     self._source_lines = source_lines
     self._comments_map = comments_map
@@ -265,8 +257,7 @@ def resolve(node, source, context_filepath, context_lineno, context_col_offset):
       raise
 
   source_lines = source.split('\n')
-  visitor = OriginResolver(node, source_lines, comments_map,
-                           context_lineno, context_col_offset,
+  visitor = OriginResolver(node, source_lines, comments_map, context_lineno, context_col_offset,
                            context_filepath)
   visitor.visit(node)
 
