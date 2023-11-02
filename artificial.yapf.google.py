@@ -28,7 +28,11 @@ from nvidia.dali._multiproc.shared_queue import ShmQueue
 def signature_test0(argument1, argument2):
     pass
 
-def signature_test1(argument1, argument2,):
+
+def signature_test1(
+    argument1,
+    argument2,
+):
     pass
 
 
@@ -37,25 +41,36 @@ def signature_test2(argument1, argument2, argument3, argument4, argument5, argum
     pass
 
 
-def signature_test3(argument1, argument2, argument3, argument4, argument5,
-                    argument6, argument7,
+def signature_test3(argument1, argument2, argument3, argument4, argument5, argument6, argument7,
                     argument8):
     pass
+
 
 def signature_test4(argument1, argument2, argument3, argument4, argument5, argument6, argument7,
                     argument8, argument9, argument10, argument11):
     pass
 
 
-def signature_test5(argument1, argument2, argument3, argument4, argument5,
-                    argument6, argument7,
+def signature_test5(argument1, argument2, argument3, argument4, argument5, argument6, argument7,
                     argument8, argument9, argument10, argument11):
     pass
 
-def signature_test6(argument1, argument2, argument3, argument4, argument5,
-                    argument6, argument7,
-                    argument8, argument9, argument10, argument11,):
+
+def signature_test6(
+    argument1,
+    argument2,
+    argument3,
+    argument4,
+    argument5,
+    argument6,
+    argument7,
+    argument8,
+    argument9,
+    argument10,
+    argument11,
+):
     pass
+
 
 class ShmChunkManager:
     """Two dimensional buffer of shared memory chunks (queue_depth X num_minibatches),
@@ -92,14 +107,14 @@ def get_required_kwargs(fun, skip_positional=0):
     sig = inspect.signature(fun)
     # the params from signature with up to skip_positional filtered out
     # (less only if there is not enough of positional args)
-    params = [(name, param) for i, (name, param) in enumerate(sig.parameters.items())
+    params = [(name, param)
+              for i, (name, param) in enumerate(sig.parameters.items())
               if i >= skip_positional or param.kind not in
               [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY]]
     return [
         name for name, param in params if param.default is inspect.Parameter.empty
         and param.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY]
     ]
-
 
 
 def foo_error():
@@ -151,11 +166,11 @@ _known_types = {
     DALIDataType.IMAGE_TYPE: ("nvidia.dali.types.DALIImageType", lambda x: DALIImageType(int(x))),
     DALIDataType.DATA_TYPE: ("nvidia.dali.types.DALIDataType", lambda x: DALIDataType(int(x))),
     DALIDataType.INTERP_TYPE:
-    ("nvidia.dali.types.DALIInterpType", lambda x: DALIInterpType(int(x))),
+        ("nvidia.dali.types.DALIInterpType", lambda x: DALIInterpType(int(x))),
     DALIDataType.TENSOR_LAYOUT: (":ref:`layout str<layout_str_doc>`", lambda x: str(x)),
     DALIDataType.PYTHON_OBJECT: ("object", lambda x: x),
     DALIDataType._TENSOR_LAYOUT_VEC:
-    (":ref:`layout str<layout_str_doc>`", _to_list(lambda x: str(x))),
+        (":ref:`layout str<layout_str_doc>`", _to_list(lambda x: str(x))),
     DALIDataType._DATA_TYPE_VEC: ("nvidia.dali.types.DALIDataType",
                                   _to_list(lambda x: DALIDataType(int(x))))
 }
@@ -186,15 +201,20 @@ _type_name_to_dali_type = {
     'double': DALIDataType.FLOAT64,
 }
 
-
 _bool_types = [DALIDataType.BOOL]
 _int_types = [
     DALIDataType.INT8, DALIDataType.INT16, DALIDataType.INT32, DALIDataType.INT64,
     DALIDataType.UINT8, DALIDataType.UINT16, DALIDataType.UINT32, DALIDataType.UINT64
 ]
 _int_types2 = [
-    DALIDataType.INT8, DALIDataType.INT16, DALIDataType.INT32, DALIDataType.INT64,
-    DALIDataType.UINT8, DALIDataType.UINT16, DALIDataType.UINT32, DALIDataType.UINT64,
+    DALIDataType.INT8,
+    DALIDataType.INT16,
+    DALIDataType.INT32,
+    DALIDataType.INT64,
+    DALIDataType.UINT8,
+    DALIDataType.UINT16,
+    DALIDataType.UINT32,
+    DALIDataType.UINT64,
 ]
 _float_types = [DALIDataType.FLOAT16, DALIDataType.FLOAT, DALIDataType.FLOAT64]
 _float_types2 = [
@@ -202,3 +222,4 @@ _float_types2 = [
     DALIDataType.FLOAT,
     DALIDataType.FLOAT64,
 ]
+Reformatting artificial.py

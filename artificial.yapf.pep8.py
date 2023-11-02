@@ -28,7 +28,11 @@ from nvidia.dali._multiproc.shared_queue import ShmQueue
 def signature_test0(argument1, argument2):
     pass
 
-def signature_test1(argument1, argument2,):
+
+def signature_test1(
+    argument1,
+    argument2,
+):
     pass
 
 
@@ -37,25 +41,36 @@ def signature_test2(argument1, argument2, argument3, argument4, argument5, argum
     pass
 
 
-def signature_test3(argument1, argument2, argument3, argument4, argument5,
-                    argument6, argument7,
+def signature_test3(argument1, argument2, argument3, argument4, argument5, argument6, argument7,
                     argument8):
     pass
+
 
 def signature_test4(argument1, argument2, argument3, argument4, argument5, argument6, argument7,
                     argument8, argument9, argument10, argument11):
     pass
 
 
-def signature_test5(argument1, argument2, argument3, argument4, argument5,
-                    argument6, argument7,
+def signature_test5(argument1, argument2, argument3, argument4, argument5, argument6, argument7,
                     argument8, argument9, argument10, argument11):
     pass
 
-def signature_test6(argument1, argument2, argument3, argument4, argument5,
-                    argument6, argument7,
-                    argument8, argument9, argument10, argument11,):
+
+def signature_test6(
+    argument1,
+    argument2,
+    argument3,
+    argument4,
+    argument5,
+    argument6,
+    argument7,
+    argument8,
+    argument9,
+    argument10,
+    argument11,
+):
     pass
+
 
 class ShmChunkManager:
     """Two dimensional buffer of shared memory chunks (queue_depth X num_minibatches),
@@ -99,7 +114,6 @@ def get_required_kwargs(fun, skip_positional=0):
         name for name, param in params if param.default is inspect.Parameter.empty
         and param.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY]
     ]
-
 
 
 def foo_error():
@@ -186,15 +200,20 @@ _type_name_to_dali_type = {
     'double': DALIDataType.FLOAT64,
 }
 
-
 _bool_types = [DALIDataType.BOOL]
 _int_types = [
     DALIDataType.INT8, DALIDataType.INT16, DALIDataType.INT32, DALIDataType.INT64,
     DALIDataType.UINT8, DALIDataType.UINT16, DALIDataType.UINT32, DALIDataType.UINT64
 ]
 _int_types2 = [
-    DALIDataType.INT8, DALIDataType.INT16, DALIDataType.INT32, DALIDataType.INT64,
-    DALIDataType.UINT8, DALIDataType.UINT16, DALIDataType.UINT32, DALIDataType.UINT64,
+    DALIDataType.INT8,
+    DALIDataType.INT16,
+    DALIDataType.INT32,
+    DALIDataType.INT64,
+    DALIDataType.UINT8,
+    DALIDataType.UINT16,
+    DALIDataType.UINT32,
+    DALIDataType.UINT64,
 ]
 _float_types = [DALIDataType.FLOAT16, DALIDataType.FLOAT, DALIDataType.FLOAT64]
 _float_types2 = [
@@ -202,3 +221,4 @@ _float_types2 = [
     DALIDataType.FLOAT,
     DALIDataType.FLOAT64,
 ]
+Reformatting artificial.py
