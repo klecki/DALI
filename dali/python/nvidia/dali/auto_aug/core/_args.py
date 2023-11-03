@@ -38,7 +38,8 @@ def filter_extra_accepted_kwargs(fun, kwargs, skip_positional=0):
     sig = inspect.signature(fun)
     # the params from signature with up to skip_positional filtered out
     # (less only if there is not enough of positional args)
-    params = [(name, param) for i, (name, param) in enumerate(sig.parameters.items())
+    params = [(name, param)
+              for i, (name, param) in enumerate(sig.parameters.items())
               if i >= skip_positional or param.kind not in
               [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY]]
     extra = [
@@ -56,12 +57,13 @@ def get_required_kwargs(fun, skip_positional=0):
     sig = inspect.signature(fun)
     # the params from signature with up to skip_positional filtered out
     # (less only if there is not enough of positional args)
-    params = [(name, param) for i, (name, param) in enumerate(sig.parameters.items())
+    params = [(name, param)
+              for i, (name, param) in enumerate(sig.parameters.items())
               if i >= skip_positional or param.kind not in
               [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY]]
     return [
-        name for name, param in params if param.default is inspect.Parameter.empty
-        and param.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY]
+        name for name, param in params if param.default is inspect.Parameter.empty and
+        param.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY]
     ]
 
 

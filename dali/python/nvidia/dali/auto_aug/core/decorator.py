@@ -27,11 +27,13 @@ except ImportError:
 from numpy import typing as npt
 
 
-def augmentation(function: Optional[Callable[..., _DataNode]] = None, *,
+def augmentation(function: Optional[Callable[..., _DataNode]] = None,
+                 *,
                  mag_range: Optional[Union[Tuple[float, float], np.ndarray]] = None,
                  randomly_negate: Optional[bool] = None,
                  mag_to_param: Optional[Callable[[float], npt.ArrayLike]] = None,
-                 param_device: Optional[str] = None, name: Optional[str] = None,
+                 param_device: Optional[str] = None,
+                 name: Optional[str] = None,
                  augmentation_cls: Optional[Type[Augmentation]] = None):
     """
     A decorator turning transformations implemented with DALI into augmentations that
@@ -82,8 +84,12 @@ def augmentation(function: Optional[Callable[..., _DataNode]] = None, *,
 
     def decorator(function):
         cls = augmentation_cls or Augmentation
-        return cls(function, mag_range=mag_range, mag_to_param=mag_to_param,
-                   randomly_negate=randomly_negate, param_device=param_device, name=name)
+        return cls(function,
+                   mag_range=mag_range,
+                   mag_to_param=mag_to_param,
+                   randomly_negate=randomly_negate,
+                   param_device=param_device,
+                   name=name)
 
     if function is None:
         return decorator

@@ -126,12 +126,21 @@ def rand_augment(
                             f"does not contain augmentation with this name. "
                             f"The augmentations in the suite are: {', '.join(augmentation_names)}.")
     selected_augments = [aug for aug in augmentations if aug.name not in excluded]
-    return apply_rand_augment(selected_augments, data, n, m,
-                              num_magnitude_bins=num_magnitude_bins, seed=seed, **aug_kwargs)
+    return apply_rand_augment(selected_augments,
+                              data,
+                              n,
+                              m,
+                              num_magnitude_bins=num_magnitude_bins,
+                              seed=seed,
+                              **aug_kwargs)
 
 
-def apply_rand_augment(augmentations: List[_Augmentation], data: _DataNode, n: int, m: int,
-                       num_magnitude_bins: int = 31, seed: Optional[int] = None,
+def apply_rand_augment(augmentations: List[_Augmentation],
+                       data: _DataNode,
+                       n: int,
+                       m: int,
+                       num_magnitude_bins: int = 31,
+                       seed: Optional[int] = None,
                        **kwargs) -> _DataNode:
     """
     Applies the list of ``augmentations`` in RandAugment (https://arxiv.org/abs/1909.13719) fashion.
@@ -181,24 +190,31 @@ def apply_rand_augment(augmentations: List[_Augmentation], data: _DataNode, n: i
     if len(augmentations) == 0:
         raise Exception("The `augmentations` list cannot be empty, unless n=0. "
                         "Got empty list in `apply_rand_augment` call.")
-    shape = tuple() if n == 1 else (n, )
-    op_idx = fn.random.uniform(values=list(range(len(augmentations))), seed=seed, shape=shape,
+    shape = tuple() if n == 1 else (n,)
+    op_idx = fn.random.uniform(values=list(range(len(augmentations))),
+                               seed=seed,
+                               shape=shape,
                                dtype=types.INT32)
     use_signed_magnitudes = any(aug.randomly_negate for aug in augmentations)
     mag_bin = signed_bin(m, seed=seed, shape=shape) if use_signed_magnitudes else m
     _forbid_unused_kwargs(augmentations, kwargs, 'apply_rand_augment')
     for level_idx in range(n):
         level_mag_bin = mag_bin if not use_signed_magnitudes or n == 1 else mag_bin[level_idx]
-        op_kwargs = dict(data=data, magnitude_bin=level_mag_bin,
-                         num_magnitude_bins=num_magnitude_bins, **kwargs)
+        op_kwargs = dict(data=data,
+                         magnitude_bin=level_mag_bin,
+                         num_magnitude_bins=num_magnitude_bins,
+                         **kwargs)
         level_op_idx = op_idx if n == 1 else op_idx[level_idx]
-        data = _pretty_select(augmentations, level_op_idx, op_kwargs,
+        data = _pretty_select(augmentations,
+                              level_op_idx,
+                              op_kwargs,
                               auto_aug_name='apply_rand_augment',
                               ref_suite_name='get_rand_augment_suite')
     return data
 
 
-def get_rand_augment_suite(use_shape: bool = False, max_translate_abs: Optional[int] = None,
+def get_rand_augment_suite(use_shape: bool = False,
+                           max_translate_abs: Optional[int] = None,
                            max_translate_rel: Optional[float] = None) -> List[_Augmentation]:
     """
     Creates a list of RandAugment augmentations.
@@ -241,7 +257,8 @@ def get_rand_augment_suite(use_shape: bool = False, max_translate_abs: Optional[
 
 
 def get_rand_augment_non_monotonic_suite(
-        use_shape: bool = False, max_translate_abs: Optional[int] = None,
+        use_shape: bool = False,
+        max_translate_abs: Optional[int] = None,
         max_translate_rel: Optional[float] = None) -> List[_Augmentation]:
     """
     Similarly to :meth:`~nvidia.dali.auto_aug.rand_augment.get_rand_augment_suite` creates a list

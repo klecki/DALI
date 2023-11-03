@@ -28,6 +28,7 @@ def _arithm_op(*args, **kwargs):
 
 
 class _NewAxis:
+
     def __init__(self, name=None):
         if name is not None:
             if not isinstance(name, str):
@@ -167,8 +168,7 @@ class DataNode(object):
             " To use conditional execution via `if` statements you need to specify"
             " `enable_conditionals=True` in `@nvidia.dali.pipeline_def` decorator."
             " You can read more about conditional execution in specific section of the Pipeline"
-            " documentation. Bool conversion can be achieved with the `cast` operator."
-        )
+            " documentation. Bool conversion can be achieved with the `cast` operator.")
 
     def __getitem__(self, val):
         idxs = []
@@ -196,7 +196,7 @@ class DataNode(object):
             return False
 
         if not isinstance(val, tuple):
-            val = (val, )
+            val = (val,)
         d = 0
         for v in val:
             if process_index(v, d):

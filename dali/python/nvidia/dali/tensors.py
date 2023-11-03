@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # pylint: disable=no-name-in-module, unused-import
-from nvidia.dali.backend import TensorCPU, TensorListCPU, TensorGPU, TensorListGPU      # noqa: F401
+from nvidia.dali.backend import TensorCPU, TensorListCPU, TensorGPU, TensorListGPU  # noqa: F401
 
 
 def _transfer_to_cpu(data, device):
@@ -75,7 +75,8 @@ def _tensorlist_to_string(self, indent=''):
     if data:
         if data.is_dense_tensor():
             data_str = np.array2string(np.array(data.as_tensor()),
-                                       prefix=spaces_indent, edgeitems=edgeitems)
+                                       prefix=spaces_indent,
+                                       edgeitems=edgeitems)
         else:
             data = list(map(np.array, data))
 
@@ -88,8 +89,10 @@ def _tensorlist_to_string(self, indent=''):
             # Separator matching numpy standard.
             sep = '\n' * data[0].ndim + spaces_indent
 
-            data = [np.array2string(tensor, prefix=spaces_indent, edgeitems=edgeitems)
-                    for tensor in data]
+            data = [
+                np.array2string(tensor, prefix=spaces_indent, edgeitems=edgeitems)
+                for tensor in data
+            ]
             data_str = f'[{_join_string(data, crop, edgeitems, sep)}]'
 
     shape = self.shape()
@@ -102,8 +105,8 @@ def _tensorlist_to_string(self, indent=''):
 
     if len(shape_str) > 75:
         # Break shapes into separate lines.
-        shape_str = _join_string(shape, shape_crop, edgeitems, ', \n' +
-                                 spaces_indent + ' ' * len(shape_prefix))
+        shape_str = _join_string(shape, shape_crop, edgeitems,
+                                 ', \n' + spaces_indent + ' ' * len(shape_prefix))
 
     params = [f'{type_name}(\n{spaces_indent}{data_str}', f'dtype={self.dtype}'] + \
         ([f'layout="{layout}"'] if layout else []) + \

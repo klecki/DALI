@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ from nvidia.dali._utils.external_source_impl import \
         assert_cpu_sample_data_type as _assert_cpu_sample_data_type, \
         sample_to_numpy as _sample_to_numpy
 import pickle
-
 
 np = None
 
@@ -138,7 +137,10 @@ def deserialize_sample(buffer: BufShmChunk, sample):
         assert offset % sample.dtype.itemsize == 0, "Sample offset is misaligned."
         buffer = buffer.buf[offset:offset + sample.nbytes]
         return np.ndarray(sample.shape, dtype=sample.dtype, buffer=buffer)
-    if isinstance(sample, (tuple, list,)):
+    if isinstance(sample, (
+            tuple,
+            list,
+    )):
         return type(sample)(deserialize_sample(buffer, part) for part in sample)
     return sample
 
@@ -191,14 +193,17 @@ def _apply_to_sample(func, sample, *args, nest_with_sample=0):
         Specify how many consecutive (additional) arguments have the same level of nesting
         as the sample.
     """
-    if isinstance(sample, (tuple, list,)):
+    if isinstance(sample, (
+            tuple,
+            list,
+    )):
         # Check that all the samples have common nesting
         for i in range(nest_with_sample):
             assert len(args[i]) == len(sample)
         nest_group = sample, *args[0:nest_with_sample]
         scalar_args = args[nest_with_sample:]
-        return type(sample)(_apply_to_sample(func, *part, *scalar_args)
-                            for part in zip(*nest_group))
+        return type(sample)(
+            _apply_to_sample(func, *part, *scalar_args) for part in zip(*nest_group))
     else:
         # we unpacked all nesting levels, now is actual data:
         return func(sample, *args)
@@ -240,15 +245,16 @@ class SharedBatchWriter:
         sample_size = meta.nbytes
         offset = meta.offset
         buffer = memview[offset:(offset + sample_size)]
-        shared_array = np.ndarray(
-            np_array.shape, dtype=np_array.dtype, buffer=buffer)
+        shared_array = np.ndarray(np_array.shape, dtype=np_array.dtype, buffer=buffer)
         shared_array.ravel()[:] = np_array.ravel()[:]
 
     def _write_batch(self, batch):
         if not batch:
             return
-        batch = [_apply_to_sample(lambda x: _sample_to_numpy(x, _sample_error_msg), sample)
-                 for sample in batch]
+        batch = [
+            _apply_to_sample(lambda x: _sample_to_numpy(x, _sample_error_msg), sample)
+            for sample in batch
+        ]
         meta, data_size = self._prepare_samples_meta(batch)
         serialized_meta = pickle.dumps(meta)
         self.meta_data_size = len(serialized_meta)
@@ -258,7 +264,10 @@ class SharedBatchWriter:
             resize_shm_chunk(self.shm_chunk, self.total_size + self.min_trailing_offset)
         memview = self.shm_chunk.buf
         for sample, sample_meta in zip(batch, meta):
-            _apply_to_sample(self._add_array_to_batch, sample, sample_meta, memview,
+            _apply_to_sample(self._add_array_to_batch,
+                             sample,
+                             sample_meta,
+                             memview,
                              nest_with_sample=1)
         # copy meta data at the end of shared memory chunk
         buffer = memview[self.data_size:(self.data_size + self.meta_data_size)]

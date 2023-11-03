@@ -41,7 +41,8 @@ def _show_deprecation_warning(deprecated, in_favor_of):
     with warnings.catch_warnings():
         warnings.simplefilter("default")
         warnings.warn("{} is deprecated, please use {} instead".format(deprecated, in_favor_of),
-                      Warning, stacklevel=2)
+                      Warning,
+                      stacklevel=2)
 
 
 class Pipeline(object):
@@ -288,19 +289,16 @@ Parameters
         if isinstance(output_dtype, (list, tuple)):
             for dtype in output_dtype:
                 if not isinstance(dtype, (types.DALIDataType, type(None))):
-                    raise TypeError(
-                        f"`output_dtype` must be either: a value from "
-                        f"nvidia.dali.types.DALIDataType, a list of these or None. "
-                        f"Found type {type(dtype)} in the list."
-                    )
+                    raise TypeError(f"`output_dtype` must be either: a value from "
+                                    f"nvidia.dali.types.DALIDataType, a list of these or None. "
+                                    f"Found type {type(dtype)} in the list.")
                 if dtype == types.NO_TYPE:
                     raise ValueError(
                         f"`output_dtype` can't be a types.NO_TYPE. Found {dtype} in the list.")
         elif not isinstance(output_dtype, (types.DALIDataType, type(None))):
             raise TypeError(
                 f"`output_dtype` must be either: a value from nvidia.dali.types.DALIDataType, a "
-                f"list of these or None. Found type: {type(output_dtype)}."
-            )
+                f"list of these or None. Found type: {type(output_dtype)}.")
         elif output_dtype == types.NO_TYPE:
             raise ValueError(
                 f"`output_dtype` can't be a types.NO_TYPE. Found value: {output_dtype}")
@@ -312,16 +310,13 @@ Parameters
                 if not isinstance(ndim, (int, type(None))):
                     raise TypeError(
                         f"`output_ndim` must be either: an int, a list of ints or None. "
-                        f"Found type {type(ndim)} in the list."
-                    )
+                        f"Found type {type(ndim)} in the list.")
                 if ndim is not None and ndim < 0:
                     raise ValueError(
                         f"`output_ndim` must be non-negative. Found value {ndim} in the list.")
         elif not isinstance(output_ndim, (int, type(None))):
-            raise TypeError(
-                f"`output_ndim` must be either: an int, a list of ints or None. "
-                f"Found type: {type(output_ndim)}."
-            )
+            raise TypeError(f"`output_ndim` must be either: an int, a list of ints or None. "
+                            f"Found type: {type(output_ndim)}.")
         elif output_ndim is not None and output_ndim < 0:
             raise ValueError(f"`output_ndim` must be non-negative. Found value: {output_ndim}.")
         self._output_ndim = output_ndim
@@ -482,7 +477,8 @@ Parameters
             capacities, per_sample_capacities = [], []
         else:
             capacities = [
-                shm.capacity for context in self._py_pool.contexts
+                shm.capacity
+                for context in self._py_pool.contexts
                 for shm in context.shm_manager.shm_pool
             ]
             per_sample_capacities = []
@@ -535,8 +531,8 @@ Parameters
     @staticmethod
     def _raise_pipeline_required(op_name):
         raise RuntimeError(
-            "Current Pipeline not set!\n" + op_name
-            + " operator must be used inside `define_graph` or "
+            "Current Pipeline not set!\n" + op_name +
+            " operator must be used inside `define_graph` or "
             "current pipeline must be explicitly set using context manager (`with my_pipeline:`) "
             "or with a call to `Pipeline.push_current(my_pipeline)`.")
 
@@ -722,16 +718,10 @@ Parameters
         device_id = self._device_id if self._device_id is not None else types.CPU_ONLY_DEVICE_ID
         if device_id != types.CPU_ONLY_DEVICE_ID:
             b.check_cuda_runtime()
-        self._pipe = b.Pipeline(self._max_batch_size,
-                                self._num_threads,
-                                device_id,
-                                self._seed if self._seed is not None else -1,
-                                self._exec_pipelined,
-                                self._cpu_queue_size,
-                                self._exec_async,
-                                self._bytes_per_sample,
-                                self._set_affinity,
-                                self._max_streams,
+        self._pipe = b.Pipeline(self._max_batch_size, self._num_threads, device_id,
+                                self._seed if self._seed is not None else -1, self._exec_pipelined,
+                                self._cpu_queue_size, self._exec_async, self._bytes_per_sample,
+                                self._set_affinity, self._max_streams,
                                 self._default_cuda_stream_priority)
         self._pipe.SetExecutionTypes(self._exec_pipelined, self._exec_separated, self._exec_async)
         self._pipe.SetQueueSizes(self._cpu_queue_size, self._gpu_queue_size)
@@ -750,6 +740,7 @@ Parameters
         self._names_and_devices = [(e.name, e.device) for e in self._graph_outputs]
 
     def _disable_pruned_external_source_instances(self):
+
         def truncate_str(obj, max_len=103):
             obj_str = str(obj)
             if len(obj_str) <= max_len:
@@ -772,9 +763,7 @@ Parameters
                 warnings.warn(
                     f"The external source node '{source_str}' produces {num_outputs} outputs, "
                     f"but the {pruned_str} not used. For best performance, adjust your "
-                    f"callback so that it computes only the needed outputs.",
-                    Warning
-                )
+                    f"callback so that it computes only the needed outputs.", Warning)
 
     def _setup_input_callbacks(self):
         from nvidia.dali.external_source import _is_external_source_with_callback
@@ -944,10 +933,9 @@ Parameters
         # pipelines, and not deserialized ones.
         from .external_source import _is_external_source
         if not self._deserialized:
-            if next(
-                    (_is_external_source(op) and op._callback is not None
-                     for op in self._ops if op.name == name),
-                    False):
+            if next((_is_external_source(op) and op._callback is not None
+                     for op in self._ops
+                     if op.name == name), False):
                 raise RuntimeError(
                     f"Cannot use `feed_input` on the external source '{name}' with a `source`"
                     " argument specified.")
@@ -1252,9 +1240,9 @@ Parameters
                 Refer to Pipeline constructor for full list of arguments.
         """
         if define_graph is not None and not callable(define_graph):
-            raise TypeError("Provided `define_graph` argument is not callable."
-                            + (" Didn't you want to write `.serialize(filename=...)`?"
-                               if isinstance(define_graph, str) else ""))
+            raise TypeError("Provided `define_graph` argument is not callable." +
+                            (" Didn't you want to write `.serialize(filename=...)`?" if isinstance(
+                                define_graph, str) else ""))
         if not self._py_graph_built:
             self._build_graph(define_graph)
         if not self._backend_prepared:
@@ -1301,15 +1289,11 @@ Parameters
         if filename is not None:
             with open(filename, 'rb') as pipeline_file:
                 serialized_pipeline = pipeline_file.read()
-        pipeline._pipe = b.Pipeline(serialized_pipeline,
-                                    kw.get("batch_size", -1),
-                                    kw.get("num_threads", -1),
-                                    kw.get("device_id", -1),
+        pipeline._pipe = b.Pipeline(serialized_pipeline, kw.get("batch_size", -1),
+                                    kw.get("num_threads", -1), kw.get("device_id", -1),
                                     kw.get("exec_pipelined", True),
-                                    kw.get("prefetch_queue_depth", 2),
-                                    kw.get("exec_async", True),
-                                    kw.get("bytes_per_sample", 0),
-                                    kw.get("set_affinity", False),
+                                    kw.get("prefetch_queue_depth", 2), kw.get("exec_async", True),
+                                    kw.get("bytes_per_sample", 0), kw.get("set_affinity", False),
                                     kw.get("max_streams", -1),
                                     kw.get("default_cuda_stream_priority", 0))
         if pipeline.device_id != types.CPU_ONLY_DEVICE_ID:
@@ -1345,17 +1329,10 @@ Parameters
         serialized_pipeline : str
                               Serialized pipeline.
         """
-        self._pipe = b.Pipeline(serialized_pipeline,
-                                self._max_batch_size,
-                                self._num_threads,
-                                self._device_id,
-                                self._exec_pipelined,
-                                self._prefetch_queue_depth,
-                                self._exec_async,
-                                self._bytes_per_sample,
-                                self._set_affinity,
-                                self._max_streams,
-                                self._default_cuda_stream_priority)
+        self._pipe = b.Pipeline(serialized_pipeline, self._max_batch_size, self._num_threads,
+                                self._device_id, self._exec_pipelined, self._prefetch_queue_depth,
+                                self._exec_async, self._bytes_per_sample, self._set_affinity,
+                                self._max_streams, self._default_cuda_stream_priority)
         self._pipe.SetExecutionTypes(self._exec_pipelined, self._exec_separated, self._exec_async)
         self._pipe.SetQueueSizes(self._cpu_queue_size, self._gpu_queue_size)
         self._pipe.EnableExecutorMemoryStats(self._enable_memory_stats)
@@ -1366,7 +1343,10 @@ Parameters
         self._built = True
         self._deserialized = True
 
-    def save_graph_to_dot_file(self, filename, show_tensors=False, show_ids=False,
+    def save_graph_to_dot_file(self,
+                               filename,
+                               show_tensors=False,
+                               show_ids=False,
                                use_colors=False):
         """Saves the pipeline graph to a file.
 
@@ -1474,11 +1454,9 @@ Parameters
         ndims = [self._output_ndim] * num_outputs if type(
             self._output_ndim) is not list else self._output_ndim
         if not (len(dtypes) == len(ndims) == num_outputs):
-            raise RuntimeError(
-                f"Lengths of provided output descriptions do not match. \n"
-                f"Expected num_outputs={num_outputs}."
-                f"\nReceived:\noutput_dtype={dtypes}\noutput_ndim={ndims}"
-            )
+            raise RuntimeError(f"Lengths of provided output descriptions do not match. \n"
+                               f"Expected num_outputs={num_outputs}."
+                               f"\nReceived:\noutput_dtype={dtypes}\noutput_ndim={ndims}")
 
         return [(name, dev, types.NO_TYPE if dtype is None else dtype, -1 if ndim is None else ndim)
                 for (name, dev), dtype, ndim in zip(self._names_and_devices, dtypes, ndims)]
@@ -1492,17 +1470,16 @@ def _discriminate_args(func, **func_kwargs):
     if 'debug' not in func_argspec.args and 'debug' not in func_argspec.kwonlyargs:
         func_kwargs.pop('debug', False)
 
-    if ('enable_conditionals' not in func_argspec.args
-            and 'enable_conditionals' not in func_argspec.kwonlyargs):
+    if ('enable_conditionals' not in func_argspec.args and
+            'enable_conditionals' not in func_argspec.kwonlyargs):
         func_kwargs.pop('enable_conditionals', False)
 
     ctor_args = {}
     fn_args = {}
 
     if func_argspec.varkw is not None:
-        raise TypeError(
-            f"Using variadic keyword argument `**{func_argspec.varkw}` in a  "
-            f"graph-defining function is not allowed.")
+        raise TypeError(f"Using variadic keyword argument `**{func_argspec.varkw}` in a  "
+                        f"graph-defining function is not allowed.")
 
     for farg in func_kwargs.items():
         is_ctor_arg = farg[0] in ctor_argspec.args or farg[0] in ctor_argspec.kwonlyargs
@@ -1510,9 +1487,8 @@ def _discriminate_args(func, **func_kwargs):
         if is_fn_arg:
             fn_args[farg[0]] = farg[1]
             if is_ctor_arg:
-                print(
-                    f"Warning: the argument `{farg[0]}` shadows a Pipeline constructor "
-                    "argument of the same name.")
+                print(f"Warning: the argument `{farg[0]}` shadows a Pipeline constructor "
+                      "argument of the same name.")
         elif is_ctor_arg:
             ctor_args[farg[0]] = farg[1]
         else:
@@ -1595,7 +1571,7 @@ def _generate_graph(pipe, func, fn_args, fn_kwargs):
         elif pipe_outputs is None:
             po = ()
         else:
-            po = (pipe_outputs, )
+            po = (pipe_outputs,)
         pipe.set_outputs(*po)
 
 

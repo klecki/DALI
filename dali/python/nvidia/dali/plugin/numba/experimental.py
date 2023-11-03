@@ -24,35 +24,33 @@ from numba import njit, cfunc, carray, cuda
 import numpy as np
 import numba as nb
 
-
 _to_numpy = {
-    dali_types.UINT8:   "uint8",
-    dali_types.UINT16:  "uint16",
-    dali_types.UINT32:  "uint32",
-    dali_types.UINT64:  "uint64",
-    dali_types.INT8:    "int8",
-    dali_types.INT16:   "int16",
-    dali_types.INT32:   "int32",
-    dali_types.INT64:   "int64",
+    dali_types.UINT8: "uint8",
+    dali_types.UINT16: "uint16",
+    dali_types.UINT32: "uint32",
+    dali_types.UINT64: "uint64",
+    dali_types.INT8: "int8",
+    dali_types.INT16: "int16",
+    dali_types.INT32: "int32",
+    dali_types.INT64: "int64",
     dali_types.FLOAT16: "float16",
-    dali_types.FLOAT:   "float32",
+    dali_types.FLOAT: "float32",
     dali_types.FLOAT64: "float64",
 }
 
 _to_numba = {
-    dali_types.UINT8:   numba_types.uint8,
-    dali_types.UINT16:  numba_types.uint16,
-    dali_types.UINT32:  numba_types.uint32,
-    dali_types.UINT64:  numba_types.uint64,
-    dali_types.INT8:    numba_types.int8,
-    dali_types.INT16:   numba_types.int16,
-    dali_types.INT32:   numba_types.int32,
-    dali_types.INT64:   numba_types.int64,
+    dali_types.UINT8: numba_types.uint8,
+    dali_types.UINT16: numba_types.uint16,
+    dali_types.UINT32: numba_types.uint32,
+    dali_types.UINT64: numba_types.uint64,
+    dali_types.INT8: numba_types.int8,
+    dali_types.INT16: numba_types.int16,
+    dali_types.INT32: numba_types.int32,
+    dali_types.INT64: numba_types.int64,
     dali_types.FLOAT16: numba_types.float16,
-    dali_types.FLOAT:   numba_types.float32,
+    dali_types.FLOAT: numba_types.float32,
     dali_types.FLOAT64: numba_types.float64,
 }
-
 
 # Minimal version of Numba that is required for Numba GPU operator to work
 minimal_numba_version = {
@@ -68,6 +66,7 @@ def address_as_void_pointer(typingctx, src):
 
     def codegen(cgctx, builder, sig, args):
         return builder.inttoptr(args[0], cgutils.voidptr_t)
+
     return sig, codegen
 
 
@@ -106,12 +105,9 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
         return self._preserve
 
     def _setup_fn_sig(self):
-        return numba_types.void(numba_types.uint64,
-                                numba_types.uint64,
-                                numba_types.int32,
-                                numba_types.uint64,
-                                numba_types.uint64,
-                                numba_types.int32, numba_types.int32)
+        return numba_types.void(numba_types.uint64, numba_types.uint64, numba_types.int32,
+                                numba_types.uint64, numba_types.uint64, numba_types.int32,
+                                numba_types.int32)
 
     def _run_fn_sig(self, batch_processing=False):
         sig_types = []
@@ -160,23 +156,19 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
             setup_fn = njit(setup_fn)
 
             @cfunc(self._setup_fn_sig(), nopython=True)
-            def setup_cfunc(out_shapes_ptr, out_ndims_ptr, num_outs,
-                            in_shapes_ptr, in_ndims_ptr, num_ins,
-                            num_samples):
-                out_shapes_np = _get_shape_view(out_shapes_ptr, out_ndims_ptr,
-                                                num_outs, num_samples)
-                in_shapes_np = _get_shape_view(in_shapes_ptr, in_ndims_ptr,
-                                               num_outs, num_samples)
+            def setup_cfunc(out_shapes_ptr, out_ndims_ptr, num_outs, in_shapes_ptr, in_ndims_ptr,
+                            num_ins, num_samples):
+                out_shapes_np = _get_shape_view(out_shapes_ptr, out_ndims_ptr, num_outs,
+                                                num_samples)
+                in_shapes_np = _get_shape_view(in_shapes_ptr, in_ndims_ptr, num_outs, num_samples)
                 setup_fn(out_shapes_np, in_shapes_np)
+
             setup_fn_address = setup_cfunc.address
 
         return setup_fn_address
 
     def _get_run_fn_gpu(self, run_fn, types, dims):
-        nvvm_options = {
-            'fastmath': False,
-            'opt': 3
-        }
+        nvvm_options = {'fastmath': False, 'opt': 3}
 
         cuda_arguments = []
         for dali_type, ndim in zip(types, dims):
@@ -199,13 +191,11 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
         if LooseVersion(nb.__version__) < LooseVersion('0.57.0'):
             nvvm_options['debug'] = False
             nvvm_options['lineinfo'] = False
-            lib, _ = tgt_ctx.prepare_cuda_kernel(cres.library, cres.fndesc,
-                                                 True, nvvm_options,
+            lib, _ = tgt_ctx.prepare_cuda_kernel(cres.library, cres.fndesc, True, nvvm_options,
                                                  filename, linenum)
         else:
-            lib, _ = tgt_ctx.prepare_cuda_kernel(cres.library, cres.fndesc,
-                                                 False, True, nvvm_options,
-                                                 filename, linenum)
+            lib, _ = tgt_ctx.prepare_cuda_kernel(cres.library, cres.fndesc, False, True,
+                                                 nvvm_options, filename, linenum)
 
         handle = lib.get_cufunc().handle
         return handle.value
@@ -218,68 +208,88 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
         run_fn = njit(run_fn)
         run_fn_lambda = self._get_run_fn_lambda(len(out_types), len(in_types))
         if batch_processing:
+
             @cfunc(self._run_fn_sig(batch_processing=True), nopython=True)
-            def run_cfunc(out_ptr, out_shapes_ptr, out_ndims_ptr, num_outs,
-                          in_ptr, in_shapes_ptr, in_ndims_ptr, num_ins,
-                          num_samples):
+            def run_cfunc(out_ptr, out_shapes_ptr, out_ndims_ptr, num_outs, in_ptr, in_shapes_ptr,
+                          in_ndims_ptr, num_ins, num_samples):
                 out0 = out1 = out2 = out3 = out4 = out5 = None
-                out_shapes_np = _get_shape_view(out_shapes_ptr,
-                                                out_ndims_ptr,
-                                                num_outs,
+                out_shapes_np = _get_shape_view(out_shapes_ptr, out_ndims_ptr, num_outs,
                                                 num_samples)
-                out_arr = carray(address_as_void_pointer(out_ptr),
-                                 (num_outs, num_samples),
+                out_arr = carray(address_as_void_pointer(out_ptr), (num_outs, num_samples),
                                  dtype=np.int64)
                 if num_outs >= 1:
-                    out0 = [out0_lambda(address_as_void_pointer(ptr), shape)
-                            for ptr, shape in zip(out_arr[0], out_shapes_np[0])]
+                    out0 = [
+                        out0_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(out_arr[0], out_shapes_np[0])
+                    ]
                 if num_outs >= 2:
-                    out1 = [out1_lambda(address_as_void_pointer(ptr), shape)
-                            for ptr, shape in zip(out_arr[1], out_shapes_np[1])]
+                    out1 = [
+                        out1_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(out_arr[1], out_shapes_np[1])
+                    ]
                 if num_outs >= 3:
-                    out2 = [out2_lambda(address_as_void_pointer(ptr), shape)
-                            for ptr, shape in zip(out_arr[2], out_shapes_np[2])]
+                    out2 = [
+                        out2_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(out_arr[2], out_shapes_np[2])
+                    ]
                 if num_outs >= 4:
-                    out3 = [out3_lambda(address_as_void_pointer(ptr), shape)
-                            for ptr, shape in zip(out_arr[3], out_shapes_np[3])]
+                    out3 = [
+                        out3_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(out_arr[3], out_shapes_np[3])
+                    ]
                 if num_outs >= 5:
-                    out4 = [out4_lambda(address_as_void_pointer(ptr), shape)
-                            for ptr, shape in zip(out_arr[4], out_shapes_np[4])]
+                    out4 = [
+                        out4_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(out_arr[4], out_shapes_np[4])
+                    ]
                 if num_outs >= 6:
-                    out5 = [out5_lambda(address_as_void_pointer(ptr), shape)
-                            for ptr, shape in zip(out_arr[5], out_shapes_np[5])]
+                    out5 = [
+                        out5_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(out_arr[5], out_shapes_np[5])
+                    ]
 
                 in0 = in1 = in2 = in3 = in4 = in5 = None
                 in_shapes_np = _get_shape_view(in_shapes_ptr, in_ndims_ptr, num_ins, num_samples)
-                in_arr = carray(address_as_void_pointer(in_ptr),
-                                (num_ins, num_samples),
+                in_arr = carray(address_as_void_pointer(in_ptr), (num_ins, num_samples),
                                 dtype=np.int64)
                 if num_ins >= 1:
-                    in0 = [in0_lambda(address_as_void_pointer(ptr), shape)
-                           for ptr, shape in zip(in_arr[0], in_shapes_np[0])]
+                    in0 = [
+                        in0_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(in_arr[0], in_shapes_np[0])
+                    ]
                 if num_ins >= 2:
-                    in1 = [in1_lambda(address_as_void_pointer(ptr), shape)
-                           for ptr, shape in zip(in_arr[1], in_shapes_np[1])]
+                    in1 = [
+                        in1_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(in_arr[1], in_shapes_np[1])
+                    ]
                 if num_ins >= 3:
-                    in2 = [in2_lambda(address_as_void_pointer(ptr), shape)
-                           for ptr, shape in zip(in_arr[2], in_shapes_np[2])]
+                    in2 = [
+                        in2_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(in_arr[2], in_shapes_np[2])
+                    ]
                 if num_ins >= 4:
-                    in3 = [in3_lambda(address_as_void_pointer(ptr), shape)
-                           for ptr, shape in zip(in_arr[3], in_shapes_np[3])]
+                    in3 = [
+                        in3_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(in_arr[3], in_shapes_np[3])
+                    ]
                 if num_ins >= 5:
-                    in4 = [in4_lambda(address_as_void_pointer(ptr), shape)
-                           for ptr, shape in zip(in_arr[4], in_shapes_np[4])]
+                    in4 = [
+                        in4_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(in_arr[4], in_shapes_np[4])
+                    ]
                 if num_ins >= 6:
-                    in5 = [in5_lambda(address_as_void_pointer(ptr), shape)
-                           for ptr, shape in zip(in_arr[5], in_shapes_np[5])]
+                    in5 = [
+                        in5_lambda(address_as_void_pointer(ptr), shape)
+                        for ptr, shape in zip(in_arr[5], in_shapes_np[5])
+                    ]
 
-                run_fn_lambda(run_fn,
-                              out0, out1, out2, out3, out4, out5,
-                              in0, in1, in2, in3, in4, in5)
+                run_fn_lambda(run_fn, out0, out1, out2, out3, out4, out5, in0, in1, in2, in3, in4,
+                              in5)
         else:
+
             @cfunc(self._run_fn_sig(batch_processing=False), nopython=True)
-            def run_cfunc(out_ptr, out_shapes_ptr, out_ndims_ptr, num_outs,
-                          in_ptr, in_shapes_ptr, in_ndims_ptr, num_ins):
+            def run_cfunc(out_ptr, out_shapes_ptr, out_ndims_ptr, num_outs, in_ptr, in_shapes_ptr,
+                          in_ndims_ptr, num_ins):
                 out0 = out1 = out2 = out3 = out4 = out5 = None
                 out_shapes_np = _get_shape_view(out_shapes_ptr, out_ndims_ptr, num_outs, 1)
                 out_arr = carray(address_as_void_pointer(out_ptr), num_outs, dtype=np.int64)
@@ -312,9 +322,9 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
                 if num_ins >= 6:
                     in5 = in5_lambda(address_as_void_pointer(in_arr[5]), in_shapes_np[5][0])
 
-                run_fn_lambda(run_fn,
-                              out0, out1, out2, out3, out4, out5,
-                              in0, in1, in2, in3, in4, in5)
+                run_fn_lambda(run_fn, out0, out1, out2, out3, out4, out5, in0, in1, in2, in3, in4,
+                              in5)
+
         return run_cfunc.address
 
     def __call__(self, *inputs, **kwargs):
@@ -324,21 +334,17 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
         inputs = ops._preprocess_inputs(inputs, self._impl_name, self._device, None)
         if pipeline is None:
             Pipeline._raise_pipeline_required("NumbaFunction operator")
-        if (len(inputs) > self._schema.MaxNumInput() or
-                len(inputs) < self._schema.MinNumInput()):
+        if (len(inputs) > self._schema.MaxNumInput() or len(inputs) < self._schema.MinNumInput()):
             raise ValueError(
-                ("Operator {} expects from {} to " +
-                 "{} inputs, but received {}.")
-                .format(type(self).__name__,
-                        self._schema.MinNumInput(),
-                        self._schema.MaxNumInput(),
-                        len(inputs)))
+                ("Operator {} expects from {} to " + "{} inputs, but received {}.").format(
+                    type(self).__name__, self._schema.MinNumInput(), self._schema.MaxNumInput(),
+                    len(inputs)))
         for inp in inputs:
             if not isinstance(inp, _DataNode):
                 raise TypeError(
-                      ("Expected inputs of type `DataNode`. Received input of type '{}'. " +
-                       "Python Operators do not support Multiple Input Sets.")
-                      .format(type(inp).__name__))
+                    ("Expected inputs of type `DataNode`. Received input of type '{}'. " +
+                     "Python Operators do not support Multiple Input Sets.").format(
+                         type(inp).__name__))
         op_instance = ops._OperatorInstance(inputs, self, **kwargs)
         op_instance.spec.AddArg("run_fn", self.run_fn)
         if self.setup_fn is not None:
@@ -371,9 +377,12 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
             outputs.append(t)
         return outputs[0] if len(outputs) == 1 else outputs
 
-    def __init__(self, run_fn,
-                 out_types, in_types,
-                 outs_ndim, ins_ndim,
+    def __init__(self,
+                 run_fn,
+                 out_types,
+                 in_types,
+                 outs_ndim,
+                 ins_ndim,
                  setup_fn=None,
                  device='cpu',
                  batch_processing=False,
@@ -433,8 +442,8 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
         if device == 'gpu':
             self.run_fn = self._get_run_fn_gpu(run_fn, out_types + in_types, outs_ndim + ins_ndim)
         else:
-            self.run_fn = self._get_run_fn_cpu(run_fn, out_types, in_types, outs_ndim,
-                                               ins_ndim, batch_processing)
+            self.run_fn = self._get_run_fn_cpu(run_fn, out_types, in_types, outs_ndim, ins_ndim,
+                                               batch_processing)
         self.setup_fn = self._get_setup_fn_cpu(setup_fn)
         self.out_types = out_types
         self.in_types = in_types

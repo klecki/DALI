@@ -107,9 +107,9 @@ def _build_input_sets(inputs, op_name):
         result = ()
         for input in inputs:
             if isinstance(input, list):
-                result = result + (input, )
+                result = result + (input,)
             else:
-                result = result + ([input] * arg_list_len, )
+                result = result + ([input] * arg_list_len,)
         return result
 
     def _repack_input_sets(inputs):

@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,11 +18,7 @@ from nvidia.dali import backend as _b
 from nvidia.dali import internal as _internal
 from nvidia.dali.external_source import external_source
 
-_special_case_mapping = {
-    "b_box": "bbox",
-    "mx_net": "mxnet",
-    "tf_record": "tfrecord"
-}
+_special_case_mapping = {"b_box": "bbox", "mx_net": "mxnet", "tf_record": "tfrecord"}
 
 
 def _handle_special_case(s):
@@ -67,6 +63,7 @@ def _to_snake_case(pascal):
 
 
 def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
+
     def op_wrapper(*inputs, **kwargs):
         import nvidia.dali.ops
         init_args, call_args = nvidia.dali.ops._separate_kwargs(kwargs)
@@ -112,8 +109,8 @@ def _wrap_op(op_class, submodule, parent_module, wrapper_doc):
     wrapper_name = _to_snake_case(op_class.__name__)
 
     # Add operator to eager API.
-    eager_utils._wrap_eager_op(op_class, submodule, parent_module,
-                               wrapper_name, wrapper_doc, make_hidden)
+    eager_utils._wrap_eager_op(op_class, submodule, parent_module, wrapper_name, wrapper_doc,
+                               make_hidden)
 
     if parent_module is None:
         fn_module = sys.modules[__name__]

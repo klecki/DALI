@@ -191,8 +191,10 @@ def _arithm_op(name, *inputs):
     expression_desc = "{}({})".format(name, input_desc)
     dev = nvidia.dali.ops._choose_device(edges)
     # Create "instance" of operator
-    op = nvidia.dali.ops.ArithmeticGenericOp(device=dev, expression_desc=expression_desc,
-                                             integer_constants=integers, real_constants=reals)
+    op = nvidia.dali.ops.ArithmeticGenericOp(device=dev,
+                                             expression_desc=expression_desc,
+                                             integer_constants=integers,
+                                             real_constants=reals)
     # If we are on gpu, we must mark all inputs as gpu
     if dev == "gpu":
         dev_inputs = list(edge.gpu() for edge in edges)

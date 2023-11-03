@@ -19,7 +19,7 @@ import re
 from nvidia.dali.backend_impl.types import DALIDataType, DALIImageType, DALIInterpType
 
 # TODO: Handle forwarding imports from backend_impl
-from nvidia.dali.backend_impl.types import *        # noqa: F401, F403
+from nvidia.dali.backend_impl.types import *  # noqa: F401, F403
 
 try:
     from nvidia.dali import tfrecord as tfrec
@@ -62,11 +62,11 @@ _known_types = {
     DALIDataType.IMAGE_TYPE: ("nvidia.dali.types.DALIImageType", lambda x: DALIImageType(int(x))),
     DALIDataType.DATA_TYPE: ("nvidia.dali.types.DALIDataType", lambda x: DALIDataType(int(x))),
     DALIDataType.INTERP_TYPE:
-    ("nvidia.dali.types.DALIInterpType", lambda x: DALIInterpType(int(x))),
+        ("nvidia.dali.types.DALIInterpType", lambda x: DALIInterpType(int(x))),
     DALIDataType.TENSOR_LAYOUT: (":ref:`layout str<layout_str_doc>`", lambda x: str(x)),
     DALIDataType.PYTHON_OBJECT: ("object", lambda x: x),
     DALIDataType._TENSOR_LAYOUT_VEC:
-    (":ref:`layout str<layout_str_doc>`", _to_list(lambda x: str(x))),
+        (":ref:`layout str<layout_str_doc>`", _to_list(lambda x: str(x))),
     DALIDataType._DATA_TYPE_VEC: ("nvidia.dali.types.DALIDataType",
                                   _to_list(lambda x: DALIDataType(int(x))))
 }
@@ -243,8 +243,7 @@ dtype: DALIDataType, optional
             elif self.dtype in _float_types:
                 self.value = float(value)
             else:
-                raise TypeError(
-                    f"DALI ScalarConstant can only hold one of: {_all_types} types.")
+                raise TypeError(f"DALI ScalarConstant can only hold one of: {_all_types} types.")
         elif isinstance(value, bool):
             self.value = value
             self.dtype = DALIDataType.BOOL
@@ -390,7 +389,7 @@ def _get_device_id_for_array(array):
         return None
 
 
-_cupy_array_type_regex = re.compile('.*cupy.*\..*ndarray.*')        # noqa: W605
+_cupy_array_type_regex = re.compile('.*cupy.*\..*ndarray.*')  # noqa: W605
 
 
 def _is_cupy_array(value):
@@ -399,29 +398,29 @@ def _is_cupy_array(value):
 
 # common type names used by numpy, torch and possibly
 _type_name_to_dali_type = {
-    'bool':    DALIDataType.BOOL,
+    'bool': DALIDataType.BOOL,
     'boolean': DALIDataType.BOOL,
-    'int8':    DALIDataType.INT8,
-    'sbyte':   DALIDataType.INT8,
-    'uint8':   DALIDataType.UINT8,
-    'byte':    DALIDataType.UINT8,
-    'ubyte':   DALIDataType.UINT8,
-    'int16':   DALIDataType.INT16,
-    'short':   DALIDataType.INT16,
-    'uint16':  DALIDataType.UINT16,
-    'ushort':  DALIDataType.UINT16,
-    'int32':   DALIDataType.INT32,
-    'uint32':  DALIDataType.UINT32,
-    'int64':   DALIDataType.INT64,
-    'long':    DALIDataType.INT64,
-    'uint64':  DALIDataType.UINT64,
-    'ulong':   DALIDataType.UINT64,
-    'half':    DALIDataType.FLOAT16,
+    'int8': DALIDataType.INT8,
+    'sbyte': DALIDataType.INT8,
+    'uint8': DALIDataType.UINT8,
+    'byte': DALIDataType.UINT8,
+    'ubyte': DALIDataType.UINT8,
+    'int16': DALIDataType.INT16,
+    'short': DALIDataType.INT16,
+    'uint16': DALIDataType.UINT16,
+    'ushort': DALIDataType.UINT16,
+    'int32': DALIDataType.INT32,
+    'uint32': DALIDataType.UINT32,
+    'int64': DALIDataType.INT64,
+    'long': DALIDataType.INT64,
+    'uint64': DALIDataType.UINT64,
+    'ulong': DALIDataType.UINT64,
+    'half': DALIDataType.FLOAT16,
     'float16': DALIDataType.FLOAT16,
-    'float':   DALIDataType.FLOAT,
+    'float': DALIDataType.FLOAT,
     'float32': DALIDataType.FLOAT,
     'float64': DALIDataType.FLOAT64,
-    'double':  DALIDataType.FLOAT64,
+    'double': DALIDataType.FLOAT64,
 }
 
 dali_type_converters = []
@@ -518,8 +517,13 @@ def ConstantNode(device, value, dtype, shape, layout, **kwargs):
     if device is None:
         device = "cpu"
 
-    return fn.constant(device=device, fdata=fdata, idata=idata, shape=shape, dtype=dtype,
-                       layout=layout, **kwargs)
+    return fn.constant(device=device,
+                       fdata=fdata,
+                       idata=idata,
+                       shape=shape,
+                       dtype=dtype,
+                       layout=layout,
+                       **kwargs)
 
 
 def _is_scalar_value(value):
@@ -568,12 +572,9 @@ device: string, optional, "cpu" or "gpu"
     and the arguments are passed to the `dali.ops.Constant` operator
     """
 
-    if (device is not None
-            or (_is_compatible_array_type(value) and not _is_true_scalar(value))
-            or isinstance(value, (list, tuple))
-            or not _is_scalar_shape(shape)
-            or kwargs
-            or layout is not None):
+    if (device is not None or (_is_compatible_array_type(value) and not _is_true_scalar(value)) or
+            isinstance(value, (list, tuple)) or not _is_scalar_shape(shape) or kwargs or
+            layout is not None):
         return ConstantNode(device, value, dtype, shape, layout, **kwargs)
     else:
         return ScalarConstant(value, dtype)

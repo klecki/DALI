@@ -27,9 +27,9 @@ from nvidia.dali import _conditionals
 from nvidia.dali._utils.eager_utils import _Classification, _transform_data_to_tensorlist
 from nvidia.dali.data_node import DataNode as _DataNode, _check
 from nvidia.dali.fn import _to_snake_case
-from nvidia.dali._utils.external_source_impl import (
-    get_callback_from_source as _get_callback_from_source,
-    accepted_arg_count as _accepted_arg_count)
+from nvidia.dali._utils.external_source_impl import (get_callback_from_source as
+                                                     _get_callback_from_source, accepted_arg_count
+                                                     as _accepted_arg_count)
 from nvidia.dali.ops._operator_utils import (_build_input_sets, _repack_output_sets)
 
 
@@ -153,9 +153,18 @@ class DataNodeDebug(_DataNode):
 class _ExternalSourceDebug:
     """Debug mode version of ExternalSource operator."""
 
-    def __init__(
-            self, source=None, num_outputs=None, batch_size=-1, cycle=None, name=None, device='cpu',
-            device_id=-1, layout=None, batch=None, batch_info=None, **kwargs):
+    def __init__(self,
+                 source=None,
+                 num_outputs=None,
+                 batch_size=-1,
+                 cycle=None,
+                 name=None,
+                 device='cpu',
+                 device_id=-1,
+                 layout=None,
+                 batch=None,
+                 batch_info=None,
+                 **kwargs):
         if name is not None and num_outputs is not None:
             raise ValueError("`num_outputs` is not compatible with named `ExternalSource`")
 
@@ -191,7 +200,7 @@ class _ExternalSourceDebug:
             arg = _types.BatchInfo(self._current_iter, epoch_idx)
         else:
             arg = self._current_iter
-        return (arg, )
+        return (arg,)
 
     def _get_batch(self, epoch_idx):
         try:
@@ -228,8 +237,9 @@ class _ExternalSourceDebug:
                 data = data._as_gpu()
             elif self._device == 'cpu' and isinstance(data, _tensors.TensorListGPU):
                 data = data.as_cpu()
-                warnings.warn('Loading GPU-originated data into CPU ExternalSource operator is '
-                              'discouraged and might be inefficient', Warning)
+                warnings.warn(
+                    'Loading GPU-originated data into CPU ExternalSource operator is '
+                    'discouraged and might be inefficient', Warning)
             return DataNodeDebug(data, self._name, self._device, self._source_desc)
 
         if self._callback is not None:
@@ -407,7 +417,8 @@ class _OperatorManager:
         self._kwargs_classification = {}
 
         for key, value in kwargs.items():
-            classification = _Classification(value, f'Argument {key}',
+            classification = _Classification(value,
+                                             f'Argument {key}',
                                              arg_constant_len=self._batch_size)
             if classification.is_batch:
                 self._call_args[key] = classification.data
@@ -438,10 +449,8 @@ class _OperatorManager:
             else:
                 return f"[{position}]"
 
-        return DataNodeDebug(data,
-                             self._op_name + position_to_suffix(position),
-                             'gpu' if isinstance(data, _tensors.TensorListGPU) else 'cpu',
-                             self)
+        return DataNodeDebug(data, self._op_name + position_to_suffix(position),
+                             'gpu' if isinstance(data, _tensors.TensorListGPU) else 'cpu', self)
 
     def _check_arg_len(self, expected_len, actual_len, args_type):
         if expected_len != actual_len:
@@ -473,14 +482,11 @@ class _OperatorManager:
         if isinstance(classification.is_batch, list):
             # Checking for input set.
             for input in classification.data:
-                self._pipe._cur_iter_batch_info.check_input(len(input),
-                                                            self._source_context,
-                                                            self._op_name,
-                                                            input_idx)
+                self._pipe._cur_iter_batch_info.check_input(len(input), self._source_context,
+                                                            self._op_name, input_idx)
         else:
             self._pipe._cur_iter_batch_info.check_input(len(classification.data),
-                                                        self._source_context,
-                                                        self._op_name,
+                                                        self._source_context, self._op_name,
                                                         input_idx)
 
     def _check_call_arg_meta_data(self, expected_data, actual_data, arg_type, value):
@@ -494,9 +500,8 @@ class _OperatorManager:
         """
 
         def raise_err(meta_name, actual_value, expected_value):
-            raise RuntimeError(
-                f"{arg_type} {value} for operator '{self._op_name}' has "
-                f"{meta_name} = {actual_value}, expected: {expected_value}.")
+            raise RuntimeError(f"{arg_type} {value} for operator '{self._op_name}' has "
+                               f"{meta_name} = {actual_value}, expected: {expected_value}.")
 
         expected_input_set = isinstance(expected_data, list)
         if expected_input_set != isinstance(actual_data, list):
@@ -533,12 +538,14 @@ class _OperatorManager:
             # Transforming any convertible datatype to
             # TensorList (DataNodeDebugs are already unpacked).
             # Additionally accepting input sets, but only as list of TensorList.
-            if (not isinstance(input, (_tensors.TensorListCPU, _tensors.TensorListGPU))
-                and not (isinstance(input, list) and all([
-                    isinstance(elem, (_tensors.TensorListCPU, _tensors.TensorListGPU))
-                    for elem in input]))):
-                inputs[i] = _transform_data_to_tensorlist(
-                    input, len(input), device_id=self._device_id)
+            if (not isinstance(input, (_tensors.TensorListCPU, _tensors.TensorListGPU)) and
+                    not (isinstance(input, list) and all([
+                        isinstance(elem, (_tensors.TensorListCPU, _tensors.TensorListGPU))
+                        for elem in input
+                    ]))):
+                inputs[i] = _transform_data_to_tensorlist(input,
+                                                          len(input),
+                                                          device_id=self._device_id)
 
         return _build_input_sets(inputs, self._op_name)
 
@@ -585,19 +592,15 @@ class _OperatorManager:
                                                                   classification)
 
             self._check_batch_classification(expected_classification.is_batch,
-                                             classification.is_batch,
-                                             'Input',
-                                             i)
-            self._check_device_classification(expected_classification.device,
-                                              classification.device,
-                                              'Input',
-                                              i)
+                                             classification.is_batch, 'Input', i)
+            self._check_device_classification(expected_classification.device, classification.device,
+                                              'Input', i)
 
             if classification.is_batch:
                 if self.op_helper.schema_name != "_conditional__Merge":
                     self._check_batch_size(classification, i)
-                self._check_call_arg_meta_data(
-                    expected_classification.data, classification.data, 'Input', i)
+                self._check_call_arg_meta_data(expected_classification.data, classification.data,
+                                               'Input', i)
 
             if classification.device != ('gpu' if self._device == 'gpu' else 'cpu'):
                 raise RuntimeError(
@@ -610,7 +613,8 @@ class _OperatorManager:
 
         # Check kwargs classification as batches and setup call args.
         for key, value in kwargs.items():
-            classification = _Classification(value, f'Argument {key}',
+            classification = _Classification(value,
+                                             f'Argument {key}',
                                              arg_constant_len=self._batch_size)
 
             self._update_classification(self._kwargs_classification, key, classification)
@@ -734,7 +738,7 @@ class _PipelineDebug(_pipeline.Pipeline):
         if res is None:
             res = ()
         elif not isinstance(res, tuple):
-            res = (res, )
+            res = (res,)
 
         self._debug_on = False
         if not self._operators_built:
@@ -748,9 +752,8 @@ class _PipelineDebug(_pipeline.Pipeline):
             if isinstance(val, DataNodeDebug):
                 outputs.append(val.get())
             elif isinstance(val, (list, tuple)):
-                raise TypeError(
-                    f'Illegal pipeline output type.'
-                    f'The output {i} contains a nested `DataNodeDebug`')
+                raise TypeError(f'Illegal pipeline output type.'
+                                f'The output {i} contains a nested `DataNodeDebug`')
             else:
                 outputs.append(
                     _tensors.TensorListCPU(
@@ -799,10 +802,12 @@ class _PipelineDebug(_pipeline.Pipeline):
     def _external_source(self, name=None, **kwargs):
         self._cur_operator_id += 1
         cur_frame = inspect.currentframe().f_back.f_back
-        key = inspect.getframeinfo(cur_frame)[:3] + (self._cur_operator_id, )
+        key = inspect.getframeinfo(cur_frame)[:3] + (self._cur_operator_id,)
         if not self._operators_built:
             es = _ExternalSourceDebug(batch_size=self._max_batch_size,
-                                      device_id=self._device_id, name=name, **kwargs)
+                                      device_id=self._device_id,
+                                      name=name,
+                                      **kwargs)
 
             # feed_input all data collected after build and before run
             for (data, fi_kwargs) in self._feed_input_data.pop(name, []):
@@ -824,6 +829,7 @@ class _PipelineDebug(_pipeline.Pipeline):
         # for anything without input
         def is_converted_to_batch(elem):
             return isinstance(elem, (_tensors.TensorListCPU, _tensors.TensorGPU))
+
         batch_input = any(is_converted_to_batch(input) for input in inputs)
         batch_input = batch_input or any(is_converted_to_batch(arg) for _, arg in kwargs.items())
         if batch_input:
@@ -865,7 +871,7 @@ class _PipelineDebug(_pipeline.Pipeline):
         self._cur_operator_id += 1
         cur_frame = inspect.currentframe().f_back.f_back
         cur_context = ''.join(traceback.format_stack(cur_frame, limit=1))
-        key = inspect.getframeinfo(cur_frame)[:3] + (self._cur_operator_id, )
+        key = inspect.getframeinfo(cur_frame)[:3] + (self._cur_operator_id,)
         if not self._operators_built:
             self._create_op(op_class, op_name, key, cur_context, inputs, kwargs)
 

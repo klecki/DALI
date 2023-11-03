@@ -135,9 +135,19 @@ class _ExternalDataBatch:
 
 class _ExternalSourceGroup(object):
 
-    def __init__(self, callback, source_desc, is_multioutput, instances=[], *,
-                 cuda_stream=None, use_copy_kernel=None, batch=True, parallel=False,
-                 prefetch_queue_depth=None, bytes_per_sample_hint=None, batch_info=None):
+    def __init__(self,
+                 callback,
+                 source_desc,
+                 is_multioutput,
+                 instances=[],
+                 *,
+                 cuda_stream=None,
+                 use_copy_kernel=None,
+                 batch=True,
+                 parallel=False,
+                 prefetch_queue_depth=None,
+                 bytes_per_sample_hint=None,
+                 batch_info=None):
         self.instances = list(instances)  # we need a copy!
         self.utilized_instances = self.instances
         self.is_multioutput = is_multioutput
@@ -173,8 +183,7 @@ class _ExternalSourceGroup(object):
                 f"the number of outputs of the external source. The external source node has "
                 f"{len(self.instances)} outputs, but received mask of length {len(pruned_mask)}.")
         self.utilized_instances = [
-            instance for instance, is_pruned
-            in zip(self.instances, pruned_mask) if not is_pruned
+            instance for instance, is_pruned in zip(self.instances, pruned_mask) if not is_pruned
         ]
 
     def callback_args(self, idx_in_batch, epoch_idx, batch_size=0, lead=0):
@@ -195,7 +204,7 @@ class _ExternalSourceGroup(object):
             arg = nvidia.dali.types.BatchInfo(self.current_iter + lead, epoch_idx)
         else:
             arg = self.current_iter + lead
-        return (arg, )
+        return (arg,)
 
     def reset_indices(self):
         self.current_iter = 0
@@ -205,9 +214,8 @@ class _ExternalSourceGroup(object):
         # NOTE We can't schedule more than what's on top of pipeline's prefetch queue, as the
         # entires in the pipeline are zero-copy and cannot be overwritten.
         context = pool.contexts[context_i]
-        while (context.scheduled_ahead < self.prefetch_queue_depth
-               and self.schedule_batch(pool, context_i, context.scheduled_ahead,
-                                       batch_size, epoch_idx)):
+        while (context.scheduled_ahead < self.prefetch_queue_depth and self.schedule_batch(
+                pool, context_i, context.scheduled_ahead, batch_size, epoch_idx)):
             pass
 
     def schedule_batch(self, pool, context_i, lead, batch_size, epoch_idx):
@@ -274,8 +282,8 @@ class _ExternalSourceGroup(object):
         else:
             data = callback_out
             op = self.utilized_instances[0]
-            pipeline._feed_input(
-                op._name, data, op._layout, self._cuda_stream, self.use_copy_kernel)
+            pipeline._feed_input(op._name, data, op._layout, self._cuda_stream,
+                                 self.use_copy_kernel)
 
 
 class ExternalSource():
@@ -558,10 +566,26 @@ Keyword Args
     shared memory is allocated for data produced by the pipeline's parallel external sources.
 """
 
-    def __init__(self, source=None, num_outputs=None, *, cycle=None, layout=None, dtype=None,
-                 ndim=None, name=None, device="cpu", cuda_stream=None, use_copy_kernel=None,
-                 batch=None, parallel=None, no_copy=None, prefetch_queue_depth=None,
-                 bytes_per_sample_hint=None, batch_info=None, repeat_last=False, **kwargs):
+    def __init__(self,
+                 source=None,
+                 num_outputs=None,
+                 *,
+                 cycle=None,
+                 layout=None,
+                 dtype=None,
+                 ndim=None,
+                 name=None,
+                 device="cpu",
+                 cuda_stream=None,
+                 use_copy_kernel=None,
+                 batch=None,
+                 parallel=None,
+                 no_copy=None,
+                 prefetch_queue_depth=None,
+                 bytes_per_sample_hint=None,
+                 batch_info=None,
+                 repeat_last=False,
+                 **kwargs):
         self._schema = _b.GetSchema("ExternalSource")
         self._spec = _b.OpSpec("ExternalSource")
         self._device = device
@@ -612,10 +636,24 @@ Keyword Args
     def preserve(self):
         return False
 
-    def __call__(self, *, source=None, cycle=None, name=None, layout=None, dtype=None, ndim=None,
-                 cuda_stream=None, use_copy_kernel=None, batch=None, parallel=None, no_copy=None,
-                 prefetch_queue_depth=None, bytes_per_sample_hint=None, batch_info=None,
-                 repeat_last=False, **kwargs):
+    def __call__(self,
+                 *,
+                 source=None,
+                 cycle=None,
+                 name=None,
+                 layout=None,
+                 dtype=None,
+                 ndim=None,
+                 cuda_stream=None,
+                 use_copy_kernel=None,
+                 batch=None,
+                 parallel=None,
+                 no_copy=None,
+                 prefetch_queue_depth=None,
+                 bytes_per_sample_hint=None,
+                 batch_info=None,
+                 repeat_last=False,
+                 **kwargs):
         ""
         from nvidia.dali.ops import _OperatorInstance
         if batch_info is None:
@@ -693,10 +731,8 @@ Keyword Args
                     "``prefetch_queue_depth`` must be a positive integer, got {}.".format(
                         prefetch_queue_depth))
             if bytes_per_sample_hint is not None and bytes_per_sample_hint < 1:
-                raise ValueError(
-                    f"``bytes_per_sample_hint`` must be a positive integer, "
-                    f"got {bytes_per_sample_hint}."
-                )
+                raise ValueError(f"``bytes_per_sample_hint`` must be a positive integer, "
+                                 f"got {bytes_per_sample_hint}.")
             if source_desc.kind == _SourceKind.CALLABLE:
                 if not source_desc.has_inputs:
                     raise TypeError(
@@ -847,9 +883,20 @@ def _has_external_source(pipeline):
     return False
 
 
-def external_source(source=None, num_outputs=None, *, cycle=None, name=None, device="cpu",
-                    layout=None, dtype=None, ndim=None, cuda_stream=None, use_copy_kernel=None,
-                    batch=True, repeat_last=False, **kwargs):
+def external_source(source=None,
+                    num_outputs=None,
+                    *,
+                    cycle=None,
+                    name=None,
+                    device="cpu",
+                    layout=None,
+                    dtype=None,
+                    ndim=None,
+                    cuda_stream=None,
+                    use_copy_kernel=None,
+                    batch=True,
+                    repeat_last=False,
+                    **kwargs):
     """Creates a data node which is populated with data from a Python source.
 The data can be provided by the ``source`` function or iterable, or it can be provided by
 ``pipeline.feed_input(name, data, layout, cuda_stream)`` inside ``pipeline.iter_setup``.
@@ -872,9 +919,20 @@ provided memory is copied to the internal buffer.
     from nvidia.dali._debug_mode import _PipelineDebug
     from nvidia.dali import _conditionals
 
-    def _external_source(source=None, num_outputs=None, *, cycle=None, name=None, device="cpu",
-                         layout=None, dtype=None, ndim=None, cuda_stream=None, use_copy_kernel=None,
-                         repeat_last=False, batch=True, **kwargs):
+    def _external_source(source=None,
+                         num_outputs=None,
+                         *,
+                         cycle=None,
+                         name=None,
+                         device="cpu",
+                         layout=None,
+                         dtype=None,
+                         ndim=None,
+                         cuda_stream=None,
+                         use_copy_kernel=None,
+                         repeat_last=False,
+                         batch=True,
+                         **kwargs):
         if batch is None:
             batch = True
 
@@ -885,23 +943,46 @@ provided memory is copied to the internal buffer.
                     "provide data. To feed multiple external sources in ``feed_input``, "
                     "use multiple ``external_source`` nodes.")
 
-        op = ExternalSource(device=device, num_outputs=num_outputs, source=source, cycle=cycle,
-                            layout=layout, dtype=dtype, ndim=ndim, cuda_stream=cuda_stream,
-                            use_copy_kernel=use_copy_kernel, batch=batch, repeat_last=repeat_last,
+        op = ExternalSource(device=device,
+                            num_outputs=num_outputs,
+                            source=source,
+                            cycle=cycle,
+                            layout=layout,
+                            dtype=dtype,
+                            ndim=ndim,
+                            cuda_stream=cuda_stream,
+                            use_copy_kernel=use_copy_kernel,
+                            batch=batch,
+                            repeat_last=repeat_last,
                             **kwargs)
         return op(name=name)
 
     # Wrapper around external_source to switch between standard and debug mode.
     current_pipeline = _PipelineDebug.current()
     if getattr(current_pipeline, '_debug_on', False):
-        result = current_pipeline._external_source(
-            source=source, num_outputs=num_outputs, cycle=cycle, name=name, device=device,
-            layout=layout, batch=batch, repeat_last=repeat_last, **kwargs)
+        result = current_pipeline._external_source(source=source,
+                                                   num_outputs=num_outputs,
+                                                   cycle=cycle,
+                                                   name=name,
+                                                   device=device,
+                                                   layout=layout,
+                                                   batch=batch,
+                                                   repeat_last=repeat_last,
+                                                   **kwargs)
     else:
-        result = _external_source(source, num_outputs, cycle=cycle, name=name, device=device,
-                                  layout=layout, dtype=dtype, ndim=ndim, cuda_stream=cuda_stream,
-                                  use_copy_kernel=use_copy_kernel, batch=batch,
-                                  repeat_last=repeat_last, **kwargs)
+        result = _external_source(source,
+                                  num_outputs,
+                                  cycle=cycle,
+                                  name=name,
+                                  device=device,
+                                  layout=layout,
+                                  dtype=dtype,
+                                  ndim=ndim,
+                                  cuda_stream=cuda_stream,
+                                  use_copy_kernel=use_copy_kernel,
+                                  batch=batch,
+                                  repeat_last=repeat_last,
+                                  **kwargs)
     if _conditionals.conditionals_enabled():
         _conditionals.register_data_nodes(result)
     return result

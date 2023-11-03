@@ -58,8 +58,10 @@ class _SignedMagnitudeBin:
         return cls(magnitude_bin, self._random_sign[idx], self._signed_magnitude_idx[idx])
 
     @classmethod
-    def create_from_bin(cls, magnitude_bin: Union[int, _DataNode],
-                        random_sign: Optional[_DataNode] = None, seed: Optional[int] = None,
+    def create_from_bin(cls,
+                        magnitude_bin: Union[int, _DataNode],
+                        random_sign: Optional[_DataNode] = None,
+                        seed: Optional[int] = None,
                         shape: Optional[Tuple] = None):
         if not isinstance(magnitude_bin, (int, _DataNode)):
             raise Exception(f"The `magnitude_bin` must be an int or _DataNode (output of DALI op "
@@ -69,7 +71,9 @@ class _SignedMagnitudeBin:
             raise Exception(
                 "The `random_sign` cannot be specified together with neither `seed` nor `shape`.")
         if random_sign is None:
-            random_sign = fn.random.uniform(values=[0, 1], dtype=types.INT32, seed=seed,
+            random_sign = fn.random.uniform(values=[0, 1],
+                                            dtype=types.INT32,
+                                            seed=seed,
                                             shape=shape)
         # it is important to compute it as soon as possible - we may be created at the top level
         # in the pipeline, while it may be read in conditional split
@@ -100,8 +104,10 @@ class _SignedMagnitudeBin:
         return self._signed_magnitude_idx
 
 
-def signed_bin(magnitude_bin: Union[int, _DataNode], random_sign: Optional[_DataNode] = None,
-               seed: Optional[int] = None, shape: Optional[Tuple] = None) -> _SignedMagnitudeBin:
+def signed_bin(magnitude_bin: Union[int, _DataNode],
+               random_sign: Optional[_DataNode] = None,
+               seed: Optional[int] = None,
+               shape: Optional[Tuple] = None) -> _SignedMagnitudeBin:
     """
     Combines the `magnitude_bin` with information about the sign of the magnitude.
     The Augmentation wrapper can generate and handle the random sign on its own. Yet,
@@ -151,9 +157,12 @@ class Augmentation:
         ]
         return f"Augmentation({', '.join([repr(self.op)] + params)})"
 
-    def __call__(self, data: _DataNode, *,
+    def __call__(self,
+                 data: _DataNode,
+                 *,
                  magnitude_bin: Optional[Union[int, _DataNode, _SignedMagnitudeBin]] = None,
-                 num_magnitude_bins: Optional[int] = None, **kwargs) -> _DataNode:
+                 num_magnitude_bins: Optional[int] = None,
+                 **kwargs) -> _DataNode:
         """
         Applies the decorated transformation to the `data` as if by calling
         `self.op(data, param, **kwargs)` where
@@ -192,7 +201,9 @@ class Augmentation:
                 f"The augmentation `{self.name}` requires following named argument(s) "
                 f"which were not provided to the call: {', '.join(missing_args)}. "
                 f"Please make sure to pass the required arguments when calling the "
-                f"augmentation.", augmentation=self, missing_args=missing_args)
+                f"augmentation.",
+                augmentation=self,
+                missing_args=missing_args)
         return self.op(data, params, **op_kwargs)
 
     @property
@@ -219,9 +230,13 @@ class Augmentation:
     def name(self):
         return self._name or self.op.__name__
 
-    def augmentation(self, mag_range=_UndefinedParam, randomly_negate=_UndefinedParam,
-                     mag_to_param=_UndefinedParam, param_device=_UndefinedParam,
-                     name=_UndefinedParam, augmentation_cls=None):
+    def augmentation(self,
+                     mag_range=_UndefinedParam,
+                     randomly_negate=_UndefinedParam,
+                     mag_to_param=_UndefinedParam,
+                     param_device=_UndefinedParam,
+                     name=_UndefinedParam,
+                     augmentation_cls=None):
         """
         The method to update augmentation parameters specified with `@augmentation` decorator.
         Returns a new augmentation with the original operation decorated but updated parameters.
@@ -229,8 +244,10 @@ class Augmentation:
         """
         cls = augmentation_cls or self.__class__
         config = self._get_config()
-        for key, value in dict(mag_range=mag_range, randomly_negate=randomly_negate,
-                               mag_to_param=mag_to_param, param_device=param_device,
+        for key, value in dict(mag_range=mag_range,
+                               randomly_negate=randomly_negate,
+                               mag_to_param=mag_to_param,
+                               param_device=param_device,
                                name=name).items():
             assert key in config
             if value is not _UndefinedParam:

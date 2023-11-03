@@ -29,8 +29,11 @@ def max_translate_hw(max_translate):
     return max_translate, max_translate
 
 
-def parse_validate_offset(use_shape, max_translate_abs=None, max_translate_rel=None,
-                          default_translate_abs=250, default_translate_rel=1.):
+def parse_validate_offset(use_shape,
+                          max_translate_abs=None,
+                          max_translate_rel=None,
+                          default_translate_abs=250,
+                          default_translate_rel=1.):
     # if one passes DataNode (with shapes for instance), the error message would be very vague
     if not isinstance(use_shape, bool):
         raise Exception(f"The `use_shape` is a flag that should be set to either True or False, "
@@ -51,12 +54,17 @@ def parse_validate_offset(use_shape, max_translate_abs=None, max_translate_rel=N
         return max_translate_hw(max_translate_abs)
 
 
-def get_translations(use_shape: bool, default_translate_abs: int, default_translate_rel: float,
+def get_translations(use_shape: bool,
+                     default_translate_abs: int,
+                     default_translate_rel: float,
                      max_translate_abs: Optional[int] = None,
                      max_translate_rel: Optional[float] = None):
     max_translate_height, max_translate_width = parse_validate_offset(
-        use_shape, max_translate_abs=max_translate_abs, max_translate_rel=max_translate_rel,
-        default_translate_abs=default_translate_abs, default_translate_rel=default_translate_rel)
+        use_shape,
+        max_translate_abs=max_translate_abs,
+        max_translate_rel=max_translate_rel,
+        default_translate_abs=default_translate_abs,
+        default_translate_rel=default_translate_rel)
     if use_shape:
         translate_x = a.translate_x.augmentation((0, max_translate_width), True)
         translate_y = a.translate_y.augmentation((0, max_translate_height), True)

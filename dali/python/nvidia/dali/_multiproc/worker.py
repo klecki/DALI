@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -30,8 +30,7 @@ class _WorkerProcessingResult:
     thread to the dispatcher thread. The dispatcher thread serializes the batch or the error and
     forwards the result as `CompletedTask` to the main process"""
 
-    def __init__(self, scheduled, shm_chunk, data_batch=None, exception=None,
-                 traceback_str=None):
+    def __init__(self, scheduled, shm_chunk, data_batch=None, exception=None, traceback_str=None):
         self.context_i = scheduled.context_i
         self.scheduled_i = scheduled.scheduled_i
         self.minibatch_i = scheduled.task.minibatch_i
@@ -66,6 +65,7 @@ class SharedBatchDispatcher(Dispatcher):
         def on_thread_exit():
             for queue in recv_queues:
                 queue.close()
+
         super().__init__(result_queue, on_thread_exit)
         self.worker_id = worker_id
 
@@ -78,8 +78,7 @@ class SharedBatchDispatcher(Dispatcher):
         """
         shm_chunk = processed_task.shm_chunk
         completed_task = CompletedTask.failed(self.worker_id, processed_task)
-        return write_shm_message(
-            self.worker_id, shm_chunk, completed_task, 0, resize=True)
+        return write_shm_message(self.worker_id, shm_chunk, completed_task, 0, resize=True)
 
     def _serialize_done_task(self, processed_task: _WorkerProcessingResult):
         """
@@ -100,8 +99,11 @@ class SharedBatchDispatcher(Dispatcher):
         sbw = SharedBatchWriter(shm_chunk, processed_task.data_batch)
         batch_meta = SharedBatchMeta.from_writer(sbw)
         completed_task = CompletedTask.done(self.worker_id, processed_task, batch_meta)
-        return write_shm_message(
-            self.worker_id, shm_chunk, completed_task, sbw.total_size, resize=True)
+        return write_shm_message(self.worker_id,
+                                 shm_chunk,
+                                 completed_task,
+                                 sbw.total_size,
+                                 resize=True)
 
     def serialize_msgs(self, processed_tasks: List[_WorkerProcessingResult]):
         shm_msgs = []
@@ -389,9 +391,9 @@ class WorkerContext:
         self.batch_dispatcher = None
         try:
             self.task_receiver = self._init_task_receiver()
-            self.batch_dispatcher = SharedBatchDispatcher(
-                worker_args.worker_id, worker_args.result_queue,
-                self.task_receiver.get_recv_queues())
+            self.batch_dispatcher = SharedBatchDispatcher(worker_args.worker_id,
+                                                          worker_args.result_queue,
+                                                          self.task_receiver.get_recv_queues())
         except:  # noqa E722
             self.close()
             raise
@@ -404,7 +406,8 @@ class WorkerContext:
                 source_desc.source = callback_pickler.loads(source_desc.source)
         return {
             context_i: get_source_from_desc(source_desc)
-            for context_i, source_desc in source_descs.items()}
+            for context_i, source_desc in source_descs.items()
+        }
 
     def _recv_queue_handles(self, setup_socket):
         self.result_queue.open_shm(reduction.recv_handle(setup_socket))

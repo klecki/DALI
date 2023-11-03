@@ -91,7 +91,7 @@ def auto_augment(
         'svhn': get_svhn_policy,
         'reduced_cifar10': get_reduced_cifar10_policy,
     }
-    policies_without_translation = ('reduced_image_net', )
+    policies_without_translation = ('reduced_image_net',)
     shape_related_args = (
         (shape, 'shape'),
         (max_translate_abs, 'max_translate_abs'),
@@ -144,7 +144,9 @@ def auto_augment_image_net(
                         max_translate_rel, seed)
 
 
-def apply_auto_augment(policy: Policy, data: _DataNode, seed: Optional[int] = None,
+def apply_auto_augment(policy: Policy,
+                       data: _DataNode,
+                       seed: Optional[int] = None,
                        **kwargs) -> _DataNode:
     """
     Applies AutoAugment (https://arxiv.org/abs/1805.09501) augmentation scheme to the
@@ -173,28 +175,36 @@ def apply_auto_augment(policy: Policy, data: _DataNode, seed: Optional[int] = No
     if len(policy.sub_policies) == 0:
         raise Exception(f"Cannot run empty policy. Got {policy} in `apply_auto_augment` call.")
     max_policy_len = max(len(sub_policy) for sub_policy in policy.sub_policies)
-    should_run = fn.random.uniform(range=[0, 1], shape=(max_policy_len, ), dtype=types.FLOAT,
+    should_run = fn.random.uniform(range=[0, 1],
+                                   shape=(max_policy_len,),
+                                   dtype=types.FLOAT,
                                    seed=seed)
-    sub_policy_id = fn.random.uniform(values=list(range(len(policy.sub_policies))), seed=seed,
+    sub_policy_id = fn.random.uniform(values=list(range(len(policy.sub_policies))),
+                                      seed=seed,
                                       dtype=types.INT32)
     run_probabilities = _sub_policy_to_probability_map(policy)[sub_policy_id]
     magnitude_bins = _sub_policy_to_magnitude_bin_map(policy)[sub_policy_id]
     aug_ids, augmentations = _sub_policy_to_augmentation_map(policy)
     aug_ids = aug_ids[sub_policy_id]
     if any(aug.randomly_negate for aug in policy.augmentations.values()):
-        magnitude_bins = signed_bin(magnitude_bins, seed=seed, shape=(max_policy_len, ))
+        magnitude_bins = signed_bin(magnitude_bins, seed=seed, shape=(max_policy_len,))
     _forbid_unused_kwargs(policy.augmentations.values(), kwargs, 'apply_auto_augment')
     for stage_id in range(max_policy_len):
         if should_run[stage_id] < run_probabilities[stage_id]:
-            op_kwargs = dict(data=data, magnitude_bin=magnitude_bins[stage_id],
-                             num_magnitude_bins=policy.num_magnitude_bins, **kwargs)
-            data = _pretty_select(augmentations[stage_id], aug_ids[stage_id], op_kwargs,
+            op_kwargs = dict(data=data,
+                             magnitude_bin=magnitude_bins[stage_id],
+                             num_magnitude_bins=policy.num_magnitude_bins,
+                             **kwargs)
+            data = _pretty_select(augmentations[stage_id],
+                                  aug_ids[stage_id],
+                                  op_kwargs,
                                   auto_aug_name='apply_auto_augment',
                                   ref_suite_name='get_image_net_policy')
     return data
 
 
-def get_image_net_policy(use_shape: bool = False, max_translate_abs: Optional[int] = None,
+def get_image_net_policy(use_shape: bool = False,
+                         max_translate_abs: Optional[int] = None,
                          max_translate_rel: Optional[float] = None) -> Policy:
     """
     Creates augmentation policy tuned for the ImageNet as described in
@@ -230,37 +240,39 @@ def get_image_net_policy(use_shape: bool = False, max_translate_abs: Optional[in
     invert = a.invert
     equalize = a.equalize
     auto_contrast = a.auto_contrast
-    return Policy(
-        name="ImageNetPolicy", num_magnitude_bins=11, sub_policies=[
-            [(equalize, 0.8, None), (shear_y, 0.8, 4)],
-            [(color, 0.4, 9), (equalize, 0.6, None)],
-            [(color, 0.4, 1), (rotate, 0.6, 8)],
-            [(solarize, 0.8, 3), (equalize, 0.4, None)],
-            [(solarize, 0.4, 2), (solarize, 0.6, 2)],
-            [(color, 0.2, 0), (equalize, 0.8, None)],
-            [(equalize, 0.4, None), (solarize_add, 0.8, 3)],
-            [(shear_x, 0.2, 9), (rotate, 0.6, 8)],
-            [(color, 0.6, 1), (equalize, 1.0, None)],
-            [(invert, 0.4, None), (rotate, 0.6, 0)],
-            [(equalize, 1.0, None), (shear_y, 0.6, 3)],
-            [(color, 0.4, 7), (equalize, 0.6, None)],
-            [(posterize, 0.4, 6), (auto_contrast, 0.4, None)],
-            [(solarize, 0.6, 8), (color, 0.6, 9)],
-            [(solarize, 0.2, 4), (rotate, 0.8, 9)],
-            [(rotate, 1.0, 7), (translate_y, 0.8, 9)],
-            [(solarize, 0.8, 4)],
-            [(shear_y, 0.8, 0), (color, 0.6, 4)],
-            [(color, 1.0, 0), (rotate, 0.6, 2)],
-            [(equalize, 0.8, None)],
-            [(equalize, 1.0, None), (auto_contrast, 0.6, None)],
-            [(shear_y, 0.4, 7), (solarize_add, 0.6, 7)],
-            [(posterize, 0.8, 2), (solarize, 0.6, 10)],
-            [(solarize, 0.6, 8), (equalize, 0.6, None)],
-            [(color, 0.8, 6), (rotate, 0.4, 5)],
-        ])
+    return Policy(name="ImageNetPolicy",
+                  num_magnitude_bins=11,
+                  sub_policies=[
+                      [(equalize, 0.8, None), (shear_y, 0.8, 4)],
+                      [(color, 0.4, 9), (equalize, 0.6, None)],
+                      [(color, 0.4, 1), (rotate, 0.6, 8)],
+                      [(solarize, 0.8, 3), (equalize, 0.4, None)],
+                      [(solarize, 0.4, 2), (solarize, 0.6, 2)],
+                      [(color, 0.2, 0), (equalize, 0.8, None)],
+                      [(equalize, 0.4, None), (solarize_add, 0.8, 3)],
+                      [(shear_x, 0.2, 9), (rotate, 0.6, 8)],
+                      [(color, 0.6, 1), (equalize, 1.0, None)],
+                      [(invert, 0.4, None), (rotate, 0.6, 0)],
+                      [(equalize, 1.0, None), (shear_y, 0.6, 3)],
+                      [(color, 0.4, 7), (equalize, 0.6, None)],
+                      [(posterize, 0.4, 6), (auto_contrast, 0.4, None)],
+                      [(solarize, 0.6, 8), (color, 0.6, 9)],
+                      [(solarize, 0.2, 4), (rotate, 0.8, 9)],
+                      [(rotate, 1.0, 7), (translate_y, 0.8, 9)],
+                      [(solarize, 0.8, 4)],
+                      [(shear_y, 0.8, 0), (color, 0.6, 4)],
+                      [(color, 1.0, 0), (rotate, 0.6, 2)],
+                      [(equalize, 0.8, None)],
+                      [(equalize, 1.0, None), (auto_contrast, 0.6, None)],
+                      [(shear_y, 0.4, 7), (solarize_add, 0.6, 7)],
+                      [(posterize, 0.8, 2), (solarize, 0.6, 10)],
+                      [(solarize, 0.6, 8), (equalize, 0.6, None)],
+                      [(color, 0.8, 6), (rotate, 0.4, 5)],
+                  ])
 
 
-def get_reduced_cifar10_policy(use_shape: bool = False, max_translate_abs: Optional[int] = None,
+def get_reduced_cifar10_policy(use_shape: bool = False,
+                               max_translate_abs: Optional[int] = None,
                                max_translate_rel: Optional[float] = None) -> Policy:
     """
     Creates augmentation policy tuned with the reduced CIFAR-10 as described
@@ -298,37 +310,39 @@ def get_reduced_cifar10_policy(use_shape: bool = False, max_translate_abs: Optio
     invert = a.invert
     equalize = a.equalize
     auto_contrast = a.auto_contrast
-    return Policy(
-        name="ReducedCifar10Policy", num_magnitude_bins=11, sub_policies=[
-            [(invert, 0.1, None), (contrast, 0.2, 6)],
-            [(rotate, 0.7, 2), (translate_x, 0.3, 9)],
-            [(sharpness, 0.8, 1), (sharpness, 0.9, 3)],
-            [(shear_y, 0.5, 8), (translate_y, 0.7, 9)],
-            [(auto_contrast, 0.5, None), (equalize, 0.9, None)],
-            [(shear_y, 0.2, 7), (posterize, 0.3, 7)],
-            [(color, 0.4, 3), (brightness, 0.6, 7)],
-            [(sharpness, 0.3, 9), (brightness, 0.7, 9)],
-            [(equalize, 0.6, None), (equalize, 0.5, None)],
-            [(contrast, 0.6, 7), (sharpness, 0.6, 5)],
-            [(color, 0.7, 7), (translate_x, 0.5, 8)],
-            [(equalize, 0.3, None), (auto_contrast, 0.4, None)],
-            [(translate_y, 0.4, 3), (sharpness, 0.2, 6)],
-            [(brightness, 0.9, 6), (color, 0.2, 8)],
-            [(solarize, 0.5, 2)],
-            [(equalize, 0.2, None), (auto_contrast, 0.6, None)],
-            [(equalize, 0.2, None), (equalize, 0.6, None)],
-            [(color, 0.9, 9), (equalize, 0.6, None)],
-            [(auto_contrast, 0.8, None), (solarize, 0.2, 8)],
-            [(brightness, 0.1, 3), (color, 0.7, 0)],
-            [(solarize, 0.4, 5), (auto_contrast, 0.9, None)],
-            [(translate_y, 0.9, 9), (translate_y, 0.7, 9)],
-            [(auto_contrast, 0.9, None), (solarize, 0.8, 3)],
-            [(equalize, 0.8, None), (invert, 0.1, None)],
-            [(translate_y, 0.7, 9), (auto_contrast, 0.9, None)],
-        ])
+    return Policy(name="ReducedCifar10Policy",
+                  num_magnitude_bins=11,
+                  sub_policies=[
+                      [(invert, 0.1, None), (contrast, 0.2, 6)],
+                      [(rotate, 0.7, 2), (translate_x, 0.3, 9)],
+                      [(sharpness, 0.8, 1), (sharpness, 0.9, 3)],
+                      [(shear_y, 0.5, 8), (translate_y, 0.7, 9)],
+                      [(auto_contrast, 0.5, None), (equalize, 0.9, None)],
+                      [(shear_y, 0.2, 7), (posterize, 0.3, 7)],
+                      [(color, 0.4, 3), (brightness, 0.6, 7)],
+                      [(sharpness, 0.3, 9), (brightness, 0.7, 9)],
+                      [(equalize, 0.6, None), (equalize, 0.5, None)],
+                      [(contrast, 0.6, 7), (sharpness, 0.6, 5)],
+                      [(color, 0.7, 7), (translate_x, 0.5, 8)],
+                      [(equalize, 0.3, None), (auto_contrast, 0.4, None)],
+                      [(translate_y, 0.4, 3), (sharpness, 0.2, 6)],
+                      [(brightness, 0.9, 6), (color, 0.2, 8)],
+                      [(solarize, 0.5, 2)],
+                      [(equalize, 0.2, None), (auto_contrast, 0.6, None)],
+                      [(equalize, 0.2, None), (equalize, 0.6, None)],
+                      [(color, 0.9, 9), (equalize, 0.6, None)],
+                      [(auto_contrast, 0.8, None), (solarize, 0.2, 8)],
+                      [(brightness, 0.1, 3), (color, 0.7, 0)],
+                      [(solarize, 0.4, 5), (auto_contrast, 0.9, None)],
+                      [(translate_y, 0.9, 9), (translate_y, 0.7, 9)],
+                      [(auto_contrast, 0.9, None), (solarize, 0.8, 3)],
+                      [(equalize, 0.8, None), (invert, 0.1, None)],
+                      [(translate_y, 0.7, 9), (auto_contrast, 0.9, None)],
+                  ])
 
 
-def get_svhn_policy(use_shape: bool = False, max_translate_abs: Optional[int] = None,
+def get_svhn_policy(use_shape: bool = False,
+                    max_translate_abs: Optional[int] = None,
                     max_translate_rel: Optional[float] = None) -> Policy:
     """
     Creates augmentation policy tuned with the SVHN as described
@@ -363,34 +377,35 @@ def get_svhn_policy(use_shape: bool = False, max_translate_abs: Optional[int] = 
     invert = a.invert
     equalize = a.equalize
     auto_contrast = a.auto_contrast
-    return Policy(
-        name="SvhnPolicy", num_magnitude_bins=11, sub_policies=[
-            [(shear_x, 0.9, 4), (invert, 0.2, None)],
-            [(shear_y, 0.9, 8), (invert, 0.7, None)],
-            [(equalize, 0.6, None), (solarize, 0.6, 6)],
-            [(invert, 0.9, None), (equalize, 0.6, None)],
-            [(equalize, 0.6, None), (rotate, 0.9, 3)],
-            [(shear_x, 0.9, 4), (auto_contrast, 0.8, None)],
-            [(shear_y, 0.9, 8), (invert, 0.4, None)],
-            [(shear_y, 0.9, 5), (solarize, 0.2, 6)],
-            [(invert, 0.9, None), (auto_contrast, 0.8, None)],
-            [(equalize, 0.6, None), (rotate, 0.9, 3)],
-            [(shear_x, 0.9, 4), (solarize, 0.3, 3)],
-            [(shear_y, 0.8, 8), (invert, 0.7, None)],
-            [(equalize, 0.9, None), (translate_y, 0.6, 6)],
-            [(invert, 0.9, None), (equalize, 0.6, None)],
-            [(contrast, 0.3, 3), (rotate, 0.8, 4)],
-            [(invert, 0.8, None)],
-            [(shear_y, 0.7, 6), (solarize, 0.4, 8)],
-            [(invert, 0.6, None), (rotate, 0.8, 4)],
-            [(shear_y, 0.3, 7), (translate_x, 0.9, 3)],
-            [(shear_x, 0.1, 6), (invert, 0.6, None)],
-            [(solarize, 0.7, 2), (translate_y, 0.6, 7)],
-            [(shear_y, 0.8, 4), (invert, 0.8, None)],
-            [(shear_x, 0.7, 9), (translate_y, 0.8, 3)],
-            [(shear_y, 0.8, 5), (auto_contrast, 0.7, None)],
-            [(shear_x, 0.7, 2), (invert, 0.1, None)],
-        ])
+    return Policy(name="SvhnPolicy",
+                  num_magnitude_bins=11,
+                  sub_policies=[
+                      [(shear_x, 0.9, 4), (invert, 0.2, None)],
+                      [(shear_y, 0.9, 8), (invert, 0.7, None)],
+                      [(equalize, 0.6, None), (solarize, 0.6, 6)],
+                      [(invert, 0.9, None), (equalize, 0.6, None)],
+                      [(equalize, 0.6, None), (rotate, 0.9, 3)],
+                      [(shear_x, 0.9, 4), (auto_contrast, 0.8, None)],
+                      [(shear_y, 0.9, 8), (invert, 0.4, None)],
+                      [(shear_y, 0.9, 5), (solarize, 0.2, 6)],
+                      [(invert, 0.9, None), (auto_contrast, 0.8, None)],
+                      [(equalize, 0.6, None), (rotate, 0.9, 3)],
+                      [(shear_x, 0.9, 4), (solarize, 0.3, 3)],
+                      [(shear_y, 0.8, 8), (invert, 0.7, None)],
+                      [(equalize, 0.9, None), (translate_y, 0.6, 6)],
+                      [(invert, 0.9, None), (equalize, 0.6, None)],
+                      [(contrast, 0.3, 3), (rotate, 0.8, 4)],
+                      [(invert, 0.8, None)],
+                      [(shear_y, 0.7, 6), (solarize, 0.4, 8)],
+                      [(invert, 0.6, None), (rotate, 0.8, 4)],
+                      [(shear_y, 0.3, 7), (translate_x, 0.9, 3)],
+                      [(shear_x, 0.1, 6), (invert, 0.6, None)],
+                      [(solarize, 0.7, 2), (translate_y, 0.6, 7)],
+                      [(shear_y, 0.8, 4), (invert, 0.8, None)],
+                      [(shear_x, 0.7, 9), (translate_y, 0.8, 3)],
+                      [(shear_y, 0.8, 5), (auto_contrast, 0.7, None)],
+                      [(shear_x, 0.7, 2), (invert, 0.1, None)],
+                  ])
 
 
 def get_reduced_image_net_policy() -> Policy:
@@ -410,33 +425,32 @@ def get_reduced_image_net_policy() -> Policy:
     invert = a.invert
     equalize = a.equalize
     auto_contrast = a.auto_contrast
-    return Policy(
-        name="ReducedImageNetPolicy",
-        num_magnitude_bins=11, sub_policies=[[(posterize, 0.4, 8), (rotate, 0.6, 9)],
-                                             [(solarize, 0.6, 5), (auto_contrast, 0.6, None)],
-                                             [(equalize, 0.8, None), (equalize, 0.6, None)],
-                                             [(posterize, 0.6, 7), (posterize, 0.6, 6)],
-                                             [(equalize, 0.4, None), (solarize, 0.2, 4)],
-                                             [(equalize, 0.4, None), (rotate, 0.8, 8)],
-                                             [(solarize, 0.6, 3), (equalize, 0.6, None)],
-                                             [(posterize, 0.8, 5), (equalize, 1.0, None)],
-                                             [(rotate, 0.2, 3), (solarize, 0.6, 8)],
-                                             [(equalize, 0.6, None), (posterize, 0.4, 6)],
-                                             [(rotate, 0.8, 8), (color, 0.4, 0)],
-                                             [(rotate, 0.4, 9), (equalize, 0.6, None)],
-                                             [(equalize, 0.8, None)],
-                                             [(invert, 0.6, None), (equalize, 1.0, None)],
-                                             [(color, 0.6, 4), (contrast, 1.0, 8)],
-                                             [(rotate, 0.8, 8), (color, 1.0, 2)],
-                                             [(color, 0.8, 8), (solarize, 0.8, 7)],
-                                             [(sharpness, 0.4, 7), (invert, 0.6, None)],
-                                             [(shear_x, 0.6, 5), (equalize, 1.0, None)],
-                                             [(color, 0.4, 0), (equalize, 0.6, None)],
-                                             [(equalize, 0.4, None), (solarize, 0.2, 4)],
-                                             [(solarize, 0.6, 5), (auto_contrast, 0.6, None)],
-                                             [(invert, 0.6, None), (equalize, 1.0, None)],
-                                             [(color, 0.6, 4), (contrast, 1.0, 8)],
-                                             [(equalize, 0.8, None), (equalize, 0.6, None)]])
+    return Policy(name="ReducedImageNetPolicy",
+                  num_magnitude_bins=11,
+                  sub_policies=[[(posterize, 0.4, 8), (rotate, 0.6, 9)],
+                                [(solarize, 0.6, 5), (auto_contrast, 0.6, None)],
+                                [(equalize, 0.8, None), (equalize, 0.6, None)],
+                                [(posterize, 0.6, 7), (posterize, 0.6, 6)],
+                                [(equalize, 0.4, None), (solarize, 0.2, 4)],
+                                [(equalize, 0.4, None), (rotate, 0.8, 8)],
+                                [(solarize, 0.6, 3), (equalize, 0.6, None)],
+                                [(posterize, 0.8, 5), (equalize, 1.0, None)],
+                                [(rotate, 0.2, 3), (solarize, 0.6, 8)],
+                                [(equalize, 0.6, None), (posterize, 0.4, 6)],
+                                [(rotate, 0.8, 8), (color, 0.4, 0)],
+                                [(rotate, 0.4, 9), (equalize, 0.6, None)], [(equalize, 0.8, None)],
+                                [(invert, 0.6, None), (equalize, 1.0, None)],
+                                [(color, 0.6, 4), (contrast, 1.0, 8)],
+                                [(rotate, 0.8, 8), (color, 1.0, 2)],
+                                [(color, 0.8, 8), (solarize, 0.8, 7)],
+                                [(sharpness, 0.4, 7), (invert, 0.6, None)],
+                                [(shear_x, 0.6, 5), (equalize, 1.0, None)],
+                                [(color, 0.4, 0), (equalize, 0.6, None)],
+                                [(equalize, 0.4, None), (solarize, 0.2, 4)],
+                                [(solarize, 0.6, 5), (auto_contrast, 0.6, None)],
+                                [(invert, 0.6, None), (equalize, 1.0, None)],
+                                [(color, 0.6, 4), (contrast, 1.0, 8)],
+                                [(equalize, 0.8, None), (equalize, 0.6, None)]])
 
 
 def _sub_policy_to_probability_map(policy: Policy) -> _DataNode:
@@ -491,8 +505,10 @@ def _sub_policy_to_augmentation_matrix_map(
     augment_to_id = [{augmentation: i
                       for i, augmentation in enumerate(stage_augments)}
                      for stage_augments in augmentations]
-    augments_by_id = np.array([[identity_id[stage_idx] for stage_idx in range(max_policy_len)]
-                               for _ in range(len(sub_policies))], dtype=np.int32)
+    augments_by_id = np.array([[identity_id[stage_idx]
+                                for stage_idx in range(max_policy_len)]
+                               for _ in range(len(sub_policies))],
+                              dtype=np.int32)
     for sub_policy_id, sub_policy in enumerate(sub_policies):
         for stage_idx, (augment, p, mag) in enumerate(sub_policy):
             augments_by_id[sub_policy_id, stage_idx] = augment_to_id[stage_idx][augment]

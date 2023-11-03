@@ -255,7 +255,8 @@ class _ConditionStack:
                             f" at {self.stack_depth() -1}:"
                             f" split({produced_data_node}, predicate={predicate}."))
             self._is_registration_allowed = False
-            true_node, false_node = fn._conditional.split(produced_data_node, predicate=predicate,
+            true_node, false_node = fn._conditional.split(produced_data_node,
+                                                          predicate=predicate,
                                                           _if_stmt=True)
             self._is_registration_allowed = True
 
@@ -546,7 +547,8 @@ class DaliOperatorOverload(_autograph.OperatorBase):
                                     f" at {this_condition_stack().stack_depth() -1}:"
                                     f" merge({new_body_val}, {new_orelse_val}, predicate="
                                     f"{split_predicate}."))
-                    return fn._conditional.merge(new_body_val, new_orelse_val,
+                    return fn._conditional.merge(new_body_val,
+                                                 new_orelse_val,
                                                  predicate=split_predicate)
 
                 output_values = tree.map_structure(merge_branches, body_outputs, orelse_outputs)
@@ -576,18 +578,21 @@ class DaliOperatorOverload(_autograph.OperatorBase):
         #   and_output = b()
         # else:
         #   and_output = a_val
-        a_validated = fn._conditional.validate_logical(a_value, expression_name="and",
+        a_validated = fn._conditional.validate_logical(a_value,
+                                                       expression_name="and",
                                                        expression_side="left")
         with _cond_manager(a_validated) as split_predicate:
             with _cond_true():
                 b_value = b()
-                b_validated = fn._conditional.validate_logical(b_value, expression_name="and",
+                b_validated = fn._conditional.validate_logical(b_value,
+                                                               expression_name="and",
                                                                expression_side="right")
                 body_outputs = apply_conditional_split(b_validated)
             with _cond_false():
                 else_outputs = apply_conditional_split(split_predicate)
             with _cond_merge(split_predicate):
-                merged = fn._conditional.merge(body_outputs, else_outputs,
+                merged = fn._conditional.merge(body_outputs,
+                                               else_outputs,
                                                predicate=split_predicate)
 
         this_condition_stack().register_data_nodes([merged], False)
@@ -602,18 +607,21 @@ class DaliOperatorOverload(_autograph.OperatorBase):
         #   or_output = a_val
         # else:
         #   or_output = b()
-        a_validated = fn._conditional.validate_logical(a_value, expression_name="or",
+        a_validated = fn._conditional.validate_logical(a_value,
+                                                       expression_name="or",
                                                        expression_side="left")
         with _cond_manager(a_validated) as split_predicate:
             with _cond_true():
                 body_outputs = apply_conditional_split(split_predicate)
             with _cond_false():
                 b_value = b()
-                b_validated = fn._conditional.validate_logical(b_value, expression_name="or",
+                b_validated = fn._conditional.validate_logical(b_value,
+                                                               expression_name="or",
                                                                expression_side="right")
                 else_outputs = apply_conditional_split(b_validated)
             with _cond_merge(split_predicate):
-                merged = fn._conditional.merge(body_outputs, else_outputs,
+                merged = fn._conditional.merge(body_outputs,
+                                               else_outputs,
                                                predicate=split_predicate)
 
         this_condition_stack().register_data_nodes([merged], False)
@@ -622,5 +630,6 @@ class DaliOperatorOverload(_autograph.OperatorBase):
 
 _OVERLOADS = DaliOperatorOverload()
 
-_autograph.initialize_autograph(_OVERLOADS, convert_modules=["nvidia.dali.auto_aug"],
+_autograph.initialize_autograph(_OVERLOADS,
+                                convert_modules=["nvidia.dali.auto_aug"],
                                 do_not_convert_modules=["nvidia.dali._autograph", "nvidia.dali"])

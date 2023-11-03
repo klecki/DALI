@@ -97,12 +97,17 @@ def trivial_augment_wide(
                 f"does not contain augmentation with this name. "
                 f"The augmentations in the suite are: {', '.join(augmentation_names)}.")
     selected_augments = [aug for aug in augmentations if aug.name not in excluded]
-    return apply_trivial_augment(selected_augments, data, num_magnitude_bins=num_magnitude_bins,
-                                 seed=seed, **aug_kwargs)
+    return apply_trivial_augment(selected_augments,
+                                 data,
+                                 num_magnitude_bins=num_magnitude_bins,
+                                 seed=seed,
+                                 **aug_kwargs)
 
 
-def apply_trivial_augment(augmentations: List[_Augmentation], data: _DataNode,
-                          num_magnitude_bins: int = 31, seed: Optional[int] = None,
+def apply_trivial_augment(augmentations: List[_Augmentation],
+                          data: _DataNode,
+                          num_magnitude_bins: int = 31,
+                          seed: Optional[int] = None,
                           **kwargs) -> _DataNode:
     """
     Applies the list of `augmentations` in TrivialAugment
@@ -139,21 +144,28 @@ def apply_trivial_augment(augmentations: List[_Augmentation], data: _DataNode,
     if len(augmentations) == 0:
         raise Exception("The `augmentations` list cannot be empty. "
                         "Got empty list in `apply_trivial_augment` call.")
-    magnitude_bin = fn.random.uniform(values=list(range(num_magnitude_bins)), dtype=types.INT32,
+    magnitude_bin = fn.random.uniform(values=list(range(num_magnitude_bins)),
+                                      dtype=types.INT32,
                                       seed=seed)
     use_signed_magnitudes = any(aug.randomly_negate for aug in augmentations)
     if use_signed_magnitudes:
         magnitude_bin = signed_bin(magnitude_bin, seed=seed)
     _forbid_unused_kwargs(augmentations, kwargs, 'apply_trivial_augment')
-    op_kwargs = dict(data=data, magnitude_bin=magnitude_bin, num_magnitude_bins=num_magnitude_bins,
+    op_kwargs = dict(data=data,
+                     magnitude_bin=magnitude_bin,
+                     num_magnitude_bins=num_magnitude_bins,
                      **kwargs)
     op_idx = fn.random.uniform(values=list(range(len(augmentations))), seed=seed, dtype=types.INT32)
-    return _pretty_select(augmentations, op_idx, op_kwargs, auto_aug_name='apply_trivial_augment',
+    return _pretty_select(augmentations,
+                          op_idx,
+                          op_kwargs,
+                          auto_aug_name='apply_trivial_augment',
                           ref_suite_name='get_trivial_augment_wide_suite')
 
 
 def get_trivial_augment_wide_suite(
-        use_shape: bool = False, max_translate_abs: Optional[int] = None,
+        use_shape: bool = False,
+        max_translate_abs: Optional[int] = None,
         max_translate_rel: Optional[float] = None) -> List[_Augmentation]:
     """
     Creates a list of 14 augmentations referred as wide augmentation space in TrivialAugment paper

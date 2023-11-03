@@ -1,4 +1,4 @@
-# Copyright (c) 2017-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2017-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,15 +24,15 @@ import ctypes
 import numpy as np
 
 to_torch_type = {
-    types.DALIDataType.FLOAT:   torch.float32,
+    types.DALIDataType.FLOAT: torch.float32,
     types.DALIDataType.FLOAT64: torch.float64,
     types.DALIDataType.FLOAT16: torch.float16,
-    types.DALIDataType.UINT8:   torch.uint8,
-    types.DALIDataType.INT8:    torch.int8,
-    types.DALIDataType.BOOL:    torch.bool,
-    types.DALIDataType.INT16:   torch.int16,
-    types.DALIDataType.INT32:   torch.int32,
-    types.DALIDataType.INT64:   torch.int64
+    types.DALIDataType.UINT8: torch.uint8,
+    types.DALIDataType.INT8: torch.int8,
+    types.DALIDataType.BOOL: torch.bool,
+    types.DALIDataType.INT16: torch.int16,
+    types.DALIDataType.INT32: torch.int32,
+    types.DALIDataType.INT64: torch.int64
 }
 
 
@@ -274,7 +274,7 @@ class DALIGenericIterator(_DaliBaseIterator):
 
         else:
             if self._last_batch_policy == LastBatchPolicy.PARTIAL and (
-                                          self._counter > self._size) and self._size > 0:
+                    self._counter > self._size) and self._size > 0:
                 # First calculate how much data is required to return exactly self._size entries.
                 diff = self._num_gpus * self.batch_size - (self._counter - self._size)
                 # Figure out how many GPUs to grab from.
@@ -531,8 +531,7 @@ class DALIRaggedIterator(_DaliBaseIterator):
 
         # check the assert first as _DaliBaseIterator would run the prefetch
         self._output_tags = {
-            DALIRaggedIterator.DENSE_TAG,
-            DALIRaggedIterator.SPARSE_LIST_TAG,
+            DALIRaggedIterator.DENSE_TAG, DALIRaggedIterator.SPARSE_LIST_TAG,
             DALIRaggedIterator.SPARSE_COO_TAG
         }
 
@@ -543,16 +542,9 @@ class DALIRaggedIterator(_DaliBaseIterator):
         self.output_map = output_map
         self._outputs_types = output_types
 
-        super(DALIRaggedIterator, self).__init__(
-            pipelines,
-            size,
-            reader_name,
-            auto_reset,
-            fill_last_batch,
-            last_batch_padded,
-            last_batch_policy,
-            prepare_first_batch
-        )
+        super(DALIRaggedIterator,
+              self).__init__(pipelines, size, reader_name, auto_reset, fill_last_batch,
+                             last_batch_padded, last_batch_policy, prepare_first_batch)
 
         self._first_batch = None
         if self._prepare_first_batch:
@@ -622,10 +614,10 @@ class DALIRaggedIterator(_DaliBaseIterator):
                                                         device=category_device[category])
                 else:
                     pyt_tensors[category] = [
-                       torch.empty(shape,
-                                   dtype=category_torch_type[category],
-                                   device=category_device[category])
-                       for shape in category_shapes[category]
+                        torch.empty(shape,
+                                    dtype=category_torch_type[category],
+                                    device=category_device[category])
+                        for shape in category_shapes[category]
                     ]
 
             data_batches[i] = pyt_tensors
@@ -645,21 +637,19 @@ class DALIRaggedIterator(_DaliBaseIterator):
                         if isinstance(tensor, (TensorGPU, TensorListGPU)):
                             # Using same cuda_stream used by torch.zeros to set the memory
                             stream = torch.cuda.current_stream(
-                                device=pyt_tensors[category][k].device
-                            )
-                            feed_ndarray(
-                                single_tensor, pyt_tensors[category][k], cuda_stream=stream
-                            )
+                                device=pyt_tensors[category][k].device)
+                            feed_ndarray(single_tensor,
+                                         pyt_tensors[category][k],
+                                         cuda_stream=stream)
                         else:
                             feed_ndarray(single_tensor, pyt_tensors[category][k])
 
                     if self._outputs_types[j] == DALIRaggedIterator.SPARSE_COO_TAG:
                         values = torch.hstack(pyt_tensors[category])
 
-                        indices = [
-                            [(i, j) for j in range(shape[0])]
-                            for i, shape in enumerate(category_shapes[category])
-                        ]
+                        indices = [[(i, j)
+                                    for j in range(shape[0])]
+                                   for i, shape in enumerate(category_shapes[category])]
                         indices = [indice for el_indices in indices for indice in el_indices]
                         indices = torch.LongTensor(indices, device=values.device)
 
@@ -682,7 +672,7 @@ class DALIRaggedIterator(_DaliBaseIterator):
 
         else:
             if self._last_batch_policy == LastBatchPolicy.PARTIAL and (
-                                          self._counter > self._size) and self._size > 0:
+                    self._counter > self._size) and self._size > 0:
                 # First calculate how much data is required to return exactly self._size entries.
                 diff = self._num_gpus * self.batch_size - (self._counter - self._size)
                 # Figure out how many GPUs to grab from.
@@ -725,17 +715,13 @@ class TorchPythonFunction(ops.PythonFunctionBase):
         func = function if device == 'cpu' else \
                lambda *ins: self._torch_stream_wrapper(function, *ins)
         if batch_processing:
-            return ops.PythonFunction.function_wrapper_batch(func,
-                                                             self.num_outputs,
+            return ops.PythonFunction.function_wrapper_batch(func, self.num_outputs,
                                                              torch.utils.dlpack.from_dlpack,
-                                                             torch.utils.dlpack.to_dlpack,
-                                                             *args)
+                                                             torch.utils.dlpack.to_dlpack, *args)
         else:
-            return ops.PythonFunction.function_wrapper_per_sample(func,
-                                                                  self.num_outputs,
+            return ops.PythonFunction.function_wrapper_per_sample(func, self.num_outputs,
                                                                   torch_dlpack.from_dlpack,
-                                                                  torch_dlpack.to_dlpack,
-                                                                  *args)
+                                                                  torch_dlpack.to_dlpack, *args)
 
     def __call__(self, *inputs, **kwargs):
         pipeline = Pipeline.current()
@@ -747,13 +733,13 @@ class TorchPythonFunction(ops.PythonFunctionBase):
 
     def __init__(self, function, num_outputs=1, device='cpu', batch_processing=False, **kwargs):
         self.stream = None
-        super(TorchPythonFunction, self).__init__(impl_name="DLTensorPythonFunctionImpl",
-                                                  function=lambda *ins:
-                                                  self.torch_wrapper(batch_processing,
-                                                                     function, device,
-                                                                     *ins),
-                                                  num_outputs=num_outputs, device=device,
-                                                  batch_processing=batch_processing, **kwargs)
+        super(TorchPythonFunction, self).__init__(
+            impl_name="DLTensorPythonFunctionImpl",
+            function=lambda *ins: self.torch_wrapper(batch_processing, function, device, *ins),
+            num_outputs=num_outputs,
+            device=device,
+            batch_processing=batch_processing,
+            **kwargs)
 
 
 ops._wrap_op(TorchPythonFunction, "fn", __name__)

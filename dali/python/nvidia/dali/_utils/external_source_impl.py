@@ -1,4 +1,4 @@
-# Copyright (c) 2021-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2021-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -63,7 +63,6 @@ class SourceDescription:
 _tf_sample_error_msg = (
     "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
     "DALI TensorCPU representing sample. Got `{}` instead.")
-
 
 _tf_batch_error_msg = (
     "Unsupported callback return type. Expected NumPy array, PyTorch or MXNet cpu tensors, "
@@ -152,6 +151,7 @@ def batch_to_numpy(
 
 
 class _CycleIter:
+
     def __init__(self, iterable, mode):
         self.source = iterable
         self.signaling = (mode == "raise")
@@ -172,6 +172,7 @@ class _CycleIter:
 
 
 class _CycleGenFunc():
+
     def __init__(self, gen_func, mode):
         self.source = gen_func
         self.signaling = (mode == "raise")
@@ -343,7 +344,8 @@ def get_batch_iterable_from_callback(source_desc: SourceDescription):
                     argument = self.iteration
                 result = self.source(argument)
             self.iteration += 1
-            return batch_to_numpy(result, _tf_batch_error_msg,
+            return batch_to_numpy(result,
+                                  _tf_batch_error_msg,
                                   non_uniform_str=_tf_uniform_error_msg)
 
     return CallableBatchIterator, dtype, shape
@@ -412,7 +414,8 @@ def get_iterable_from_callback(source_desc: SourceDescription, is_batched):
             else:
                 result = self.source()
             if is_batched:
-                return batch_to_numpy(result, _tf_batch_error_msg,
+                return batch_to_numpy(result,
+                                      _tf_batch_error_msg,
                                       non_uniform_str=_tf_uniform_error_msg)
             else:
                 return sample_to_numpy(result, _tf_sample_error_msg)
@@ -457,7 +460,8 @@ def get_iterable_from_iterable_or_generator(source_desc: SourceDescription, is_b
             else:
                 result = next(self.it)
             if is_batched:
-                return batch_to_numpy(result, _tf_batch_error_msg,
+                return batch_to_numpy(result,
+                                      _tf_batch_error_msg,
                                       non_uniform_str=_tf_uniform_error_msg)
             else:
                 return sample_to_numpy(result, _tf_sample_error_msg)

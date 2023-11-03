@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# Copyright (c) 2020-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,8 +28,6 @@ from nvidia.dali._multiproc.messages import ScheduledTask, TaskArgs, WorkerArgs
 from nvidia.dali._multiproc.shared_batch import deserialize_batch, import_numpy, read_shm_message, \
     BufShmChunk, SharedBatchWriter, write_shm_message, _align_up as align_up
 from nvidia.dali._multiproc.shared_queue import ShmQueue
-
-
 """
 A pipline with parallel external sources creates `WorkerPool` to parallelize sources computation.
 Each external source in the pipline has its own `ShmChunkManager` with a view on shm chunks
@@ -61,15 +59,14 @@ process about completed tasks being ready for consumption by the main process.
 
 
 class ShmChunkManager:
-
     """Two dimensional buffer of shared memory chunks (queue_depth X num_minibatches),
        chunks can be accessed either by providing two coordinates or via shm chunk's unique id.
        Each ExternalSource callback gets its own buffer, first dimension is cycled
        over when scheduling and receiving consecutive batches, second dimension is
        used to separate minibatches."""
 
-    def __init__(self, shm_pool: List[BufShmChunk], queue_depth,
-                 initial_chunk_capacity, num_minibatches):
+    def __init__(self, shm_pool: List[BufShmChunk], queue_depth, initial_chunk_capacity,
+                 num_minibatches):
         if queue_depth < 1:
             raise RuntimeError("Prefetch queue must have at least one element")
         if initial_chunk_capacity < 1:
@@ -81,11 +78,11 @@ class ShmChunkManager:
         self.num_minibatches = num_minibatches
         self.chunks_ids_by_pos = []
         for _ in range(self.queue_depth):
-            self.chunks_ids_by_pos.append(
-                [self.allocate_chunk(self.initial_chunk_capacity)
-                 for _ in range(self.num_minibatches)])
-        self.chunks_ids = [chunk_id for dest_buf in self.chunks_ids_by_pos
-                           for chunk_id in dest_buf]
+            self.chunks_ids_by_pos.append([
+                self.allocate_chunk(self.initial_chunk_capacity)
+                for _ in range(self.num_minibatches)
+            ])
+        self.chunks_ids = [chunk_id for dest_buf in self.chunks_ids_by_pos for chunk_id in dest_buf]
 
     def allocate_chunk(self, capacity):
         chunk_id = len(self.shm_pool)
@@ -117,8 +114,7 @@ class CallbackContext:
     Contains source description, dedicated ShmChunkManager instance and
     information about dedicated worker id if applicable."""
 
-    def __init__(self, source_desc: SourceDescription,
-                 shm_manager: ShmChunkManager,
+    def __init__(self, source_desc: SourceDescription, shm_manager: ShmChunkManager,
                  dedicated_worker_id: Optional[int]):
         self.source_desc = source_desc
         self.shm_manager = shm_manager
@@ -172,8 +168,8 @@ class CallbackContext:
                 else:
                     # Raise new exception propagating the traceback from worker thread as error
                     # message, originating from original exception
-                    raise Exception("\n\nException traceback received from worker thread:\n\n"
-                                    + traceback_str) from exception
+                    raise Exception("\n\nException traceback received from worker thread:\n\n" +
+                                    traceback_str) from exception
             finally:
                 # Fix circular reference problem on StopIteration - the exception contains
                 # reference to the traceback that refers a frame that contains local variables
@@ -219,8 +215,9 @@ class CallbackContext:
         minibatches = self.partially_received[scheduled_i]
         if num_minibatches == 1:
             return minibatches[0]
-        return [sample for minibatch_i in range(num_minibatches)
-                for sample in minibatches[minibatch_i]]
+        return [
+            sample for minibatch_i in range(num_minibatches) for sample in minibatches[minibatch_i]
+        ]
 
     def take_processed(self, scheduled_i):
         """Return the full batch, mark it as cleared and consumed"""
@@ -250,17 +247,15 @@ class CallbackContext:
 
 class WorkerContext:
 
-    def __init__(self,
-                 source_descs: SourceDescription,
-                 dedicated_task_queue: Optional[ShmQueue],
+    def __init__(self, source_descs: SourceDescription, dedicated_task_queue: Optional[ShmQueue],
                  shm_chunks: List[BufShmChunk]):
         self.source_descs = source_descs
         self.dedicated_task_queue = dedicated_task_queue
         self.shm_chunks = shm_chunks
 
 
-def create_worker_contexts(mp, callback_contexts: List[CallbackContext],
-                           num_workers, callback_pickler) -> List[WorkerContext]:
+def create_worker_contexts(mp, callback_contexts: List[CallbackContext], num_workers,
+                           callback_pickler) -> List[WorkerContext]:
     """
     Prepares list of `WorkerContext` instances.
     Each instance describes parameters specific to a given worker process (as opposed to
@@ -277,23 +272,29 @@ def create_worker_contexts(mp, callback_contexts: List[CallbackContext],
             source_desc.source = callback_pickler.dumps(source_desc.source)
     general_cb_contexts = [
         i for i, cb_context in enumerate(callback_contexts)
-        if cb_context.dedicated_worker_id is None]
+        if cb_context.dedicated_worker_id is None
+    ]
     worker_contexts = []
     for worker_id in range(num_workers):
-        dedicated_cb_contexts = [i for i, cb_context in enumerate(callback_contexts)
-                                 if cb_context.dedicated_worker_id == worker_id]
+        dedicated_cb_contexts = [
+            i for i, cb_context in enumerate(callback_contexts)
+            if cb_context.dedicated_worker_id == worker_id
+        ]
         worker_cb_contexts = general_cb_contexts + dedicated_cb_contexts
         worker_sources = {i: source_descs[i] for i in worker_cb_contexts}
-        worker_shm_chunks = [shm_chunk for i in worker_cb_contexts
-                             for shm_chunk in callback_contexts[i].shm_manager.get_chunks()]
+        worker_shm_chunks = [
+            shm_chunk for i in worker_cb_contexts
+            for shm_chunk in callback_contexts[i].shm_manager.get_chunks()
+        ]
         if not dedicated_cb_contexts:
             dedicated_task_queue = None
         else:
             # Each scheduled task has a shm chunk assigned for results, the number of
             # scheduled tasks won't exceed the number of chunks available for results
-            dedicated_task_queue = ShmQueue(mp, capacity=sum(
-                callback_contexts[i].shm_manager.num_chunks
-                for i in dedicated_cb_contexts))
+            dedicated_task_queue = ShmQueue(
+                mp,
+                capacity=sum(
+                    callback_contexts[i].shm_manager.num_chunks for i in dedicated_cb_contexts))
         worker_context = WorkerContext(worker_sources, dedicated_task_queue, worker_shm_chunks)
         worker_contexts.append(worker_context)
     return worker_contexts
@@ -304,12 +305,8 @@ class ProcPool:
      the workers, starts thread keeping track of running processes and initializes communication.
     """
 
-    def __init__(self,
-                 mp,
-                 workers_contexts: List[WorkerContext],
-                 result_queue: ShmQueue,
-                 general_task_queue: Optional[ShmQueue],
-                 callback_pickler):
+    def __init__(self, mp, workers_contexts: List[WorkerContext], result_queue: ShmQueue,
+                 general_task_queue: Optional[ShmQueue], callback_pickler):
         start_method = mp.get_start_method()
         if not workers_contexts:
             raise RuntimeError("Cannot start a pool with no workers")
@@ -345,9 +342,9 @@ class ProcPool:
                     shm_chunks=worker_context.shm_chunks,
                     general_task_queue=general_task_queue,
                     dedicated_task_queue=worker_context.dedicated_task_queue,
-                    result_queue=result_queue, setup_socket=read_socket,
-                    callback_pickler=callback_pickler
-                )
+                    result_queue=result_queue,
+                    setup_socket=read_socket,
+                    callback_pickler=callback_pickler)
                 process = mp.Process(target=worker, args=(process_context,))
                 self._processes.append(process)
             self._start_processes(mp, start_method, write_sockets)
@@ -357,21 +354,24 @@ class ProcPool:
                 sock.close()
 
     @classmethod
-    def from_contexts(cls, contexts: List[CallbackContext], num_workers,
-                      start_method="fork", py_callback_pickler=None):
+    def from_contexts(cls,
+                      contexts: List[CallbackContext],
+                      num_workers,
+                      start_method="fork",
+                      py_callback_pickler=None):
         mp = multiprocessing.get_context(start_method)
         # checks if there are any sources without dedicated worker id, if so,
         # the `general_task_queue` instance is needed to distribute tasks among all the workers
         general_sources_buffs = [
-            context.shm_manager for context in contexts
-            if context.dedicated_worker_id is None]
+            context.shm_manager for context in contexts if context.dedicated_worker_id is None
+        ]
         if not general_sources_buffs:
             general_task_queue = None
         else:
             # Each scheduled task has a shm chunk assigned for results, the number of
             # scheduled tasks won't exceed the number of chunks available for results
-            general_task_queue = ShmQueue(mp, capacity=sum(
-                shm_manager.num_chunks for shm_manager in general_sources_buffs))
+            general_task_queue = ShmQueue(
+                mp, capacity=sum(shm_manager.num_chunks for shm_manager in general_sources_buffs))
         # Each computed minibatch makes for one message in the results queue, the number of
         # messages won't exceed the number of shm chunks available to store the minibatches
         # in all the `ShmChunkManager` instances.
@@ -420,8 +420,9 @@ class ProcPool:
     def send(self, tasks: List[Tuple[BufShmChunk, Any]], dedicated_worker_id):
         if self._observer is None:
             raise RuntimeError("Cannot send tasks to the pool that has been closed")
-        shm_msg_descs = [write_shm_message(-1, shm_chunk, msg, 0, resize=False)
-                         for shm_chunk, msg in tasks]
+        shm_msg_descs = [
+            write_shm_message(-1, shm_chunk, msg, 0, resize=False) for shm_chunk, msg in tasks
+        ]
         if dedicated_worker_id is None:
             if self._general_task_queue.put(shm_msg_descs) is None:
                 raise RuntimeError("Sending tasks to workers failed")
@@ -467,7 +468,8 @@ class ProcPool:
             task_queues = [
                 worker_context.dedicated_task_queue
                 for worker_context in self._workers_contexts
-                if worker_context.dedicated_task_queue is not None]
+                if worker_context.dedicated_task_queue is not None
+            ]
             if self._general_task_queue is not None:
                 task_queues.append(self._general_task_queue)
             self._observer = Observer(mp, self._processes, task_queues, self._result_queue)
@@ -559,8 +561,11 @@ class Observer:
             self.thread = None
 
 
-def create_shm_chunk_manager_for_group(group, shm_pool, keep_alive_queue_size,
-                                       min_initial_chunk_size, num_workers,
+def create_shm_chunk_manager_for_group(group,
+                                       shm_pool,
+                                       keep_alive_queue_size,
+                                       min_initial_chunk_size,
+                                       num_workers,
                                        batch_size=None):
     num_mini_batches = 1 if group.batch else num_workers
     if group.bytes_per_sample_hint is None or batch_size is None:
@@ -569,11 +574,8 @@ def create_shm_chunk_manager_for_group(group, shm_pool, keep_alive_queue_size,
         num_samples_per_mini_batch = (batch_size + num_mini_batches - 1) // num_mini_batches
         initial_chunk_size = num_samples_per_mini_batch * group.bytes_per_sample_hint
         initial_chunk_size = max(min_initial_chunk_size, initial_chunk_size)
-    return ShmChunkManager(
-        shm_pool,
-        keep_alive_queue_size + group.prefetch_queue_depth,
-        initial_chunk_size,
-        num_mini_batches)
+    return ShmChunkManager(shm_pool, keep_alive_queue_size + group.prefetch_queue_depth,
+                           initial_chunk_size, num_mini_batches)
 
 
 class WorkerPool:
@@ -596,14 +598,19 @@ class WorkerPool:
         # exactly one context.
         # Thanks to that callback context can be identified by the id of shm chunk.
         self.shm_chunks_contexts = {
-             chunk_id: context
-             for context in self.contexts
-             for chunk_id in context.shm_manager.chunks_ids}
+            chunk_id: context for context in self.contexts
+            for chunk_id in context.shm_manager.chunks_ids
+        }
 
     @classmethod
-    def from_groups(
-            cls, groups, keep_alive_queue_size, batch_size=None, start_method="fork",
-            num_workers=1, min_initial_chunk_size=1024 * 1024, py_callback_pickler=None):
+    def from_groups(cls,
+                    groups,
+                    keep_alive_queue_size,
+                    batch_size=None,
+                    start_method="fork",
+                    num_workers=1,
+                    min_initial_chunk_size=1024 * 1024,
+                    py_callback_pickler=None):
         """Creates new WorkerPool instance for given list of ExternalSource groups.
 
         Parameters
@@ -634,7 +641,7 @@ class WorkerPool:
             raise RuntimeError("Number of Python workers for parallel"
                                " ExternalSource must be positive")
         if any(group.source_desc.kind != SourceKind.CALLABLE and not group.batch
-                for group in groups):
+               for group in groups):
             raise RuntimeError("Parallel external source with iterator"
                                " or generator must run in batch mode")
         # iterators and generators are stateful and run always in the same dedicated worker
@@ -643,11 +650,11 @@ class WorkerPool:
         if num_cbs_general == 0:
             if num_workers > num_cbs_dedicated:
                 warn_args = (num_cbs_dedicated, "s" if num_cbs_dedicated > 1 else "", num_workers)
-                warnings.warn("There will be run only {} python worker{}, even though {} were"
-                              " specified to run. This may happen when all your ExternalSource"
-                              " callbacks are stateful (for instance they are iterators) and there"
-                              " is less of them than ```py_num_workers```".format(*warn_args),
-                              Warning)
+                warnings.warn(
+                    "There will be run only {} python worker{}, even though {} were"
+                    " specified to run. This may happen when all your ExternalSource"
+                    " callbacks are stateful (for instance they are iterators) and there"
+                    " is less of them than ```py_num_workers```".format(*warn_args), Warning)
                 num_workers = num_cbs_dedicated
         source_descs = [group.source_desc for group in groups]
         dedicated_workers = cls.assign_dedicated_workers(groups, num_workers)
@@ -655,14 +662,14 @@ class WorkerPool:
         # of all sources in the pipeline
         shm_pool = []
         shm_managers = [
-            create_shm_chunk_manager_for_group(
-                group, shm_pool, keep_alive_queue_size,
-                min_initial_chunk_size, num_workers, batch_size)
-            for group in groups]
+            create_shm_chunk_manager_for_group(group, shm_pool, keep_alive_queue_size,
+                                               min_initial_chunk_size, num_workers, batch_size)
+            for group in groups
+        ]
         contexts = [
-            CallbackContext(source_desc, shm_manager, dedicated_worker_id)
-            for source_desc, shm_manager, dedicated_worker_id
-            in zip(source_descs, shm_managers, dedicated_workers)]
+            CallbackContext(source_desc, shm_manager, dedicated_worker_id) for source_desc,
+            shm_manager, dedicated_worker_id in zip(source_descs, shm_managers, dedicated_workers)
+        ]
         pool = None
         try:
             pool = ProcPool.from_contexts(contexts, num_workers, start_method, py_callback_pickler)
@@ -678,14 +685,18 @@ class WorkerPool:
 
     @classmethod
     def assign_dedicated_workers(cls, groups, num_workers):
+
         def get_next_dedicated_worker():
             next_dedicated_worker = num_workers - 1
             while True:
                 next_dedicated_worker = (next_dedicated_worker + 1) % num_workers
                 yield next_dedicated_worker
+
         next_dedicated_worker = get_next_dedicated_worker()
-        return [next(next_dedicated_worker) if cls.is_iterable_group(group) else None
-                for group in groups]
+        return [
+            next(next_dedicated_worker) if cls.is_iterable_group(group) else None
+            for group in groups
+        ]
 
     @classmethod
     def is_iterable_group(cls, group):
@@ -740,11 +751,9 @@ class WorkerPool:
 
     def _distribute(self, context_i, scheduled_i, dst_chunk_i, minibatches):
         context = self.contexts[context_i]
-        scheduled_tasks = [(
-            context.shm_manager.get_chunk_by_dest(dst_chunk_i, minibatch_i),
-            ScheduledTask(context_i, scheduled_i, context.epoch_start, task))
-            for minibatch_i, task in enumerate(minibatches)
-        ]
+        scheduled_tasks = [(context.shm_manager.get_chunk_by_dest(dst_chunk_i, minibatch_i),
+                            ScheduledTask(context_i, scheduled_i, context.epoch_start, task))
+                           for minibatch_i, task in enumerate(minibatches)]
         dedicated_worker_id = context.dedicated_worker_id
         self.pool.send(scheduled_tasks, dedicated_worker_id)
 

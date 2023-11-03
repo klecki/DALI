@@ -52,14 +52,20 @@ def warp_y_param(magnitude):
 @augmentation(mag_range=(0, 0.3), randomly_negate=True, mag_to_param=warp_x_param)
 def shear_x(data, shear, fill_value=128, interp_type=None):
     mt = fn.transforms.shear(shear=shear)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
+    return fn.warp_affine(data,
+                          matrix=mt,
+                          fill_value=fill_value,
+                          interp_type=interp_type,
                           inverse_map=False)
 
 
 @augmentation(mag_range=(0, 0.3), randomly_negate=True, mag_to_param=warp_y_param)
 def shear_y(data, shear, fill_value=128, interp_type=None):
     mt = fn.transforms.shear(shear=shear)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
+    return fn.warp_affine(data,
+                          matrix=mt,
+                          fill_value=fill_value,
+                          interp_type=interp_type,
                           inverse_map=False)
 
 
@@ -67,15 +73,23 @@ def shear_y(data, shear, fill_value=128, interp_type=None):
 def translate_x(data, rel_offset, shape, fill_value=128, interp_type=None):
     offset = rel_offset * shape[1]
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
+    return fn.warp_affine(data,
+                          matrix=mt,
+                          fill_value=fill_value,
+                          interp_type=interp_type,
                           inverse_map=False)
 
 
-@augmentation(mag_range=(0, 250), randomly_negate=True, mag_to_param=warp_x_param,
+@augmentation(mag_range=(0, 250),
+              randomly_negate=True,
+              mag_to_param=warp_x_param,
               name="translate_x")
 def translate_x_no_shape(data, offset, fill_value=128, interp_type=None):
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
+    return fn.warp_affine(data,
+                          matrix=mt,
+                          fill_value=fill_value,
+                          interp_type=interp_type,
                           inverse_map=False)
 
 
@@ -83,21 +97,32 @@ def translate_x_no_shape(data, offset, fill_value=128, interp_type=None):
 def translate_y(data, rel_offset, shape, fill_value=128, interp_type=None):
     offset = rel_offset * shape[0]
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
+    return fn.warp_affine(data,
+                          matrix=mt,
+                          fill_value=fill_value,
+                          interp_type=interp_type,
                           inverse_map=False)
 
 
-@augmentation(mag_range=(0, 250), randomly_negate=True, mag_to_param=warp_y_param,
+@augmentation(mag_range=(0, 250),
+              randomly_negate=True,
+              mag_to_param=warp_y_param,
               name="translate_y")
 def translate_y_no_shape(data, offset, fill_value=128, interp_type=None):
     mt = fn.transforms.translation(offset=offset)
-    return fn.warp_affine(data, matrix=mt, fill_value=fill_value, interp_type=interp_type,
+    return fn.warp_affine(data,
+                          matrix=mt,
+                          fill_value=fill_value,
+                          interp_type=interp_type,
                           inverse_map=False)
 
 
 @augmentation(mag_range=(0, 30), randomly_negate=True)
 def rotate(data, angle, fill_value=128, interp_type=None, rotate_keep_size=True):
-    return fn.rotate(data, angle=angle, fill_value=fill_value, interp_type=interp_type,
+    return fn.rotate(data,
+                     angle=angle,
+                     fill_value=fill_value,
+                     interp_type=interp_type,
                      keep_size=rotate_keep_size)
 
 
@@ -147,7 +172,9 @@ def sharpness_kernel_shifted(magnitude):
     return sharpness_kernel(magnitude - 1)
 
 
-@augmentation(mag_range=(0, 0.9), randomly_negate=True, mag_to_param=sharpness_kernel,
+@augmentation(mag_range=(0, 0.9),
+              randomly_negate=True,
+              mag_to_param=sharpness_kernel,
               param_device="auto")
 def sharpness(data, kernel):
     """

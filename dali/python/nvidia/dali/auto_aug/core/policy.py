@@ -94,11 +94,12 @@ class Policy:
 
     def __repr__(self):
         sub_policies_repr = ",\n\t".join(
-            repr([(augment.name, p, mag) for augment, p, mag in sub_policy])
+            repr([(augment.name, p, mag)
+                  for augment, p, mag in sub_policy])
             for sub_policy in self.sub_policies)
         sub_policies_repr_sep = "" if not sub_policies_repr else "\n\t"
-        augmentations_repr = ",\n\t".join(f"'{name}': {repr(augment)}"
-                                          for name, augment in self.augmentations.items())
+        augmentations_repr = ",\n\t".join(
+            f"'{name}': {repr(augment)}" for name, augment in self.augmentations.items())
         augmentations_repr_sep = "" if not augmentations_repr else "\n\t"
         return (
             f"Policy(name={repr(self.name)}, num_magnitude_bins={repr(self.num_magnitude_bins)}, "
@@ -128,5 +129,6 @@ def _sub_policy_with_unique_names(
                 name=f"{str(i).zfill(num_digits)}__{augment.name}")
             i += 1
     return tuple(
-        tuple((remap_aug[aug], p, mag) for aug, p, mag in sub_policy)
+        tuple((remap_aug[aug], p, mag)
+              for aug, p, mag in sub_policy)
         for sub_policy in sub_policies)

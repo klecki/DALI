@@ -26,7 +26,8 @@ def _iterator_deprecation_warning():
                   "whenever possible. This may lead, in some situations, to missing some " +
                   "samples or returning duplicated ones. Check the Sharding section of the "
                   "documentation for more details.",
-                  Warning, stacklevel=2)
+                  Warning,
+                  stacklevel=2)
 
 
 @unique
@@ -165,7 +166,9 @@ class _DaliBaseIterator(object):
 
         if fill_last_batch is not None:
             warnings.warn("Please do not use `fill_last_batch` and use `last_batch_policy` \
-                           instead.", Warning, stacklevel=2)
+                           instead.",
+                          Warning,
+                          stacklevel=2)
             if fill_last_batch:
                 self._last_batch_policy = LastBatchPolicy.FILL
             else:
@@ -234,8 +237,7 @@ class _DaliBaseIterator(object):
 
             def err_msg_gen(err_msg):
                 return 'Reader Operator should have the same {} in all the pipelines.'.format(
-                    err_msg
-                )
+                    err_msg)
 
             def check_equality_and_get(input_meta, name, err_msg):
                 assert np.all(np.equal([meta[name] for meta in input_meta], input_meta[0][name])), \
@@ -248,10 +250,8 @@ class _DaliBaseIterator(object):
                        err_msg_gen(err_msg)
                 return input_meta[0][name]
 
-            self._size_no_pad = check_equality_and_get(readers_meta,
-                                                       "epoch_size", "size value")
-            self._shards_num = check_equality_and_get(readers_meta,
-                                                      "number_of_shards",
+            self._size_no_pad = check_equality_and_get(readers_meta, "epoch_size", "size value")
+            self._shards_num = check_equality_and_get(readers_meta, "number_of_shards",
                                                       "`num_shards` argument set")
             self._last_batch_padded = check_all_or_none_and_get(readers_meta, "pad_last_batch",
                                                                 "`pad_last_batch` argument set")
@@ -269,8 +269,9 @@ class _DaliBaseIterator(object):
             else:
                 # get the size as a multiply of the batch size that is bigger or equal
                 # than the biggest shard
-                self._size = math.ceil(math.ceil(self._size_no_pad / self._shards_num) /
-                                       self.batch_size) * self.batch_size
+                self._size = math.ceil(
+                    math.ceil(self._size_no_pad / self._shards_num) /
+                    self.batch_size) * self.batch_size
 
             # count where we starts inside each GPU shard in given epoch,
             # if shards are uneven this will differ epoch2epoch
