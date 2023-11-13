@@ -27,15 +27,15 @@ from nvidia.dali.data_node import DataNode as _DataNode
 
 
 def trivial_augment_wide(
-        data: _DataNode,
-        num_magnitude_bins: int = 31,
-        shape: Optional[Union[_DataNode, Tuple[int, int]]] = None,
-        fill_value: Optional[int] = 128,
-        interp_type: Optional[types.DALIInterpType] = None,
-        max_translate_abs: Optional[int] = None,
-        max_translate_rel: Optional[float] = None,
-        seed: Optional[int] = None,
-        excluded: Optional[List[str]] = None,
+    data: _DataNode,
+    num_magnitude_bins: int = 31,
+    shape: Optional[Union[_DataNode, Tuple[int, int]]] = None,
+    fill_value: Optional[int] = 128,
+    interp_type: Optional[types.DALIInterpType] = None,
+    max_translate_abs: Optional[int] = None,
+    max_translate_rel: Optional[float] = None,
+    seed: Optional[int] = None,
+    excluded: Optional[List[str]] = None,
 ) -> _DataNode:
     """
     Applies TrivialAugment Wide (https://arxiv.org/abs/2103.10158) augmentation scheme to the

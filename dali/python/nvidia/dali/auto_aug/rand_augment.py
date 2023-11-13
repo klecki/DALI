@@ -29,18 +29,18 @@ from nvidia.dali.data_node import DataNode as _DataNode
 
 
 def rand_augment(
-        data: _DataNode,
-        n: int,
-        m: int,
-        num_magnitude_bins: int = 31,
-        shape: Optional[Union[_DataNode, Tuple[int, int]]] = None,
-        fill_value: Optional[int] = 128,
-        interp_type: Optional[types.DALIInterpType] = None,
-        max_translate_abs: Optional[int] = None,
-        max_translate_rel: Optional[float] = None,
-        seed: Optional[int] = None,
-        monotonic_mag: bool = True,
-        excluded: Optional[List[str]] = None,
+    data: _DataNode,
+    n: int,
+    m: int,
+    num_magnitude_bins: int = 31,
+    shape: Optional[Union[_DataNode, Tuple[int, int]]] = None,
+    fill_value: Optional[int] = 128,
+    interp_type: Optional[types.DALIInterpType] = None,
+    max_translate_abs: Optional[int] = None,
+    max_translate_rel: Optional[float] = None,
+    seed: Optional[int] = None,
+    monotonic_mag: bool = True,
+    excluded: Optional[List[str]] = None,
 ) -> _DataNode:
     """
     Applies RandAugment (https://arxiv.org/abs/1909.13719) augmentation scheme to the
