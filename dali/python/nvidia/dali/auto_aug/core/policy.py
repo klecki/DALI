@@ -19,7 +19,6 @@ from typing import Optional, Sequence, Tuple
 
 
 class Policy:
-
     def __init__(self, name: str, num_magnitude_bins: int,
                  sub_policies: Sequence[Sequence[Tuple[Augmentation, float, Optional[int]]]]):
         """
@@ -107,7 +106,7 @@ class Policy:
 
 
 def _sub_policy_with_unique_names(
-    sub_policies: Sequence[Sequence[Tuple[Augmentation, float, Optional[int]]]]
+        sub_policies: Sequence[Sequence[Tuple[Augmentation, float, Optional[int]]]]
 ) -> Sequence[Sequence[Tuple[Augmentation, float, Optional[int]]]]:
     """
     Check if the augmentations used in the sub-policies have unique names.

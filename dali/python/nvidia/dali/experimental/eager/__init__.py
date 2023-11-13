@@ -14,7 +14,6 @@
 
 from . import math  # noqa: F401
 from nvidia.dali._utils.eager_utils import _create_module_class
-
 """ Eager module implements eager versions of standard DALI operators.
 There are 3 main types of eager operators:
     stateless: callable directly as functions. Example:

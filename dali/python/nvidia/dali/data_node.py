@@ -171,8 +171,7 @@ class DataNode(object):
             " To use conditional execution via `if` statements you need to specify"
             " `enable_conditionals=True` in `@nvidia.dali.pipeline_def` decorator."
             " You can read more about conditional execution in specific section of the Pipeline"
-            " documentation. Bool conversion can be achieved with the `cast` operator."
-        )
+            " documentation. Bool conversion can be achieved with the `cast` operator.")
 
     def __getitem__(self, val) -> DataNode:
         idxs = []

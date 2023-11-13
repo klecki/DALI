@@ -29,18 +29,18 @@ from nvidia.dali.data_node import DataNode as _DataNode
 
 
 def rand_augment(
-    data: _DataNode,
-    n: int,
-    m: int,
-    num_magnitude_bins: int = 31,
-    shape: Optional[Union[_DataNode, Tuple[int, int]]] = None,
-    fill_value: Optional[int] = 128,
-    interp_type: Optional[types.DALIInterpType] = None,
-    max_translate_abs: Optional[int] = None,
-    max_translate_rel: Optional[float] = None,
-    seed: Optional[int] = None,
-    monotonic_mag: bool = True,
-    excluded: Optional[List[str]] = None,
+        data: _DataNode,
+        n: int,
+        m: int,
+        num_magnitude_bins: int = 31,
+        shape: Optional[Union[_DataNode, Tuple[int, int]]] = None,
+        fill_value: Optional[int] = 128,
+        interp_type: Optional[types.DALIInterpType] = None,
+        max_translate_abs: Optional[int] = None,
+        max_translate_rel: Optional[float] = None,
+        seed: Optional[int] = None,
+        monotonic_mag: bool = True,
+        excluded: Optional[List[str]] = None,
 ) -> _DataNode:
     """
     Applies RandAugment (https://arxiv.org/abs/1909.13719) augmentation scheme to the
@@ -126,8 +126,8 @@ def rand_augment(
                             f"does not contain augmentation with this name. "
                             f"The augmentations in the suite are: {', '.join(augmentation_names)}.")
     selected_augments = [aug for aug in augmentations if aug.name not in excluded]
-    return apply_rand_augment(selected_augments, data, n, m,
-                              num_magnitude_bins=num_magnitude_bins, seed=seed, **aug_kwargs)
+    return apply_rand_augment(selected_augments, data, n, m, num_magnitude_bins=num_magnitude_bins,
+                              seed=seed, **aug_kwargs)
 
 
 def apply_rand_augment(augmentations: List[_Augmentation], data: _DataNode, n: int, m: int,
@@ -240,9 +240,10 @@ def get_rand_augment_suite(use_shape: bool = False, max_translate_abs: Optional[
     ]
 
 
-def get_rand_augment_non_monotonic_suite(
-        use_shape: bool = False, max_translate_abs: Optional[int] = None,
-        max_translate_rel: Optional[float] = None) -> List[_Augmentation]:
+def get_rand_augment_non_monotonic_suite(use_shape: bool = False,
+                                         max_translate_abs: Optional[int] = None,
+                                         max_translate_rel: Optional[float] = None
+                                         ) -> List[_Augmentation]:
     """
     Similarly to :meth:`~nvidia.dali.auto_aug.rand_augment.get_rand_augment_suite` creates a list
     of RandAugment augmentations.

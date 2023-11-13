@@ -21,12 +21,12 @@ import ctypes
 import numpy as np
 from collections.abc import Iterable
 
-
 ##################################################
 ##################################################
 # Common utils
 ##################################################
 ##################################################
+
 
 # MXNet currently does not expose WaitToWrite C API call
 # in Python API
@@ -56,14 +56,13 @@ def feed_ndarray(dali_tensor, arr, cuda_stream=None):
 
     assert dali_type == arr.dtype, ("The element type of DALI Tensor/TensorList"
                                     " doesn't match the element type of the target MXNet "
-                                    "NDArray: {} vs {}".
-                                    format(dali_type, np.dtype(arr.dtype)))
+                                    "NDArray: {} vs {}".format(dali_type, np.dtype(arr.dtype)))
 
     # Wait until arr is no longer used by the engine
     _wait_to_write(arr)
     assert dali_tensor.shape() == list(arr.shape), ("Shapes do not match: DALI tensor has "
-                                                    "shape {0}, but NDArray has shape {1}".
-                                                    format(dali_tensor.shape(), list(arr.shape)))
+                                                    "shape {0}, but NDArray has shape {1}".format(
+                                                        dali_tensor.shape(), list(arr.shape)))
     # Get CTypes void pointer to the underlying memory held by arr
     ptr = ctypes.c_void_p()
     mx.base._LIB.MXNDArrayGetData(arr.handle, ctypes.byref(ptr))
@@ -83,23 +82,11 @@ class _DALIMXNetIteratorBase(mx.io.DataIter, _DaliBaseIterator):
     Base class with methods shared by both DALIGenericIterator and DALIGluonIterator.
     """
 
-    def __init__(self,
-                 pipelines,
-                 size=-1,
-                 reader_name=None,
-                 fill_last_batch=None,
-                 last_batch_padded=False,
-                 auto_reset=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
+    def __init__(self, pipelines, size=-1, reader_name=None, fill_last_batch=None,
+                 last_batch_padded=False, auto_reset=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True):
-        _DaliBaseIterator.__init__(self,
-                                   pipelines,
-                                   size,
-                                   reader_name,
-                                   auto_reset,
-                                   fill_last_batch,
-                                   last_batch_padded,
-                                   last_batch_policy,
+        _DaliBaseIterator.__init__(self, pipelines, size, reader_name, auto_reset, fill_last_batch,
+                                   last_batch_padded, last_batch_policy,
                                    prepare_first_batch=prepare_first_batch)
 
     def next(self):
@@ -140,6 +127,7 @@ def get_mx_array(shape, ctx=None, dtype=None):
 # MXNet Sym API
 ###################################################
 ###################################################
+
 
 class DALIGenericIterator(_DALIMXNetIteratorBase):
     """
@@ -246,18 +234,9 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
     last batch = ``[5, 6]``, next iteration will return ``[2, 3]``
     """
 
-    def __init__(self,
-                 pipelines,
-                 output_map,
-                 size=-1,
-                 reader_name=None,
-                 data_layout='NCHW',
-                 fill_last_batch=None,
-                 auto_reset=False,
-                 squeeze_labels=True,
-                 dynamic_shape=False,
-                 last_batch_padded=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
+    def __init__(self, pipelines, output_map, size=-1, reader_name=None, data_layout='NCHW',
+                 fill_last_batch=None, auto_reset=False, squeeze_labels=True, dynamic_shape=False,
+                 last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True):
 
         # check the assert first as _DaliBaseIterator would run the prefetch
@@ -270,14 +249,8 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
             "output_names in output_map should be distinct"
         self.output_map = output_map
 
-        super().__init__(pipelines,
-                         size,
-                         reader_name,
-                         fill_last_batch,
-                         last_batch_padded,
-                         auto_reset,
-                         last_batch_policy,
-                         prepare_first_batch=prepare_first_batch)
+        super().__init__(pipelines, size, reader_name, fill_last_batch, last_batch_padded,
+                         auto_reset, last_batch_policy, prepare_first_batch=prepare_first_batch)
         self._squeeze_labels = squeeze_labels
 
         self._first_batch = None
@@ -318,14 +291,15 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
             for name, category in self.output_map:
                 category_names[category].append(name)
             for i, data in enumerate(data_batch[0].data):
-                data_shape = (data.shape[0] * self._num_gpus,) + data.shape[1:]
-                provide_data.append(mx.io.DataDesc(category_names[DALIGenericIterator.DATA_TAG][i],
-                                                   data_shape, data.dtype,
-                                                   layout=self._data_layout))
+                data_shape = (data.shape[0] * self._num_gpus, ) + data.shape[1:]
+                provide_data.append(
+                    mx.io.DataDesc(category_names[DALIGenericIterator.DATA_TAG][i], data_shape,
+                                   data.dtype, layout=self._data_layout))
             for i, label in enumerate(data_batch[0].label):
-                label_shape = (label.shape[0] * self._num_gpus,) + label.shape[1:]
-                provide_label.append(mx.io.DataDesc(
-                    category_names[DALIGenericIterator.LABEL_TAG][i], label_shape, label.dtype))
+                label_shape = (label.shape[0] * self._num_gpus, ) + label.shape[1:]
+                provide_label.append(
+                    mx.io.DataDesc(category_names[DALIGenericIterator.LABEL_TAG][i], label_shape,
+                                   label.dtype))
 
             self.__dict__['provide_data'] = provide_data
             self.__dict__['provide_label'] = provide_label
@@ -381,12 +355,13 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
             d = []
             labels = []
             for j, (shape, dtype) in enumerate(category_info[DALIGenericIterator.DATA_TAG]):
-                d.append(get_mx_array(shape, category_device[DALIGenericIterator.DATA_TAG][j],
-                                      dtype=dtype))
+                d.append(
+                    get_mx_array(shape, category_device[DALIGenericIterator.DATA_TAG][j],
+                                 dtype=dtype))
             for j, (shape, dtype) in enumerate(category_info[DALIGenericIterator.LABEL_TAG]):
-                labels.append(get_mx_array(shape,
-                                           category_device[DALIGenericIterator.LABEL_TAG][j],
-                                           dtype=dtype))
+                labels.append(
+                    get_mx_array(shape, category_device[DALIGenericIterator.LABEL_TAG][j],
+                                 dtype=dtype))
 
             data_batches[i] = mx.io.DataBatch(data=d, label=labels)
 
@@ -553,35 +528,21 @@ class DALIClassificationIterator(DALIGenericIterator):
     last batch = ``[5, 6]``, next iteration will return ``[2, 3]``
     """
 
-    def __init__(self,
-                 pipelines,
-                 size=-1,
-                 reader_name=None,
-                 data_name='data',
-                 label_name='softmax_label',
-                 data_layout='NCHW',
-                 fill_last_batch=None,
-                 auto_reset=False,
-                 squeeze_labels=True,
-                 dynamic_shape=False,
-                 last_batch_padded=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
+    def __init__(self, pipelines, size=-1, reader_name=None, data_name='data',
+                 label_name='softmax_label', data_layout='NCHW', fill_last_batch=None,
+                 auto_reset=False, squeeze_labels=True, dynamic_shape=False,
+                 last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True):
-        super(DALIClassificationIterator, self).__init__(pipelines,
-                                                         [(data_name,
-                                                           DALIClassificationIterator.DATA_TAG),
-                                                          (label_name,
-                                                           DALIClassificationIterator.LABEL_TAG)],
-                                                         size,
-                                                         reader_name=reader_name,
-                                                         data_layout=data_layout,
-                                                         fill_last_batch=fill_last_batch,
-                                                         auto_reset=auto_reset,
-                                                         squeeze_labels=squeeze_labels,
-                                                         dynamic_shape=dynamic_shape,
-                                                         last_batch_padded=last_batch_padded,
-                                                         last_batch_policy=last_batch_policy,
-                                                         prepare_first_batch=prepare_first_batch)
+        super(DALIClassificationIterator,
+              self).__init__(pipelines, [(data_name, DALIClassificationIterator.DATA_TAG),
+                                         (label_name, DALIClassificationIterator.LABEL_TAG)], size,
+                             reader_name=reader_name, data_layout=data_layout,
+                             fill_last_batch=fill_last_batch, auto_reset=auto_reset,
+                             squeeze_labels=squeeze_labels, dynamic_shape=dynamic_shape,
+                             last_batch_padded=last_batch_padded,
+                             last_batch_policy=last_batch_policy,
+                             prepare_first_batch=prepare_first_batch)
+
 
 ###############################################
 ###############################################
@@ -684,16 +645,9 @@ class DALIGluonIterator(_DALIMXNetIteratorBase):
     last batch = ``[5, 6]``, next iteration will return ``[2, 3]``
     """
 
-    def __init__(self,
-                 pipelines,
-                 size=-1,
-                 reader_name=None,
-                 output_types=None,
-                 auto_reset=False,
-                 fill_last_batch=None,
-                 last_batch_padded=False,
-                 last_batch_policy=LastBatchPolicy.FILL,
-                 prepare_first_batch=True):
+    def __init__(self, pipelines, size=-1, reader_name=None, output_types=None, auto_reset=False,
+                 fill_last_batch=None, last_batch_padded=False,
+                 last_batch_policy=LastBatchPolicy.FILL, prepare_first_batch=True):
 
         # check the assert first as _DaliBaseIterator would run the prefetch
         self._output_tags = {DALIGluonIterator.DENSE_TAG, DALIGluonIterator.SPARSE_TAG}
@@ -702,15 +656,9 @@ class DALIGluonIterator(_DALIMXNetIteratorBase):
 
         self._outputs_types = output_types
 
-        super(DALIGluonIterator, self).__init__(
-            pipelines,
-            size,
-            reader_name,
-            fill_last_batch,
-            last_batch_padded,
-            auto_reset,
-            last_batch_policy,
-            prepare_first_batch=prepare_first_batch)
+        super(DALIGluonIterator,
+              self).__init__(pipelines, size, reader_name, fill_last_batch, last_batch_padded,
+                             auto_reset, last_batch_policy, prepare_first_batch=prepare_first_batch)
 
         self._first_batch = None
         if self._prepare_first_batch:
@@ -744,8 +692,8 @@ class DALIGluonIterator(_DALIMXNetIteratorBase):
                     output_elements.append(out.as_tensor())
                     shapes.append(output_elements[-1].shape())
                 else:
-                    output_elements.append([out[sample_idx]
-                                            for sample_idx in range(self.batch_size)])
+                    output_elements.append(
+                        [out[sample_idx] for sample_idx in range(self.batch_size)])
                     s = [t.shape() for t in output_elements[-1]]
                     shapes.append(s)
 
@@ -762,10 +710,8 @@ class DALIGluonIterator(_DALIMXNetIteratorBase):
                     for sample_idx in range(self.batch_size):
                         feed_ndarray(output_el[sample_idx], batch[j][sample_idx])
 
-        batches = [[([sample for sample in output_el] if isinstance(output_el, list) else
-                    output_el)
-                    for output_el in batch]
-                   for batch in data_batches]
+        batches = [[([sample for sample in output_el] if isinstance(output_el, list) else output_el)
+                    for output_el in batch] for batch in data_batches]
 
         self._schedule_runs()
 

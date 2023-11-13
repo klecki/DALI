@@ -57,7 +57,6 @@ def _check_data_batch(data, batch_size, layout):
 
 
 def _prep_data_for_feed_input(data, batch_size, layout, device_id=None):
-
     def to_numpy(x):
         if _types._is_mxnet_array(x):
             return x.asnumpy()
@@ -122,7 +121,6 @@ def _prep_data_for_feed_input(data, batch_size, layout, device_id=None):
 
 
 class _ExternalDataBatch:
-
     def __init__(self, group, pipeline, data, batch_size):
         self._group = group
         self._pipepline = pipeline
@@ -134,10 +132,9 @@ class _ExternalDataBatch:
 
 
 class _ExternalSourceGroup(object):
-
-    def __init__(self, callback, source_desc, is_multioutput, instances=[], *,
-                 cuda_stream=None, use_copy_kernel=None, batch=True, parallel=False,
-                 prefetch_queue_depth=None, bytes_per_sample_hint=None, batch_info=None):
+    def __init__(self, callback, source_desc, is_multioutput, instances=[], *, cuda_stream=None,
+                 use_copy_kernel=None, batch=True, parallel=False, prefetch_queue_depth=None,
+                 bytes_per_sample_hint=None, batch_info=None):
         self.instances = list(instances)  # we need a copy!
         self.utilized_instances = self.instances
         self.is_multioutput = is_multioutput
@@ -173,8 +170,7 @@ class _ExternalSourceGroup(object):
                 f"the number of outputs of the external source. The external source node has "
                 f"{len(self.instances)} outputs, but received mask of length {len(pruned_mask)}.")
         self.utilized_instances = [
-            instance for instance, is_pruned
-            in zip(self.instances, pruned_mask) if not is_pruned
+            instance for instance, is_pruned in zip(self.instances, pruned_mask) if not is_pruned
         ]
 
     def callback_args(self, idx_in_batch, epoch_idx, batch_size=0, lead=0):
@@ -205,9 +201,8 @@ class _ExternalSourceGroup(object):
         # NOTE We can't schedule more than what's on top of pipeline's prefetch queue, as the
         # entires in the pipeline are zero-copy and cannot be overwritten.
         context = pool.contexts[context_i]
-        while (context.scheduled_ahead < self.prefetch_queue_depth
-               and self.schedule_batch(pool, context_i, context.scheduled_ahead,
-                                       batch_size, epoch_idx)):
+        while (context.scheduled_ahead < self.prefetch_queue_depth and self.schedule_batch(
+                pool, context_i, context.scheduled_ahead, batch_size, epoch_idx)):
             pass
 
     def schedule_batch(self, pool, context_i, lead, batch_size, epoch_idx):
@@ -274,8 +269,8 @@ class _ExternalSourceGroup(object):
         else:
             data = callback_out
             op = self.utilized_instances[0]
-            pipeline._feed_input(
-                op._name, data, op._layout, self._cuda_stream, self.use_copy_kernel)
+            pipeline._feed_input(op._name, data, op._layout, self._cuda_stream,
+                                 self.use_copy_kernel)
 
 
 class ExternalSource():
@@ -689,10 +684,8 @@ Keyword Args
                     "``prefetch_queue_depth`` must be a positive integer, got {}.".format(
                         prefetch_queue_depth))
             if bytes_per_sample_hint is not None and bytes_per_sample_hint < 1:
-                raise ValueError(
-                    f"``bytes_per_sample_hint`` must be a positive integer, "
-                    f"got {bytes_per_sample_hint}."
-                )
+                raise ValueError(f"``bytes_per_sample_hint`` must be a positive integer, "
+                                 f"got {bytes_per_sample_hint}.")
             if source_desc.kind == _SourceKind.CALLABLE:
                 if not source_desc.has_inputs:
                     raise TypeError(
@@ -892,9 +885,10 @@ provided memory is copied to the internal buffer.
     # Wrapper around external_source to switch between standard and debug mode.
     current_pipeline = _PipelineDebug.current()
     if getattr(current_pipeline, '_debug_on', False):
-        result = current_pipeline._external_source(
-            source=source, num_outputs=num_outputs, cycle=cycle, name=name, device=device,
-            layout=layout, batch=batch, repeat_last=repeat_last, **kwargs)
+        result = current_pipeline._external_source(source=source, num_outputs=num_outputs,
+                                                   cycle=cycle, name=name, device=device,
+                                                   layout=layout, batch=batch,
+                                                   repeat_last=repeat_last, **kwargs)
     else:
         result = _external_source(source, num_outputs, cycle=cycle, name=name, device=device,
                                   layout=layout, dtype=dtype, ndim=ndim, cuda_stream=cuda_stream,

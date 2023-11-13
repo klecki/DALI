@@ -16,7 +16,6 @@ import inspect
 
 
 class MissingArgException(Exception):
-
     def __init__(self, message, augmentation, missing_args):
         super().__init__(message)
         self.augmentation = augmentation
@@ -24,7 +23,6 @@ class MissingArgException(Exception):
 
 
 class UnusedArgException(Exception):
-
     def __init__(self, message, unused_args):
         super().__init__(message)
         self.unused_args = unused_args

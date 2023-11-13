@@ -493,7 +493,6 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
 
 
 class DaliOperatorOverload(_autograph.OperatorBase):
-
     def detect_overload_ld(self, v):
         return isinstance(v, _DataNode)
 

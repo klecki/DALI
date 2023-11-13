@@ -93,16 +93,12 @@ def cell_unpickle():
 
 
 def cell_reducer(cell):
-    return (cell_unpickle,
-            tuple(),
-            {'cell_contents': cell.cell_contents},
-            None,
-            None,
-            set_cell_state)
+    return (cell_unpickle, tuple(), {
+        'cell_contents': cell.cell_contents
+    }, None, None, set_cell_state)
 
 
 class DaliCallbackPickler(pickle.Pickler):
-
     def reducer_override(self, obj):
         if inspect.ismodule(obj):
             return module_reducer(obj)

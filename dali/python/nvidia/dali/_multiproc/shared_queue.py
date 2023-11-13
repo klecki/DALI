@@ -25,7 +25,6 @@ class QueueMeta(Structure):
 
 
 class ShmQueue:
-
     """
     Simple fixed capacity shared memory queue of fixed size messages.
     Writting to a full queue fails, attempt to get from an empty queue blocks until data is
@@ -84,8 +83,9 @@ class ShmQueue:
         num_take = self.meta.size
         if num_samples is not None and num_samples < num_take:
             num_take = num_samples
-        recv = [self._read_msg((self.meta.begining + i) % self.meta.capacity)
-                for i in range(num_take)]
+        recv = [
+            self._read_msg((self.meta.begining + i) % self.meta.capacity) for i in range(num_take)
+        ]
         self.meta.size -= num_take
         self.meta.begining = (self.meta.begining + num_take) % self.meta.capacity
         self._write_meta()
@@ -182,7 +182,6 @@ class ShmQueue:
 
 
 class Dispatcher:
-
     """Wrapper around the queue that enables writing to the queue in a separate thread, just in
        case a writing process would have to wait too long for a lock on the queue when multiple
        readers pop the items one by one."""

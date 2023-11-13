@@ -25,18 +25,29 @@ from nvidia.dali import fn as _functional
 from nvidia.dali import internal as _internal
 from nvidia.dali.data_node import DataNode as _DataNode
 from nvidia.dali.pipeline import Pipeline as _Pipeline
-from nvidia.dali.types import (_type_name_convert_to_string, _type_convert_value,  # noqa: F401
-                               _default_converter, _vector_element_type,  # noqa: F401
-                               ScalarConstant as _ScalarConstant, Constant as _Constant)
+from nvidia.dali.types import (
+    _type_name_convert_to_string,
+    _type_convert_value,  # noqa: F401
+    _default_converter,
+    _vector_element_type,  # noqa: F401
+    ScalarConstant as _ScalarConstant,
+    Constant as _Constant)
 from nvidia.dali import _conditionals
 
 from nvidia.dali.ops import (_registry, _names, _docs, _operator_utils)  # noqa: F401
 
 # reexpose what was previously visible:
-from nvidia.dali.ops._registry import (cpu_ops, mixed_ops, gpu_ops, register_cpu_op,  # noqa: F401
-                                       register_gpu_op)  # noqa: F401
+from nvidia.dali.ops._registry import (
+    cpu_ops,
+    mixed_ops,
+    gpu_ops,
+    register_cpu_op,  # noqa: F401
+    register_gpu_op)  # noqa: F401
 from nvidia.dali.ops._names import (_op_name, _process_op_name, _schema_name)
-from nvidia.dali.ops._operator_utils import (_build_input_sets, _repack_output_sets, )
+from nvidia.dali.ops._operator_utils import (
+    _build_input_sets,
+    _repack_output_sets,
+)
 
 
 class _OpCounter(object):
@@ -286,10 +297,9 @@ def _process_inputs(schema, spec, inputs, operator_name):
         the list of DataNodes representing inputs (there may be conversions)
     """
     if len(inputs) < schema.MinNumInput() or len(inputs) > schema.MaxNumInput():
-        raise ValueError(
-            f"Operator {operator_name} expects "
-            f"from {schema.MinNumInput()} to {schema.MaxNumInput()} inputs, "
-            f"but received {len(inputs)}.")
+        raise ValueError(f"Operator {operator_name} expects "
+                         f"from {schema.MinNumInput()} to {schema.MaxNumInput()} inputs, "
+                         f"but received {len(inputs)}.")
     if not inputs:
         return []
     for inp in inputs:
@@ -459,7 +469,6 @@ class _OperatorInstance(object):
 
 
 class _DaliOperatorMeta(type):
-
     @property
     def __doc__(self):
         return _docs._docstring_generator(_names._schema_name(self))
@@ -474,9 +483,7 @@ def _check_arg_input(schema, op_name, name):
 
 
 def python_op_factory(name, schema_name=None):
-
     class Operator(metaclass=_DaliOperatorMeta):
-
         def __init__(self, *, device="cpu", **kwargs):
             schema_name = _schema_name(type(self))
             self._spec = _b.OpSpec(schema_name)
@@ -659,8 +666,7 @@ def _preprocess_inputs(inputs, op_name, device, schema=None):
             return True
         # One level of nesting for Multiple Input Sets. It must be a List[DataNode/ScalarConstant]
         # with at least one DataNode.
-        return (isinstance(x, (list))
-                and any(isinstance(y, _DataNode) for y in x)
+        return (isinstance(x, (list)) and any(isinstance(y, _DataNode) for y in x)
                 and all(isinstance(y, (_DataNode, nvidia.dali.types.ScalarConstant)) for y in x))
 
     def get_input_device(schema, input_idx):
@@ -728,9 +734,10 @@ _internal._adjust_operator_module(Compose, sys.modules[__name__], [])
 _registry.register_cpu_op('Compose')
 _registry.register_gpu_op('Compose')
 
-from nvidia.dali.ops._operators.math import (_arithm_op, _group_inputs,  # noqa: E402, F401
-                                             _generate_input_desc)  # noqa: F401
-
+from nvidia.dali.ops._operators.math import (
+    _arithm_op,
+    _group_inputs,  # noqa: E402, F401
+    _generate_input_desc)  # noqa: F401
 
 # Discover and generate bindings for all regular operators.
 _load_ops()

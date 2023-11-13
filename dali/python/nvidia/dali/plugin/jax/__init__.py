@@ -24,5 +24,4 @@ assert sys.version_info.major == 3 and sys.version_info.minor >= 8, \
 assert LooseVersion(jax.__version__) >= LooseVersion('0.4.11'), \
     "DALI JAX support requires JAX 0.4.11 or above"
 
-
 __all__ = ["DALIGenericIterator", "data_iterator"]

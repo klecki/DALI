@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 def autoserialize(dali_pipeline):
     """
     Decorator, that marks a DALI pipeline (represented by :meth:`nvidia.dali.pipeline_def`) for

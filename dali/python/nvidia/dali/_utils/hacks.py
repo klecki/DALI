@@ -37,7 +37,7 @@ def _hook_iterable_check():
     _original_check = type(collections.abc.Iterable).__instancecheck__
     type(collections.abc.Iterable).__instancecheck__ = _check_iterable
     if len(_not_iterable) == 0:
-        _not_iterable = (_NotIterable,)
+        _not_iterable = (_NotIterable, )
 
 
 def not_iterable(cls, add_iter=True):

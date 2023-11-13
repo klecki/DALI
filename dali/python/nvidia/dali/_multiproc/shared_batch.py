@@ -20,7 +20,6 @@ from nvidia.dali._utils.external_source_impl import \
         sample_to_numpy as _sample_to_numpy
 import pickle
 
-
 np = None
 
 
@@ -138,7 +137,10 @@ def deserialize_sample(buffer: BufShmChunk, sample):
         assert offset % sample.dtype.itemsize == 0, "Sample offset is misaligned."
         buffer = buffer.buf[offset:offset + sample.nbytes]
         return np.ndarray(sample.shape, dtype=sample.dtype, buffer=buffer)
-    if isinstance(sample, (tuple, list,)):
+    if isinstance(sample, (
+            tuple,
+            list,
+    )):
         return type(sample)(deserialize_sample(buffer, part) for part in sample)
     return sample
 
@@ -191,7 +193,10 @@ def _apply_to_sample(func, sample, *args, nest_with_sample=0):
         Specify how many consecutive (additional) arguments have the same level of nesting
         as the sample.
     """
-    if isinstance(sample, (tuple, list,)):
+    if isinstance(sample, (
+            tuple,
+            list,
+    )):
         # Check that all the samples have common nesting
         for i in range(nest_with_sample):
             assert len(args[i]) == len(sample)
@@ -240,15 +245,16 @@ class SharedBatchWriter:
         sample_size = meta.nbytes
         offset = meta.offset
         buffer = memview[offset:(offset + sample_size)]
-        shared_array = np.ndarray(
-            np_array.shape, dtype=np_array.dtype, buffer=buffer)
+        shared_array = np.ndarray(np_array.shape, dtype=np_array.dtype, buffer=buffer)
         shared_array.ravel()[:] = np_array.ravel()[:]
 
     def _write_batch(self, batch):
         if not batch:
             return
-        batch = [_apply_to_sample(lambda x: _sample_to_numpy(x, _sample_error_msg), sample)
-                 for sample in batch]
+        batch = [
+            _apply_to_sample(lambda x: _sample_to_numpy(x, _sample_error_msg), sample)
+            for sample in batch
+        ]
         meta, data_size = self._prepare_samples_meta(batch)
         serialized_meta = pickle.dumps(meta)
         self.meta_data_size = len(serialized_meta)

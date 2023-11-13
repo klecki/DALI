@@ -67,9 +67,8 @@ def invoke_autoserialize(head_module, filename):
     """
     autoserialize_functions = _discover_autoserialize(head_module, visited=[])
     if len(autoserialize_functions) > 1:
-        raise RuntimeError(
-            f"Precisely one autoserialize function must exist in the module. "
-            f"Found {len(autoserialize_functions)}: {autoserialize_functions}.")
+        raise RuntimeError(f"Precisely one autoserialize function must exist in the module. "
+                           f"Found {len(autoserialize_functions)}: {autoserialize_functions}.")
     if len(autoserialize_functions) < 1:
         raise RuntimeError(
             "Precisely one autoserialize function must exist in the module. Found none.")

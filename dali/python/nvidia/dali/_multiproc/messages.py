@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 from typing import Optional
 from nvidia.dali.types import SampleInfo
 from nvidia.dali._multiproc.struct_message import Structure
@@ -37,10 +36,8 @@ class ShmMessageDesc(Structure):
     `num_bytes` : unsigned long long int
         Size in bytes of the serialized message
     """
-    _fields = (("worker_id", "i"),
-               ("shm_chunk_id", "i"),
-               ("shm_capacity", "Q"),
-               ("offset", "Q"), ("num_bytes", "Q"))
+    _fields = (("worker_id", "i"), ("shm_chunk_id", "i"), ("shm_capacity", "Q"), ("offset", "Q"),
+               ("num_bytes", "Q"))
 
 
 class WorkerArgs:
@@ -91,8 +88,8 @@ class SampleRange:
     description size on the batch size.
     """
 
-    def __init__(self, sample_start, sample_end, iteration, epoch_idx, *,
-                 slice_start=0, slice_end=None):
+    def __init__(self, sample_start, sample_end, iteration, epoch_idx, *, slice_start=0,
+                 slice_end=None):
         self.sample_start = sample_start  # idx in epoch of first sample in batch
         self.sample_end = sample_end  # idx in epoch of one past last sample in batch
         self.iteration = iteration  # index of a batch within epoch
@@ -121,11 +118,8 @@ class SampleRange:
         slice_end = self._get_index(range_slice.stop, self.slice_end)
         slice_start = min(slice_start, self.slice_end)
         slice_end = max(min(slice_end, self.slice_end), slice_start)
-        return SampleRange(
-            self.sample_start, self.sample_end,
-            self.iteration, self.epoch_idx,
-            slice_start=slice_start,
-            slice_end=slice_end)
+        return SampleRange(self.sample_start, self.sample_end, self.iteration, self.epoch_idx,
+                           slice_start=slice_start, slice_end=slice_end)
 
     def __getitem__(self, idx):
         if isinstance(idx, slice):
@@ -136,18 +130,14 @@ class SampleRange:
             idx_in_batch = self.slice_start + idx
         if idx_in_batch < self.slice_start or idx_in_batch >= self.slice_end:
             raise IndexError("Index {} out of range for slice of length {}".format(idx, len(self)))
-        return SampleInfo(
-            self.sample_start + idx_in_batch,
-            idx_in_batch,
-            self.iteration,
-            self.epoch_idx)
+        return SampleInfo(self.sample_start + idx_in_batch, idx_in_batch, self.iteration,
+                          self.epoch_idx)
 
     def __len__(self):
         return self.slice_end - self.slice_start
 
 
 class TaskArgs:
-
     @classmethod
     def make_sample(cls, sample_range):
         if len(sample_range) <= 0:
@@ -216,9 +206,8 @@ class CompletedTask:
         Exception if the task failed.
     """
 
-    def __init__(
-            self, worker_id, context_i, scheduled_i, minibatch_i, batch_meta=None,
-            exception=None, traceback_str=None):
+    def __init__(self, worker_id, context_i, scheduled_i, minibatch_i, batch_meta=None,
+                 exception=None, traceback_str=None):
         self.worker_id = worker_id
         self.context_i = context_i
         self.scheduled_i = scheduled_i
