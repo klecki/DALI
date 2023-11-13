@@ -46,7 +46,7 @@ def import_numpy():
 
 
 def _tensor_to_string(self):
-    """ Returns string representation of Tensor."""
+    """Returns string representation of Tensor."""
     import_numpy()
 
     type_name = type(self).__name__
@@ -65,7 +65,7 @@ def _tensor_to_string(self):
 
 
 def _tensorlist_to_string(self, indent=""):
-    """ Returns string representation of TensorList."""
+    """Returns string representation of TensorList."""
     import_numpy()
 
     edgeitems = 2

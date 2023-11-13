@@ -31,7 +31,7 @@ def _div_ceil(a, b):
 
 
 def _align_up(x, alignment):
-    """ Align x up to multiple of alignment"""
+    """Align x up to multiple of alignment"""
     return _div_ceil(x, alignment) * alignment
 
 

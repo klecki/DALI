@@ -666,7 +666,7 @@ Keyword Args
         repeat_last=False,
         **kwargs,
     ):
-        ""
+        """ """
         from nvidia.dali.ops import _OperatorInstance, _separate_kwargs
 
         if batch_info is None:

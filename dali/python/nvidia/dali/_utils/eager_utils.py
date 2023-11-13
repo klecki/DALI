@@ -115,7 +115,7 @@ class _Classification:
 
     @staticmethod
     def _classify_data(data, type_name, arg_constant_len):
-        """Returns tuple (is_batch, device, unpacked data). """
+        """Returns tuple (is_batch, device, unpacked data)."""
         from nvidia.dali._debug_mode import DataNodeDebug
 
         def is_primitive_type(x):
@@ -204,7 +204,7 @@ class _Classification:
 
 
 def _slice_tensorlist(data, size):
-    """ Constructs TensorList consisting of ``size`` first elements of ``data``. """
+    """Constructs TensorList consisting of ``size`` first elements of ``data``."""
 
     return type(data)(list(data)[:size], layout=data.layout())
 
@@ -463,7 +463,7 @@ def _create_module_class():
     class Module:
         @classmethod
         def _submodule(cls, name):
-            """ Returns submodule, creates new if it does not exist. """
+            """Returns submodule, creates new if it does not exist."""
             if name not in cls._submodules:
                 # Register a new submodule class (object representing submodule will be created in
                 # the rng_state's constructor).
@@ -535,7 +535,7 @@ def _iterator_op_factory(op_class, op_name, num_inputs, call_args_names):
             assert isinstance(self._last_batch_size, int)
 
         def __next__(self):
-            """ Iterates over dataset once per epoch (last batch may not be full). """
+            """Iterates over dataset once per epoch (last batch may not be full)."""
 
             if self._iter == self._num_iters:
                 self._iter = 0
@@ -778,7 +778,7 @@ def _wrap_iterator(op_class, op_name, wrapper_name):
 
 
 def _get_rng_state_target_module(submodules):
-    """ Returns target module of rng_state. If a module did not exist, creates it. """
+    """Returns target module of rng_state. If a module did not exist, creates it."""
     from nvidia.dali.experimental import eager
 
     last_module = eager.rng_state
@@ -791,7 +791,7 @@ def _get_rng_state_target_module(submodules):
 
 
 def _get_eager_target_module(parent_module, submodules, make_hidden):
-    """ Returns target module inside ``parent_module`` if specified, otherwise inside eager. """
+    """Returns target module inside ``parent_module`` if specified, otherwise inside eager."""
     if parent_module is None:
         # Exposing to nvidia.dali.experimental.eager module.
         parent_module = _internal.get_submodule("nvidia.dali", "experimental.eager")
