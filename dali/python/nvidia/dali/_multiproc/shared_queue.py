@@ -44,8 +44,9 @@ class ShmQueue:
         self.meta_size = align_up(self.meta.get_size(), self.ALIGN_UP_MSG)
         dummy_msg = self.MSG_CLASS()
         self.msg_size = align_up(dummy_msg.get_size(), self.ALIGN_UP_MSG)
-        self.shm_capacity = align_up(self.meta_size + capacity * self.msg_size,
-                                     self.ALIGN_UP_BUFFER)
+        self.shm_capacity = align_up(
+            self.meta_size + capacity * self.msg_size, self.ALIGN_UP_BUFFER
+        )
         self.shm = shared_mem.SharedMem.allocate(self.shm_capacity)
         self.is_closed = False
         self._init_offsets()
@@ -53,8 +54,8 @@ class ShmQueue:
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        state['msgs_offsets'] = None
-        state['shm'] = None
+        state["msgs_offsets"] = None
+        state["shm"] = None
         return state
 
     def __setstate__(self, state):
@@ -84,8 +85,9 @@ class ShmQueue:
         num_take = self.meta.size
         if num_samples is not None and num_samples < num_take:
             num_take = num_samples
-        recv = [self._read_msg((self.meta.begining + i) % self.meta.capacity)
-                for i in range(num_take)]
+        recv = [
+            self._read_msg((self.meta.begining + i) % self.meta.capacity) for i in range(num_take)
+        ]
         self.meta.size -= num_take
         self.meta.begining = (self.meta.begining + num_take) % self.meta.capacity
         self._write_meta()

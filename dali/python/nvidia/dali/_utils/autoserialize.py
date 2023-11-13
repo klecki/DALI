@@ -16,7 +16,7 @@ import inspect
 
 
 def _is_marked_autoserializable(object):
-    return getattr(object, '_is_autoserialize', False)
+    return getattr(object, "_is_autoserialize", False)
 
 
 def _discover_autoserialize(module, visited):
@@ -69,9 +69,11 @@ def invoke_autoserialize(head_module, filename):
     if len(autoserialize_functions) > 1:
         raise RuntimeError(
             f"Precisely one autoserialize function must exist in the module. "
-            f"Found {len(autoserialize_functions)}: {autoserialize_functions}.")
+            f"Found {len(autoserialize_functions)}: {autoserialize_functions}."
+        )
     if len(autoserialize_functions) < 1:
         raise RuntimeError(
-            "Precisely one autoserialize function must exist in the module. Found none.")
+            "Precisely one autoserialize function must exist in the module. Found none."
+        )
     dali_pipeline = autoserialize_functions[0]
     dali_pipeline().serialize(filename=filename)

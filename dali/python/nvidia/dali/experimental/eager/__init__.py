@@ -69,7 +69,7 @@ class arithmetic(metaclass=_MetaArithmetic):
     def __exit__(self, type, value, traceback):
         arithmetic._enabled = self.prev
 
-    __name__ = 'arithmetic'
+    __name__ = "arithmetic"
     _enabled = False
 
 
@@ -97,4 +97,4 @@ class rng_state(_create_module_class()):
             # Create attributes imitating submodules, e.g. `random`, `noise`.
             setattr(self, name, submodule_class(self._operator_cache, self._seed_generator))
 
-    __name__ = 'rng_state'
+    __name__ = "rng_state"

@@ -18,7 +18,6 @@ from nvidia.dali.data_node import DataNode as _DataNode
 
 
 class _CompoundOp:
-
     def __init__(self, op_list):
         self._ops = []
         for op in op_list:
@@ -31,8 +30,11 @@ class _CompoundOp:
         inputs = list(inputs)
         for op in self._ops:
             for i in range(len(inputs)):
-                if inputs[i].device == "cpu" and op.device == "gpu" and op.schema.GetInputDevice(
-                        i) != "cpu":
+                if (
+                    inputs[i].device == "cpu"
+                    and op.device == "gpu"
+                    and op.schema.GetInputDevice(i) != "cpu"
+                ):
                     inputs[i] = inputs[i].gpu()
             inputs = op(*inputs, **kwargs)
             kwargs = {}

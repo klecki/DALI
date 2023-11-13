@@ -46,9 +46,9 @@ class SharedMem:
     def __getattr__(self, key):
         # lazily evaluate and cache 'buf' property, so that it is created only once
         # and only when requested
-        if key == 'buf':
+        if key == "buf":
             buf = self.shm.buf()
-            self.__dict__['buf'] = buf
+            self.__dict__["buf"] = buf
             return buf
         raise AttributeError
 
@@ -94,8 +94,8 @@ class SharedMem:
         via another SharedMem instance (possibly in another process), pass new size and
         trunc=False to simply adjust mmaping of the memory into the current process address space.
         """
-        if 'buf' in self.__dict__:
-            del self.__dict__['buf']
+        if "buf" in self.__dict__:
+            del self.__dict__["buf"]
         self.shm.resize(size, trunc)
         self.capacity = size
 

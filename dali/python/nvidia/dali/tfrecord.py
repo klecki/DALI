@@ -13,7 +13,9 @@
 # limitations under the License.
 
 try:
-    from nvidia.dali.backend_impl.tfrecord import *     # noqa: F403 F401
+    from nvidia.dali.backend_impl.tfrecord import *  # noqa: F403 F401
 except ImportError:
-    raise RuntimeError('DALI was not compiled with TFRecord support.'
-                       ' Use BUILD_PROTO3=ON CMake option to enable TFRecord support')
+    raise RuntimeError(
+        "DALI was not compiled with TFRecord support."
+        " Use BUILD_PROTO3=ON CMake option to enable TFRecord support"
+    )

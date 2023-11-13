@@ -72,7 +72,7 @@ _DALIInterpType = _create_annotation_placeholder("DALIInterpType")
 _enum_mapping = {
     types.DALIDataType: _DALIDataType,
     types.DALIImageType: _DALIImageType,
-    types.DALIInterpType: _DALIInterpType
+    types.DALIInterpType: _DALIInterpType,
 }
 
 _MAX_INPUT_SPELLED_OUT = 10
@@ -124,11 +124,16 @@ def _get_positional_input_param(schema, idx):
     default = Parameter.empty if idx < schema.MinNumInput() else None
     annotation = _DataNode if idx < schema.MinNumInput() else Optional[_DataNode]
     if schema.HasInputDox():
-        return Parameter(f"__{schema.GetInputName(idx)}", kind=Parameter.POSITIONAL_ONLY,
-                         default=default, annotation=annotation)
+        return Parameter(
+            f"__{schema.GetInputName(idx)}",
+            kind=Parameter.POSITIONAL_ONLY,
+            default=default,
+            annotation=annotation,
+        )
     else:
-        return Parameter(f"__input_{idx}", kind=Parameter.POSITIONAL_ONLY, default=default,
-                         annotation=annotation)
+        return Parameter(
+            f"__input_{idx}", kind=Parameter.POSITIONAL_ONLY, default=default, annotation=annotation
+        )
 
 
 def _get_positional_input_params(schema):
@@ -180,8 +185,8 @@ def _get_keyword_params(schema, all_args_optional=False):
                 default = None
 
         param_list.append(
-            Parameter(name=arg, kind=Parameter.KEYWORD_ONLY, default=default,
-                      annotation=annotation))
+            Parameter(name=arg, kind=Parameter.KEYWORD_ONLY, default=default, annotation=annotation)
+        )
 
     # We omit the **kwargs, as we already specified all possible parameters:
     # param_list.append(Parameter("kwargs", Parameter.VAR_KEYWORD))
@@ -196,15 +201,22 @@ def _get_implicit_keyword_params(schema, all_args_optional=False):
     _ = all_args_optional
     return [
         # TODO(klecki): The default for `device`` is dependant on the input placement (and API).
-        Parameter(name="device", kind=Parameter.KEYWORD_ONLY, default=None,
-                  annotation=Optional[str]),
+        Parameter(
+            name="device", kind=Parameter.KEYWORD_ONLY, default=None, annotation=Optional[str]
+        ),
         # The name is truly optional
         Parameter(name="name", kind=Parameter.KEYWORD_ONLY, default=None, annotation=Optional[str]),
     ]
 
 
-def _call_signature(schema, include_inputs=True, include_kwargs=True, include_self=False,
-                    data_node_return=True, all_args_optional=False) -> Signature:
+def _call_signature(
+    schema,
+    include_inputs=True,
+    include_kwargs=True,
+    include_self=False,
+    data_node_return=True,
+    all_args_optional=False,
+) -> Signature:
     """Generate a Signature for given schema.
 
     Parameters
@@ -269,19 +281,22 @@ def inspect_repr_fixups(signature: str) -> str:
 def _gen_fn_signature(schema, schema_name, fn_name):
     """Write the stub of the fn API function with the docstring, for given operator.
     """
-    return inspect_repr_fixups(f"""
+    return inspect_repr_fixups(
+        f"""
 def {fn_name}{_call_signature(schema, include_inputs=True, include_kwargs=True)}:
     \"""{_docs._docstring_generator_fn(schema_name)}
     \"""
     ...
-""")
+"""
+    )
 
 
 def _gen_ops_signature(schema, schema_name, cls_name):
     """Write the stub of the fn API class with the docstring, __init__ and __call__ for given
     operator.
     """
-    return inspect_repr_fixups(f"""
+    return inspect_repr_fixups(
+        f"""
 class {cls_name}:
     \"""{_docs._docstring_generator(schema_name)}
     \"""
@@ -295,7 +310,8 @@ class {cls_name}:
         \"""{_docs._docstring_generator_call(schema_name)}
         \"""
         ...
-""")
+"""
+    )
 
 
 # Preamble with license and helper imports for the stub file.
@@ -391,7 +407,7 @@ def _group_signatures(api: str):
         "python_only": [],
         "hidden_or_internal": [],
         "python_wrapper": [],
-        "generated": []
+        "generated": [],
     }
 
     api_module = fn if api == "fn" else ops
@@ -421,7 +437,6 @@ def _group_signatures(api: str):
 
 
 class StubFileManager:
-
     def __init__(self, nvidia_dali_path: Path, api: str):
         self._module_to_file = {}
         self._nvidia_dali_path = nvidia_dali_path
@@ -480,8 +495,9 @@ def gen_all_signatures(nvidia_dali_path, api):
         for (schema_name, op) in sig_groups["python_only"] + sig_groups["python_wrapper"]:
             _, module_nesting, op_name = _names._process_op_name(schema_name, api=api)
 
-            stub_manager.get(module_nesting).write(f"\n\nfrom {op._impl_module} import"
-                                                   f" ({op.__name__} as {op.__name__})\n\n")
+            stub_manager.get(module_nesting).write(
+                f"\n\nfrom {op._impl_module} import" f" ({op.__name__} as {op.__name__})\n\n"
+            )
 
         # we do not go over sig_groups["hidden_or_internal"] at all as they are supposed to not be
         # directly visible
@@ -493,7 +509,9 @@ def gen_all_signatures(nvidia_dali_path, api):
 
             if api == "fn":
                 stub_manager.get(module_nesting).write(
-                    _gen_fn_signature(schema, schema_name, op_name))
+                    _gen_fn_signature(schema, schema_name, op_name)
+                )
             else:
                 stub_manager.get(module_nesting).write(
-                    _gen_ops_signature(schema, schema_name, op_name))
+                    _gen_ops_signature(schema, schema_name, op_name)
+                )
