@@ -42,7 +42,7 @@ class _MetaArithmetic(type):
 
 
 class arithmetic(metaclass=_MetaArithmetic):
-    """ Context-manager that enabled/disables arithmetic operators on TensorLists.
+    """Context-manager that enabled/disables arithmetic operators on TensorLists.
     Can also be used as a function with global setting.
 
     Examples:
@@ -74,7 +74,7 @@ class arithmetic(metaclass=_MetaArithmetic):
 
 
 class rng_state(_create_module_class()):
-    """ Manager class for stateful operators. This object holds a cache of reusable operators.
+    """Manager class for stateful operators. This object holds a cache of reusable operators.
     Operators are initialized with deterministic seeds generated according to the ``seed`` argument
     and are reused when you call the same operator with the same scalar parameters.
 

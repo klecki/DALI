@@ -240,13 +240,12 @@ class DALIGenericIterator(_DaliBaseIterator):
 def default_num_threads_value():
     """Returns default value for num_threads argument of DALI iterator decorator.
 
-.. note::
-    This value should not be considered as optimized for any particular workload. For best
-        performance, it is recommended to set this value manually.
+    .. note::
+        This value should not be considered as optimized for any particular workload. For best
+            performance, it is recommended to set this value manually.
 
-.. note::
-    This value is subject to change in the future.
-"""
+    .. note::
+        This value is subject to change in the future."""
 
     return 4
 
@@ -263,7 +262,7 @@ def data_iterator_impl(
     prepare_first_batch=True,
     sharding=None,
 ):
-    """ Implementation of the data_iterator decorator. It is extracted to a separate function
+    """Implementation of the data_iterator decorator. It is extracted to a separate function
     to be reused by the peekable iterator decorator.
     """
 

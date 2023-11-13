@@ -300,19 +300,18 @@ class _ExternalSourceGroup(object):
 
 class ExternalSource:
     """ExternalSource is a special operator that can provide data to a DALI pipeline
-from Python by several methods.
+    from Python by several methods.
 
-The simplest and preferred way is to specify a ``source``, which can be a callable or iterable.
+    The simplest and preferred way is to specify a ``source``, which can be a callable or iterable.
 
-.. note::
-    :meth:`nvidia.dali.fn.external_source` operator is partially compatible with TensorFlow
-    integration via :meth:`nvidia.dali.plugin.tf.experimental.DALIDatasetWithInputs`.
-    Please refer to its documentation for details.
+    .. note::
+        :meth:`nvidia.dali.fn.external_source` operator is partially compatible with TensorFlow
+        integration via :meth:`nvidia.dali.plugin.tf.experimental.DALIDatasetWithInputs`.
+        Please refer to its documentation for details.
 
-.. note::
-    To return a batch of copies of the same tensor, use :func:`nvidia.dali.types.Constant`,
-    which is more performant.
-"""
+    .. note::
+        To return a batch of copies of the same tensor, use :func:`nvidia.dali.types.Constant`,
+        which is more performant."""
 
     _args_doc = """
 Args
@@ -936,22 +935,22 @@ def external_source(
     **kwargs,
 ):
     """Creates a data node which is populated with data from a Python source.
-The data can be provided by the ``source`` function or iterable, or it can be provided by
-``pipeline.feed_input(name, data, layout, cuda_stream)`` inside ``pipeline.iter_setup``.
+    The data can be provided by the ``source`` function or iterable, or it can be provided by
+    ``pipeline.feed_input(name, data, layout, cuda_stream)`` inside ``pipeline.iter_setup``.
 
-In the case of the GPU input, it is the user responsibility to modify the
-provided GPU memory content only using provided stream (DALI schedules a copy on it
-and all work is properly queued). If no stream is provided feeding input blocks until the
-provided memory is copied to the internal buffer.
+    In the case of the GPU input, it is the user responsibility to modify the
+    provided GPU memory content only using provided stream (DALI schedules a copy on it
+    and all work is properly queued). If no stream is provided feeding input blocks until the
+    provided memory is copied to the internal buffer.
 
-.. note::
-    :meth:`nvidia.dali.fn.external_source` operator is partially compatible with TensorFlow
-    integration via :meth:`nvidia.dali.plugin.tf.experimental.DALIDatasetWithInputs`.
-    Please refer to its documentation for details.
+    .. note::
+        :meth:`nvidia.dali.fn.external_source` operator is partially compatible with TensorFlow
+        integration via :meth:`nvidia.dali.plugin.tf.experimental.DALIDatasetWithInputs`.
+        Please refer to its documentation for details.
 
-.. note::
-    To return a batch of copies of the same tensor, use :func:`nvidia.dali.types.Constant`,
-    which is more performant.
+    .. note::
+        To return a batch of copies of the same tensor, use :func:`nvidia.dali.types.Constant`,
+        which is more performant.
     """
 
     from nvidia.dali._debug_mode import _PipelineDebug

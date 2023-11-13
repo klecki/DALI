@@ -19,14 +19,14 @@ import types
 
 def get_submodule(root, path):
     """Gets or creates submodule(s) of `root`.
-If the module path contains multiple parts, multiple modules are traversed or created
+    If the module path contains multiple parts, multiple modules are traversed or created
 
-Parameters
-----------
-    `root`
-        module object or name of the root module
-    `path`
-        period-separated path of the submodule or a list/tuple of submodule names"""
+    Parameters
+    ----------
+        `root`
+            module object or name of the root module
+        `path`
+            period-separated path of the submodule or a list/tuple of submodule names"""
 
     if isinstance(root, str):
         root = sys.modules[root]

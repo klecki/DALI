@@ -70,10 +70,10 @@ process about completed tasks being ready for consumption by the main process.
 class ShmChunkManager:
 
     """Two dimensional buffer of shared memory chunks (queue_depth X num_minibatches),
-       chunks can be accessed either by providing two coordinates or via shm chunk's unique id.
-       Each ExternalSource callback gets its own buffer, first dimension is cycled
-       over when scheduling and receiving consecutive batches, second dimension is
-       used to separate minibatches."""
+    chunks can be accessed either by providing two coordinates or via shm chunk's unique id.
+    Each ExternalSource callback gets its own buffer, first dimension is cycled
+    over when scheduling and receiving consecutive batches, second dimension is
+    used to separate minibatches."""
 
     def __init__(
         self, shm_pool: List[BufShmChunk], queue_depth, initial_chunk_capacity, num_minibatches
@@ -330,7 +330,7 @@ def create_worker_contexts(
 
 class ProcPool:
     """Runs pool of worker processes, stores pipes and sockets used to communicate with
-     the workers, starts thread keeping track of running processes and initializes communication.
+    the workers, starts thread keeping track of running processes and initializes communication.
     """
 
     def __init__(
@@ -442,8 +442,7 @@ class ProcPool:
         return len(self._workers_contexts)
 
     def pids(self):
-        """Get pids of the processes started by this pool.
-        """
+        """Get pids of the processes started by this pool."""
         return [proc.pid for proc in self._processes]
 
     def close(self):
@@ -561,8 +560,7 @@ class Observer:
         self.thread.start()
 
     def _observer_thread(self):
-        """Observer thread for ProcPool used for stopping and joining processes.
-        """
+        """Observer thread for ProcPool used for stopping and joining processes."""
         exit_gently = True
         try:
             ps = {p.sentinel: p for p in self._processes}
@@ -623,7 +621,7 @@ def create_shm_chunk_manager_for_group(
 
 
 class WorkerPool:
-    """"Combines worker processes pool with callback contexts, can be used to schedule batches
+    """ "Combines worker processes pool with callback contexts, can be used to schedule batches
     to be run on the workers and to receive resulting batches from the workers."""
 
     def __init__(self, contexts: List[CallbackContext], pool: ProcPool):
@@ -864,8 +862,7 @@ class WorkerPool:
             context.process_task(shm_chunk, completed_task)
 
     def pids(self):
-        """Get pids of the processes started by this pool.
-        """
+        """Get pids of the processes started by this pool."""
         return self.pool.pids()
 
     def reset(self):

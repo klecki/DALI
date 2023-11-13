@@ -137,8 +137,7 @@ def _get_positional_input_param(schema, idx):
 
 
 def _get_positional_input_params(schema):
-    """Get the list of positional only inputs to the operator.
-    """
+    """Get the list of positional only inputs to the operator."""
     param_list = []
     if not schema.HasInputDox() and schema.MaxNumInput() > _MAX_INPUT_SPELLED_OUT:
         param_list.append(Parameter("input", Parameter.VAR_POSITIONAL, annotation=_DataNode))
@@ -149,8 +148,7 @@ def _get_positional_input_params(schema):
 
 
 def _get_keyword_params(schema, all_args_optional=False):
-    """Get the list of annotated keyword Parameters to the operator.
-    """
+    """Get the list of annotated keyword Parameters to the operator."""
     param_list = []
     for arg in schema.GetArgumentNames():
         if schema.IsDeprecatedArg(arg):
@@ -279,8 +277,7 @@ def inspect_repr_fixups(signature: str) -> str:
 
 
 def _gen_fn_signature(schema, schema_name, fn_name):
-    """Write the stub of the fn API function with the docstring, for given operator.
-    """
+    """Write the stub of the fn API function with the docstring, for given operator."""
     return inspect_repr_fixups(
         f"""
 def {fn_name}{_call_signature(schema, include_inputs=True, include_kwargs=True)}:

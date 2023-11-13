@@ -186,8 +186,8 @@ class ShmQueue:
 class Dispatcher:
 
     """Wrapper around the queue that enables writing to the queue in a separate thread, just in
-       case a writing process would have to wait too long for a lock on the queue when multiple
-       readers pop the items one by one."""
+    case a writing process would have to wait too long for a lock on the queue when multiple
+    readers pop the items one by one."""
 
     def __init__(self, target_queue, on_thread_exit=None):
         self.pending_cv = threading.Condition()

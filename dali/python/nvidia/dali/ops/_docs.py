@@ -149,9 +149,9 @@ def _get_kwargs(schema):
 
 def _docstring_generator_main(schema_name, api):
     """
-        Generate docstring for the class obtaining it from schema based on cls.__name__
-        or the schema name as a str.
-        This lists all the Keyword args that can be used when creating operator
+    Generate docstring for the class obtaining it from schema based on cls.__name__
+    or the schema name as a str.
+    This lists all the Keyword args that can be used when creating operator
     """
     schema = _b.GetSchema(schema_name)
     ret = "\n"
@@ -232,10 +232,10 @@ def _supported_layouts_str(supported_layouts):
 
 def _docstring_prefix_from_inputs(op_name):
     """
-        Generate start of the docstring for `__call__` of Operator `op_name`
-        assuming the docstrings were provided for all inputs separately
+    Generate start of the docstring for `__call__` of Operator `op_name`
+    assuming the docstrings were provided for all inputs separately
 
-        Returns the signature of `__call__` and list of `Args` in appropriate section
+    Returns the signature of `__call__` and list of `Args` in appropriate section
     """
     schema = _b.GetSchema(op_name)
     # Signature
@@ -249,8 +249,8 @@ def _docstring_prefix_from_inputs(op_name):
 
 def _docstring_prefix_auto(op_name):
     """
-        Generate start of the docstring for `__call__` of Operator `op_name`
-        with default values. Assumes there will be 0 or 1 inputs
+    Generate start of the docstring for `__call__` of Operator `op_name`
+    with default values. Assumes there will be 0 or 1 inputs
     """
     schema = _b.GetSchema(op_name)
     if schema.MaxNumInput() == 0:
@@ -275,7 +275,7 @@ Args
 
 def _docstring_generator_call(op_name):
     """
-        Generate full docstring for `__call__` of Operator `op_name`.
+    Generate full docstring for `__call__` of Operator `op_name`.
     """
     schema = _b.GetSchema(op_name)
     if schema.IsDocPartiallyHidden():

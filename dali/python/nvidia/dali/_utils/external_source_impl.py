@@ -42,8 +42,7 @@ class SourceKind(Enum):
 
 
 class SourceDescription:
-    """Keep the metadata about the source parameter that was originally passed
-    """
+    """Keep the metadata about the source parameter that was originally passed"""
 
     def __init__(self, source, kind: SourceKind, has_inputs: bool, cycle: str, batch_info=False):
         self.source = source
@@ -338,8 +337,7 @@ def _inspect_data(data, is_batched):
 
 
 def get_batch_iterable_from_callback(source_desc: SourceDescription):
-    """Transform batch callback accepting one argument into an Iterable
-    """
+    """Transform batch callback accepting one argument into an Iterable"""
     first = source_desc.source(types.BatchInfo(0, 0) if source_desc.batch_info else 0)
     dtype, shape = _inspect_data(first, True)
 
@@ -375,8 +373,7 @@ def get_batch_iterable_from_callback(source_desc: SourceDescription):
 
 
 def get_sample_iterable_from_callback(source_desc: SourceDescription, batch_size):
-    """Transform sample callback accepting one argument into an Iterable
-    """
+    """Transform sample callback accepting one argument into an Iterable"""
     first = source_desc.source(types.SampleInfo(0, 0, 0, 0))
     dtype, shape = _inspect_data(first, False)
 
@@ -415,8 +412,7 @@ def get_sample_iterable_from_callback(source_desc: SourceDescription, batch_size
 
 
 def get_iterable_from_callback(source_desc: SourceDescription, is_batched):
-    """Transform callback that doesn't accept arguments into iterable
-    """
+    """Transform callback that doesn't accept arguments into iterable"""
     print("get_iterable_from_callback")
     first = source_desc.source()
     dtype, shape = _inspect_data(first, is_batched)

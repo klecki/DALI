@@ -76,8 +76,7 @@ class _StackEntry:
 
     @property
     def produced(self):
-        """Access the set of hashes of DataNodes produced in the scope of currently selected branch.
-        """
+        """Access the set of hashes of DataNodes produced in the scope of currently selected branch."""
         if self.branch == _Branch.TrueBranch:
             return self.produced_true
         elif self.branch == _Branch.FalseBranch:
@@ -87,8 +86,7 @@ class _StackEntry:
 
     @produced.setter
     def produced(self, value):
-        """Access the set of hashes of DataNodes produced in the scope of currently selected branch.
-        """
+        """Access the set of hashes of DataNodes produced in the scope of currently selected branch."""
         if self.branch == _Branch.TrueBranch:
             self.produced_true = value
         elif self.branch == _Branch.FalseBranch:
@@ -142,8 +140,7 @@ class _StackEntry:
         )
 
     def has(self, data_node):
-        """Check if this DataNode was either produced in this scope or already split for this scope.
-        """
+        """Check if this DataNode was either produced in this scope or already split for this scope."""
         if _data_node_repr(data_node) in self.produced:
             return True
         elif _data_node_repr(data_node) in self.splits:
@@ -401,8 +398,7 @@ def _cond_merge(split_predicate):
 
 
 def conditionals_enabled():
-    """Check (within a Pipeline context) if the conditionals are enabled.
-    """
+    """Check (within a Pipeline context) if the conditionals are enabled."""
     from nvidia.dali._debug_mode import _PipelineDebug
 
     current_pipeline = _PipelineDebug.current()

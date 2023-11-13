@@ -169,8 +169,7 @@ def to_numpy_type(dali_type):
 
 @unique
 class PipelineAPIType(Enum):
-    """Pipeline API type
-    """
+    """Pipeline API type"""
 
     BASIC = 0
     ITERATOR = 1
@@ -210,27 +209,27 @@ _enum_types = [DALIDataType.IMAGE_TYPE, DALIDataType.DATA_TYPE, DALIDataType.INT
 
 class ScalarConstant(object):
     """
-.. note::
-    This class should not be instantiated directly; use :func:`Constant` function
-    with appropriate arguments to create instances of this class.
+    .. note::
+        This class should not be instantiated directly; use :func:`Constant` function
+        with appropriate arguments to create instances of this class.
 
-Wrapper for a constant value that can be used in DALI :ref:`mathematical expressions`
-and applied element-wise to the results of DALI Operators representing Tensors in
-:meth:`nvidia.dali.Pipeline.define_graph` step.
+    Wrapper for a constant value that can be used in DALI :ref:`mathematical expressions`
+    and applied element-wise to the results of DALI Operators representing Tensors in
+    :meth:`nvidia.dali.Pipeline.define_graph` step.
 
-ScalarConstant indicates what type should the value be treated as with respect
-to type promotions. The actual values passed to the backend from python
-would be `int32` for integer values and `float32` for floating point values.
-Python builtin types `bool`, `int` and `float` will be marked to indicate
-:const:`nvidia.dali.types.DALIDataType.BOOL`, :const:`nvidia.dali.types.DALIDataType.INT32`,
-and :const:`nvidia.dali.types.DALIDataType.FLOAT` respectively.
+    ScalarConstant indicates what type should the value be treated as with respect
+    to type promotions. The actual values passed to the backend from python
+    would be `int32` for integer values and `float32` for floating point values.
+    Python builtin types `bool`, `int` and `float` will be marked to indicate
+    :const:`nvidia.dali.types.DALIDataType.BOOL`, :const:`nvidia.dali.types.DALIDataType.INT32`,
+    and :const:`nvidia.dali.types.DALIDataType.FLOAT` respectively.
 
-Args
-----
-value: bool or int or float
-    The constant value to be passed to DALI expression.
-dtype: DALIDataType, optional
-    Target type of the constant to be used in types promotions.
+    Args
+    ----
+    value: bool or int or float
+        The constant value to be passed to DALI expression.
+    dtype: DALIDataType, optional
+        Target type of the constant to be used in types promotions.
     """
 
     def __init__(self, value, dtype=None):
@@ -561,40 +560,40 @@ def _is_scalar_value(value):
 
 def Constant(value, dtype=None, shape=None, layout=None, device=None, **kwargs):
     """Wraps a constant value which can then be used in
-:meth:`nvidia.dali.Pipeline.define_graph` pipeline definition step.
+    :meth:`nvidia.dali.Pipeline.define_graph` pipeline definition step.
 
-If the `value` argument is a scalar and neither `shape`, `layout` nor
-`device` is provided, the function will return a :class:`ScalarConstant`
-wrapper object, which receives special, optimized treatment when used in
-:ref:`mathematical expressions`.
+    If the `value` argument is a scalar and neither `shape`, `layout` nor
+    `device` is provided, the function will return a :class:`ScalarConstant`
+    wrapper object, which receives special, optimized treatment when used in
+    :ref:`mathematical expressions`.
 
-Otherwise, the function creates a `dali.ops.Constant` node, which produces
-a batch of constant tensors.
+    Otherwise, the function creates a `dali.ops.Constant` node, which produces
+    a batch of constant tensors.
 
-Args
-----
-value: `bool`, `int`, `float`, a `list` or `tuple` thereof or a `numpy.ndarray`
-    The constant value to wrap. If it is a scalar, it can be used as scalar
-    value in mathematical expressions. Otherwise, it will produce a constant
-    tensor node (optionally reshaped according to `shape` argument).
-    If this argument is is a numpy array, a PyTorch tensor or an MXNet array,
-    the values of `shape` and `dtype` will default to `value.shape` and `value.dtype`,
-    respectively.
-dtype: DALIDataType, optional
-    Target type of the constant.
-shape: list or tuple of int, optional
-    Requested shape of the output. If `value` is a scalar, it is broadcast
-    as to fill the requested shape. Otherwise, the number of elements in
-    `value` must match the volume of the shape.
-layout: string, optional
-    A string describing the layout of the constant tensor, e.g. "HWC"
-device: string, optional, "cpu" or "gpu"
-    The device to place the constant tensor in. If specified, it forces
-    the value to become a constant tensor node on given device,
-    regardless of `value` type or `shape`.
-**kwargs: additional keyword arguments
-    If present, it forces the constant to become a Constant tensor node
-    and the arguments are passed to the `dali.ops.Constant` operator
+    Args
+    ----
+    value: `bool`, `int`, `float`, a `list` or `tuple` thereof or a `numpy.ndarray`
+        The constant value to wrap. If it is a scalar, it can be used as scalar
+        value in mathematical expressions. Otherwise, it will produce a constant
+        tensor node (optionally reshaped according to `shape` argument).
+        If this argument is is a numpy array, a PyTorch tensor or an MXNet array,
+        the values of `shape` and `dtype` will default to `value.shape` and `value.dtype`,
+        respectively.
+    dtype: DALIDataType, optional
+        Target type of the constant.
+    shape: list or tuple of int, optional
+        Requested shape of the output. If `value` is a scalar, it is broadcast
+        as to fill the requested shape. Otherwise, the number of elements in
+        `value` must match the volume of the shape.
+    layout: string, optional
+        A string describing the layout of the constant tensor, e.g. "HWC"
+    device: string, optional, "cpu" or "gpu"
+        The device to place the constant tensor in. If specified, it forces
+        the value to become a constant tensor node on given device,
+        regardless of `value` type or `shape`.
+    **kwargs: additional keyword arguments
+        If present, it forces the constant to become a Constant tensor node
+        and the arguments are passed to the `dali.ops.Constant` operator
     """
 
     if (

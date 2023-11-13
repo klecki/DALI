@@ -524,7 +524,7 @@ class _OperatorManager:
             )
 
     def _check_call_arg_meta_data(self, expected_data, actual_data, arg_type, value):
-        """ Check for changes in layout, ndim and dtype.
+        """Check for changes in layout, ndim and dtype.
 
         Args:
             expected_data: Expected value of the data.

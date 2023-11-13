@@ -93,8 +93,7 @@ class TFRecordReader:
         ...
 
 class TFRecord:
-    """Reads samples from a TensorFlow TFRecord file.
-    """
+    """Reads samples from a TensorFlow TFRecord file."""
 
     def __init__(
         self,
@@ -216,6 +215,5 @@ def tfrecord(
     device: Optional[str] = None,
     name: Optional[str] = None,
 ) -> Union[DataNode, Sequence[DataNode], None]:
-    """Reads samples from a TensorFlow TFRecord file.
-    """
+    """Reads samples from a TensorFlow TFRecord file."""
     ...

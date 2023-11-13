@@ -210,7 +210,7 @@ def _slice_tensorlist(data, size):
 
 
 def _arithm_op(name, *inputs):
-    """ Arithmetic operator function wrapper around ``eager.arithmetic_generic_op``. It is used
+    """Arithmetic operator function wrapper around ``eager.arithmetic_generic_op``. It is used
     for implementation of eager operators that are injected to TensorLists and for eager math
     operators.
     """
@@ -377,7 +377,7 @@ def _create_backend_op(spec, device, num_inputs, num_outputs, call_args_names, o
 
 
 def _eager_op_object_factory(op_class, op_name):
-    """ Creates eager operator class to use with objective ops-like API. For completeness,
+    """Creates eager operator class to use with objective ops-like API. For completeness,
     currently not used.
     """
 
@@ -426,7 +426,7 @@ def _eager_op_object_factory(op_class, op_name):
 
 
 def _expose_eager_op_as_object(op_class, submodule):
-    """ Exposes eager operators as objects. Can be used if we decide to change eager API from
+    """Exposes eager operators as objects. Can be used if we decide to change eager API from
     functional to objective.
     """
 
@@ -456,7 +456,7 @@ def _eager_op_base_factory(op_class, op_name, num_inputs, call_args_names):
 
 
 def _create_module_class():
-    """ Creates a class imitating a module. Used for `rng_state` so we can have nested methods.
+    """Creates a class imitating a module. Used for `rng_state` so we can have nested methods.
     E.g. `rng_state.random.normal`.
     """
 
@@ -477,7 +477,7 @@ def _create_module_class():
 
 
 def _create_state_submodule(name):
-    """ Creates a class imitating a submodule. It can contain methods and nested submodules.
+    """Creates a class imitating a submodule. It can contain methods and nested submodules.
     Used for submodules of rng_state, e.g. `rng_state.random`, `rng_state.noise`.
     """
 
@@ -694,7 +694,7 @@ def _desc_call_args(inputs, args):
 
 
 def _gen_cache_key(op_name, inputs, init_args, call_args):
-    """ Creating cache key consisting of operator name, description of inputs, input arguments
+    """Creating cache key consisting of operator name, description of inputs, input arguments
     and init args. Each call arg is described by dtype, layout and dim.
     """
     return op_name + _desc_call_args(inputs, call_args) + str(sorted(init_args.items()))
@@ -808,7 +808,7 @@ def _get_eager_target_module(parent_module, submodules, make_hidden):
 
 
 def _wrap_eager_op(op_class, submodules, parent_module, wrapper_name, wrapper_doc, make_hidden):
-    """ Exposes eager operator to the appropriate module
+    """Exposes eager operator to the appropriate module
     (similar to :func:`nvidia.dali.fn._wrap_op`).
     Uses ``op_class`` for preprocessing inputs and keyword arguments and filling OpSpec for backend
     eager operators.

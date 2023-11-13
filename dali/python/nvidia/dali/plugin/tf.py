@@ -217,12 +217,12 @@ def DALIIteratorWrapper(
     **kwargs,
 ):
     """
-  TF Plugin Wrapper
+    TF Plugin Wrapper
 
-  This operator works in the same way as DALI TensorFlow plugin, with the exception that it also
-  accepts Pipeline objects as an input, which are serialized internally. For more information,
-  see :meth:`nvidia.dali.plugin.tf.DALIRawIterator`.
-  """
+    This operator works in the same way as DALI TensorFlow plugin, with the exception that it also
+    accepts Pipeline objects as an input, which are serialized internally. For more information,
+    see :meth:`nvidia.dali.plugin.tf.DALIRawIterator`.
+    """
     if type(prefetch_queue_depth) is dict:
         exec_separated = True
         cpu_prefetch_queue_depth = prefetch_queue_depth["cpu_size"]
@@ -687,8 +687,7 @@ if dataset_compatible_tensorflow():
             self._input_batched = tuple(int(b) for b in inputs_from_dict[3] + inputs_from_source[3])
 
         def _assert_pipeline_instance(self):
-            """Ensure that the pipeline is built, and check if the Python part is available.
-            """
+            """Ensure that the pipeline is built, and check if the Python part is available."""
             self._pipeline_instance.build()
             if not self._pipeline_instance._py_graph_built and self._pipeline_instance._built:
                 raise ValueError(

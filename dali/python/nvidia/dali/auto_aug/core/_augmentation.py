@@ -205,7 +205,7 @@ class Augmentation:
         -------
         DataNode
             A batch of transformed samples.
-    """
+        """
         num_mandatory_positional_args = 2
         param_device = self._infer_param_device(data)
         params = self._get_param(magnitude_bin, num_magnitude_bins, param_device)

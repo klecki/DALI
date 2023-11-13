@@ -126,7 +126,7 @@ class SampleMeta:
 
 class SharedBatchMeta:
     """Describes offset within shared memory chunk and size of serialized list of
-       `SampleMeta` instances"""
+    `SampleMeta` instances"""
 
     def __init__(self, meta_offset, meta_size):
         self.meta_offset = meta_offset
@@ -149,8 +149,7 @@ def deserialize_sample(buffer: BufShmChunk, sample):
 
 
 def deserialize_sample_meta(buffer: BufShmChunk, shared_batch_meta: SharedBatchMeta):
-    """Helper to deserialize SampleMeta from memory based on SharedBatchMeta.
-    """
+    """Helper to deserialize SampleMeta from memory based on SharedBatchMeta."""
     sbm = shared_batch_meta
     if sbm.meta_size == 0:
         return []

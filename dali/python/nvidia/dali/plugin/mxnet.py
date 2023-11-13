@@ -62,9 +62,10 @@ def feed_ndarray(dali_tensor, arr, cuda_stream=None):
 
     # Wait until arr is no longer used by the engine
     _wait_to_write(arr)
-    assert dali_tensor.shape() == list(arr.shape), (
-        "Shapes do not match: DALI tensor has "
-        "shape {0}, but NDArray has shape {1}".format(dali_tensor.shape(), list(arr.shape))
+    assert dali_tensor.shape() == list(
+        arr.shape
+    ), "Shapes do not match: DALI tensor has " "shape {0}, but NDArray has shape {1}".format(
+        dali_tensor.shape(), list(arr.shape)
     )
     # Get CTypes void pointer to the underlying memory held by arr
     ptr = ctypes.c_void_p()

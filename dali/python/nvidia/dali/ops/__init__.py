@@ -64,8 +64,7 @@ class _OpCounter(object):
 
 
 def _instantiate_constant_node(constant: _ScalarConstant, device: str):
-    """Generate a DataNode (creating a Constant operator) based on the provided ScalarConstant.
-    """
+    """Generate a DataNode (creating a Constant operator) based on the provided ScalarConstant."""
     return _Constant(
         device=device, value=constant.value, dtype=constant.dtype, shape=constant.shape
     )
@@ -258,8 +257,7 @@ def _resolve_double_definitions(current, previous, keep_old=True):
 
 
 def _process_arguments(schema, spec, kwargs, operator_name):
-    """Process arguments: validate, deprecate and add to spec, handling appropriate data marshalling
-    """
+    """Process arguments: validate, deprecate and add to spec, handling appropriate data marshalling"""
     kwargs = _handle_arg_deprecations(schema, kwargs, operator_name)
     _add_spec_args(schema, spec, kwargs)
 
@@ -623,8 +621,7 @@ def Reload():
 
 
 def _load_readers_tfrecord():
-    """After backend ops are loaded, load the TFRecord readers (if they are available).
-    """
+    """After backend ops are loaded, load the TFRecord readers (if they are available)."""
     from nvidia.dali.ops._operators import tfrecord
 
     if not tfrecord.tfrecord_enabled():

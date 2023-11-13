@@ -51,172 +51,171 @@ def _show_deprecation_warning(deprecated, in_favor_of):
 
 class Pipeline(object):
     """Pipeline class is the base of all DALI data pipelines. The pipeline
-encapsulates the data processing graph and the execution engine.
+    encapsulates the data processing graph and the execution engine.
 
-Parameters
-----------
-`batch_size` : int, optional, default = -1
-    Maximum batch size of the pipeline. Negative values for this parameter
-    are invalid - the default value may only be used with
-    serialized pipeline (the value stored in serialized pipeline
-    is used instead). In most cases, the actual batch size of the pipeline
-    will be equal to the maximum one. Running the DALI Pipeline with a smaller batch size
-    is also supported. The batch size might change from iteration to iteration.
+    Parameters
+    ----------
+    `batch_size` : int, optional, default = -1
+        Maximum batch size of the pipeline. Negative values for this parameter
+        are invalid - the default value may only be used with
+        serialized pipeline (the value stored in serialized pipeline
+        is used instead). In most cases, the actual batch size of the pipeline
+        will be equal to the maximum one. Running the DALI Pipeline with a smaller batch size
+        is also supported. The batch size might change from iteration to iteration.
 
-    Please note, that DALI might perform memory preallocations according to this
-    parameter. Setting it too high might result in out-of-memory failure.
-`num_threads` : int, optional, default = -1
-    Number of CPU threads used by the pipeline.
-    Negative values for this parameter are invalid - the default
-    value may only be used with serialized pipeline (the value
-    stored in serialized pipeline is used instead).
-`device_id` : int, optional, default = -1
-    Id of GPU used by the pipeline.
-    A None value for this parameter means that DALI should not use GPU nor CUDA runtime.
-    This limits the pipeline to only CPU operators but allows it to run on any CPU capable machine.
-`seed` : int, optional, default = -1
-    Seed used for random number generation. Leaving the default value
-    for this parameter results in random seed.
-`exec_pipelined` : bool, optional, default = True
-    Whether to execute the pipeline in a way that enables
-    overlapping CPU and GPU computation, typically resulting
-    in faster execution speed, but larger memory consumption.
-`prefetch_queue_depth` : int or {"cpu_size": int, "gpu_size": int}, optional, default = 2
-    Depth of the executor pipeline. Deeper pipeline makes DALI
-    more resistant to uneven execution time of each batch, but it
-    also consumes more memory for internal buffers.
-    Specifying a dict:
-    ``{ "cpu_size": x, "gpu_size": y }``
-    instead of an integer will cause the pipeline to use separated
-    queues executor, with buffer queue size `x` for cpu stage
-    and `y` for mixed and gpu stages. It is not supported when both `exec_async`
-    and `exec_pipelined` are set to `False`.
-    Executor will buffer cpu and gpu stages separatelly,
-    and will fill the buffer queues when the first :meth:`run`
-    is issued.
-`exec_async` : bool, optional, default = True
-    Whether to execute the pipeline asynchronously.
-    This makes :meth:`run` method
-    run asynchronously with respect to the calling Python thread.
-    In order to synchronize with the pipeline one needs to call
-    :meth:`outputs` method.
-`bytes_per_sample` : int, optional, default = 0
-    A hint for DALI for how much memory to use for its tensors.
-`set_affinity` : bool, optional, default = False
-    Whether to set CPU core affinity to the one closest to the
-    GPU being used.
-`max_streams` : int, optional, default = -1
-    Limit the number of CUDA streams used by the executor.
-    Value of -1 does not impose a limit.
-    This parameter is currently unused (and behavior of
-    unrestricted number of streams is assumed).
-`default_cuda_stream_priority` : int, optional, default = 0
-    CUDA stream priority used by DALI. See `cudaStreamCreateWithPriority` in CUDA documentation
-`enable_memory_stats`: bool, optional, default = False
-    If DALI should print operator output buffer statistics.
-    Useful for `bytes_per_sample_hint` operator parameter.
-`enable_checkpointing`: bool, optional, default = False
-    If True, DALI will trace states of the operators. In that case, calling the ``checkpoint``
-    method returns serialized state of the pipeline. The same pipeline can be later rebuilt
-    with the serialized state passed as the `checkpoint` parameter to resume running
-    from the saved iteration::
+        Please note, that DALI might perform memory preallocations according to this
+        parameter. Setting it too high might result in out-of-memory failure.
+    `num_threads` : int, optional, default = -1
+        Number of CPU threads used by the pipeline.
+        Negative values for this parameter are invalid - the default
+        value may only be used with serialized pipeline (the value
+        stored in serialized pipeline is used instead).
+    `device_id` : int, optional, default = -1
+        Id of GPU used by the pipeline.
+        A None value for this parameter means that DALI should not use GPU nor CUDA runtime.
+        This limits the pipeline to only CPU operators but allows it to run on any CPU capable machine.
+    `seed` : int, optional, default = -1
+        Seed used for random number generation. Leaving the default value
+        for this parameter results in random seed.
+    `exec_pipelined` : bool, optional, default = True
+        Whether to execute the pipeline in a way that enables
+        overlapping CPU and GPU computation, typically resulting
+        in faster execution speed, but larger memory consumption.
+    `prefetch_queue_depth` : int or {"cpu_size": int, "gpu_size": int}, optional, default = 2
+        Depth of the executor pipeline. Deeper pipeline makes DALI
+        more resistant to uneven execution time of each batch, but it
+        also consumes more memory for internal buffers.
+        Specifying a dict:
+        ``{ "cpu_size": x, "gpu_size": y }``
+        instead of an integer will cause the pipeline to use separated
+        queues executor, with buffer queue size `x` for cpu stage
+        and `y` for mixed and gpu stages. It is not supported when both `exec_async`
+        and `exec_pipelined` are set to `False`.
+        Executor will buffer cpu and gpu stages separatelly,
+        and will fill the buffer queues when the first :meth:`run`
+        is issued.
+    `exec_async` : bool, optional, default = True
+        Whether to execute the pipeline asynchronously.
+        This makes :meth:`run` method
+        run asynchronously with respect to the calling Python thread.
+        In order to synchronize with the pipeline one needs to call
+        :meth:`outputs` method.
+    `bytes_per_sample` : int, optional, default = 0
+        A hint for DALI for how much memory to use for its tensors.
+    `set_affinity` : bool, optional, default = False
+        Whether to set CPU core affinity to the one closest to the
+        GPU being used.
+    `max_streams` : int, optional, default = -1
+        Limit the number of CUDA streams used by the executor.
+        Value of -1 does not impose a limit.
+        This parameter is currently unused (and behavior of
+        unrestricted number of streams is assumed).
+    `default_cuda_stream_priority` : int, optional, default = 0
+        CUDA stream priority used by DALI. See `cudaStreamCreateWithPriority` in CUDA documentation
+    `enable_memory_stats`: bool, optional, default = False
+        If DALI should print operator output buffer statistics.
+        Useful for `bytes_per_sample_hint` operator parameter.
+    `enable_checkpointing`: bool, optional, default = False
+        If True, DALI will trace states of the operators. In that case, calling the ``checkpoint``
+        method returns serialized state of the pipeline. The same pipeline can be later rebuilt
+        with the serialized state passed as the `checkpoint` parameter to resume running
+        from the saved iteration::
 
-        @pipeline_def(..., enable_checkpointing=True)
-        def pipeline():
+            @pipeline_def(..., enable_checkpointing=True)
+            def pipeline():
+                ...
+
+            p = pipeline()
+            p.build()
+            for _ in range(iters):
+                output = p.run()
+                ...
+            checkpoint = p.checkpoint()
+
             ...
 
-        p = pipeline()
-        p.build()
-        for _ in range(iters):
-            output = p.run()
-            ...
-        checkpoint = p.checkpoint()
+            p_restored = pipeline(checkpoint=checkpoint)
+            p_restored.build()
 
-        ...
+        .. warning::
+            This is an experimental feature. The API may change without notice. Checkpoints
+            created with this DALI version may not be compatible with the future releases.
+            Currently, some operators do not support checkpointing.
 
-        p_restored = pipeline(checkpoint=checkpoint)
-        p_restored.build()
+    `checkpoint`: str, optional, default = None
+        Serialized checkpoint, received from ``checkpoint`` method.
+        When pipeline is built, its state is restored from the `checkpoint` and the pipeline
+        resumes execution from the saved iteration.
 
-    .. warning::
-        This is an experimental feature. The API may change without notice. Checkpoints
-        created with this DALI version may not be compatible with the future releases.
-        Currently, some operators do not support checkpointing.
+        .. warning::
+            This is an experimental feature. The API may change without notice. Checkpoints
+            created with this DALI version may not be compatible with the future releases.
+            Currently, some operators do not support checkpointing.
 
-`checkpoint`: str, optional, default = None
-    Serialized checkpoint, received from ``checkpoint`` method.
-    When pipeline is built, its state is restored from the `checkpoint` and the pipeline
-    resumes execution from the saved iteration.
+    `py_num_workers`: int, optional, default = 1
+        The number of Python workers that will process ``ExternalSource`` callbacks.
+        The pool starts only if there is at least one ExternalSource with ``parallel`` set to True.
+        Setting it to 0 disables the pool and all ExternalSource operators fall back to non-parallel
+        mode even if ``parallel`` is set to True.
+    `py_start_method` : str, default = "fork"
+        Determines how Python workers are started. Supported methods:
 
-    .. warning::
-        This is an experimental feature. The API may change without notice. Checkpoints
-        created with this DALI version may not be compatible with the future releases.
-        Currently, some operators do not support checkpointing.
+          * ``"fork"`` - start by forking the process
+          * ``"spawn"`` - start a fresh interpreter process
 
-`py_num_workers`: int, optional, default = 1
-    The number of Python workers that will process ``ExternalSource`` callbacks.
-    The pool starts only if there is at least one ExternalSource with ``parallel`` set to True.
-    Setting it to 0 disables the pool and all ExternalSource operators fall back to non-parallel
-    mode even if ``parallel`` is set to True.
-`py_start_method` : str, default = "fork"
-    Determines how Python workers are started. Supported methods:
+        If ``spawn`` method is used, ExternalSource's callback must be picklable.
+        In order to use ``fork``, there must be no CUDA contexts acquired at the moment of starting
+        the workers. For this reason, if you need to build multiple pipelines that use Python workers,
+        you will need to call :meth:`start_py_workers` before calling :meth:`build` of any
+        of the pipelines. You can find more details and caveats of both methods in Python's
+        ``multiprocessing`` module documentation.
+    `py_callback_pickler` : module or tuple, default = None
+        If `py_start_method` is set to *spawn*, callback passed to parallel
+        ExternalSource must be picklable.
+        If run in Python3.8 or newer with `py_callback_pickler` set to None, DALI uses customized pickle
+        when serializing callbacks to support serialization of local functions and lambdas.
 
-      * ``"fork"`` - start by forking the process
-      * ``"spawn"`` - start a fresh interpreter process
+        However, if you need to serialize more complex objects like local classes or you are running
+        older version of Python you can provide external serialization package such as dill or
+        cloudpickle that implements two methods: `dumps` and `loads` to make DALI use them to serialize
+        external source callbacks. You can pass a module directly as ``py_callback_pickler``::
 
-    If ``spawn`` method is used, ExternalSource's callback must be picklable.
-    In order to use ``fork``, there must be no CUDA contexts acquired at the moment of starting
-    the workers. For this reason, if you need to build multiple pipelines that use Python workers,
-    you will need to call :meth:`start_py_workers` before calling :meth:`build` of any
-    of the pipelines. You can find more details and caveats of both methods in Python's
-    ``multiprocessing`` module documentation.
-`py_callback_pickler` : module or tuple, default = None
-    If `py_start_method` is set to *spawn*, callback passed to parallel
-    ExternalSource must be picklable.
-    If run in Python3.8 or newer with `py_callback_pickler` set to None, DALI uses customized pickle
-    when serializing callbacks to support serialization of local functions and lambdas.
+            import dill
+            @pipeline_def(py_callback_pickler=dill, ...)
+            def create_pipeline():
+                src = fn.external_source(lambda sample_info: np.int32([42]), batch=False, parallel=True)
+                ...
 
-    However, if you need to serialize more complex objects like local classes or you are running
-    older version of Python you can provide external serialization package such as dill or
-    cloudpickle that implements two methods: `dumps` and `loads` to make DALI use them to serialize
-    external source callbacks. You can pass a module directly as ``py_callback_pickler``::
+        A valid value for `py_callback_pickler` is either a module/object implementing
+        ``dumps`` and ``loads`` methods or a tuple where the first item is the module/object and
+        the next two optional parameters are extra kwargs to be passed when calling dumps and
+        loads respectively.
+        The provided methods and kwargs must be picklable with standard `pickle.dumps`.
 
-        import dill
-        @pipeline_def(py_callback_pickler=dill, ...)
-        def create_pipeline():
-            src = fn.external_source(lambda sample_info: np.int32([42]), batch=False, parallel=True)
-            ...
+        If you run Python3.8 or newer with the default DALI pickler (`py_callback_pickler` = None),
+        you can hint DALI to serialize global functions by value rather than by reference
+        by decorating them with `@dali.pickling.pickle_by_value`. It may be especially useful when
+        working with Jupyter notebook to work around the issue of worker process being unable to import
+        the callback defined as a global function inside the notebook.
+    `output_dtype` : ``nvidia.dali.types.DALIDataType`` or list of those, default = None
+        With this argument, you may declare, what data type you expect in the given output. You shall
+        pass a list of mod:`types.DALIDataType`, each element in the list corresponding to
+        one output from the pipeline. Additionally, you can pass ``None`` as a wildcard. The outputs,
+        after each iteration, will be validated against the types you passed to this argument. If any
+        output does not match the provided type, RuntimeError will be raised.
 
-    A valid value for `py_callback_pickler` is either a module/object implementing
-    ``dumps`` and ``loads`` methods or a tuple where the first item is the module/object and
-    the next two optional parameters are extra kwargs to be passed when calling dumps and
-    loads respectively.
-    The provided methods and kwargs must be picklable with standard `pickle.dumps`.
+        If the ``output_dtype`` value is a single value (not a list), it will be broadcast to the
+        number of outputs from the pipeline.
+    `output_ndim` : int or list of ints, default = None
+        With this argument, you may declare, how many dimensions you expect in the given output.
+        You shall pass a list of integers, each element in the list corresponding to one output
+        from the pipeline.
+        Additionally, you can pass ``None`` as a wildcard. The outputs, after each iteration, will be
+        validated against the numbers of dimensions you passed to this argument. If the dimensionality
+        of any output does not match the provided ``ndim``, RuntimeError will be raised.
 
-    If you run Python3.8 or newer with the default DALI pickler (`py_callback_pickler` = None),
-    you can hint DALI to serialize global functions by value rather than by reference
-    by decorating them with `@dali.pickling.pickle_by_value`. It may be especially useful when
-    working with Jupyter notebook to work around the issue of worker process being unable to import
-    the callback defined as a global function inside the notebook.
-`output_dtype` : ``nvidia.dali.types.DALIDataType`` or list of those, default = None
-    With this argument, you may declare, what data type you expect in the given output. You shall
-    pass a list of mod:`types.DALIDataType`, each element in the list corresponding to
-    one output from the pipeline. Additionally, you can pass ``None`` as a wildcard. The outputs,
-    after each iteration, will be validated against the types you passed to this argument. If any
-    output does not match the provided type, RuntimeError will be raised.
-
-    If the ``output_dtype`` value is a single value (not a list), it will be broadcast to the
-    number of outputs from the pipeline.
-`output_ndim` : int or list of ints, default = None
-    With this argument, you may declare, how many dimensions you expect in the given output.
-    You shall pass a list of integers, each element in the list corresponding to one output
-    from the pipeline.
-    Additionally, you can pass ``None`` as a wildcard. The outputs, after each iteration, will be
-    validated against the numbers of dimensions you passed to this argument. If the dimensionality
-    of any output does not match the provided ``ndim``, RuntimeError will be raised.
-
-    If the ``output_ndim`` value is a single value (not a list), it will be broadcast to the
-    number of outputs from the pipeline.
-"""
+        If the ``output_ndim`` value is a single value (not a list), it will be broadcast to the
+        number of outputs from the pipeline."""
 
     def __init__(
         self,
@@ -653,8 +652,7 @@ Parameters
             )
 
     def enable_api_check(self, enable):
-        """Allows to enable or disable API check in the runtime
-        """
+        """Allows to enable or disable API check in the runtime"""
         self._skip_api_check = not enable
 
     def _check_api_type_scope(self, type):
@@ -1240,8 +1238,7 @@ Parameters
             self._last_iter = True
 
     def _run_up_to(self, stage_name):
-        """Call the `_run_X` up to `stage_name` (inclusive).
-        """
+        """Call the `_run_X` up to `stage_name` (inclusive)."""
         try:
             if not self._last_iter:
                 self._iter_setup()
@@ -1262,8 +1259,7 @@ Parameters
             group.prefetch(self._py_pool, i, self._max_batch_size, self._epoch_idx)
 
     def _fill_separated_queues(self):
-        """When using separated execution fill each of the prefetch queues
-        """
+        """When using separated execution fill each of the prefetch queues"""
         if not self._built:
             raise RuntimeError("Pipeline must be built first.")
         if not self._first_iter:
@@ -1295,8 +1291,7 @@ Parameters
                         self._py_pool.reset_context(i)
 
     def empty(self):
-        """If there is any work scheduled in the pipeline but not yet consumed
-        """
+        """If there is any work scheduled in the pipeline but not yet consumed"""
         return self._batches_to_consume == 0
 
     def serialize(self, define_graph=None, filename=None):
@@ -1650,8 +1645,7 @@ def _regroup_args(func, pipeline_def_kwargs, fn_call_kwargs):
 
 
 def _preprocess_pipe_func(func, conditionals_on):
-    """Transform the pipeline definition function if the conditionals are enabled
-    """
+    """Transform the pipeline definition function if the conditionals are enabled"""
     if conditionals_on:
         return _conditionals._autograph.to_graph(func)
     else:
