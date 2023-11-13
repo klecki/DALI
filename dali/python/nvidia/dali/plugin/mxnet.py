@@ -81,6 +81,7 @@ class _DALIMXNetIteratorBase(mx.io.DataIter, _DaliBaseIterator):
     """
     Base class with methods shared by both DALIGenericIterator and DALIGluonIterator.
     """
+
     def __init__(self, pipelines, size=-1, reader_name=None, fill_last_batch=None,
                  last_batch_padded=False, auto_reset=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True):
@@ -232,6 +233,7 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  ->
     last batch = ``[5, 6]``, next iteration will return ``[2, 3]``
     """
+
     def __init__(self, pipelines, output_map, size=-1, reader_name=None, data_layout='NCHW',
                  fill_last_batch=None, auto_reset=False, squeeze_labels=True, dynamic_shape=False,
                  last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
@@ -525,6 +527,7 @@ class DALIClassificationIterator(DALIGenericIterator):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  ->
     last batch = ``[5, 6]``, next iteration will return ``[2, 3]``
     """
+
     def __init__(self, pipelines, size=-1, reader_name=None, data_name='data',
                  label_name='softmax_label', data_layout='NCHW', fill_last_batch=None,
                  auto_reset=False, squeeze_labels=True, dynamic_shape=False,
@@ -641,6 +644,7 @@ class DALIGluonIterator(_DALIMXNetIteratorBase):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  ->
     last batch = ``[5, 6]``, next iteration will return ``[2, 3]``
     """
+
     def __init__(self, pipelines, size=-1, reader_name=None, output_types=None, auto_reset=False,
                  fill_last_batch=None, last_batch_padded=False,
                  last_batch_policy=LastBatchPolicy.FILL, prepare_first_batch=True):

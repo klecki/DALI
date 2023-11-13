@@ -111,6 +111,7 @@ class DALIGenericPeekableIterator(DALIGenericIterator):
     Note:
         JAX iterator does not support LastBatchPolicy.PARTIAL.
     """
+
     def __init__(self, pipelines, output_map, size=-1, reader_name=None, auto_reset=False,
                  last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True, sharding=None):

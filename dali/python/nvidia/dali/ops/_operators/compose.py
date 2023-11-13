@@ -18,6 +18,7 @@ from nvidia.dali.data_node import DataNode as _DataNode
 
 
 class _CompoundOp:
+
     def __init__(self, op_list):
         self._ops = []
         for op in op_list:

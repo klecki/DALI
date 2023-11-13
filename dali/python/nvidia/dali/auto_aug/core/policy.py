@@ -19,6 +19,7 @@ from typing import Optional, Sequence, Tuple
 
 
 class Policy:
+
     def __init__(self, name: str, num_magnitude_bins: int,
                  sub_policies: Sequence[Sequence[Tuple[Augmentation, float, Optional[int]]]]):
         """

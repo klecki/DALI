@@ -19,6 +19,7 @@ _original_check = None
 
 
 class _NotIterable:
+
     def __iter__(self):
         raise TypeError("The objects of type `", type(self), "` are not iterable.")
 

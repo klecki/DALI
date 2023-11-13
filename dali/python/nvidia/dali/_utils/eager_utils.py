@@ -99,6 +99,7 @@ class _Classification:
             (e.g. numpy array). If -1 does not modify the data. For positive value works like
             `:class:ops.Constant`, repeats the data `arg_constant_len` times.
     """
+
     def __init__(self, data, type_name, arg_constant_len=-1):
         from nvidia.dali._debug_mode import DataNodeDebug
         is_batch, device, extracted = self._classify_data(data, type_name, arg_constant_len)
@@ -367,7 +368,9 @@ def _eager_op_object_factory(op_class, op_name):
     """ Creates eager operator class to use with objective ops-like API. For completeness,
     currently not used.
     """
+
     class EagerOperator(op_class):
+
         def __init__(self, **kwargs):
             self._batch_size = getattr(kwargs, 'batch_size', -1)
 
@@ -419,7 +422,9 @@ def _expose_eager_op_as_object(op_class, submodule):
 
 
 def _eager_op_base_factory(op_class, op_name, num_inputs, call_args_names):
+
     class EagerOperatorBase(op_class):
+
         def __init__(self, *, max_batch_size, device_id, **kwargs):
             super().__init__(**kwargs)
 
@@ -439,7 +444,9 @@ def _create_module_class():
     """ Creates a class imitating a module. Used for `rng_state` so we can have nested methods.
     E.g. `rng_state.random.normal`.
     """
+
     class Module:
+
         @classmethod
         def _submodule(cls, name):
             """ Returns submodule, creates new if it does not exist. """
@@ -459,7 +466,9 @@ def _create_state_submodule(name):
     """ Creates a class imitating a submodule. It can contain methods and nested submodules.
     Used for submodules of rng_state, e.g. `rng_state.random`, `rng_state.noise`.
     """
+
     class StateSubmodule(_create_module_class()):
+
         def __init__(self, operator_cache, seed_generator):
             self._operator_cache = operator_cache
             self._seed_generator = seed_generator
@@ -474,7 +483,9 @@ def _create_state_submodule(name):
 
 
 def _callable_op_factory(op_class, op_name, num_inputs, call_args_names):
+
     class EagerOperator(_eager_op_base_factory(op_class, op_name, num_inputs, call_args_names)):
+
         def __call__(self, inputs, kwargs):
             # Here all kwargs are supposed to be TensorLists.
             output = self._backend_op(inputs, kwargs)
@@ -491,7 +502,9 @@ _callable_op_factory.disqualified_arguments = {'bytes_per_sample_hint', 'preserv
 
 
 def _iterator_op_factory(op_class, op_name, num_inputs, call_args_names):
+
     class EagerOperator(_eager_op_base_factory(op_class, op_name, num_inputs, call_args_names)):
+
         def __init__(self, call_args, *, max_batch_size, **kwargs):
             pad_last_batch = kwargs.get('pad_last_batch', False)
             kwargs['pad_last_batch'] = True
@@ -624,6 +637,7 @@ def _choose_batch_size(inputs, batch_size=-1):
 
 
 def _prep_args(inputs, kwargs, op_name, wrapper_name, disqualified_arguments):
+
     def _prep_inputs(inputs, batch_size):
         inputs = list(inputs)
 
@@ -676,6 +690,7 @@ def _wrap_stateless(op_class, op_name, wrapper_name):
     """Wraps stateless Eager Operator in a function. Callable the same way as functions in fn API,
     but directly with TensorLists.
     """
+
     def wrapper(*inputs, **kwargs):
         inputs, init_args, call_args = _prep_args(inputs, kwargs, op_name, wrapper_name,
                                                   _callable_op_factory.disqualified_arguments)
@@ -696,6 +711,7 @@ def _wrap_stateful(op_class, op_name, wrapper_name):
     """Wraps stateful Eager Operator as method of a class. Callable the same way as functions in
     fn API, but directly with TensorLists.
     """
+
     def wrapper(self, *inputs, **kwargs):
         inputs, init_args, call_args = _prep_args(inputs, kwargs, op_name, wrapper_name,
                                                   _callable_op_factory.disqualified_arguments)
@@ -727,6 +743,7 @@ def _wrap_iterator(op_class, op_name, wrapper_name):
         ...     # file and label are batches of size 8 (TensorLists).
         ...     print(file)
     """
+
     def wrapper(*inputs, **kwargs):
         if len(inputs) > 0:
             raise ValueError("Iterator type eager operators should not receive any inputs.")

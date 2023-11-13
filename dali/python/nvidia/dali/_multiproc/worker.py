@@ -29,6 +29,7 @@ class _WorkerProcessingResult:
     """Internal worker message containing computed minibatch or error message sent from the main
     thread to the dispatcher thread. The dispatcher thread serializes the batch or the error and
     forwards the result as `CompletedTask` to the main process"""
+
     def __init__(self, scheduled, shm_chunk, data_batch=None, exception=None, traceback_str=None):
         self.context_i = scheduled.context_i
         self.scheduled_i = scheduled.scheduled_i
@@ -57,6 +58,7 @@ class SharedBatchDispatcher(Dispatcher):
     overlap serialization of minibatches with next minibatches computation in case of
     a callback waiting on IO extensively and to avoid multiple worker processes
     waiting on inter-process ShmQueue access"""
+
     def __init__(self, worker_id, result_queue, recv_queues):
         # close receiving queues if writing results fails to unblock
         # the main thread that may be waiting on new tasks to process
@@ -115,6 +117,7 @@ class SimpleQueueTaskReceiver:
     Simple wrapper around shm queue, pops first element from the queue
     and returns
     """
+
     def __init__(self, queue):
         self.queue = queue
 
@@ -143,12 +146,14 @@ class MixedTaskReceiver:
     queue, whereas idle worker serves as a fallback that aims to read a single item only if
     the internal queue is empty and the main thread does not process any task (is idle).
     """
+
     class EagerReceiverWorker:
         """
         Worker thread waiting for any tasks available in the inter-process queue
         `dedicated_task_queue`. If anything is available, it takes all the items
         and puts them into worker's internal task queue.
         """
+
         def __init__(self, receiver_state, dedicated_task_queue):
             self.receiver_state = receiver_state
             self.dedicated_task_queue = dedicated_task_queue
@@ -176,6 +181,7 @@ class MixedTaskReceiver:
         reports it has no tasks to process - it rechecks that condition if it had to wait on empty
         inter-process queue.
         """
+
         def __init__(self, receiver_state, general_task_queue):
             self.receiver_state = receiver_state
             self.general_task_queue = general_task_queue
@@ -207,6 +213,7 @@ class MixedTaskReceiver:
             self.thread.join()
 
     class MixedReceiverState:
+
         def __init__(self):
             self.lock = threading.Lock()
             self.tasks_cv = threading.Condition(lock=self.lock)
@@ -287,6 +294,7 @@ class IterableSource:
     However due to prefetching in parallel mode `cycle`=raise
     will raise StopIteration in consecutive calls until the new epoch starts
     (i.e. which happens with pipline.reset call)"""
+
     def __init__(self, source_desc):
         self.source_desc = source_desc
         self._reset_iter(0)
@@ -333,6 +341,7 @@ class IterableSource:
 
 
 class CallableSource:
+
     def __init__(self, source_desc):
         self.callback = source_desc.source
 
@@ -356,6 +365,7 @@ def get_source_from_desc(source_descs):
 class WorkerContext:
     """Initializes structures necessary for a worker process to receive,
     compute and send back tasks."""
+
     def __init__(self, worker_args: WorkerArgs):
         self.worker_id = worker_args.worker_id
         self.callbacks = self._init_callbacks(worker_args.source_descs,

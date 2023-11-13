@@ -79,6 +79,7 @@ def augmentation(function: Optional[Callable[..., _DataNode]] = None, *,
         The operation wrapped with the Augmentation class so that it can be used with the `auto_aug`
         transforms.
     """
+
     def decorator(function):
         cls = augmentation_cls or Augmentation
         return cls(function, mag_range=mag_range, mag_to_param=mag_to_param,

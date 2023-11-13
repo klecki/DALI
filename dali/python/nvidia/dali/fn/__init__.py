@@ -63,6 +63,7 @@ def _to_snake_case(pascal):
 
 
 def _wrap_op_fn(op_class, wrapper_name, wrapper_doc):
+
     def op_wrapper(*inputs, **kwargs):
         import nvidia.dali.ops
         init_args, call_args = nvidia.dali.ops._separate_kwargs(kwargs)

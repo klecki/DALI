@@ -82,6 +82,7 @@ def feed_ndarray(dali_tensor, ptr, cuda_stream=None):
 
 
 def recursive_length(tensor, lod_level):
+
     def _recurse(data, result, level):
         if level > 0:
             if isinstance(data, (TensorListCPU, TensorListGPU)):
@@ -217,6 +218,7 @@ class DALIGenericIterator(_DaliBaseIterator):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  -> last batch = ``[5, 6]``,
     next iteration will return ``[2, 3]``
     """
+
     def __init__(self, pipelines, output_map, size=-1, reader_name=None, auto_reset=False,
                  fill_last_batch=None, dynamic_shape=False, last_batch_padded=False,
                  last_batch_policy=LastBatchPolicy.FILL, prepare_first_batch=True):
@@ -459,6 +461,7 @@ class DALIClassificationIterator(DALIGenericIterator):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  -> last batch = ``[5, 6]``,
     next iteration will return ``[2, 3]``
     """
+
     def __init__(self, pipelines, size=-1, reader_name=None, auto_reset=False, fill_last_batch=None,
                  dynamic_shape=False, last_batch_padded=False,
                  last_batch_policy=LastBatchPolicy.FILL, prepare_first_batch=True):

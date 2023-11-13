@@ -421,6 +421,7 @@ def _group_signatures(api: str):
 
 
 class StubFileManager:
+
     def __init__(self, nvidia_dali_path: Path, api: str):
         self._module_to_file = {}
         self._nvidia_dali_path = nvidia_dali_path

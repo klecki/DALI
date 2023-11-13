@@ -57,6 +57,7 @@ def _check_data_batch(data, batch_size, layout):
 
 
 def _prep_data_for_feed_input(data, batch_size, layout, device_id=None):
+
     def to_numpy(x):
         if _types._is_mxnet_array(x):
             return x.asnumpy()
@@ -121,6 +122,7 @@ def _prep_data_for_feed_input(data, batch_size, layout, device_id=None):
 
 
 class _ExternalDataBatch:
+
     def __init__(self, group, pipeline, data, batch_size):
         self._group = group
         self._pipepline = pipeline
@@ -132,6 +134,7 @@ class _ExternalDataBatch:
 
 
 class _ExternalSourceGroup(object):
+
     def __init__(self, callback, source_desc, is_multioutput, instances=[], *, cuda_stream=None,
                  use_copy_kernel=None, batch=True, parallel=False, prefetch_queue_depth=None,
                  bytes_per_sample_hint=None, batch_info=None):

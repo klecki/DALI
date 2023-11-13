@@ -42,6 +42,7 @@ class SourceKind(Enum):
 class SourceDescription:
     """Keep the metadata about the source parameter that was originally passed
     """
+
     def __init__(self, source, kind: SourceKind, has_inputs: bool, cycle: str, batch_info=False):
         self.source = source
         self.kind = kind
@@ -149,6 +150,7 @@ def batch_to_numpy(
 
 
 class _CycleIter:
+
     def __init__(self, iterable, mode):
         self.source = iterable
         self.signaling = (mode == "raise")
@@ -169,6 +171,7 @@ class _CycleIter:
 
 
 class _CycleGenFunc():
+
     def __init__(self, gen_func, mode):
         self.source = gen_func
         self.signaling = (mode == "raise")

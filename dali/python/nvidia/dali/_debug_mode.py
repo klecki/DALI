@@ -35,6 +35,7 @@ from nvidia.dali.ops._operator_utils import (_build_input_sets, _repack_output_s
 
 class DataNodeDebug(_DataNode):
     """Wrapper class around Tensor, implementing all of the DataNode attributes."""
+
     def __init__(self, data, name, device, source):
         super().__init__(name, device, source)
         self._data = data
@@ -150,6 +151,7 @@ class DataNodeDebug(_DataNode):
 
 class _ExternalSourceDebug:
     """Debug mode version of ExternalSource operator."""
+
     def __init__(self, source=None, num_outputs=None, batch_size=-1, cycle=None, name=None,
                  device='cpu', device_id=-1, layout=None, batch=None, batch_info=None, **kwargs):
         if name is not None and num_outputs is not None:
@@ -216,6 +218,7 @@ class _ExternalSourceDebug:
 
     def _fetch(self, epoch_idx):
         """Fetches data from callback or provided with feed_input."""
+
         def to_data_node_debug(data):
             data = _transform_data_to_tensorlist(data, self._batch_size, layout, self._device_id)
 
@@ -251,6 +254,7 @@ class _ExternalSourceDebug:
 
 
 class _IterBatchInfo:
+
     def __init__(self, size, source_context, non_uniform_batch=False):
         """Track information about the batch size within the iteration.
 
@@ -333,6 +337,7 @@ class _OperatorManager:
 
     Uses :class:`ops.Operator` to create OpSpec and handle input sets.
     """
+
     def __init__(self, op_class, op_name, pipe, source_context, next_logical_id, batch_size,
                  device_id, seed, inputs, kwargs):
         """Creates direct operator."""
@@ -449,6 +454,7 @@ class _OperatorManager:
                 f"but was on '{expected}' when created.")
 
     def _check_batch_classification(self, expected_is_batch, actual_is_batch, arg_type, value):
+
         def classification_to_str(is_batch):
             return 'batch' if is_batch else 'constant'
 
@@ -480,6 +486,7 @@ class _OperatorManager:
             arg_type (str): String representation of the argument type, e.g. 'Input', 'Argument'.
             value (str): Argument name for keyword arguments and a number for inputs.
         """
+
         def raise_err(meta_name, actual_value, expected_value):
             raise RuntimeError(f"{arg_type} {value} for operator '{self._op_name}' has "
                                f"{meta_name} = {actual_value}, expected: {expected_value}.")
@@ -663,6 +670,7 @@ class _OperatorManager:
 
 class _PipelineDebug(_pipeline.Pipeline):
     """Debug mode for pipeline. Allows access to data inside the pipeline execution."""
+
     def __init__(self, exec_func, **kwargs):
         super().__init__(**kwargs)
         self._debug_on = False

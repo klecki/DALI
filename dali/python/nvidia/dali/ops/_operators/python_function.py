@@ -30,6 +30,7 @@ def _setup_cupy():
 
 
 class PythonFunctionBase(metaclass=ops._DaliOperatorMeta):
+
     def __init__(self, impl_name, function, num_outputs=1, device='cpu', **kwargs):
         self._schema = _b.GetSchema(impl_name)
         self._spec = _b.OpSpec(impl_name)
@@ -167,6 +168,7 @@ class PythonFunction(PythonFunctionBase):
 
     @staticmethod
     def _function_wrapper_gpu(batch_processing, function, num_outputs, *dlpack_inputs):
+
         def wrapped_func(*inputs):
             return PythonFunction._cupy_stream_wrapper(function, *inputs)
 
@@ -216,6 +218,7 @@ class DLTensorPythonFunction(PythonFunctionBase):
 
     def __init__(self, function, num_outputs=1, device='cpu', synchronize_stream=True,
                  batch_processing=True, **kwargs):
+
         def func(*ts):
             return DLTensorPythonFunction._function_wrapper_dlpack(batch_processing, function,
                                                                    num_outputs, *ts)

@@ -99,6 +99,7 @@ def cell_reducer(cell):
 
 
 class DaliCallbackPickler(pickle.Pickler):
+
     def reducer_override(self, obj):
         if inspect.ismodule(obj):
             return module_reducer(obj)

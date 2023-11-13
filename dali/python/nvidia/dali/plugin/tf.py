@@ -339,6 +339,7 @@ def _get_external_source_param(input_name, input_value, name_es_map, param_name)
     param_name : str
         name of the parameter we want to access
     """
+
     def get_param_from_pipe(input_name, name_es_map, param_name):
         es_op = name_es_map[input_name]
         # Check the OpInstance and the `_op`
@@ -400,6 +401,7 @@ if dataset_compatible_tensorflow():
         return options
 
     class _DALIDatasetV2(dataset_ops.DatasetV2):
+
         def __init__(self, pipeline, output_dtypes=None, output_shapes=None,
                      fail_on_device_mismatch=True, *, input_datasets=None, batch_size=1,
                      num_threads=4, device_id=0, exec_separated=False, prefetch_queue_depth=2,
@@ -745,6 +747,7 @@ if dataset_compatible_tensorflow():
     if _get_tf_version() < LooseVersion('2.0'):
 
         class _DALIDatasetImpl(dataset_ops.DatasetV1Adapter):
+
             @functools.wraps(_DALIDatasetV2.__init__)
             def __init__(self, pipeline, **kwargs):
                 self._wrapped = _DALIDatasetV2(pipeline, **kwargs)
@@ -755,6 +758,7 @@ if dataset_compatible_tensorflow():
     _experimental_kwargs = ['input_datasets']
 
     class DALIDataset(dataset_ops._OptionsDataset):
+
         @functools.wraps(_DALIDatasetV2.__init__)
         def __init__(self, pipeline, **kwargs):
 
@@ -780,6 +784,7 @@ if dataset_compatible_tensorflow():
 else:
 
     class DALIDataset:
+
         def __init__(self, pipeline, output_dtypes=None, output_shapes=None,
                      fail_on_device_mismatch=True, *, batch_size=1, num_threads=4, device_id=0,
                      exec_separated=False, prefetch_queue_depth=2, cpu_prefetch_queue_depth=2,
@@ -791,7 +796,9 @@ else:
 if dataset_inputs_compatible_tensorflow():
 
     def _load_experimental_dataset():
+
         class DALIDatasetWithInputs(dataset_ops._OptionsDataset):
+
             @functools.wraps(_DALIDatasetV2.__init__)
             def __init__(self, pipeline, **kwargs):
                 dataset_impl = _DALIDatasetImpl(pipeline, **kwargs)
@@ -801,6 +808,7 @@ if dataset_inputs_compatible_tensorflow():
         _insert_experimental_member(DALIDatasetWithInputs, "DALIDatasetWithInputs")
 
         class Input:
+
             def __init__(self, dataset, *, layout=None, batch=False):
                 if not isinstance(dataset, dataset_ops.DatasetV2):
                     raise TypeError(
@@ -820,7 +828,9 @@ if dataset_inputs_compatible_tensorflow():
 else:
 
     def _load_experimental_dataset():
+
         class DALIDatasetWithInputs:
+
             def __init__(self, *args, **kwargs):
                 raise RuntimeError('experimental.DALIDatasetWithInputs is not supported for '
                                    'detected version of TensorFlow. DALIDataset supports '
@@ -830,6 +840,7 @@ else:
         _insert_experimental_member(DALIDatasetWithInputs, "DALIDatasetWithInputs")
 
         class Input:
+
             def __init__(self, *args, **kwargs):
                 pass
 

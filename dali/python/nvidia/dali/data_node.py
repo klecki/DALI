@@ -32,6 +32,7 @@ def _arithm_op(*args, **kwargs):
 
 
 class _NewAxis:
+
     def __init__(self, name=None):
         if name is not None:
             if not isinstance(name, str):
@@ -60,6 +61,7 @@ class DataNode(object):
     arguments) but they also provide arithmetic operations which implicitly create appropriate
     operators that perform the expressions.
     """
+
     def __init__(self, name, device="cpu", source=None):
         self.name = name
         self.device = device

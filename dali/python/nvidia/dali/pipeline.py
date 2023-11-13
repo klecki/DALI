@@ -214,6 +214,7 @@ Parameters
     If the ``output_ndim`` value is a single value (not a list), it will be broadcast to the
     number of outputs from the pipeline.
 """
+
     def __init__(self, batch_size=-1, num_threads=-1, device_id=-1, seed=-1, exec_pipelined=True,
                  prefetch_queue_depth=2, exec_async=True, bytes_per_sample=0, set_affinity=False,
                  max_streams=-1, default_cuda_stream_priority=0, *, enable_memory_stats=False,
@@ -633,6 +634,7 @@ Parameters
             self._check_api_type(type)
 
         class api_checker():
+
             def __init__(self, pipe):
                 self._pipe = pipe
 
@@ -748,6 +750,7 @@ Parameters
         self._names_and_devices = [(e.name, e.device) for e in self._graph_outputs]
 
     def _disable_pruned_external_source_instances(self):
+
         def truncate_str(obj, max_len=103):
             obj_str = str(obj)
             if len(obj_str) <= max_len:
@@ -1714,7 +1717,9 @@ def pipeline_def(fn: Optional[Callable[..., Any]] = None, *, enable_conditionals
         Enable support for conditional execution of DALI operators using ``if`` statements
         in the pipeline definition, by default False.
     """
+
     def actual_decorator(func):
+
         @functools.wraps(func)
         def create_pipeline(*args, **kwargs):
             conditionals_on = kwargs.get('enable_conditionals', enable_conditionals)
@@ -1740,6 +1745,7 @@ def _collect_ops(output_nodes):
     Returns the list of operators topologically sorted, so that operators that contribute
     as inputs to another operator go first.
     """
+
     def get_source_op(edge: DataNode):
         source_op = edge.source
         if source_op is None:
@@ -1811,6 +1817,7 @@ def _pipeline_def_experimental(fn=None, *, enable_conditionals=False, **pipeline
     pipeline_debug = pipeline_kwargs.pop('debug', False)
 
     def actual_decorator(func):
+
         @functools.wraps(func)
         def create_pipeline(*args, **kwargs):
             debug_mode_on = kwargs.get('debug', pipeline_debug)

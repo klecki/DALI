@@ -63,6 +63,7 @@ class _StackEntry:
     produced in their scopes. Keeps the mapping of DataNodes produced in higher scopes that
     were already split for use in this scope.
     """
+
     def __init__(self, predicate):
         self.predicate = predicate
         self.branch = _Branch.Undefined
@@ -163,6 +164,7 @@ class _ConditionStack:
     data nodes, applying the necessary splits based on the scope level where they were produced
     and where they are used.
     """
+
     def __init__(self):
         self._stack = [_StackEntry(None)]
         self._is_registration_allowed = True
@@ -491,6 +493,7 @@ def _verify_branch_outputs(outputs, symbol_names, branch_name):
 
 
 class DaliOperatorOverload(_autograph.OperatorBase):
+
     def detect_overload_ld(self, v):
         return isinstance(v, _DataNode)
 

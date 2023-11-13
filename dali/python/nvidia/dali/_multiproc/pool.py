@@ -64,6 +64,7 @@ class ShmChunkManager:
        Each ExternalSource callback gets its own buffer, first dimension is cycled
        over when scheduling and receiving consecutive batches, second dimension is
        used to separate minibatches."""
+
     def __init__(self, shm_pool: List[BufShmChunk], queue_depth, initial_chunk_capacity,
                  num_minibatches):
         if queue_depth < 1:
@@ -112,6 +113,7 @@ class CallbackContext:
     """Keeps track of tasks and partially received results for a given source.
     Contains source description, dedicated ShmChunkManager instance and
     information about dedicated worker id if applicable."""
+
     def __init__(self, source_desc: SourceDescription, shm_manager: ShmChunkManager,
                  dedicated_worker_id: Optional[int]):
         self.source_desc = source_desc
@@ -244,6 +246,7 @@ class CallbackContext:
 
 
 class WorkerContext:
+
     def __init__(self, source_descs: SourceDescription, dedicated_task_queue: Optional[ShmQueue],
                  shm_chunks: List[BufShmChunk]):
         self.source_descs = source_descs
@@ -300,6 +303,7 @@ class ProcPool:
     """Runs pool of worker processes, stores pipes and sockets used to communicate with
      the workers, starts thread keeping track of running processes and initializes communication.
     """
+
     def __init__(self, mp, workers_contexts: List[WorkerContext], result_queue: ShmQueue,
                  general_task_queue: Optional[ShmQueue], callback_pickler):
         start_method = mp.get_start_method()
@@ -496,6 +500,7 @@ class Observer:
         Queue where worker processes report completed tasks. It gets closed along with the worker
         processes, to prevent the main process blocking on waiting for results from the workers.
     """
+
     def __init__(self, mp, processes, task_queues, result_queue):
         self._interruption_pipe, self.interrupt_pipe = mp.Pipe(duplex=False)
         self._processes = processes
@@ -564,6 +569,7 @@ def create_shm_chunk_manager_for_group(group, shm_pool, keep_alive_queue_size,
 class WorkerPool:
     """"Combines worker processes pool with callback contexts, can be used to schedule batches
     to be run on the workers and to receive resulting batches from the workers."""
+
     def __init__(self, contexts: List[CallbackContext], pool: ProcPool):
         """
         Parameters
@@ -661,6 +667,7 @@ class WorkerPool:
 
     @classmethod
     def assign_dedicated_workers(cls, groups, num_workers):
+
         def get_next_dedicated_worker():
             next_dedicated_worker = num_workers - 1
             while True:

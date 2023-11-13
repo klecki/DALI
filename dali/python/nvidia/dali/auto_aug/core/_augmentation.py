@@ -37,6 +37,7 @@ class _UndefinedParam:
 
 
 class _SignedMagnitudeBin:
+
     def __init__(self, magnitude_bin: Union[int, _DataNode], random_sign: _DataNode,
                  signed_magnitude_idx: _DataNode):
         self._magnitude_bin = magnitude_bin
@@ -77,6 +78,7 @@ class _SignedMagnitudeBin:
 
     @staticmethod
     def _remap_to_signed_magnitudes(magnitudes):
+
         def remap_bin_idx(bin_idx):
             magnitude = magnitudes[bin_idx // 2]
             if bin_idx % 2:
@@ -125,6 +127,7 @@ class Augmentation:
     automatic augmentations. You should not need to instantiate this class directly,
     use `@augmentation` decorator instead.
     """
+
     def __init__(
         self,
         op: Callable[..., _DataNode],
