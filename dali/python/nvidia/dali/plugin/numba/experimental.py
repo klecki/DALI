@@ -220,12 +220,22 @@ class NumbaFunction(metaclass=ops._DaliOperatorMeta):
         return handle.value
 
     def _get_run_fn_cpu(self, run_fn, out_types, in_types, outs_ndim, ins_ndim, batch_processing):
-        out0_lambda, out1_lambda, out2_lambda, out3_lambda, out4_lambda, out5_lambda = self._get_carrays_eval_lambda(
-            out_types, outs_ndim
-        )
-        in0_lambda, in1_lambda, in2_lambda, in3_lambda, in4_lambda, in5_lambda = self._get_carrays_eval_lambda(
-            in_types, ins_ndim
-        )
+        (
+            out0_lambda,
+            out1_lambda,
+            out2_lambda,
+            out3_lambda,
+            out4_lambda,
+            out5_lambda,
+        ) = self._get_carrays_eval_lambda(out_types, outs_ndim)
+        (
+            in0_lambda,
+            in1_lambda,
+            in2_lambda,
+            in3_lambda,
+            in4_lambda,
+            in5_lambda,
+        ) = self._get_carrays_eval_lambda(in_types, ins_ndim)
         run_fn = njit(run_fn)
         run_fn_lambda = self._get_run_fn_lambda(len(out_types), len(in_types))
         if batch_processing:

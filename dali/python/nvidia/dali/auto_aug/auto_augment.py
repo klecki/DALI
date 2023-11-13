@@ -526,7 +526,7 @@ def _sub_policy_to_magnitude_bin_map(policy: Policy) -> _DataNode:
 
 
 def _sub_policy_to_augmentation_matrix_map(
-    policy: Policy
+    policy: Policy,
 ) -> Tuple[np.ndarray, List[List[_Augmentation]]]:
     """
     Creates a matrix of operators to be called for given sub policy at given stage.

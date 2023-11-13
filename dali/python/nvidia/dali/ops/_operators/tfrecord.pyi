@@ -20,7 +20,6 @@ from nvidia.dali.types import DALIDataType, DALIImageType, DALIInterpType
 
 from nvidia.dali.tfrecord import Feature as Feature
 
-
 class TFRecordReader:
     """
     .. warning::
@@ -59,9 +58,7 @@ class TFRecordReader:
         use_o_direct: Optional[bool] = False,
         device: Optional[str] = None,
         name: Optional[str] = None,
-    ) -> None:
-        ...
-
+    ) -> None: ...
     def __call__(
         self,
         /,
@@ -94,7 +91,6 @@ class TFRecordReader:
 
         """
         ...
-
 
 class TFRecord:
     """Reads samples from a TensorFlow TFRecord file.
@@ -125,9 +121,7 @@ class TFRecord:
         use_o_direct: Optional[bool] = False,
         device: Optional[str] = None,
         name: Optional[str] = None,
-    ) -> None:
-        ...
-
+    ) -> None: ...
     def __call__(
         self,
         /,
@@ -160,7 +154,6 @@ class TFRecord:
 
         """
         ...
-
 
 def tfrecord_reader(
     *,
@@ -198,7 +191,6 @@ def tfrecord_reader(
     Legacy alias for :meth:`readers.tfrecord`.
     """
     ...
-
 
 def tfrecord(
     *,
