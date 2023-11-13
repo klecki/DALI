@@ -488,9 +488,10 @@ def _sub_policy_to_augmentation_matrix_map(
                     stage_augments_list.append(aug)
         augmentations.append(stage_augments_list + [a.identity])
     identity_id = [len(stage_augments) - 1 for stage_augments in augmentations]
-    augment_to_id = [{augmentation: i
-                      for i, augmentation in enumerate(stage_augments)}
-                     for stage_augments in augmentations]
+    augment_to_id = [{
+        augmentation: i
+        for i, augmentation in enumerate(stage_augments)
+    } for stage_augments in augmentations]
     augments_by_id = np.array([[identity_id[stage_idx] for stage_idx in range(max_policy_len)]
                                for _ in range(len(sub_policies))], dtype=np.int32)
     for sub_policy_id, sub_policy in enumerate(sub_policies):

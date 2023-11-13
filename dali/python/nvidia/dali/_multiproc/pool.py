@@ -587,7 +587,8 @@ class WorkerPool:
         # Thanks to that callback context can be identified by the id of shm chunk.
         self.shm_chunks_contexts = {
             chunk_id: context
-            for context in self.contexts for chunk_id in context.shm_manager.chunks_ids
+            for context in self.contexts
+            for chunk_id in context.shm_manager.chunks_ids
         }
 
     @classmethod

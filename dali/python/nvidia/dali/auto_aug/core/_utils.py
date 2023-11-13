@@ -72,9 +72,8 @@ def pretty_select(augmentations: List[Augmentation], aug_ids: _DataNode, op_kwar
     try:
         return select(augmentations, aug_ids, **op_kwargs)
     except MissingArgException as e:
-        if e.missing_args != ['shape'] or e.augmentation.op not in [
-                a.translate_x.op, a.translate_y.op
-        ]:
+        if e.missing_args != ['shape'
+                              ] or e.augmentation.op not in [a.translate_x.op, a.translate_y.op]:
             raise
         else:
             raise Exception(
