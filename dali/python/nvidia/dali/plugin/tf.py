@@ -854,7 +854,6 @@ if dataset_compatible_tensorflow():
             dataset_impl = _DALIDatasetImpl(pipeline, **kwargs)
             super(DALIDataset, self).__init__(dataset_impl, dataset_options())
 
-
 else:
 
     class DALIDataset:
