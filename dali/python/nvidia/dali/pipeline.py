@@ -1598,35 +1598,35 @@ def _generate_graph(pipe, func, fn_args, fn_kwargs):
 # Tuple[DataNode, ...] is considered a variable length tuple of uniform DataNode contents
 # Bare decorator usage
 @overload
-def pipeline_def(__func: Callable[..., Union[DataNode, Tuple[DataNode, ...]]]
-                 ) -> Callable[..., Pipeline]:
+def pipeline_def(
+        __func: Callable[..., Union[DataNode, Tuple[DataNode, ...]]]) -> Callable[..., Pipeline]:
     ...
 
 
 # Decorator with arguments
 @overload
 def pipeline_def(
-        *,
-        enable_conditionals: bool = False,
-        batch_size: int = -1,
-        num_threads: int = -1,
-        device_id: int = -1,
-        seed: int = -1,
-        exec_pipelined: bool = True,
-        prefetch_queue_depth: Union[int, Tuple[int, int]] = 2,
-        exec_async: bool = True,
-        bytes_per_sample: int = 0,
-        set_affinity: bool = False,
-        max_streams: int = -1,
-        default_cuda_stream_priority: int = 0,
-        enable_memory_stats: bool = False,
-        enable_checkpointing: bool = False,
-        checkpoint: Optional[Any] = None,
-        py_num_workers: int = 1,
-        py_start_method: str = "fork",
-        py_callback_pickler: Optional[Any] = None,
-        output_dtype: Union[types.DALIDataType, Tuple[types.DALIDataType, ...], None] = None,
-        output_ndim: Union[int, Tuple[int, ...], None] = None,
+    *,
+    enable_conditionals: bool = False,
+    batch_size: int = -1,
+    num_threads: int = -1,
+    device_id: int = -1,
+    seed: int = -1,
+    exec_pipelined: bool = True,
+    prefetch_queue_depth: Union[int, Tuple[int, int]] = 2,
+    exec_async: bool = True,
+    bytes_per_sample: int = 0,
+    set_affinity: bool = False,
+    max_streams: int = -1,
+    default_cuda_stream_priority: int = 0,
+    enable_memory_stats: bool = False,
+    enable_checkpointing: bool = False,
+    checkpoint: Optional[Any] = None,
+    py_num_workers: int = 1,
+    py_start_method: str = "fork",
+    py_callback_pickler: Optional[Any] = None,
+    output_dtype: Union[types.DALIDataType, Tuple[types.DALIDataType, ...], None] = None,
+    output_ndim: Union[int, Tuple[int, ...], None] = None,
 ) -> Callable[[Callable[..., Union[DataNode, Tuple[DataNode, ...]]]], Callable[..., Pipeline]]:
     ...
 

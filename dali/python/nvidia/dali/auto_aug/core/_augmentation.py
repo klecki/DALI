@@ -126,13 +126,13 @@ class Augmentation:
     use `@augmentation` decorator instead.
     """
     def __init__(
-            self,
-            op: Callable[..., _DataNode],
-            mag_range: Optional[Union[Tuple[float, float], np.ndarray]] = None,
-            randomly_negate: Optional[bool] = None,
-            mag_to_param: Optional[Callable[[float], npt.ArrayLike]] = None,
-            param_device: Optional[str] = None,
-            name: Optional[str] = None,
+        self,
+        op: Callable[..., _DataNode],
+        mag_range: Optional[Union[Tuple[float, float], np.ndarray]] = None,
+        randomly_negate: Optional[bool] = None,
+        mag_to_param: Optional[Callable[[float], npt.ArrayLike]] = None,
+        param_device: Optional[str] = None,
+        name: Optional[str] = None,
     ):
         self._op = op
         self._mag_range = mag_range

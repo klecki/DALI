@@ -240,10 +240,9 @@ def get_rand_augment_suite(use_shape: bool = False, max_translate_abs: Optional[
     ]
 
 
-def get_rand_augment_non_monotonic_suite(use_shape: bool = False,
-                                         max_translate_abs: Optional[int] = None,
-                                         max_translate_rel: Optional[float] = None
-                                         ) -> List[_Augmentation]:
+def get_rand_augment_non_monotonic_suite(
+        use_shape: bool = False, max_translate_abs: Optional[int] = None,
+        max_translate_rel: Optional[float] = None) -> List[_Augmentation]:
     """
     Similarly to :meth:`~nvidia.dali.auto_aug.rand_augment.get_rand_augment_suite` creates a list
     of RandAugment augmentations.

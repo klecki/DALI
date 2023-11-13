@@ -129,8 +129,8 @@ def sample_to_numpy(sample, error_str="Unsupported callback return type. Got: `{
 
 
 def batch_to_numpy(
-        batch, error_str="Unsupported callback return type. Got: `{}`.",
-        non_uniform_str="Uniform input is required (batch of tensors of equal shapes), got {}."):
+    batch, error_str="Unsupported callback return type. Got: `{}`.",
+    non_uniform_str="Uniform input is required (batch of tensors of equal shapes), got {}."):
     import_numpy()
     assert_cpu_batch_data_type(batch, error_str)
     if isinstance(batch, tensors.TensorListCPU):
