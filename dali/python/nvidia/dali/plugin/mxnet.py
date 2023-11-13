@@ -28,6 +28,7 @@ from collections.abc import Iterable
 ##################################################
 ##################################################
 
+
 # MXNet currently does not expose WaitToWrite C API call
 # in Python API
 def _wait_to_write(arr):
@@ -269,7 +270,6 @@ class DALIGenericIterator(_DALIMXNetIteratorBase):
         last_batch_policy=LastBatchPolicy.FILL,
         prepare_first_batch=True,
     ):
-
         # check the assert first as _DaliBaseIterator would run the prefetch
         self._output_names_map = [x[0] for x in output_map]
         self._output_categories_map = [x[1] for x in output_map]
@@ -738,7 +738,6 @@ class DALIGluonIterator(_DALIMXNetIteratorBase):
         last_batch_policy=LastBatchPolicy.FILL,
         prepare_first_batch=True,
     ):
-
         # check the assert first as _DaliBaseIterator would run the prefetch
         self._output_tags = {DALIGluonIterator.DENSE_TAG, DALIGluonIterator.SPARSE_TAG}
         assert (

@@ -178,7 +178,6 @@ class DALIGenericIterator(_DaliBaseIterator):
         last_batch_policy=LastBatchPolicy.FILL,
         prepare_first_batch=True,
     ):
-
         # check the assert first as _DaliBaseIterator would run the prefetch
         assert len(set(output_map)) == len(output_map), "output_map names should be distinct"
         self._output_categories = set(output_map)
@@ -550,7 +549,6 @@ class DALIRaggedIterator(_DaliBaseIterator):
         last_batch_policy=LastBatchPolicy.FILL,
         prepare_first_batch=True,
     ):
-
         # check the assert first as _DaliBaseIterator would run the prefetch
         self._output_tags = {
             DALIRaggedIterator.DENSE_TAG,

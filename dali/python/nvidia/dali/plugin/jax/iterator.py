@@ -114,7 +114,6 @@ class DALIGenericIterator(_DaliBaseIterator):
         prepare_first_batch=True,
         sharding=None,
     ):
-
         # check the assert first as _DaliBaseIterator would run the prefetch
         if len(set(output_map)) != len(output_map):
             raise AssertionError("output_map names should be distinct")

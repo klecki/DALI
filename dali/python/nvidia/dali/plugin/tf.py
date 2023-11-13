@@ -443,7 +443,6 @@ if dataset_compatible_tensorflow():
             dtypes=None,
             shapes=None,
         ):
-
             output_shapes = self._handle_deprecation(output_shapes, shapes, "shapes")
             output_dtypes = self._handle_deprecation(output_dtypes, dtypes, "dtypes")
 
@@ -581,7 +580,6 @@ if dataset_compatible_tensorflow():
             return in_datasets_list, in_names_list, in_layouts_list, in_batched_list
 
         def _input_lists_from_source(self, callbacked_es_map):
-
             # TODO(klecki): Warn about this in the doc.
             # We do it only when the users wants to use ExternalSource with `source` specified,
             # as it has some additional limitations.
@@ -831,7 +829,6 @@ if dataset_compatible_tensorflow():
     class DALIDataset(dataset_ops._OptionsDataset):
         @functools.wraps(_DALIDatasetV2.__init__)
         def __init__(self, pipeline, **kwargs):
-
             # TODO(klecki): Remove this when we move support for inputs from experimental.
             for disallowed_kwarg in _experimental_kwargs:
                 if disallowed_kwarg in kwargs.keys():

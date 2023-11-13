@@ -485,11 +485,10 @@ def gen_all_signatures(nvidia_dali_path, api):
     nvidia_dali_path = Path(nvidia_dali_path)
 
     with closing(StubFileManager(nvidia_dali_path, api)) as stub_manager:
-
         sig_groups = _group_signatures(api)
 
         # Python-only and the manually defined ones are reexported from their respective modules
-        for (schema_name, op) in sig_groups["python_only"] + sig_groups["python_wrapper"]:
+        for schema_name, op in sig_groups["python_only"] + sig_groups["python_wrapper"]:
             _, module_nesting, op_name = _names._process_op_name(schema_name, api=api)
 
             stub_manager.get(module_nesting).write(
@@ -500,7 +499,7 @@ def gen_all_signatures(nvidia_dali_path, api):
         # directly visible
 
         # Runtime generated classes use fully specified stubs.
-        for (schema_name, op) in sig_groups["generated"]:
+        for schema_name, op in sig_groups["generated"]:
             _, module_nesting, op_name = _names._process_op_name(schema_name, api=api)
             schema = _b.TryGetSchema(schema_name)
 

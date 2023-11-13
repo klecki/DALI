@@ -19,7 +19,6 @@ from nvidia.dali.data_node import DataNode
 from nvidia.dali.types import DALIDataType, DALIImageType, DALIInterpType
 
 class ExternalSource:
-
     # The `source` parameter represents the Union of types accepted by the `fn.external_source`,
     # check the comment there for the explanation.
     def __init__(

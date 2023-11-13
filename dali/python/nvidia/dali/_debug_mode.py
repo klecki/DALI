@@ -887,7 +887,7 @@ class _PipelineDebug(_pipeline.Pipeline):
             )
 
             # feed_input all data collected after build and before run
-            for (data, fi_kwargs) in self._feed_input_data.pop(name, []):
+            for data, fi_kwargs in self._feed_input_data.pop(name, []):
                 es._feed_input(data, fi_kwargs)
 
             self._external_sources[key] = es

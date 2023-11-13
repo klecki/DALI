@@ -232,7 +232,6 @@ class DALIGenericIterator(_DaliBaseIterator):
         last_batch_policy=LastBatchPolicy.FILL,
         prepare_first_batch=True,
     ):
-
         normalized_map = {}
         for v in output_map:
             if isinstance(v, str):
