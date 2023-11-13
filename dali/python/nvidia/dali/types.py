@@ -167,7 +167,6 @@ class PipelineAPIType(Enum):
 
 class CUDAStream:
     """Wrapper class for a CUDA stream."""
-
     def __init__(self, ptr=0):
         self._ptr = ptr
 
@@ -214,7 +213,6 @@ value: bool or int or float
 dtype: DALIDataType, optional
     Target type of the constant to be used in types promotions.
     """
-
     def __init__(self, value, dtype=None):
         self.shape = []
         value_dtype = getattr(value, "dtype", None)  # handle 0D tensors and numpy scalars
@@ -583,7 +581,6 @@ class SampleInfo:
     :ivar iteration:    number of current batch within epoch
     :ivar epoch_idx:    number of current epoch
     """
-
     def __init__(self, idx_in_epoch, idx_in_batch, iteration, epoch_idx):
         self.idx_in_epoch = idx_in_epoch
         self.idx_in_batch = idx_in_batch
@@ -598,7 +595,6 @@ class BatchInfo:
     :ivar iteration:    number of current batch within epoch
     :ivar epoch_idx:    number of current epoch
     """
-
     def __init__(self, iteration, epoch_idx):
         self.iteration = iteration
         self.epoch_idx = epoch_idx

@@ -124,7 +124,6 @@ def _separate_kwargs(kwargs, arg_input_type=_DataNode):
         arg_input_type: operator's argument input type, DataNode for pipeline mode, TensorListCPU
             for eager mode.
     """
-
     def is_arg_input_type(x):
         return isinstance(x, arg_input_type)
 
@@ -339,7 +338,6 @@ class _OperatorInstance(object):
     * some validation is done in class Operator.__init__ due to legacy reasons.
     This is the reason for `_processed_arguments` constructor parameter.
     """
-
     def __init__(self, inputs, arg_inputs, arguments, _processed_arguments, op):
         """Construct the OperatorInstance and handle the processing of all inputs and arguments.
 

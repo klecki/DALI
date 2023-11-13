@@ -134,7 +134,6 @@ class _DaliBaseIterator(object):
     last_batch_policy = LastBatchPolicy.DROP, last_batch_padded = False  -> last batch = ``[5, 6]``,
     next iteration will return ``[2, 3]``
     """
-
     def __init__(self, pipelines, size=-1, reader_name=None, auto_reset=False, fill_last_batch=None,
                  last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True):

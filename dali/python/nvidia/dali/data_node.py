@@ -60,7 +60,6 @@ class DataNode(object):
     arguments) but they also provide arithmetic operations which implicitly create appropriate
     operators that perform the expressions.
     """
-
     def __init__(self, name, device="cpu", source=None):
         self.name = name
         self.device = device

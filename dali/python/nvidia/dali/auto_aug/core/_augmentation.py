@@ -125,7 +125,6 @@ class Augmentation:
     automatic augmentations. You should not need to instantiate this class directly,
     use `@augmentation` decorator instead.
     """
-
     def __init__(
             self,
             op: Callable[..., _DataNode],

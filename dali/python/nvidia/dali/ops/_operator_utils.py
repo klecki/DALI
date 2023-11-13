@@ -73,7 +73,6 @@ def _build_input_sets(inputs, op_name):
     op_name : str
         Name of the invoked operator, for error reporting purposes.
     """
-
     def _detect_multiple_input_sets(inputs):
         """Check if any of inputs is a list, indicating a usage of MIS."""
         return any(isinstance(input, list) for input in inputs)

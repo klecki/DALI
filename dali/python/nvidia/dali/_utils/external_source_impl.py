@@ -42,7 +42,6 @@ class SourceKind(Enum):
 class SourceDescription:
     """Keep the metadata about the source parameter that was originally passed
     """
-
     def __init__(self, source, kind: SourceKind, has_inputs: bool, cycle: str, batch_info=False):
         self.source = source
         self.kind = kind

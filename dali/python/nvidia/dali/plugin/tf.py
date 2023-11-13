@@ -339,7 +339,6 @@ def _get_external_source_param(input_name, input_value, name_es_map, param_name)
     param_name : str
         name of the parameter we want to access
     """
-
     def get_param_from_pipe(input_name, name_es_map, param_name):
         es_op = name_es_map[input_name]
         # Check the OpInstance and the `_op`

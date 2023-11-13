@@ -53,7 +53,6 @@ class arithmetic(metaclass=_MetaArithmetic):
         >>> tl = dali.tensors.TensorListCPU(...)
         >>> out = tl ** 2
     """
-
     def __init__(self, enabled=True):
         self.prev = arithmetic._enabled
         arithmetic._enabled = enabled
@@ -85,7 +84,6 @@ class rng_state(_create_module_class()):
         >>> # And now we will create a new operator with new seed.
         >>> out3 = eager_state.random.normal(shape=[10, 10], batch_size=8)
     """
-
     def __init__(self, seed=None):
         import numpy as np
 

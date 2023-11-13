@@ -31,7 +31,6 @@ def tfrecord_enabled():
 
 class _TFRecordReaderImpl():
     """ custom wrappers around ops """
-
     def __init__(self, path, index_path, features, **kwargs):
         if isinstance(path, list):
             self._path = path

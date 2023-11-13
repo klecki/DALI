@@ -65,7 +65,6 @@ class WorkerArgs:
         shared memory chunk to child process. None if `start_method='fork'`
     `callback_pickler`
         Optional custom pickler that was applied to serialize callbacks in `source_descs`"""
-
     def __init__(self, *, worker_id, start_method, source_descs, shm_chunks, general_task_queue,
                  dedicated_task_queue, result_queue, setup_socket, callback_pickler):
         self.worker_id = worker_id
@@ -87,7 +86,6 @@ class SampleRange:
     It does not support spanning over multiple batches. Used to avoid linear dependency of the task
     description size on the batch size.
     """
-
     def __init__(self, sample_start, sample_end, iteration, epoch_idx, *, slice_start=0,
                  slice_end=None):
         self.sample_start = sample_start  # idx in epoch of first sample in batch
@@ -177,7 +175,6 @@ class ScheduledTask:
         the source in non-parallel mode. In sample mode, it is (part of) the list
         of nvidia.dali.types.SampleInfo produced by the external source.
     """
-
     def __init__(self, context_i, scheduled_i, epoch_start, task: TaskArgs):
         self.context_i = context_i
         self.scheduled_i = scheduled_i
@@ -205,7 +202,6 @@ class CompletedTask:
     `exception`
         Exception if the task failed.
     """
-
     def __init__(self, worker_id, context_i, scheduled_i, minibatch_i, batch_meta=None,
                  exception=None, traceback_str=None):
         self.worker_id = worker_id

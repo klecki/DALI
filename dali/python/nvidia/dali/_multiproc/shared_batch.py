@@ -52,7 +52,6 @@ class BufShmChunk:
     """Simple wrapper around shared memory chunks. Adds mem_chunk_id used
     to identify chunks in the communication between parent and worker process.
     """
-
     def __init__(self, shm_chunk_id, capacity, shm_chunk: shared_mem.SharedMem):
         self.shm_chunk_id = shm_chunk_id
         self.capacity = capacity
@@ -106,7 +105,6 @@ class SampleMeta:
     """Metadata describing serialized sample in a memory buffer.
 
     It is passed through memory, stored after sample it describes."""
-
     def __init__(self, offset, shape, dtype, nbytes):
         self.shape = shape
         self.dtype = dtype
@@ -121,7 +119,6 @@ class SampleMeta:
 class SharedBatchMeta:
     """Describes offset within shared memory chunk and size of serialized list of
        `SampleMeta` instances"""
-
     def __init__(self, meta_offset, meta_size):
         self.meta_offset = meta_offset
         self.meta_size = meta_size

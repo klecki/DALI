@@ -101,7 +101,6 @@ class DALIGenericIterator(_DaliBaseIterator):
     Note:
         JAX iterator does not support LastBatchPolicy.PARTIAL.
     """
-
     def __init__(self, pipelines, output_map, size=-1, reader_name=None, auto_reset=False,
                  last_batch_padded=False, last_batch_policy=LastBatchPolicy.FILL,
                  prepare_first_batch=True, sharding=None):
@@ -239,7 +238,6 @@ def data_iterator_impl(iterator_type, pipeline_fn=None, output_map=[], size=-1, 
     """ Implementation of the data_iterator decorator. It is extracted to a separate function
     to be reused by the peekable iterator decorator.
     """
-
     def data_iterator_decorator(func):
         def create_iterator(*args, **wrapper_kwargs):
             pipeline_def_fn = pipeline_def(func)

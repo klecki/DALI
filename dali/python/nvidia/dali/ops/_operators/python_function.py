@@ -171,12 +171,13 @@ class PythonFunction(PythonFunctionBase):
             return PythonFunction._cupy_stream_wrapper(function, *inputs)
 
         if batch_processing:
-            return PythonFunction.function_wrapper_batch(wrapped_func, num_outputs,
-                                                         cupy.fromDlpack, lambda t: t.toDlpack(),
-                                                         *dlpack_inputs)
+            return PythonFunction.function_wrapper_batch(wrapped_func, num_outputs, cupy.fromDlpack,
+                                                         lambda t: t.toDlpack(), *dlpack_inputs)
         else:
-            return PythonFunction.function_wrapper_per_sample(
-                wrapped_func, num_outputs, cupy.fromDlpack, lambda t: t.toDlpack(), *dlpack_inputs)
+            return PythonFunction.function_wrapper_per_sample(wrapped_func, num_outputs,
+                                                              cupy.fromDlpack,
+                                                              lambda t: t.toDlpack(),
+                                                              *dlpack_inputs)
 
     def __init__(self, function, num_outputs=1, device='cpu', batch_processing=False, **kwargs):
         if device == 'gpu':
@@ -207,13 +208,11 @@ class DLTensorPythonFunction(PythonFunctionBase):
     @staticmethod
     def _function_wrapper_dlpack(batch_processing, function, num_outputs, *dlpack_inputs):
         if batch_processing:
-            return PythonFunction.function_wrapper_batch(function,
-                                                         num_outputs, lambda x: x, lambda x: x,
-                                                         *dlpack_inputs)
+            return PythonFunction.function_wrapper_batch(function, num_outputs, lambda x: x,
+                                                         lambda x: x, *dlpack_inputs)
         else:
-            return PythonFunction.function_wrapper_per_sample(function,
-                                                              num_outputs, lambda x: x, lambda x: x,
-                                                              *dlpack_inputs)
+            return PythonFunction.function_wrapper_per_sample(function, num_outputs, lambda x: x,
+                                                              lambda x: x, *dlpack_inputs)
 
     def __init__(self, function, num_outputs=1, device='cpu', synchronize_stream=True,
                  batch_processing=True, **kwargs):

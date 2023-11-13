@@ -214,7 +214,6 @@ Parameters
     If the ``output_ndim`` value is a single value (not a list), it will be broadcast to the
     number of outputs from the pipeline.
 """
-
     def __init__(self, batch_size=-1, num_threads=-1, device_id=-1, seed=-1, exec_pipelined=True,
                  prefetch_queue_depth=2, exec_async=True, bytes_per_sample=0, set_affinity=False,
                  max_streams=-1, default_cuda_stream_priority=0, *, enable_memory_stats=False,
@@ -1715,7 +1714,6 @@ def pipeline_def(fn: Optional[Callable[..., Any]] = None, *, enable_conditionals
         Enable support for conditional execution of DALI operators using ``if`` statements
         in the pipeline definition, by default False.
     """
-
     def actual_decorator(func):
         @functools.wraps(func)
         def create_pipeline(*args, **kwargs):
@@ -1742,7 +1740,6 @@ def _collect_ops(output_nodes):
     Returns the list of operators topologically sorted, so that operators that contribute
     as inputs to another operator go first.
     """
-
     def get_source_op(edge: DataNode):
         source_op = edge.source
         if source_op is None:
