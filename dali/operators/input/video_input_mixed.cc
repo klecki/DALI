@@ -23,8 +23,7 @@ void VideoInput<MixedBackend, dali::FramesDecoderGpu>::CreateDecoder(const Works
   auto sample = encoded_video_[0];
   auto data = reinterpret_cast<const char *>(sample.data<uint8_t>());
   size_t size = sample.shape().num_elements();
-  this->frames_decoders_[0] = std::make_unique<dali::FramesDecoderGpu>(data, size, ws.stream(),
-                                                                       false);
+  this->frames_decoders_[0] = std::make_unique<dali::FramesDecoderGpu>(data, size, ws.stream(), false);
 }
 
 
