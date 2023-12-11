@@ -39,6 +39,9 @@ pipeline_tls = tls()
 DataNode.__module__ = __name__  # move to pipeline
 
 
+import os
+
+
 def _show_deprecation_warning(deprecated, in_favor_of):
     # show only this warning
     with warnings.catch_warnings():
