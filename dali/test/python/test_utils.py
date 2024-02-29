@@ -15,6 +15,7 @@
 import nvidia.dali as dali
 import nvidia.dali.types as types
 from nvidia.dali.backend_impl import TensorListGPU, TensorGPU, TensorListCPU
+from nvidia.dali import plugin_manager
 
 import functools
 import inspect
@@ -187,42 +188,6 @@ def get_absdiff(left, right):
     return _get_absdiff(left, right)
 
 
-def dump_as_core_artifacts(image_info, lhs, rhs, iter=None, sample_idx=None):
-    import_numpy()
-    import_pil()
-
-    from pathlib import Path
-
-    path = (
-        "/opt/dali"
-        if os.path.exists("/opt/dali") and os.access("/opt/dali", os.W_OK)
-        else os.getcwd()
-    )
-    Path(f"{path}/core_artifacts").mkdir(parents=True, exist_ok=True)
-
-    image_info = image_info.replace("/", "_")
-    image_info = image_info.replace(" ", "_")
-    if iter is not None:
-        image_info = image_info + f"_iter{iter}"
-    if sample_idx is not None:
-        image_info = image_info + f"_sample_idx{sample_idx}"
-
-    try:
-        save_image(lhs, f"{path}/core_artifacts/{image_info}.lhs.png")
-        save_image(rhs, f"{path}/core_artifacts/{image_info}.rhs.png")
-    except Exception as e:
-        print(f"Tried to save images but got an error: {e}")
-
-    try:
-        # save arrays on artifact folder
-        import numpy as np
-
-        np.save(f"{path}/core_artifacts/{image_info}.lhs.npy", lhs)
-        np.save(f"{path}/core_artifacts/{image_info}.rhs.npy", rhs)
-    except Exception as e:
-        print(f"Tried to save arrays but got an error: {e}")
-
-
 # If the `max_allowed_error` is not None, it's checked instead of comparing mean error with `eps`.
 def check_batch(
     batch1,
@@ -328,8 +293,15 @@ def check_batch(
                     error_msg += f"\nLHS data source: {batch1[i].source_info()}"
                 if hasattr(batch2[i], "source_info"):
                     error_msg += f"\nRHS data source: {batch2[i].source_info()}"
-
-                dump_as_core_artifacts(batch1[i].source_info(), left, right, sample_idx=i)
+                try:
+                    save_image(left, "err_1.png")
+                    save_image(right, "err_2.png")
+                except:  # noqa:722
+                    print("Batch at {} can't be saved as an image".format(i))
+                    print("left: \n", left)
+                    print("right: \n", right)
+                np.save("err_1.npy", left)
+                np.save("err_2.npy", right)
                 assert False, error_msg
 
 
@@ -972,3 +944,13 @@ def create_sign_off_decorator():
             return set(_tested_ops)
 
     return SignOff()
+
+
+def load_test_operator_plugin():
+    """Load plugin containing the test operators from: `dali/test/operators`."""
+    test_bin_dir = os.path.dirname(dali.__file__) + "/test"
+    try:
+        plugin_manager.load_library(test_bin_dir + "/libtestoperatorplugin.so")
+    except RuntimeError:
+        # in conda "libtestoperatorplugin" lands inside lib/ dir
+        plugin_manager.load_library("libtestoperatorplugin.so")
